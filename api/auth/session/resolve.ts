@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getFirebaseAdmin } from '../../_lib/firebaseAdmin';
-import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver';
+import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
+import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Security Headers

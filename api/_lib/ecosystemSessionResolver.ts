@@ -1,4 +1,4 @@
-import { getFirebaseAdmin } from './firebaseAdmin';
+import { getFirebaseAdmin } from './firebaseAdmin.js';
 
 export type SessionResolution = {
   granted: boolean;

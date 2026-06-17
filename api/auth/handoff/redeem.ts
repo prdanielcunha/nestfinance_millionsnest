@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getFirebaseAdmin } from '../../_lib/firebaseAdmin';
+import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
 import { createHash } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
