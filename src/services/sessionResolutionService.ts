@@ -50,6 +50,9 @@ export async function resolveEcosystemSession(): Promise<EcosystemAccessState> {
         organizationId: data.organizationId,
         isGlobalAccess: data.isGlobalAccess,
         accessSource: data.accessSource,
+        organization: data.organization,
+        profile: data.profile,
+        financeSetup: data.financeSetup,
       };
     }
 

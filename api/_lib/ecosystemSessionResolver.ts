@@ -10,6 +10,19 @@ export type SessionResolution = {
     | 'organization_membership'
     | 'denied';
   denialReason?: string;
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string;
+    logoPath?: string;
+  };
+  profile?: {
+    displayName: string;
+    photoURL?: string;
+  };
+  financeSetup?: {
+    status: 'not_configured' | 'configured';
+  };
 };
 
 export function isUserOperational(userData?: Record<string, unknown>): boolean {
@@ -108,12 +121,28 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
   const isGlobalAccess = ['ceo', 'admin', 'global_admin'].includes(systemRole);
 
   if (isGlobalAccess) {
+    const fnRef = orgRef.collection('financeSettings').doc('config');
+    const fnDoc = await fnRef.get();
+
     return {
       granted: true,
       uid,
       organizationId,
       isGlobalAccess: true,
       accessSource: 'global_system_role',
+      organization: {
+        id: organizationId,
+        name: orgData?.name || 'Organização',
+        slug: orgData?.slug,
+        logoPath: orgData?.logoPath,
+      },
+      profile: {
+        displayName: userData?.displayName || 'Usuário',
+        photoURL: userData?.photoURL,
+      },
+      financeSetup: {
+        status: fnDoc.exists ? 'configured' : 'not_configured',
+      },
     };
   }
 

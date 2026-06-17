@@ -62,7 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'granted',
         organizationId: resolution.organizationId,
         isGlobalAccess: resolution.isGlobalAccess,
-        accessSource: resolution.accessSource
+        accessSource: resolution.accessSource,
+        organization: resolution.organization,
+        profile: resolution.profile,
+        financeSetup: resolution.financeSetup
       });
     } else {
       console.log(`[SESSION_RESOLVE] Event: denied, Org: ${mn_organization_id}, Reason: ${resolution.denialReason}, Duration: ${Date.now() - startTime}ms`);

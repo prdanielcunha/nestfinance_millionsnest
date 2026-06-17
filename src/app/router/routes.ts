@@ -2,6 +2,7 @@ export const APP_ROUTES = {
   root: '/',
   handoff: '/auth/handoff',
   finance: '/finance',
+  financeSetup: '/finance/setup',
   count: '/finance/count',
   balance: '/finance/balance',
   inbox: '/finance/inbox',

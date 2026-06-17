@@ -3,6 +3,7 @@ import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { APP_ROUTES } from '../router/routes';
 import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal } from 'lucide-react';
 import { config } from '@/src/config/env';
+import { useAuth } from '@/src/hooks/useAuth';
 
 const MAIN_NAV = [
   { to: APP_ROUTES.finance, icon: LayoutDashboard, label: 'Finance' },
@@ -16,7 +17,22 @@ const DESKTOP_ONLY_NAV = [
   { to: APP_ROUTES.audit, icon: ShieldCheck, label: 'Audit' },
 ];
 
+function getInitials(name: string) {
+  if (!name) return '?';
+  const parts = name.split(' ');
+  if (parts.length > 1) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
 export function ShellLayout() {
+  const { accessState } = useAuth();
+  
+  const orgName = accessState.organization?.name || 'Aguardando conexão';
+  const profileName = accessState.profile?.displayName || 'Perfil';
+  const profilePhoto = accessState.profile?.photoURL;
+  
   return (
     <EcosystemAccessBoundary>
       <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -27,9 +43,9 @@ export function ShellLayout() {
             <span className="font-semibold">{config.appName}</span>
           </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-1">
-            <div className="mb-4 px-2 py-3 bg-surface-secondary rounded-lg border border-border-subtle">
-              <p className="text-xs text-text-muted mb-1">Organização</p>
-              <p className="text-sm font-medium">Aguardando conexão</p>
+            <div className="mb-4 px-3 py-3 bg-surface-secondary rounded-lg border border-border-subtle overflow-hidden">
+              <p className="text-xs text-text-muted mb-1 uppercase tracking-wider font-semibold">Organização</p>
+              <p className="text-sm font-medium truncate" title={orgName}>{orgName}</p>
             </div>
             
             <nav className="space-y-1">
@@ -53,10 +69,16 @@ export function ShellLayout() {
           </div>
           
           <div className="p-4 border-t border-border-subtle">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-elevated" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Perfil</p>
+            <div className="flex items-center gap-3 overflow-hidden">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt={profileName} className="w-8 h-8 rounded-full bg-surface-elevated object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-surface-elevated flex items-center justify-center text-xs font-semibold flex-shrink-0 text-text-secondary">
+                  {getInitials(profileName)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" title={profileName}>{profileName}</p>
               </div>
             </div>
           </div>
@@ -65,8 +87,11 @@ export function ShellLayout() {
         {/* Content Area */}
         <main className="flex-1 md:pl-64 flex flex-col min-h-screen pb-16 md:pb-0">
           {/* Topbar Mobile */}
-          <header className="md:hidden h-14 flex items-center px-4 bg-surface-default border-b border-border-subtle sticky top-0 z-10">
+          <header className="md:hidden h-14 flex items-center justify-between px-4 bg-surface-default border-b border-border-subtle sticky top-0 z-10">
             <span className="font-semibold text-sm">{config.appName}</span>
+            <div className="text-xs text-text-secondary font-medium truncate max-w-[150px]">
+              {orgName}
+            </div>
           </header>
           
           <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">

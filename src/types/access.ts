@@ -12,4 +12,17 @@ export type EcosystemAccessState = {
   organizationId?: string;
   isGlobalAccess?: boolean;
   accessSource?: 'global_system_role' | 'organization_membership';
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string;
+    logoPath?: string;
+  };
+  profile?: {
+    displayName: string;
+    photoURL?: string;
+  };
+  financeSetup?: {
+    status: 'not_configured' | 'configured';
+  };
 };
