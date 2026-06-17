@@ -12,6 +12,38 @@ export type SessionResolution = {
   denialReason?: string;
 };
 
+export function isUserOperational(userData?: Record<string, unknown>): boolean {
+  if (!userData) return false;
+
+  // We should not use subscription, plan, or billing fields as identity status.
+  // Look only at canonical status or accountStatus
+  const statusVal = userData.status !== undefined ? userData.status : userData.accountStatus;
+  
+  if (statusVal !== undefined && statusVal !== null) {
+    const statusStr = String(statusVal).toLowerCase();
+    if (['disabled', 'inactive', 'suspended', 'pending_deletion'].includes(statusStr)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function isOrganizationOperational(orgData?: Record<string, unknown>): boolean {
+  if (!orgData) return false;
+
+  const statusVal = orgData.status;
+
+  if (statusVal !== undefined && statusVal !== null) {
+    const statusStr = String(statusVal).toLowerCase();
+    if (['suspended', 'archived', 'disabled'].includes(statusStr)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export async function resolveEcosystemSession(uid: string, organizationId: string): Promise<SessionResolution> {
   const { firestore } = getFirebaseAdmin();
 
@@ -38,7 +70,7 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
   }
 
   const userData = userDoc.data();
-  if (userData?.status !== 'active') {
+  if (!isUserOperational(userData)) {
     return {
       granted: false,
       uid,
@@ -61,7 +93,7 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
   }
 
   const orgData = orgDoc.data();
-  if (orgData?.status !== 'active') {
+  if (!isOrganizationOperational(orgData)) {
     return {
       granted: false,
       uid,
