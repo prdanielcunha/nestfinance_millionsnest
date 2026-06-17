@@ -1,1 +1,96 @@
 @import "tailwindcss";
+
+@theme {
+  --color-background-base: var(--nf-background-base);
+  --color-background-deep: var(--nf-background-deep);
+  --color-surface-default: var(--nf-surface-default);
+  --color-surface-secondary: var(--nf-surface-secondary);
+  --color-surface-elevated: var(--nf-surface-elevated);
+
+  --color-text-primary: var(--nf-text-primary);
+  --color-text-secondary: var(--nf-text-secondary);
+  --color-text-muted: var(--nf-text-muted);
+
+  --color-accent-primary: var(--nf-accent-primary);
+  --color-semantic-success: var(--nf-semantic-success);
+  --color-semantic-warning: var(--nf-semantic-warning);
+  --color-semantic-danger: var(--nf-semantic-danger);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", sans-serif;
+}
+
+:root {
+  --nf-background-base: #070A0F;
+  --nf-background-deep: #07101D;
+  --nf-surface-default: #0F1724;
+  --nf-surface-secondary: #111E2F;
+  --nf-surface-elevated: #17263A;
+  --nf-glass-surface: rgba(17, 30, 47, 0.72);
+  --nf-border-subtle: rgba(255, 255, 255, 0.08);
+  --nf-border-strong: rgba(255, 255, 255, 0.14);
+
+  --nf-text-primary: #F7FAFC;
+  --nf-text-secondary: #AEB9C7;
+  --nf-text-muted: #6B7B8F;
+
+  --nf-accent-primary: #19D3B0;
+  --nf-semantic-success: #32D583;
+  --nf-semantic-warning: #F5B942;
+  --nf-semantic-danger: #FF667A;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--nf-background-base);
+  color: var(--nf-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: rgba(25, 211, 176, 0.3);
+  color: var(--nf-text-primary);
+}
+
+a, button {
+  touch-action: manipulation;
+}
+
+.press-fx {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.press-fx:active {
+  transform: scale(0.985);
+}
+
+.hover-fx {
+  transition: background-color 160ms cubic-bezier(0.4, 0, 0.2, 1), opacity 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-in {
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

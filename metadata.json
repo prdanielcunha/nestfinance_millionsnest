@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "NestFinance - MillionsNest",
+  "description": "Financial solution and ecosystem integration platform for MillionsNest",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
