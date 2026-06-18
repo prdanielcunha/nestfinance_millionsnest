@@ -5,6 +5,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import CategoryFormModal from '@/src/components/finance/CategoryFormModal';
 import CategoryActionMenu from '@/src/components/finance/CategoryActionMenu';
+import CategoryEditModal from '@/src/components/finance/CategoryEditModal';
 
 interface Category {
   id: string;
@@ -24,6 +25,8 @@ export default function FinanceCategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [statusFilter, setStatusFilter] = useState<StatusType>('active');
 
@@ -301,6 +304,10 @@ export default function FinanceCategoriesPage() {
                         
                         <CategoryActionMenu 
                           category={category} 
+                          onEdit={() => {
+                            setEditingCategory(category);
+                            setIsEditModalOpen(true);
+                          }}
                           onSuccess={() => handleActionSuccess(category.active ? 'Categoria arquivada.' : 'Categoria reativada.')}
                           onError={(msg) => setError(msg)}
                         />
@@ -321,6 +328,19 @@ export default function FinanceCategoriesPage() {
             setIsModalOpen(false);
             fetchCategories();
           }}
+        />
+      )}
+
+      {isEditModalOpen && editingCategory && (
+        <CategoryEditModal
+          isOpen={isEditModalOpen}
+          category={editingCategory}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingCategory(null);
+          }}
+          onSuccess={() => handleActionSuccess('Categoria atualizada.')}
+          onError={(msg) => setError(msg)}
         />
       )}
     </div>

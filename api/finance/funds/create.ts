@@ -2,7 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
+import { 
+  normalizeFinanceName, 
+  generateStableId, 
+  buildUniqueKeyLogicName, 
+  generateUniqueKeyId 
+} from '../../_lib/financeIdentity.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -98,61 +104,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const normalizedName = trimmedName
-      .replace(/\s+/g, ' ')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    if (normalizedName.length < 1) {
+    let normalizedName: string;
+    try {
+      normalizedName = normalizeFinanceName(trimmedName);
+    } catch {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const fundId = 'fund_' + createHash('sha256').update(normalizedName).digest('hex').substring(0, 16);
+    const logicalKey = buildUniqueKeyLogicName('fund', normalizedName);
+    const uniqueKeyId = generateUniqueKeyId(logicalKey);
 
-    const fundRef = firestore.collection('organizations').doc(organizationId).collection('financeFunds').doc(fundId);
-    const auditRef = firestore.collection('organizations').doc(organizationId).collection('financeAuditLogs').doc();
-
-    const fundData: any = {
-      organizationId,
-      name: trimmedName,
-      normalizedName,
-      restricted,
-      colorToken: colorToken || 'slate',
-      balancePolicy: 'non_negative',
-      active: true,
-      version: 1,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: uid,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: uid,
-    };
-
+    const orgRef = firestore.collection('organizations').doc(organizationId);
+    const fundsCol = orgRef.collection('financeFunds');
+    
+    const fundId = generateStableId('fund');
+    const fundRef = fundsCol.doc(fundId);
+    const uniqueKeyRef = orgRef.collection('financeUniqueKeys').doc(uniqueKeyId);
+    const auditRef = orgRef.collection('financeAuditLogs').doc();
     const requestId = randomBytes(16).toString('hex');
-    const auditData = {
-      organizationId,
-      actorUid: uid,
-      action: 'finance.fund.created',
-      entityType: 'financeFund',
-      entityId: fundId,
-      requestId,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-    };
-
-    const batch = firestore.batch();
-    batch.create(fundRef, fundData);
-    batch.set(auditRef, auditData);
 
     try {
-      await batch.commit();
+      await firestore.runTransaction(async (t) => {
+        const uniqueDoc = await t.get(uniqueKeyRef);
+        if (uniqueDoc.exists) {
+          throw new Error('FUND_ALREADY_EXISTS');
+        }
+
+        const legacySnap = await t.get(fundsCol.where('normalizedName', '==', normalizedName).limit(1));
+        if (!legacySnap.empty) {
+          throw new Error('FUND_ALREADY_EXISTS');
+        }
+
+        const fundData: any = {
+          organizationId,
+          name: trimmedName,
+          normalizedName,
+          restricted,
+          colorToken: colorToken || 'slate',
+          balancePolicy: 'non_negative',
+          active: true,
+          version: 1,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        const uniqueKeyData = {
+          organizationId,
+          entityType: 'financeFund',
+          entityId: fundId,
+          scope: 'fund',
+          normalizedName,
+          status: 'reserved',
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        const auditData = {
+          organizationId,
+          actorUid: uid,
+          action: 'finance.fund.created',
+          entityType: 'financeFund',
+          entityId: fundId,
+          requestId,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+        };
+
+        t.create(fundRef, fundData);
+        t.create(uniqueKeyRef, uniqueKeyData);
+        t.create(auditRef, auditData);
+      });
+
       return res.status(201).json({ id: fundId, success: true });
-    } catch (batchError: any) {
-      if (batchError.code === 6 || batchError.message.includes('ALREADY_EXISTS')) {
+    } catch (txError: any) {
+      if (txError.message === 'FUND_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'FUND_ALREADY_EXISTS' });
       }
-      throw batchError;
+      throw txError;
     }
 
   } catch (error: any) {
@@ -163,3 +197,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
+

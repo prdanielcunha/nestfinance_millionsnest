@@ -2,7 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
+import { 
+  normalizeFinanceName, 
+  generateStableId, 
+  buildUniqueKeyLogicName, 
+  generateUniqueKeyId 
+} from '../../_lib/financeIdentity.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -104,62 +110,90 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const normalizedName = trimmedName
-      .replace(/\s+/g, ' ')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    if (normalizedName.length < 1) {
+    let normalizedName: string;
+    try {
+      normalizedName = normalizeFinanceName(trimmedName);
+    } catch {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const accountId = 'acc_' + createHash('sha256').update(normalizedName).digest('hex').substring(0, 16);
-
-    const accountRef = firestore.collection('organizations').doc(organizationId).collection('financeAccounts').doc(accountId);
-    const auditRef = firestore.collection('organizations').doc(organizationId).collection('financeAuditLogs').doc();
+    const logicalKey = buildUniqueKeyLogicName('account', normalizedName);
+    const uniqueKeyId = generateUniqueKeyId(logicalKey);
     
-    const accountData: any = {
-      organizationId,
-      name: trimmedName,
-      normalizedName,
-      type,
-      currency: 'BRL',
-      active: true,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: uid,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: uid,
-    };
-
-    if (institutionName !== undefined) accountData.institutionName = institutionName.trim();
-    if (accountLast4 !== undefined) accountData.accountLast4 = accountLast4;
-
+    const orgRef = firestore.collection('organizations').doc(organizationId);
+    const accountsCol = orgRef.collection('financeAccounts');
+    
+    const accountId = generateStableId('acc');
+    const accountRef = accountsCol.doc(accountId);
+    const uniqueKeyRef = orgRef.collection('financeUniqueKeys').doc(uniqueKeyId);
+    const auditRef = orgRef.collection('financeAuditLogs').doc();
     const requestId = randomBytes(16).toString('hex');
-    const auditData = {
-      organizationId,
-      actorUid: uid,
-      action: 'finance.account.created',
-      entityType: 'financeAccount',
-      entityId: accountId,
-      requestId,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-    };
-
-    const batch = firestore.batch();
-    batch.create(accountRef, accountData);
-    batch.set(auditRef, auditData);
 
     try {
-      await batch.commit();
+      await firestore.runTransaction(async (t) => {
+        const uniqueDoc = await t.get(uniqueKeyRef);
+        if (uniqueDoc.exists) {
+          throw new Error('ACCOUNT_ALREADY_EXISTS');
+        }
+
+        const legacySnap = await t.get(accountsCol.where('normalizedName', '==', normalizedName).limit(1));
+        if (!legacySnap.empty) {
+          throw new Error('ACCOUNT_ALREADY_EXISTS');
+        }
+
+        const accountData: any = {
+          organizationId,
+          name: trimmedName,
+          normalizedName,
+          type,
+          currency: 'BRL',
+          active: true,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        if (institutionName !== undefined) accountData.institutionName = institutionName.trim();
+        if (accountLast4 !== undefined) accountData.accountLast4 = accountLast4;
+
+        const uniqueKeyData = {
+          organizationId,
+          entityType: 'financeAccount',
+          entityId: accountId,
+          scope: 'account',
+          normalizedName,
+          status: 'reserved',
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        const auditData = {
+          organizationId,
+          actorUid: uid,
+          action: 'finance.account.created',
+          entityType: 'financeAccount',
+          entityId: accountId,
+          requestId,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+        };
+
+        t.create(accountRef, accountData);
+        t.create(uniqueKeyRef, uniqueKeyData);
+        t.create(auditRef, auditData);
+      });
+
       return res.status(201).json({ id: accountId, success: true });
-    } catch (batchError: any) {
-      if (batchError.code === 6 || batchError.message.includes('ALREADY_EXISTS')) {
+    } catch (txError: any) {
+      if (txError.message === 'ACCOUNT_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'ACCOUNT_ALREADY_EXISTS' });
       }
-      throw batchError;
+      throw txError;
     }
 
   } catch (error: any) {
@@ -170,3 +204,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
+

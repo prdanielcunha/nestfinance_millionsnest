@@ -3,6 +3,7 @@ import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
+import { isValidCategoryId } from '../../_lib/financeIdentity.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -78,8 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_CATEGORY_ID' });
     }
 
-    const categoryIdRegex = /^cat_[a-f0-9]{16}$/;
-    if (!categoryIdRegex.test(categoryId)) {
+    if (!isValidCategoryId(categoryId)) {
       return res.status(400).json({ error: 'INVALID_CATEGORY_ID' });
     }
 
@@ -158,3 +158,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
+

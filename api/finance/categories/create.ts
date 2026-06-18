@@ -2,7 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
+import { 
+  normalizeFinanceName, 
+  generateStableId, 
+  buildUniqueKeyLogicName, 
+  generateUniqueKeyId 
+} from '../../_lib/financeIdentity.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -107,64 +113,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       upperAccountingCode = trimmedCode.toUpperCase();
     }
 
-    const normalizedName = trimmedName
-      .replace(/\s+/g, ' ')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    if (normalizedName.length < 1) {
+    let normalizedName: string;
+    try {
+      normalizedName = normalizeFinanceName(trimmedName);
+    } catch {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const categoryId = 'cat_' + createHash('sha256').update(`${kind}:${normalizedName}`).digest('hex').substring(0, 16);
+    const logicalKey = buildUniqueKeyLogicName('category', normalizedName, kind);
+    const uniqueKeyId = generateUniqueKeyId(logicalKey);
 
-    const categoryRef = firestore.collection('organizations').doc(organizationId).collection('financeCategories').doc(categoryId);
-    const auditRef = firestore.collection('organizations').doc(organizationId).collection('financeAuditLogs').doc();
-
-    const categoryData: any = {
-      organizationId,
-      name: trimmedName,
-      normalizedName,
-      kind,
-      parentId: null,
-      active: true,
-      version: 1,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: uid,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: uid,
-    };
-
-    if (upperAccountingCode !== undefined) {
-      categoryData.accountingCode = upperAccountingCode;
-    }
-
+    const orgRef = firestore.collection('organizations').doc(organizationId);
+    const categoriesCol = orgRef.collection('financeCategories');
+    
+    const categoryId = generateStableId('cat');
+    const categoryRef = categoriesCol.doc(categoryId);
+    const uniqueKeyRef = orgRef.collection('financeUniqueKeys').doc(uniqueKeyId);
+    const auditRef = orgRef.collection('financeAuditLogs').doc();
     const requestId = randomBytes(16).toString('hex');
-    const auditData = {
-      organizationId,
-      actorUid: uid,
-      action: 'finance.category.created',
-      entityType: 'financeCategory',
-      entityId: categoryId,
-      requestId,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-    };
-
-    const batch = firestore.batch();
-    batch.create(categoryRef, categoryData);
-    batch.set(auditRef, auditData);
 
     try {
-      await batch.commit();
+      await firestore.runTransaction(async (t) => {
+        const uniqueDoc = await t.get(uniqueKeyRef);
+        if (uniqueDoc.exists) {
+          throw new Error('CATEGORY_ALREADY_EXISTS');
+        }
+
+        const legacySnap = await t.get(categoriesCol.where('normalizedName', '==', normalizedName));
+        const hasLegacy = legacySnap.docs.some(doc => doc.data().kind === kind);
+        if (hasLegacy) {
+          throw new Error('CATEGORY_ALREADY_EXISTS');
+        }
+
+        const categoryData: any = {
+          organizationId,
+          name: trimmedName,
+          normalizedName,
+          kind,
+          parentId: null,
+          active: true,
+          version: 1,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        if (upperAccountingCode !== undefined) {
+          categoryData.accountingCode = upperAccountingCode;
+        }
+
+        const uniqueKeyData = {
+          organizationId,
+          entityType: 'financeCategory',
+          entityId: categoryId,
+          scope: kind,
+          normalizedName,
+          status: 'reserved',
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: uid,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: uid,
+        };
+
+        const auditData = {
+          organizationId,
+          actorUid: uid,
+          action: 'finance.category.created',
+          entityType: 'financeCategory',
+          entityId: categoryId,
+          requestId,
+          schemaVersion: 1,
+          createdAt: FieldValue.serverTimestamp(),
+        };
+
+        t.create(categoryRef, categoryData);
+        t.create(uniqueKeyRef, uniqueKeyData);
+        t.create(auditRef, auditData);
+      });
+
       return res.status(201).json({ id: categoryId, success: true });
-    } catch (batchError: any) {
-      if (batchError.code === 6 || batchError.message.includes('ALREADY_EXISTS')) {
+    } catch (txError: any) {
+      if (txError.message === 'CATEGORY_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'CATEGORY_ALREADY_EXISTS' });
       }
-      throw batchError;
+      throw txError;
     }
 
   } catch (error: any) {
@@ -175,3 +210,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
+

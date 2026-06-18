@@ -1,21 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, Archive, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, Archive, RefreshCw, Edit2 } from 'lucide-react';
 import { archiveCategory, reactivateCategory } from '@/src/services/categoriesService';
 
 interface Category {
   id: string;
   name: string;
   kind: 'income' | 'expense';
+  accountingCode?: string;
   active: boolean;
 }
 
 interface Props {
   category: Category;
+  onEdit: () => void;
   onSuccess: () => void;
   onError: (msg: string) => void;
 }
 
-export default function CategoryActionMenu({ category, onSuccess, onError }: Props) {
+export default function CategoryActionMenu({ category, onEdit, onSuccess, onError }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
@@ -103,6 +105,16 @@ export default function CategoryActionMenu({ category, onSuccess, onError }: Pro
             ref={menuRef}
             className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 w-full sm:w-48 bg-surface-base sm:bg-surface-elevated border-t sm:border border-border-subtle rounded-t-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 py-4 sm:py-1 font-sans animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:fade-in sm:zoom-in-95 duration-200"
           >
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                onEdit();
+              }}
+              className="w-full text-left px-6 sm:px-4 py-4 sm:py-2.5 text-base sm:text-sm text-text-base hover:bg-surface-secondary flex items-center gap-3 sm:gap-2 transition-colors min-h-[56px] sm:min-h-[44px]"
+            >
+              <Edit2 className="w-5 h-5 sm:w-4 sm:h-4 text-text-muted" />
+              Editar
+            </button>
             {category.active ? (
               <button
                 onClick={() => {
