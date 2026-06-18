@@ -1,0 +1,10 @@
+{
+  "app": "nestfinance",
+  "releaseMarker": "accounts-actions-r4-20260618",
+  "feature": "account-lifecycle-ui",
+  "expectedUi": [
+    "Ativas",
+    "Arquivadas",
+    "AccountActionMenu"
+  ]
+}

@@ -123,7 +123,7 @@ export default function FinanceAccountsPage() {
             <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
             <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
             <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-medium">
-              <span>Gestão de contas atualizada • r3</span>
+              <span>Gestão de contas atualizada • r4</span>
             </div>
           </div>
         </div>
