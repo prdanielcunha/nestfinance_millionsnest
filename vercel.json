@@ -1,6 +1,66 @@
 {
   "rewrites": [
     {
+      "source": "/api/auth/handoff/redeem",
+      "destination": "/api/auth-gateway?operation=handoff-redeem"
+    },
+    {
+      "source": "/api/auth/session/resolve",
+      "destination": "/api/auth-gateway?operation=session-resolve"
+    },
+    {
+      "source": "/api/finance/setup/initialize",
+      "destination": "/api/finance-gateway?operation=setup-initialize"
+    },
+    {
+      "source": "/api/finance/accounts/list",
+      "destination": "/api/finance-gateway?operation=accounts-list"
+    },
+    {
+      "source": "/api/finance/accounts/create",
+      "destination": "/api/finance-gateway?operation=accounts-create"
+    },
+    {
+      "source": "/api/finance/accounts/archive",
+      "destination": "/api/finance-gateway?operation=accounts-archive"
+    },
+    {
+      "source": "/api/finance/accounts/reactivate",
+      "destination": "/api/finance-gateway?operation=accounts-reactivate"
+    },
+    {
+      "source": "/api/finance/funds/list",
+      "destination": "/api/finance-gateway?operation=funds-list"
+    },
+    {
+      "source": "/api/finance/funds/create",
+      "destination": "/api/finance-gateway?operation=funds-create"
+    },
+    {
+      "source": "/api/finance/categories/list",
+      "destination": "/api/finance-gateway?operation=categories-list"
+    },
+    {
+      "source": "/api/finance/categories/create",
+      "destination": "/api/finance-gateway?operation=categories-create"
+    },
+    {
+      "source": "/api/finance/categories/archive",
+      "destination": "/api/finance-gateway?operation=categories-archive"
+    },
+    {
+      "source": "/api/finance/categories/reactivate",
+      "destination": "/api/finance-gateway?operation=categories-reactivate"
+    },
+    {
+      "source": "/api/finance/categories/update",
+      "destination": "/api/finance-gateway?operation=categories-update"
+    },
+    {
+      "source": "/api/system/release",
+      "destination": "/api/system-gateway?operation=release"
+    },
+    {
       "source": "/((?!api/|.*\\..*).*)",
       "destination": "/index.html"
     }
