@@ -3,6 +3,7 @@ import { ArrowLeft, Save, Calendar, FileText, CheckCircle2, Shield, AlertCircle,
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { resolveEcosystemSession } from '@/src/services/sessionResolutionService';
 
 export default function SetupPage() {
   const navigate = useNavigate();
@@ -72,19 +73,9 @@ export default function SetupPage() {
 
       if (res.status === 201 || res.status === 409) {
         // Force session reconfiguration check
-        const sessionRes = await fetch('/api/auth/session/resolve', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const sessionData = await resolveEcosystemSession();
         
-        if (!sessionRes.ok) {
-          throw new Error('Falha ao confirmar status da configuração.');
-        }
-        
-        const sessionData = await sessionRes.json();
-        
-        if (sessionData.granted && sessionData.financeSetup?.status === 'configured') {
+        if (sessionData.status === 'granted' && sessionData.financeSetup?.status === 'configured') {
           setSuccess(true);
           window.location.assign(APP_ROUTES.finance);
           return;
