@@ -18,9 +18,10 @@ interface Props {
   onError: (msg: string) => void;
   isOpen: boolean;
   onToggle: (isOpen: boolean) => void;
+  onEdit: (account: Account) => void;
 }
 
-export default function AccountActionMenu({ account, onSuccess, onError, isOpen, onToggle }: Props) {
+export default function AccountActionMenu({ account, onSuccess, onError, isOpen, onToggle, onEdit }: Props) {
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
   const [showConfirmReactivate, setShowConfirmReactivate] = useState(false);
@@ -121,6 +122,16 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
         <>
           <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={() => onToggle(false)} />
           <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 w-full sm:w-48 bg-surface-base sm:bg-surface-elevated border-t sm:border border-border-subtle rounded-t-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 py-4 sm:py-1 font-sans animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:fade-in sm:zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                onToggle(false);
+                onEdit(account);
+              }}
+              className="w-full text-left px-6 sm:px-4 py-4 sm:py-2.5 text-base sm:text-sm text-text-base hover:bg-surface-secondary flex items-center gap-3 sm:gap-2 transition-colors min-h-[56px] sm:min-h-[44px]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-4 sm:h-4 text-text-muted"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Editar
+            </button>
             {account.active ? (
               <button
                 onClick={() => {

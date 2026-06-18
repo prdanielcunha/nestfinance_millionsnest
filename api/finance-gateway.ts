@@ -5,6 +5,7 @@ import accountsList from '../server/vercel-handlers/finance/accountsList.js';
 import accountsCreate from '../server/vercel-handlers/finance/accountsCreate.js';
 import accountsArchive from '../server/vercel-handlers/finance/accountsArchive.js';
 import accountsReactivate from '../server/vercel-handlers/finance/accountsReactivate.js';
+import accountsUpdate from '../server/vercel-handlers/finance/accountsUpdate.js';
 import fundsList from '../server/vercel-handlers/finance/fundsList.js';
 import fundsCreate from '../server/vercel-handlers/finance/fundsCreate.js';
 import categoriesList from '../server/vercel-handlers/finance/categoriesList.js';
@@ -34,6 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return accountsArchive(req, res);
     case 'accounts-reactivate':
       return accountsReactivate(req, res);
+    case 'accounts-update':
+      return accountsUpdate(req, res);
     case 'funds-list':
       return fundsList(req, res);
     case 'funds-create':

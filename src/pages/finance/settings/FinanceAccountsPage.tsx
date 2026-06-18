@@ -4,6 +4,7 @@ import { Building2, Wallet, CreditCard, Landmark, PiggyBank, Plus, ArrowLeft } f
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import AccountFormModal from '@/src/components/finance/AccountFormModal';
+import { AccountEditModal } from '@/src/components/finance/AccountEditModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
 
 import { RELEASE_MARKER } from '@/src/release/releaseMarker';
@@ -29,6 +30,7 @@ export default function FinanceAccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -122,9 +124,6 @@ export default function FinanceAccountsPage() {
             </div>
             <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
             <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
-            <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-medium">
-              <span>Gestão de contas atualizada • r4</span>
-            </div>
           </div>
         </div>
       </header>
@@ -261,6 +260,7 @@ export default function FinanceAccountsPage() {
                         onToggle={(isOpen) => setSelectedAccountId(isOpen ? account.id : null)}
                         onSuccess={() => handleActionSuccess(account.active ? 'Conta arquivada.' : 'Conta reativada.')}
                         onError={(msg) => setError(msg)}
+                        onEdit={(acc) => setEditingAccount(acc)}
                       />
                     </div>
                   </div>
@@ -278,6 +278,19 @@ export default function FinanceAccountsPage() {
             setIsModalOpen(false);
             fetchAccounts();
           }} 
+        />
+      )}
+
+      {editingAccount && (
+        <AccountEditModal
+          isOpen={!!editingAccount}
+          account={editingAccount as any}
+          onClose={() => setEditingAccount(null)}
+          onSuccess={(updatedAccount) => {
+            setAccounts(prev => prev.map(a => a.id === updatedAccount.id ? updatedAccount : a));
+            setSuccessMsg('Conta atualizada.');
+            setTimeout(() => setSuccessMsg(null), 3000);
+          }}
         />
       )}
     </div>

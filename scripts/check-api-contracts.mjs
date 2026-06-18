@@ -20,6 +20,7 @@ async function main() {
     { method: 'POST', url: '/api/finance/categories/archive', operation: 'categories-archive', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/reactivate', operation: 'categories-reactivate', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/update', operation: 'categories-update', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/accounts/update', operation: 'accounts-update', gateway: '/api/finance-gateway' },
     { method: 'GET', url: '/api/system/release', operation: 'release', gateway: '/api/system-gateway' }
   ];
 
