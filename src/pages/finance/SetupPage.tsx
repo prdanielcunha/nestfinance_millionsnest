@@ -71,10 +71,26 @@ export default function SetupPage() {
       });
 
       if (res.status === 201 || res.status === 409) {
-        setSuccess(true);
-        // Force full page reload to re-run session resolution and redirect to finance
-        window.location.assign(APP_ROUTES.finance);
-        return;
+        // Force session reconfiguration check
+        const sessionRes = await fetch('/api/auth/session/resolve', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!sessionRes.ok) {
+          throw new Error('Falha ao confirmar status da configuração.');
+        }
+        
+        const sessionData = await sessionRes.json();
+        
+        if (sessionData.granted && sessionData.financeSetup?.status === 'configured') {
+          setSuccess(true);
+          window.location.assign(APP_ROUTES.finance);
+          return;
+        } else {
+          throw new Error('Configuração inconsistente detectada. Tente novamente ou contate suporte.');
+        }
       }
       
       const data = await res.json().catch(() => ({}));

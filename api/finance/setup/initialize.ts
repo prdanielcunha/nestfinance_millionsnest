@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../_lib/ecosystemSessionResolver.js';
+import { resolveEcosystemSession, isValidIanaTimeZone } from '../../_lib/ecosystemSessionResolver.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -13,6 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+  }
+
+  const contentType = req.headers['content-type'] ?? '';
+  if (!contentType.includes('application/json')) {
+    return res.status(415).json({ error: 'UNSUPPORTED_MEDIA_TYPE' });
   }
 
   if (process.env.NESTFINANCE_SETUP_WRITE_ENABLED !== 'true') {
@@ -56,8 +61,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    if (!req.body || typeof req.body !== 'object') {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+    }
+
+    const bodyString = JSON.stringify(req.body);
+    if (bodyString.length > 8192) {
+      return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
     const {
@@ -79,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
     }
 
-    if (typeof timezone !== 'string' || timezone.length > 50 || timezone.length < 2 || !timezone.includes('/')) {
+    if (!isValidIanaTimeZone(timezone)) {
       return res.status(400).json({ error: 'INVALID_TIMEZONE' });
     }
 

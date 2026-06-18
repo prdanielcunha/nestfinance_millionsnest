@@ -25,6 +25,18 @@ export type SessionResolution = {
   };
 };
 
+export function isValidIanaTimeZone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 100) {
+    return false;
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isUserOperational(userData?: Record<string, unknown>): boolean {
   if (!userData) return false;
 
@@ -124,6 +136,25 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
     const fnRef = orgRef.collection('financeSettings').doc('config');
     const fnDoc = await fnRef.get();
 
+    let isConfigured = false;
+    if (fnDoc.exists) {
+      const data = fnDoc.data();
+      if (
+        data &&
+        data.organizationId === organizationId &&
+        data.setupStatus === 'base_configured' &&
+        data.schemaVersion === 1 &&
+        data.locale === 'pt-BR' &&
+        data.currency === 'BRL' &&
+        isValidIanaTimeZone(data.timezone) &&
+        typeof data.contributionPolicy === 'object' && data.contributionPolicy !== null &&
+        typeof data.closingPolicy === 'object' && data.closingPolicy !== null &&
+        typeof data.approvalPolicy === 'object' && data.approvalPolicy !== null
+      ) {
+        isConfigured = true;
+      }
+    }
+
     return {
       granted: true,
       uid,
@@ -141,7 +172,7 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
         photoURL: userData?.photoURL,
       },
       financeSetup: {
-        status: fnDoc.exists ? 'configured' : 'not_configured',
+        status: isConfigured ? 'configured' : 'not_configured',
       },
     };
   }
