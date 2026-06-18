@@ -24,7 +24,7 @@ export default function FinancePage() {
     }
   }, [setupStatus]);
 
-  const fetchOnboardingData = async () => {
+    const fetchOnboardingData = async () => {
     try {
       setLoadingOnboarding(true);
       setApiError(false);
@@ -56,7 +56,11 @@ export default function FinancePage() {
       const fundsData = await fundsRes.json();
       const categoriesData = await categoriesRes.json();
       
-      setHasAccounts(accountsData.accounts && accountsData.accounts.length > 0);
+      const activeAccountsCount = accountsData.accounts
+        ? accountsData.accounts.filter((a: any) => a.active !== false).length
+        : 0;
+      setHasAccounts(activeAccountsCount > 0);
+
       setHasFunds(fundsData.funds && fundsData.funds.length > 0);
       
       const activeCategoriesCount = categoriesData.categories 
