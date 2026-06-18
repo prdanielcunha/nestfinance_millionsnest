@@ -6,6 +6,8 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import AccountFormModal from '@/src/components/finance/AccountFormModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
 
+import { RELEASE_MARKER } from '@/src/release/releaseMarker';
+
 interface Account {
   id: string;
   name: string;
@@ -93,7 +95,7 @@ export default function FinanceAccountsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full fade-in pb-20 md:pb-0 relative">
+    <div className="flex flex-col h-full fade-in pb-20 md:pb-0 relative" data-release-marker={RELEASE_MARKER}>
       {/* Success Toast */}
       {successMsg && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-surface-elevated text-text-base border border-border-subtle shadow-xl rounded-xl py-3 px-6 flex items-center justify-center animate-in slide-in-from-top-4 fade-in duration-200">
@@ -120,6 +122,9 @@ export default function FinanceAccountsPage() {
             </div>
             <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
             <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
+            <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary text-xs font-medium">
+              <span>Gestão de contas atualizada • r3</span>
+            </div>
           </div>
         </div>
       </header>
