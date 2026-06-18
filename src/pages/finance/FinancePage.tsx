@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { ArrowRight, Settings, Landmark, Plus, FolderHeart } from 'lucide-react';
+import { ArrowRight, Settings, Landmark, Plus, FolderHeart, Bookmark } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
@@ -11,6 +11,7 @@ export default function FinancePage() {
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [hasAccounts, setHasAccounts] = useState(false);
   const [hasFunds, setHasFunds] = useState(false);
+  const [hasCategories, setHasCategories] = useState(false);
   const [apiError, setApiError] = useState(false);
   
   const setupStatus = accessState.financeSetup?.status;
@@ -32,7 +33,7 @@ export default function FinancePage() {
       
       const token = await user.getIdToken();
       
-      const [accountsRes, fundsRes] = await Promise.all([
+      const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
         fetch('/api/finance/accounts/list', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -40,18 +41,24 @@ export default function FinancePage() {
         fetch('/api/finance/funds/list', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/finance/categories/list', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
       
-      if (!accountsRes.ok || !fundsRes.ok) {
+      if (!accountsRes.ok || !fundsRes.ok || !categoriesRes.ok) {
         throw new Error('API_LOAD_FAIL');
       }
       
       const accountsData = await accountsRes.json();
       const fundsData = await fundsRes.json();
+      const categoriesData = await categoriesRes.json();
       
       setHasAccounts(accountsData.accounts && accountsData.accounts.length > 0);
       setHasFunds(fundsData.funds && fundsData.funds.length > 0);
+      setHasCategories(categoriesData.categories && categoriesData.categories.length > 0);
     } catch (err) {
       setApiError(true);
     } finally {
@@ -148,6 +155,23 @@ export default function FinancePage() {
               Adicionar Fundo
             </button>
           </div>
+        ) : !hasCategories ? (
+          <div className="flex flex-col items-center justify-center text-center max-w-sm font-sans">
+            <div className="w-12 h-12 bg-surface-base rounded-full flex items-center justify-center mb-4 text-text-muted border border-border-subtle">
+              <Bookmark className="w-6 h-6 text-amber-500" />
+            </div>
+            <h2 className="text-base font-medium text-text-primary mb-2">Cadastre as categorias financeiras</h2>
+            <p className="text-sm text-text-secondary mb-6">
+              Categorias identificam a natureza das entradas e saídas, como Dízimos, Ofertas, Energia e Manutenção.
+            </p>
+            <button
+              onClick={() => navigate(APP_ROUTES.financeSettingsCategories)}
+              className="flex items-center justify-center h-10 px-5 rounded-lg bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Categoria
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center max-w-md">
             <h2 className="text-base font-medium text-text-primary mb-2">NestFinance configurado</h2>
@@ -160,3 +184,4 @@ export default function FinancePage() {
     </div>
   );
 }
+
