@@ -21,7 +21,7 @@ export function EcosystemAccessBoundary({ children }: Props) {
   if (status === 'initializing' || status === 'authenticated_unresolved') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <img src="/logo_load.png" alt="NestFinance" className="w-56 max-w-full h-auto mb-6 opacity-90 animate-pulse" referrerPolicy="no-referrer" />
+        <img src="/logo_load.png" alt="NestFinance" className="w-[448px] max-w-full h-auto mb-6 opacity-90 animate-pulse" referrerPolicy="no-referrer" />
         <p className="text-xs text-zinc-500 tracking-widest uppercase animate-pulse">Verificando segurança do ecossistema...</p>
       </div>
     );
@@ -30,7 +30,7 @@ export function EcosystemAccessBoundary({ children }: Props) {
   if (status === 'unauthenticated') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <img src="/logo_load.png" alt="NestFinance" className="w-64 max-w-full h-auto mb-6 opacity-95" referrerPolicy="no-referrer" />
+        <img src="/logo_load.png" alt="NestFinance" className="w-[512px] max-w-full h-auto mb-6 opacity-95" referrerPolicy="no-referrer" />
         <h1 className="text-lg font-medium text-white mb-2">Acesso necessário</h1>
         <p className="text-sm text-zinc-400 max-w-sm mb-6">
           Você precisa entrar pelo Hub MillionsNest para acessar o NestFinance.

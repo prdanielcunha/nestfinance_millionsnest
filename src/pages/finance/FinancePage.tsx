@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { ArrowRight, Settings, Landmark, Plus } from 'lucide-react';
+import { ArrowRight, Settings, Landmark, Plus, FolderHeart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
@@ -8,37 +8,54 @@ import { firebaseAuth } from '@/src/lib/firebase';
 export default function FinancePage() {
   const { accessState } = useAuth();
   const navigate = useNavigate();
-  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [hasAccounts, setHasAccounts] = useState(false);
+  const [hasFunds, setHasFunds] = useState(false);
+  const [apiError, setApiError] = useState(false);
   
   const setupStatus = accessState.financeSetup?.status;
 
   useEffect(() => {
     if (setupStatus === 'configured') {
-      fetchAccounts();
+      fetchOnboardingData();
+    } else {
+      setLoadingOnboarding(false);
     }
   }, [setupStatus]);
 
-  const fetchAccounts = async () => {
+  const fetchOnboardingData = async () => {
     try {
-      setLoadingAccounts(true);
+      setLoadingOnboarding(true);
+      setApiError(false);
       const user = firebaseAuth.currentUser;
       if (!user) return;
       
       const token = await user.getIdToken();
-      const res = await fetch('/api/finance/accounts/list', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
       
-      if (res.ok) {
-        const data = await res.json();
-        setHasAccounts(data.accounts && data.accounts.length > 0);
+      const [accountsRes, fundsRes] = await Promise.all([
+        fetch('/api/finance/accounts/list', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/finance/funds/list', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+      
+      if (!accountsRes.ok || !fundsRes.ok) {
+        throw new Error('API_LOAD_FAIL');
       }
-    } catch {
-      // Falha silenciosa
+      
+      const accountsData = await accountsRes.json();
+      const fundsData = await fundsRes.json();
+      
+      setHasAccounts(accountsData.accounts && accountsData.accounts.length > 0);
+      setHasFunds(fundsData.funds && fundsData.funds.length > 0);
+    } catch (err) {
+      setApiError(true);
     } finally {
-      setLoadingAccounts(false);
+      setLoadingOnboarding(false);
     }
   };
 
@@ -85,10 +102,20 @@ export default function FinancePage() {
       </header>
       
       <div className="flex-1 flex flex-col items-center justify-center border border-border-subtle rounded-2xl bg-surface-secondary/50 p-6 min-h-[40vh]">
-        {loadingAccounts ? (
+        {loadingOnboarding ? (
           <div className="w-8 h-8 border-4 border-surface-elevated border-t-accent-primary rounded-full animate-spin" />
-        ) : !hasAccounts ? (
+        ) : apiError ? (
           <div className="flex flex-col items-center justify-center text-center max-w-sm">
+            <p className="text-red-500 text-sm mb-4">Falha ao verificar os dados financeiros da organização.</p>
+            <button
+              onClick={fetchOnboardingData}
+              className="px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : !hasAccounts ? (
+          <div className="flex flex-col items-center justify-center text-center max-w-sm font-sans">
             <div className="w-12 h-12 bg-surface-base rounded-full flex items-center justify-center mb-4 text-text-muted border border-border-subtle">
               <Landmark className="w-6 h-6" />
             </div>
@@ -104,13 +131,30 @@ export default function FinancePage() {
               Adicionar Conta
             </button>
           </div>
+        ) : !hasFunds ? (
+          <div className="flex flex-col items-center justify-center text-center max-w-sm font-sans">
+            <div className="w-12 h-12 bg-surface-base rounded-full flex items-center justify-center mb-4 text-text-muted border border-border-subtle">
+              <FolderHeart className="w-6 h-6 text-rose-500" />
+            </div>
+            <h2 className="text-base font-medium text-text-primary mb-2">Cadastre o primeiro fundo</h2>
+            <p className="text-sm text-text-secondary mb-6">
+              Fundos ajudam a separar recursos livres de valores destinados a finalidades específicas.
+            </p>
+            <button
+              onClick={() => navigate(APP_ROUTES.financeSettingsFunds)}
+              className="flex items-center justify-center h-10 px-5 rounded-lg bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Fundo
+            </button>
+          </div>
         ) : (
-          <>
+          <div className="flex flex-col items-center justify-center text-center max-w-md">
             <h2 className="text-base font-medium text-text-primary mb-2">NestFinance configurado</h2>
-            <p className="text-sm text-text-secondary text-center max-w-md">
+            <p className="text-sm text-text-secondary">
               Os indicadores aparecerão conforme as movimentações e fechamentos forem registrados.
             </p>
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ export const APP_ROUTES = {
   finance: '/finance',
   financeSetup: '/finance/setup',
   financeSettingsAccounts: '/finance/settings/accounts',
+  financeSettingsFunds: '/finance/settings/funds',
   count: '/finance/count',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
