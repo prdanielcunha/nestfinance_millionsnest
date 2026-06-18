@@ -7,6 +7,9 @@
     "node": "22.x"
   },
   "scripts": {
+    "check:api-contracts": "node scripts/check-api-contracts.mjs",
+    "check:vercel-entrypoints": "node scripts/check-vercel-entrypoints.mjs",
+    "prebuild": "npm run check:vercel-entrypoints",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
