@@ -106,14 +106,21 @@ export default function FinanceFundsPage() {
       <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(APP_ROUTES.finance)}
-            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors"
+            onClick={() => navigate(APP_ROUTES.financeSettings)}
+            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-medium tracking-tight text-text-base">Fundos Financeiros</h1>
-            <p className="text-sm text-text-muted mt-0.5">Defina as finalidades e restrições dos destinos dos recursos.</p>
+            <div className="hidden md:flex items-center text-xs text-text-muted mb-1 font-medium tracking-wide">
+              <span>Finance</span>
+              <span className="mx-1.5 opacity-50">/</span>
+              <span>Organização financeira</span>
+              <span className="mx-1.5 opacity-50">/</span>
+              <span className="text-text-primary">Fundos</span>
+            </div>
+            <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Fundos Financeiros</h1>
+            <p className="text-sm text-text-muted mt-0.5 md:hidden">Defina as finalidades e restrições dos destinos dos recursos.</p>
           </div>
         </div>
       </header>

@@ -177,11 +177,63 @@ export default function FinancePage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center max-w-md">
-            <h2 className="text-base font-medium text-text-primary mb-2">NestFinance configurado</h2>
-            <p className="text-sm text-text-secondary">
-              Os indicadores aparecerão conforme as movimentações e fechamentos forem registrados.
-            </p>
+          <div className="flex flex-col w-full max-w-3xl justify-start self-start">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">Organização financeira</h2>
+                <p className="text-sm text-text-secondary">Estrutura de contas, fundos e categorias ativas</p>
+              </div>
+              <button
+                onClick={() => navigate(APP_ROUTES.financeSettings)}
+                className="hidden sm:flex items-center px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Organizar finanças
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                onClick={() => navigate(APP_ROUTES.financeSettingsAccounts)}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-xl p-5 text-left transition-colors flex flex-col group"
+              >
+                <div className="w-10 h-10 bg-surface-elevated rounded-lg flex items-center justify-center border border-border-subtle mb-3 group-hover:scale-105 transition-transform text-text-base">
+                  <Landmark className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-medium text-text-primary mb-1">Contas</h3>
+                <p className="text-xs text-text-secondary">Onde o dinheiro fica.</p>
+              </button>
+
+              <button
+                onClick={() => navigate(APP_ROUTES.financeSettingsFunds)}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-xl p-5 text-left transition-colors flex flex-col group"
+              >
+                <div className="w-10 h-10 bg-surface-elevated rounded-lg flex items-center justify-center border border-border-subtle mb-3 group-hover:scale-105 transition-transform text-text-base">
+                  <FolderHeart className="w-5 h-5 text-rose-500/70 group-hover:text-rose-500 transition-colors" />
+                </div>
+                <h3 className="text-sm font-medium text-text-primary mb-1">Fundos</h3>
+                <p className="text-xs text-text-secondary">Para que ele foi separado.</p>
+              </button>
+
+              <button
+                onClick={() => navigate(APP_ROUTES.financeSettingsCategories)}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-xl p-5 text-left transition-colors flex flex-col group"
+              >
+                <div className="w-10 h-10 bg-surface-elevated rounded-lg flex items-center justify-center border border-border-subtle mb-3 group-hover:scale-105 transition-transform text-text-base">
+                  <Bookmark className="w-5 h-5 text-amber-500/70 group-hover:text-amber-500 transition-colors" />
+                </div>
+                <h3 className="text-sm font-medium text-text-primary mb-1">Categorias</h3>
+                <p className="text-xs text-text-secondary">Por que entrou ou saiu.</p>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => navigate(APP_ROUTES.financeSettings)}
+              className="sm:hidden mt-4 w-full flex items-center justify-center px-4 py-3 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors min-h-[44px]"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Organizar finanças
+            </button>
           </div>
         )}
       </div>

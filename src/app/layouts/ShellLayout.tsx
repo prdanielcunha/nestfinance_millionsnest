@@ -1,11 +1,17 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal } from 'lucide-react';
-import { config } from '@/src/config/env';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Building2, Tags } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 
 const MAIN_NAV = [
+  { to: APP_ROUTES.count, icon: Receipt, label: 'Count' },
+  { to: APP_ROUTES.balance, icon: Wallet, label: 'Balance' },
+  { to: APP_ROUTES.inbox, icon: Inbox, label: 'Inbox' },
+];
+
+const MOBILE_NAV = [
   { to: APP_ROUTES.finance, icon: LayoutDashboard, label: 'Finance' },
   { to: APP_ROUTES.count, icon: Receipt, label: 'Count' },
   { to: APP_ROUTES.balance, icon: Wallet, label: 'Balance' },
@@ -28,11 +34,22 @@ function getInitials(name: string) {
 
 export function ShellLayout() {
   const { accessState } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   
   const orgName = accessState.organization?.name || 'Aguardando conexão';
   const profileName = accessState.profile?.displayName || 'Perfil';
   const profilePhoto = accessState.profile?.photoURL;
   
+  const isFinanceActive = location.pathname.startsWith('/finance/settings') || location.pathname === '/finance' || location.pathname === '/finance/setup';
+  const [isFinanceExpanded, setIsFinanceExpanded] = useState(isFinanceActive);
+
+  useEffect(() => {
+    if (isFinanceActive) {
+      setIsFinanceExpanded(true);
+    }
+  }, [isFinanceActive]);
+
   return (
     <EcosystemAccessBoundary>
       <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -49,6 +66,83 @@ export function ShellLayout() {
             </div>
             
             <nav className="space-y-1">
+              <div>
+                <button
+                  onClick={() => {
+                    const willExpand = !isFinanceExpanded;
+                    setIsFinanceExpanded(willExpand);
+                    if (willExpand && !isFinanceActive) {
+                      navigate(APP_ROUTES.finance);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isFinanceActive
+                      ? 'bg-surface-elevated text-text-primary' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                  }`}
+                  aria-expanded={isFinanceExpanded}
+                >
+                  <div className="flex items-center gap-3">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Finance
+                  </div>
+                  {isFinanceExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                
+                {isFinanceExpanded && (
+                  <div className="mt-1 ml-4 pl-3 border-l border-border-subtle space-y-1 animate-in slide-in-from-top-1 fade-in duration-150">
+                    <NavLink
+                      to={APP_ROUTES.finance}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive && location.pathname === APP_ROUTES.finance
+                            ? 'bg-surface-elevated text-text-primary' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                        }`
+                      }
+                    >
+                      Visão geral
+                    </NavLink>
+                    <NavLink
+                      to={APP_ROUTES.financeSettingsAccounts}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive 
+                            ? 'bg-surface-elevated text-text-primary' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                        }`
+                      }
+                    >
+                      Contas
+                    </NavLink>
+                    <NavLink
+                      to={APP_ROUTES.financeSettingsFunds}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive 
+                            ? 'bg-surface-elevated text-text-primary' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                        }`
+                      }
+                    >
+                      Fundos
+                    </NavLink>
+                    <NavLink
+                      to={APP_ROUTES.financeSettingsCategories}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive 
+                            ? 'bg-surface-elevated text-text-primary' 
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                        }`
+                      }
+                    >
+                      Categorias
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+              
               {[...MAIN_NAV, ...DESKTOP_ONLY_NAV].map((item) => (
                 <NavLink
                   key={item.to}
@@ -101,7 +195,7 @@ export function ShellLayout() {
 
         {/* Bottom Nav Mobile */}
         <nav className="md:hidden fixed bottom-0 w-full h-[env(safe-area-inset-bottom,0)+3.5rem] bg-surface-elevated border-t border-border-subtle flex items-center justify-around px-2 z-20 pb-[env(safe-area-inset-bottom,0)]">
-          {MAIN_NAV.map((item) => (
+          {MOBILE_NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

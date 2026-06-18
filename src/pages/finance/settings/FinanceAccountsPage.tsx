@@ -82,14 +82,21 @@ export default function FinanceAccountsPage() {
       <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => navigate(APP_ROUTES.finance)}
-            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors"
+            onClick={() => navigate(APP_ROUTES.financeSettings)}
+            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-medium tracking-tight text-text-base">Contas Financeiras</h1>
-            <p className="text-sm text-text-muted mt-0.5">Gerencie os locais onde os valores ficam armazenados.</p>
+            <div className="hidden md:flex items-center text-xs text-text-muted mb-1 font-medium tracking-wide">
+              <span>Finance</span>
+              <span className="mx-1.5 opacity-50">/</span>
+              <span>Organização financeira</span>
+              <span className="mx-1.5 opacity-50">/</span>
+              <span className="text-text-primary">Contas</span>
+            </div>
+            <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
+            <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
           </div>
         </div>
       </header>

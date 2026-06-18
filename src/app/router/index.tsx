@@ -9,6 +9,7 @@ import HandoffPage from '@/src/pages/auth/HandoffPage';
 // Lazy loaded pages to keep initial bundle small
 const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
 const SetupPage = lazy(() => import('@/src/pages/finance/SetupPage'));
+const FinanceSettingsPage = lazy(() => import('@/src/pages/finance/settings/FinanceSettingsPage'));
 const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/FinanceAccountsPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
@@ -51,6 +52,10 @@ const routes: RouteObject[] = [
           {
             path: APP_ROUTES.financeSetup,
             element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense>,
+          },
+          {
+            path: APP_ROUTES.financeSettings,
+            element: <Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense>,
           },
           {
             path: APP_ROUTES.financeSettingsAccounts,

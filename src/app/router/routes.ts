@@ -3,6 +3,7 @@ export const APP_ROUTES = {
   handoff: '/auth/handoff',
   finance: '/finance',
   financeSetup: '/finance/setup',
+  financeSettings: '/finance/settings',
   financeSettingsAccounts: '/finance/settings/accounts',
   financeSettingsFunds: '/finance/settings/funds',
   financeSettingsCategories: '/finance/settings/categories',
