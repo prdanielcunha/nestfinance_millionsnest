@@ -58,7 +58,11 @@ export default function FinancePage() {
       
       setHasAccounts(accountsData.accounts && accountsData.accounts.length > 0);
       setHasFunds(fundsData.funds && fundsData.funds.length > 0);
-      setHasCategories(categoriesData.categories && categoriesData.categories.length > 0);
+      
+      const activeCategoriesCount = categoriesData.categories 
+        ? categoriesData.categories.filter((c: any) => c.active !== false).length 
+        : 0;
+      setHasCategories(activeCategoriesCount > 0);
     } catch (err) {
       setApiError(true);
     } finally {

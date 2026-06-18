@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, AlertCircle, Bookmark, ArrowUpRight, ArrowDownRight } 
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import CategoryFormModal from '@/src/components/finance/CategoryFormModal';
+import CategoryActionMenu from '@/src/components/finance/CategoryActionMenu';
 
 interface Category {
   id: string;
@@ -14,14 +15,17 @@ interface Category {
 }
 
 type TabType = 'all' | 'income' | 'expense';
+type StatusType = 'active' | 'archived';
 
 export default function FinanceCategoriesPage() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusType>('active');
 
   useEffect(() => {
     fetchCategories();
@@ -58,12 +62,23 @@ export default function FinanceCategoriesPage() {
 
   const incomeCategories = categories.filter(c => c.kind === 'income');
   const expenseCategories = categories.filter(c => c.kind === 'expense');
+  const activeCategories = categories.filter(c => c.active);
+  const archivedCategories = categories.filter(c => !c.active);
 
   const filteredCategories = categories.filter(c => {
+    if (statusFilter === 'active' && !c.active) return false;
+    if (statusFilter === 'archived' && c.active) return false;
+
     if (activeTab === 'income') return c.kind === 'income';
     if (activeTab === 'expense') return c.kind === 'expense';
     return true;
   });
+
+  const handleActionSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 3000);
+    fetchCategories();
+  };
 
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
@@ -97,6 +112,12 @@ export default function FinanceCategoriesPage() {
       </div>
 
       {/* Content */}
+      {successMsg && (
+        <div className="mx-4 mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm rounded-xl text-center">
+          {successMsg}
+        </div>
+      )}
+
       <main className="flex-1 overflow-y-auto px-4 py-6 font-sans">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 h-64">
@@ -132,10 +153,14 @@ export default function FinanceCategoriesPage() {
         ) : (
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Quick Stats Counter Summary */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-surface-elevated border border-border-subtle rounded-xl p-3 md:p-4 text-center">
-                <span className="text-xs text-text-muted block uppercase tracking-wider font-semibold">Total</span>
-                <span className="text-xl md:text-2xl font-bold text-text-base mt-1 block">{categories.length}</span>
+                <span className="text-xs text-text-muted block uppercase tracking-wider font-semibold">Ativas</span>
+                <span className="text-xl md:text-2xl font-bold text-text-base mt-1 block">{activeCategories.length}</span>
+              </div>
+              <div className="bg-surface-elevated border border-border-subtle rounded-xl p-3 md:p-4 text-center">
+                <span className="text-xs text-text-muted block uppercase tracking-wider font-semibold">Arquivadas</span>
+                <span className="text-xl md:text-2xl font-bold text-text-base mt-1 block">{archivedCategories.length}</span>
               </div>
               <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 md:p-4 text-center">
                 <span className="text-xs text-emerald-500/70 block uppercase tracking-wider font-semibold">Entradas</span>
@@ -149,43 +174,69 @@ export default function FinanceCategoriesPage() {
 
             {/* Segmented view controls & Nova Categoria Button */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border-subtle pb-4">
-              {/* Segmented Tabs (Min touch targets 44px) */}
-              <div className="flex bg-surface-elevated p-1 rounded-xl border border-border-subtle self-start">
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
-                    activeTab === 'all'
-                      ? 'bg-surface-base text-text-base shadow-sm border border-border-subtle'
-                      : 'text-text-muted hover:text-text-base border border-transparent'
-                  }`}
-                >
-                  Todas ({categories.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('income')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
-                    activeTab === 'income'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'text-text-muted hover:text-text-base border border-transparent'
-                  }`}
-                >
-                  Entradas ({incomeCategories.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('expense')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
-                    activeTab === 'expense'
-                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      : 'text-text-muted hover:text-text-base border border-transparent'
-                  }`}
-                >
-                  Saídas ({expenseCategories.length})
-                </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {/* Status Filter */}
+                <div className="flex bg-surface-elevated p-1 rounded-xl border border-border-subtle self-start">
+                  <button
+                    onClick={() => setStatusFilter('active')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
+                      statusFilter === 'active'
+                        ? 'bg-surface-base text-text-base shadow-sm border border-border-subtle'
+                        : 'text-text-muted hover:text-text-base border border-transparent'
+                    }`}
+                  >
+                    Ativas
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('archived')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
+                      statusFilter === 'archived'
+                        ? 'bg-surface-base text-text-base shadow-sm border border-border-subtle'
+                        : 'text-text-muted hover:text-text-base border border-transparent'
+                    }`}
+                  >
+                    Arquivadas
+                  </button>
+                </div>
+
+                {/* Type Filter */}
+                <div className="flex bg-surface-elevated p-1 rounded-xl border border-border-subtle self-start">
+                  <button
+                    onClick={() => setActiveTab('all')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
+                      activeTab === 'all'
+                        ? 'bg-surface-base text-text-base shadow-sm border border-border-subtle'
+                        : 'text-text-muted hover:text-text-base border border-transparent'
+                    }`}
+                  >
+                    Todas ({categories.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('income')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
+                      activeTab === 'income'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : 'text-text-muted hover:text-text-base border border-transparent'
+                    }`}
+                  >
+                    Entradas
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('expense')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all min-h-[44px] ${
+                      activeTab === 'expense'
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        : 'text-text-muted hover:text-text-base border border-transparent'
+                    }`}
+                  >
+                    Saídas
+                  </button>
+                </div>
               </div>
 
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center justify-center h-11 px-4 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px]"
+                className="flex items-center justify-center h-11 px-4 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px] shrink-0"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Categoria
@@ -235,10 +286,18 @@ export default function FinanceCategoriesPage() {
                         </div>
                       </div>
 
-                      {/* Quiet active indicator */}
-                      <span className="text-xs font-mono font-medium text-text-muted bg-surface-base px-2 py-1 rounded-full border border-border-subtle">
-                        {category.active ? 'Ativo' : 'Inativo'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {/* Quiet active indicator */}
+                        <span className="text-xs font-mono font-medium text-text-muted bg-surface-base px-2 py-1 rounded-full border border-border-subtle hidden sm:block">
+                          {category.active ? 'Ativa' : 'Arquivada'}
+                        </span>
+                        
+                        <CategoryActionMenu 
+                          category={category} 
+                          onSuccess={() => handleActionSuccess(category.active ? 'Categoria arquivada.' : 'Categoria reativada.')}
+                          onError={(msg) => setError(msg)}
+                        />
+                      </div>
                     </div>
                   );
                 })
