@@ -20,29 +20,22 @@ export function EcosystemAccessBoundary({ children }: Props) {
 
   if (status === 'initializing' || status === 'authenticated_unresolved') {
     return (
-      <div className="min-h-screen bg-background-base flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 bg-surface-elevated border border-border-strong rounded-full flex items-center justify-center text-accent-primary mb-4">
-          <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-        <h1 className="text-lg font-medium text-text-primary mb-2">Verificando segurança</h1>
-        <p className="text-sm text-text-secondary max-w-sm">
-          Aguarde enquanto verificamos suas credenciais {config.platformName}.
-        </p>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <img src="/logo_load.png" alt="NestFinance" className="w-56 max-w-full h-auto mb-6 opacity-90 animate-pulse" referrerPolicy="no-referrer" />
+        <p className="text-xs text-zinc-500 tracking-widest uppercase animate-pulse">Verificando segurança do ecossistema...</p>
       </div>
     );
   }
 
   if (status === 'unauthenticated') {
     return (
-      <div className="min-h-screen bg-background-base flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 bg-surface-elevated border border-border-strong rounded-full flex items-center justify-center text-text-secondary mb-4">
-          <LogIn className="w-5 h-5" />
-        </div>
-        <h1 className="text-lg font-medium text-text-primary mb-2">Acesso necessário</h1>
-        <p className="text-sm text-text-secondary max-w-sm mb-6">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <img src="/logo_load.png" alt="NestFinance" className="w-64 max-w-full h-auto mb-6 opacity-95" referrerPolicy="no-referrer" />
+        <h1 className="text-lg font-medium text-white mb-2">Acesso necessário</h1>
+        <p className="text-sm text-zinc-400 max-w-sm mb-6">
           Você precisa entrar pelo Hub MillionsNest para acessar o NestFinance.
         </p>
-        <button disabled className="px-5 py-2 bg-surface-elevated border border-border-strong rounded-lg text-sm font-medium text-text-muted opacity-50 cursor-not-allowed">
+        <button disabled className="px-5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-medium text-zinc-500 opacity-50 cursor-not-allowed">
           Ir para o {config.platformName} Hub
         </button>
       </div>
