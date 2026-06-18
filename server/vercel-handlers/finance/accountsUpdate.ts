@@ -167,24 +167,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isInstitutionNameChanged = currentInstitutionName !== parsedInstitutionName;
         const isAccountLast4Changed = currentAccountLast4 !== parsedAccountLast4;
 
+        // No-op operation does not write locks or audit logs
         if (!isNameChanged && !isVisualNameChanged && !isInstitutionNameChanged && !isAccountLast4Changed) {
-          if (!currentUniqueDoc.exists) {
-            const currentUniqueKeyData = {
-              organizationId,
-              entityType: 'financeAccount',
-              entityId: accountId,
-              scope: 'account',
-              normalizedName: currentNormalizedName,
-              status: 'reserved',
-              schemaVersion: 1,
-              createdAt: FieldValue.serverTimestamp(),
-              createdBy: uid,
-              updatedAt: FieldValue.serverTimestamp(),
-              updatedBy: uid,
-            };
-            t.create(uniqueKeysCol.doc(currentUniqueKeyId), currentUniqueKeyData);
-          }
-
           return {
             changed: false,
             account: {
