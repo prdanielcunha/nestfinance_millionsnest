@@ -134,7 +134,7 @@ export default function FinancePage() {
             <div className="w-12 h-12 bg-surface-base rounded-full flex items-center justify-center mb-4 text-text-muted border border-border-subtle">
               <Landmark className="w-6 h-6" />
             </div>
-            <h2 className="text-base font-medium text-text-primary mb-2">Cadastre a primeira conta financeira</h2>
+            <h2 className="text-base font-medium text-text-primary mb-2">Cadastre ou reative uma conta financeira</h2>
             <p className="text-sm text-text-secondary mb-6">
               O NestFinance precisa de pelo menos uma conta para registrar suas transações.
             </p>

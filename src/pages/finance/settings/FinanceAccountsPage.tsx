@@ -26,6 +26,7 @@ export default function FinanceAccountsPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('active');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -202,7 +203,23 @@ export default function FinanceAccountsPage() {
                 {displayedAccounts.map((account) => (
                   <div 
                     key={account.id}
-                    className="bg-surface-elevated border border-border-subtle rounded-xl p-4 flex items-center gap-4 transition-colors"
+                    onClick={() => {
+                      // Only on small screens
+                      if (window.innerWidth < 640) {
+                        setSelectedAccountId(selectedAccountId === account.id ? null : account.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    className="bg-surface-elevated border border-border-subtle rounded-xl p-4 flex items-center gap-4 transition-colors relative cursor-pointer sm:cursor-default hover:bg-surface-secondary sm:hover:bg-surface-elevated active:bg-surface-base sm:active:bg-surface-elevated"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (window.innerWidth < 640) {
+                          setSelectedAccountId(selectedAccountId === account.id ? null : account.id);
+                        }
+                      }
+                    }}
                   >
                     <div className="w-10 h-10 rounded-full bg-surface-base flex items-center justify-center shrink-0 border border-border-subtle">
                       {getAccountIcon(account.type)}
@@ -235,6 +252,8 @@ export default function FinanceAccountsPage() {
                     <div className="shrink-0 flex items-center justify-end">
                        <AccountActionMenu 
                         account={account}
+                        isOpen={selectedAccountId === account.id}
+                        onToggle={(isOpen) => setSelectedAccountId(isOpen ? account.id : null)}
                         onSuccess={() => handleActionSuccess(account.active ? 'Conta arquivada.' : 'Conta reativada.')}
                         onError={(msg) => setError(msg)}
                       />

@@ -16,25 +16,36 @@ interface Props {
   account: Account;
   onSuccess: () => void;
   onError: (msg: string) => void;
+  isOpen: boolean;
+  onToggle: (isOpen: boolean) => void;
 }
 
-export default function AccountActionMenu({ account, onSuccess, onError }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function AccountActionMenu({ account, onSuccess, onError, isOpen, onToggle }: Props) {
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
   const [showConfirmReactivate, setShowConfirmReactivate] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const prevIsOpenRef = useRef(isOpen);
+
+  useEffect(() => {
+    if (!isOpen && prevIsOpenRef.current) {
+      // Menu just closed, return focus
+      buttonRef.current?.focus();
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        onToggle(false);
       }
     }
     
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setIsOpen(false);
+        onToggle(false);
         setShowConfirmArchive(false);
         setShowConfirmReactivate(false);
       }
@@ -49,7 +60,7 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, showConfirmArchive, showConfirmReactivate]);
+  }, [isOpen, showConfirmArchive, showConfirmReactivate, onToggle]);
 
   const handleArchive = async () => {
     if (loading) return;
@@ -57,7 +68,7 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
       setLoading(true);
       await archiveAccount(account.id);
       onSuccess();
-      setIsOpen(false);
+      onToggle(false);
       setShowConfirmArchive(false);
     } catch (err: any) {
       onError(err.message || 'Não foi possível atualizar a conta. Tente novamente.');
@@ -72,7 +83,7 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
       setLoading(true);
       await reactivateAccount(account.id);
       onSuccess();
-      setIsOpen(false);
+      onToggle(false);
       setShowConfirmReactivate(false);
     } catch (err: any) {
       onError(err.message || 'Não foi possível atualizar a conta. Tente novamente.');
@@ -92,9 +103,13 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(!isOpen);
+        }}
         disabled={loading}
         className="p-2 text-text-muted hover:text-text-base rounded-lg hover:bg-surface-elevated transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-accent-primary focus:ring-offset-1 focus:ring-offset-surface-base"
         aria-label={`Ações de ${account.name}`}
@@ -104,12 +119,12 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={() => onToggle(false)} />
           <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 w-full sm:w-48 bg-surface-base sm:bg-surface-elevated border-t sm:border border-border-subtle rounded-t-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 py-4 sm:py-1 font-sans animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:fade-in sm:zoom-in-95 duration-200">
             {account.active ? (
               <button
                 onClick={() => {
-                  setIsOpen(false);
+                  onToggle(false);
                   setShowConfirmArchive(true);
                 }}
                 className="w-full text-left px-6 sm:px-4 py-4 sm:py-2.5 text-base sm:text-sm text-text-base hover:bg-surface-secondary flex items-center gap-3 sm:gap-2 transition-colors min-h-[56px] sm:min-h-[44px]"
@@ -120,7 +135,7 @@ export default function AccountActionMenu({ account, onSuccess, onError }: Props
             ) : (
               <button
                 onClick={() => {
-                  setIsOpen(false);
+                  onToggle(false);
                   setShowConfirmReactivate(true);
                 }}
                 className="w-full text-left px-6 sm:px-4 py-4 sm:py-2.5 text-base sm:text-sm text-text-base hover:bg-surface-secondary flex items-center gap-3 sm:gap-2 transition-colors min-h-[56px] sm:min-h-[44px]"
