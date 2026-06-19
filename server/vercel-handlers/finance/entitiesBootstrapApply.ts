@@ -177,7 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   });
 
                   if (collisionWithScoped) {
-                     plan[type + 's'].push({
+                     plan[planKey].push({
                         templateKey: tItem.templateKey, entityType: type, existingId: collisionWithScoped.id,
                         name: tItem.name, kind: tItem.kind, action: 'conflict', reason: 'ALREADY_SCOPED', active: collisionWithScoped.data().active
                      });

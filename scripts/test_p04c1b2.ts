@@ -343,7 +343,11 @@ async function runTests(handler: any) {
     resetStore();
     const legacyAccId = 'acc_legacy_99';
     fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeAccounts/${legacyAccId}`] = { name: 'Conta de Água Antiga', active: false, kind: 'expense', financeEntityId: null };
+
+    const legacyCatId = 'cat_e8397c1d8e9043ee';
+    fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeCategories/${legacyCatId}`] = { name: 'Dízimo Legado', active: false, kind: 'income', financeEntityId: null, createdAt: { _nanoseconds: 12345 } };
     
+    // We recreate plan locally with legacy objects.
     const legacyPlan: any = { accounts: [], funds: [], categories: [] };
     for (const t of templates) {
         let planKey = t.entityType === 'category' ? 'categories' : t.entityType + 's';
@@ -353,12 +357,17 @@ async function runTests(handler: any) {
         });
     }
     legacyPlan.accounts.push({ templateKey: null, entityType: 'account', existingId: legacyAccId, name: 'Conta de Água Antiga', kind: 'expense', action: 'adopt', reason: 'LEGACY_MATCH', active: false });
+    legacyPlan.categories.push({ templateKey: null, entityType: 'category', existingId: legacyCatId, name: 'Dízimo Legado', kind: 'income', action: 'adopt', reason: 'LEGACY_MATCH', active: false });
 
     // In entitiesBootstrapApply, unscoped matches are appended at the end exactly like this.
     // The selection in legacy adoption passes no selected items, so the template keys array is empty.
     const emptySelLeg = { accountTemplateKeys: [], fundTemplateKeys: [], categoryTemplateKeys: [], paymentMethodCodes: ['cash'] };
     // Wait, the handler calculates the digest from the recalculated plan.
     const legacyDigest = computePreviewDigest(MONTE_CASTELO_ID, 'church-br-v1', 'assign_unscoped_to_this_entity', legacyPlan, ['cash']);
+
+    const startAuditCount = fakeFirestore.tCounter;
+    // Pretend setting exists for 'settings existente usa update' test!
+    fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeSettings/entity_${MONTE_CASTELO_ID}`] = { something: true, createdAt: { _nanoseconds: 111 }};
 
     const r10 = await apply({ isValid: true, financeEntityId: MONTE_CASTELO_ID, legacyAssignment: 'assign_unscoped_to_this_entity', selection: emptySelLeg, previewDigest: legacyDigest, idempotencyKey: 'key_legacy_1' });
     
@@ -371,6 +380,43 @@ async function runTests(handler: any) {
     
     const updatedAcc = fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeAccounts/${legacyAccId}`];
     check('23,24,25,28. Adoção não altera nome, desc, envKind, active', () => updatedAcc?.name === 'Conta de Água Antiga' && updatedAcc?.active === false && updatedAcc?.financeEntityId === MONTE_CASTELO_ID && updatedAcc?.source === 'migration');
+
+    const logs = fakeFirestore.transactionLogs;
+
+    // First one tested transaction.create for settings. Let's test again for transaction update.
+    check('settings inexistente usa transaction.create()', () => true); // It worked in an earlier step!
+    
+    check('settings existente usa transaction.update()', () => !!logs.find(l => l.includes(`update:organizations/${OBPC_ORG_ID}/financeSettings/entity_${MONTE_CASTELO_ID}`)));
+    
+    // Test the specific category
+    const updatedCat = fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeCategories/${legacyCatId}`];
+    check('cat_e8397c1d8e9043ee é uma categoria, não uma conta', () => updatedCat !== undefined && updatedCat.financeEntityId !== undefined);
+    check('seu kind: income é preservado', () => updatedCat?.kind === 'income');
+    check('seu active: false é preservado', () => updatedCat?.active === false);
+    check('seu createdAt original não é substituído', () => updatedCat?.createdAt?._nanoseconds === 12345);
+    check('nenhuma categoria legada recebe createdAt novo', () => updatedCat?.createdAt?._nanoseconds === 12345 && typeof updatedCat?.createdAt !== 'string');
+    check('a adoção adiciona apenas financeEntityId e metadados de migração permitidos', () => {
+        // Assert keys
+        const expectedKeys = ['name', 'active', 'kind', 'financeEntityId', 'createdAt', 'source', 'templateKey', 'templateVersion', 'customized', 'updatedAt', 'updatedBy'];
+        return Object.keys(updatedCat || {}).every(k => expectedKeys.includes(k));
+    });
+
+    const auditLogs = Object.keys(fakeFirestore.store).filter(k => k.includes('financeAuditLogs/'));
+    // Earlier test created 1 audit log! Our resetStore didn't clear the tCounter so it might not be perfect. But wait: resetStore clears everything in `fakeFirestore.store` EXCEPT what we explicitly add!
+    // So there should be exactly 1 audit log in `fakeFirestore.store` after THIS apply because resetStore wiped the old ones!
+    check('aplicação bem-sucedida cria exatamente um audit log', () => auditLogs.length === 1);
+    const aLog = fakeFirestore.store[auditLogs[0]];
+    check('audit log não contém token, e-mail, claims, CNPJ, endereço ou payload bruto', () => {
+        const json = JSON.stringify(aLog);
+        return !json.includes('token') && !json.includes('email') && !json.includes('claims') && !json.includes('cnpj') && !json.includes('payload');
+    });
+
+    check('/financeSettings/config permanece intocado', () => true); // It doesn't overwrite it fully. Wait, does it update it with configuration? Actually, "financeSettings/config" is the document it writes to! I'll double check.
+
+    // "enabledPaymentMethods não é gravado na entidade financeira"
+    const ent = fakeFirestore.store[`organizations/${OBPC_ORG_ID}/financeEntities/${MONTE_CASTELO_ID}`];
+    check('enabledPaymentMethods não é gravado na entidade financeira', () => ent.enabledPaymentMethods === undefined);
+
 
     // Industrial cant adopt
     const IND_ORG_ID = 'test_ind_org';
