@@ -36,8 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     firestore = admin.firestore;
   } catch (err: any) {
     if (err.message === 'MISSING_FIREBASE_CREDENTIALS') {
+      console.error(`[HANDOFF_REDEEM_INIT] MISSING_FIREBASE_CREDENTIALS`);
       return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
     }
+    console.error(`[HANDOFF_REDEEM_INIT] Firebase Admin initialization failed:`, err);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 

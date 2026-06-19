@@ -33,8 +33,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     auth = admin.auth;
   } catch (err: any) {
     if (err.message === 'MISSING_FIREBASE_CREDENTIALS') {
+      console.error(`[SESSION_RESOLVE_INIT] MISSING_FIREBASE_CREDENTIALS`);
       return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
     }
+    console.error(`[SESSION_RESOLVE_INIT] Firebase Admin initialization failed:`, err);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 
