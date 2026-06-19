@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Calendar, Plus, Save, Building2 } from 'lucide-react';
-import { previewBootstrap } from '@/src/services/financeBootstrapService';
+import { previewBootstrap, applyBootstrap } from '@/src/services/financeBootstrapService';
 import { BOOTSTRAP_TEMPLATES, BootstrapTemplateId, BootstrapItem } from '@/shared/finance/bootstrapTemplates';
 import { PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
 
@@ -25,6 +25,18 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
   const [previewPlan, setPreviewPlan] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'stale_preview' | 'blocked' | 'recoverable_error'>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+
+  const UI_ENABLED = import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
+
+  useEffect(() => {
+     setIdempotencyKey(null);
+     setSubmitStatus('idle');
+     setSubmitError(null);
+  }, [selectedAccounts, selectedFunds, selectedCategories, selectedPaymentMethods, legacyAssignment]);
 
   useEffect(() => {
     if (statusData.canAdoptLegacyData) {
@@ -78,11 +90,60 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
              }
           });
           setPreviewPlan(res);
-          setStep(5);
+          setStep(6);
       } catch (e: any) {
           setPreviewError(e.message || 'Erro ao gerar prévia.');
       } finally {
           setPreviewLoading(false);
+      }
+  };
+
+  const handleApply = async () => {
+      if (!UI_ENABLED) return;
+      if (submitStatus === 'submitting' || submitStatus === 'success') return;
+      
+      let key = idempotencyKey;
+      if (!key) {
+         key = crypto.randomUUID();
+         setIdempotencyKey(key);
+      }
+
+      setSubmitStatus('submitting');
+      setSubmitError(null);
+
+      try {
+          await applyBootstrap({
+              financeEntityId: entity.id,
+              templateId,
+              legacyAssignment,
+              selection: {
+                  paymentMethodCodes: Array.from(selectedPaymentMethods),
+                  accountTemplateKeys: Array.from(selectedAccounts),
+                  fundTemplateKeys: Array.from(selectedFunds),
+                  categoryTemplateKeys: Array.from(selectedCategories)
+              },
+              previewDigest: previewPlan.digest,
+              idempotencyKey: key
+          });
+
+          setSubmitStatus('success');
+      } catch (err: any) {
+          if (err.status === 503 || err.code === 'BOOTSTRAP_APPLY_DISABLED') {
+              setSubmitStatus('blocked');
+              setSubmitError(err.message || 'A conclusão ainda não está disponível.');
+          } else if (err.status === 409 && err.code === 'PREVIEW_MISMATCH') {
+              setSubmitStatus('stale_preview');
+              setSubmitError('Alguns dados mudaram. Atualizamos o plano para você revisar novamente antes de concluir.');
+              setIdempotencyKey(null);
+              generatePreview();
+          } else if (err.status === 409) {
+              setSubmitStatus('recoverable_error');
+              setSubmitError('Não foi possível concluir com segurança. Alguns cadastros foram alterados enquanto você revisava. Atualize o plano e confira novamente.');
+              setIdempotencyKey(null);
+          } else {
+              setSubmitStatus('recoverable_error');
+              setSubmitError(err.message || 'Não conseguimos concluir agora. Verifique sua conexão e tente novamente.');
+          }
       }
   };
 
@@ -111,7 +172,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
             <h2 className="text-lg font-semibold text-text-primary">Preparação Inicial</h2>
             <p className="text-sm text-text-secondary">{entity.displayName}</p>
           </div>
-          <button onClick={onClose} className="p-2 -mr-2 text-text-muted hover:text-text-primary transition-colors hover:bg-surface-secondary rounded-lg">
+          <button onClick={onClose} disabled={submitStatus === 'submitting'} className="p-2 -mr-2 text-text-muted hover:text-text-primary transition-colors hover:bg-surface-secondary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -160,33 +221,56 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
                 <Step4 templates={templates.filter(t => t.entityType === 'category')} selected={selectedCategories} setSelected={setSelectedCategories} statusData={statusData} legacyAssignment={legacyAssignment} />
             )}
             {!previewLoading && !previewError && step === 6 && previewPlan && (
-                <Step5 previewPlan={previewPlan} />
+                <Step5 
+                    previewPlan={previewPlan} 
+                    uiEnabled={UI_ENABLED}
+                    submitStatus={submitStatus}
+                    submitError={submitError}
+                />
             )}
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-border-subtle bg-surface-base shrink-0 flex items-center justify-between">
-           {step > 1 && step < 6 && !previewLoading && !previewError ? (
-               <button onClick={() => setStep(s => s - 1)} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors">
+           {step > 1 && step < 6 && !previewLoading && !previewError && submitStatus !== 'success' ? (
+               <button onClick={() => setStep(s => s - 1)} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors disabled:opacity-50">
                   Voltar
                </button>
            ) : <div />}
 
-           {step < 6 && !previewLoading && !previewError && (
-               <button onClick={handleNext} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center">
+           {step < 6 && !previewLoading && !previewError && submitStatus !== 'success' && (
+               <button onClick={handleNext} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                   Próximo <ChevronRight className="w-4 h-4 ml-2" />
                </button>
            )}
 
            {step === 6 && !previewLoading && !previewError && (
                <div className="flex gap-4 ml-auto">
-                   <button onClick={() => setStep(5)} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors">
-                      Ajustar seleção
-                   </button>
-                   <button onClick={() => {}} disabled={true} className="h-12 px-6 rounded-xl bg-surface-secondary text-text-muted font-medium cursor-not-allowed flex items-center">
-                      <Save className="w-4 h-4 mr-2" />
-                      Revisar plano
-                   </button>
+                   {submitStatus === 'success' ? (
+                       <button onClick={onClose} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors">
+                           Fechar e continuar
+                       </button>
+                   ) : (
+                       <>
+                           <button onClick={() => { setStep(5); setSubmitStatus('idle'); setSubmitError(null); }} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors disabled:opacity-50">
+                              Voltar e revisar
+                           </button>
+                           {UI_ENABLED ? (
+                               <button onClick={handleApply} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+                                  {submitStatus === 'submitting' ? (
+                                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Preparando...</>
+                                  ) : (
+                                      <><Save className="w-4 h-4 mr-2" /> Concluir preparação</>
+                                  )}
+                               </button>
+                           ) : (
+                               <button disabled={true} className="h-12 px-6 rounded-xl bg-surface-secondary text-text-muted font-medium cursor-not-allowed flex items-center">
+                                  <Save className="w-4 h-4 mr-2" />
+                                  Revisar plano
+                               </button>
+                           )}
+                       </>
+                   )}
                </div>
            )}
         </div>
@@ -378,47 +462,83 @@ function Step4({ templates, selected, setSelected }: any) {
     );
 }
 
-function Step5({ previewPlan }: any) {
-    return (
-        <div className="max-w-4xl mx-auto h-full animate-in fade-in pb-12">
-            <div className="mb-6 text-center">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 mx-auto text-emerald-400">
-                   <Check className="w-8 h-8" />
+function Step5({ previewPlan, uiEnabled, submitStatus, submitError }: any) {
+    if (submitStatus === 'success') {
+        return (
+            <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="polite">
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 mx-auto text-emerald-500">
+                   <Check className="w-10 h-10" />
                 </div>
-                <h3 className="text-xl font-medium text-text-primary mb-2">Plano preparado. Nenhuma alteração foi feita ainda.</h3>
-                <p className="text-text-secondary text-sm max-w-lg mx-auto">
-                    Confira o resumo das operações.
+                <h3 className="text-3xl font-semibold text-text-primary mb-4">Estrutura financeira preparada</h3>
+                <p className="text-text-secondary text-lg max-w-md mx-auto">
+                    Os cadastros desta igreja estão prontos para uso. Nenhuma movimentação financeira foi criada.
                 </p>
             </div>
+        );
+    }
+
+    return (
+        <div className="max-w-4xl mx-auto h-full animate-in fade-in pb-12">
+            {!uiEnabled && (
+                <div className="mb-8 text-center" aria-live="polite">
+                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 mx-auto text-emerald-400">
+                       <Check className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-medium text-text-primary mb-2">Plano preparado</h3>
+                    <p className="text-text-secondary text-sm max-w-lg mx-auto">
+                        Nenhuma alteração foi feita ainda.<br/>A conclusão desta preparação será liberada em breve.
+                    </p>
+                </div>
+            )}
+
+            {uiEnabled && submitStatus === 'idle' && (
+                <div className="mb-8 text-center">
+                    <h3 className="text-2xl font-medium text-text-primary mb-2">Tudo pronto para preparar esta igreja?</h3>
+                    <p className="text-text-secondary text-base max-w-lg mx-auto">
+                        Os cadastros selecionados serão organizados para esta igreja. Nenhum lançamento, saldo ou movimentação será criado.
+                    </p>
+                </div>
+            )}
+
+            {uiEnabled && submitError && (
+                 <div className="mb-8 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center" aria-live="assertive">
+                    <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+                    <p className="text-text-primary font-medium">{submitError}</p>
+                 </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center">
                    <div className="text-2xl font-bold text-accent-primary">{previewPlan.summary.adopt}</div>
-                   <div className="text-xs text-text-secondary">Será vinculado</div>
+                   <div className="text-xs text-text-secondary">Serão vinculados</div>
                </div>
                <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center">
                    <div className="text-2xl font-bold text-emerald-400">{previewPlan.summary.create}</div>
-                   <div className="text-xs text-text-secondary">Será criado</div>
+                   <div className="text-xs text-text-secondary">Serão criados</div>
                </div>
                <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center">
                    <div className="text-2xl font-bold text-text-muted">{previewPlan.summary.skip}</div>
-                   <div className="text-xs text-text-secondary">Não será incluído</div>
+                   <div className="text-xs text-text-secondary">Não serão incluídos</div>
                </div>
                <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center">
                    <div className="text-2xl font-bold text-rose-400">{previewPlan.summary.conflict}</div>
-                   <div className="text-xs text-text-secondary">Precisa de atenção</div>
+                   <div className="text-xs text-text-secondary">Conflitos / Atenção</div>
                </div>
             </div>
 
             <h4 className="font-medium text-text-primary mb-4 border-b border-border-subtle pb-2">Registros legados arquivados</h4>
-            <ul className="space-y-2 text-sm">
-                {previewPlan.plan.categories.filter((p: any) => p.action === 'adopt' && p.active === false).map((p: any) => (
-                    <li key={p.existingId} className="p-3 bg-surface-secondary/50 rounded-lg text-text-muted flex justify-between">
-                         <span className="line-through">{p.name}</span>
-                         <span>Arquivada</span>
-                    </li>
-                ))}
-            </ul>
+            {previewPlan.plan.categories.filter((p: any) => p.action === 'adopt' && p.active === false).length > 0 ? (
+                <ul className="space-y-2 text-sm max-h-48 overflow-y-auto">
+                    {previewPlan.plan.categories.filter((p: any) => p.action === 'adopt' && p.active === false).map((p: any) => (
+                        <li key={p.existingId} className="p-3 bg-surface-secondary/50 rounded-lg text-text-muted flex justify-between">
+                             <span className="line-through">{p.name}</span>
+                             <span>Arquivada</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-sm text-text-muted">Não há registros afetados.</p>
+            )}
         </div>
     );
 }
