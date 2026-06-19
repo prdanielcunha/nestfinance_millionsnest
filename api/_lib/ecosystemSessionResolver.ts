@@ -23,16 +23,31 @@ export async function resolveEcosystemSession(uid: string, orgId: string) {
   const orgDoc = await db.collection('organizations').doc(orgId).get();
   if (!orgDoc.exists) return { granted: false, denialReason: 'ORG_NOT_FOUND' };
 
-  const globalRoles = userDoc.data()?.globalRoles || [];
-  if (globalRoles.includes('system_admin')) {
+  const userData = userDoc.data() || {};
+  const rawSystemRole = userData.systemRole || userData.appRole || userData.role || '';
+  const systemRole = typeof rawSystemRole === 'string' ? rawSystemRole.toLowerCase() : '';
+
+  const globalRoles = ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder'];
+  
+  if (globalRoles.includes(systemRole)) {
     isGlobalAccess = true;
-    accessSource = 'global_system_role';
+    accessSource = 'global_role';
   } else {
     const memberDoc = await db.collection('organizations').doc(orgId).collection('users').doc(uid).get();
     if (memberDoc.exists) {
       accessSource = 'organization_membership';
     } else {
-      return { granted: false, denialReason: 'NOT_A_MEMBER' };
+      // Check for alternatives paths for members, like root organization_members
+      const rootMemberQuery = await db.collection('organization_members')
+        .where('organizationId', '==', orgId)
+        .where('uid', '==', uid)
+        .get();
+
+      if (!rootMemberQuery.empty) {
+        accessSource = 'organization_membership';
+      } else {
+        return { granted: false, denialReason: 'NOT_A_MEMBER' };
+      }
     }
   }
 
