@@ -65,6 +65,37 @@ async function runTests() {
   // we will trust the runtime audit logic and the handler implementations.
   // The system relies on the preview handler tests.
 
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  const handlerPath = process.cwd();
+  
+  const statusContent = await fs.readFile(path.join(handlerPath, 'server', 'vercel-handlers', 'finance', 'entitiesBootstrapStatus.ts'), 'utf-8');
+  const previewContent = await fs.readFile(path.join(handlerPath, 'server', 'vercel-handlers', 'finance', 'entitiesBootstrapPreview.ts'), 'utf-8');
+
+  // Check for 0 writes
+  const writeMethods = ['.set(', '.create(', '.update(', '.delete(', '.writeBatch(', '.bulkWriter(', '.runTransaction('];
+  const hasWrites = (content: string) => writeMethods.some(m => content.includes(m));
+
+  const statusHasWrites = hasWrites(statusContent);
+  const previewHasWrites = hasWrites(previewContent);
+
+  console.log(`13. status handler zero writes: ${!statusHasWrites ? 'PASS' : 'FAIL'}`);
+  if (statusHasWrites) passed = false;
+
+  console.log(`14. preview handler zero writes: ${!previewHasWrites ? 'PASS' : 'FAIL'}`);
+  if (previewHasWrites) passed = false;
+
+  // Check legacy explicitly bound to OBPC & Monte Castelo
+  const statusHasExplicitOrg = statusContent.includes("JPrzMnxJu77hTLJtu7FT") && statusContent.includes("fent_b813f062431581b136f98a9dd1432dcc");
+  const previewHasExplicitOrg = previewContent.includes("JPrzMnxJu77hTLJtu7FT") && previewContent.includes("fent_b813f062431581b136f98a9dd1432dcc");
+
+  console.log(`15. status handler has explicit legacy check: ${statusHasExplicitOrg ? 'PASS' : 'FAIL'}`);
+  if (!statusHasExplicitOrg) passed = false;
+
+  console.log(`16. preview handler has explicit legacy check: ${previewHasExplicitOrg ? 'PASS' : 'FAIL'}`);
+  if (!previewHasExplicitOrg) passed = false;
+
   if (!passed) {
     process.exit(1);
   }

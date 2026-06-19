@@ -77,9 +77,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fundsSnap = await orgRef.collection('financeFunds').get();
     const categoriesSnap = await orgRef.collection('financeCategories').get();
     
-    const unscopedAccounts = accountsSnap.docs.filter(d => !d.data().financeEntityId && (legacyAssignment === 'assign_unscoped_to_this_entity'));
-    const unscopedFunds = fundsSnap.docs.filter(d => !d.data().financeEntityId && (legacyAssignment === 'assign_unscoped_to_this_entity'));
-    const unscopedCategories = categoriesSnap.docs.filter(d => !d.data().financeEntityId && (legacyAssignment === 'assign_unscoped_to_this_entity'));
+    const OBPC_ORG_ID = 'JPrzMnxJu77hTLJtu7FT';
+    const MONTE_CASTELO_ID = 'fent_b813f062431581b136f98a9dd1432dcc';
+    const canAdoptLegacyData = (organizationId === OBPC_ORG_ID && financeEntityId === MONTE_CASTELO_ID);
+    const useLegacy = legacyAssignment === 'assign_unscoped_to_this_entity' && canAdoptLegacyData;
+
+    const unscopedAccounts = accountsSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
+    const unscopedFunds = fundsSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
+    const unscopedCategories = categoriesSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
 
     const scopedAccounts = accountsSnap.docs.filter(d => d.data().financeEntityId === financeEntityId);
     const scopedFunds = fundsSnap.docs.filter(d => d.data().financeEntityId === financeEntityId);
@@ -208,6 +213,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     processItems('account', unscopedAccounts, scopedAccounts, sAccounts);
     processItems('fund', unscopedFunds, scopedFunds, sFunds);
     processItems('category', unscopedCategories, scopedCategories, sCategories);
+
+    const sortPlanItems = (items: BootstrapPlanItem[]) => {
+       return items.sort((a, b) => {
+           // We can assume sortOrder maps to templateKey but we don't have sortOrder on the item right now.
+           // Let's sort by templateKey (if present) then existingId (if present).
+           if (a.templateKey && b.templateKey) {
+               return a.templateKey.localeCompare(b.templateKey);
+           }
+           if (a.templateKey && !b.templateKey) return -1;
+           if (!a.templateKey && b.templateKey) return 1;
+           if (a.existingId && b.existingId) {
+               return a.existingId.localeCompare(b.existingId);
+           }
+           return 0;
+       });
+    };
+
+    plan.accounts = sortPlanItems(plan.accounts);
+    plan.funds = sortPlanItems(plan.funds);
+    plan.categories = sortPlanItems(plan.categories);
 
     const { PAYMENT_METHODS } = await import('../../../shared/finance/paymentMethods.js');
     const enrichedPaymentMethods = PAYMENT_METHODS.map(pm => ({

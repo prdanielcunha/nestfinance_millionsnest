@@ -52,18 +52,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
     }
 
-    // Determine oldest entity
-    const entitiesSnap = await orgRef.collection('financeEntities')
-        .orderBy('createdAt', 'asc')
-        .limit(1)
-        .get();
-        
-    let isOldestEntity = false;
-    if (!entitiesSnap.empty && entitiesSnap.docs[0].id === financeEntityId) {
-        isOldestEntity = true;
-    }
-
-    // Get counts
     const accountsSnap = await orgRef.collection('financeAccounts').get();
     const fundsSnap = await orgRef.collection('financeFunds').get();
     const categoriesSnap = await orgRef.collection('financeCategories').get();
@@ -92,7 +80,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const hasUnscoped = unscopedAccounts > 0 || unscopedFunds > 0 || unscopedCategories > 0;
-    const canAdoptLegacyData = hasUnscoped && isOldestEntity;
+    
+    const OBPC_ORG_ID = 'JPrzMnxJu77hTLJtu7FT';
+    const MONTE_CASTELO_ID = 'fent_b813f062431581b136f98a9dd1432dcc';
+    const canAdoptLegacyData = hasUnscoped && (organizationId === OBPC_ORG_ID && financeEntityId === MONTE_CASTELO_ID);
+
     
     let status: 'not_started' | 'legacy_data_available' | 'ready' = 'not_started';
     
