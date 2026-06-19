@@ -18,6 +18,7 @@ import categoriesUpdate from '../server/vercel-handlers/finance/categoriesUpdate
 import entitiesCnpjLookup from '../server/vercel-handlers/finance/entitiesCnpjLookup.js';
 import entitiesCreate from '../server/vercel-handlers/finance/entitiesCreate.js';
 import entitiesList from '../server/vercel-handlers/finance/entitiesList.js';
+import entitiesUpdate from '../server/vercel-handlers/finance/entitiesUpdate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -66,6 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesCreate(req, res);
     case 'entities-list':
       return entitiesList(req, res);
+    case 'entities-update':
+      return entitiesUpdate(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

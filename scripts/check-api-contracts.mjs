@@ -25,6 +25,7 @@ async function main() {
     { method: 'POST', url: '/api/finance/accounts/update', operation: 'accounts-update', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/cnpj-lookup', operation: 'entities-cnpj-lookup', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/create', operation: 'entities-create', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/update', operation: 'entities-update', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/list', operation: 'entities-list', gateway: '/api/finance-gateway' },
     { method: 'GET', url: '/api/system/release', operation: 'release', gateway: '/api/system-gateway' }
   ];

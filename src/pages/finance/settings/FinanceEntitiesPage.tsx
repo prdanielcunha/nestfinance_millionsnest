@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Plus, AlertCircle } from 'lucide-react';
+import { Building2, Plus, AlertCircle, MoreHorizontal, Edit2 } from 'lucide-react';
 import { listFinanceEntities } from '@/src/services/financeEntitiesService';
 import FinanceEntityOnboarding from '@/src/components/finance/FinanceEntityOnboarding';
+import FinanceEntityEditModal from '@/src/components/finance/FinanceEntityEditModal';
 
 export default function FinanceEntitiesPage() {
   const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<any | null>(null);
+  
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEntities();
@@ -27,12 +32,34 @@ export default function FinanceEntitiesPage() {
     }
   };
 
-  const handleSuccess = () => {
-    setIsModalOpen(false);
+  const handleCreateSuccess = () => {
+    setIsCreateModalOpen(false);
     setSuccessMsg('Igreja cadastrada. Na próxima etapa, ajudaremos você a preparar as contas, fundos e categorias iniciais.');
     fetchEntities();
     setTimeout(() => setSuccessMsg(null), 8000);
   };
+
+  const handleEditSuccess = (updatedEntity: any) => {
+    setEditingEntity(null);
+    setSuccessMsg('Igreja atualizada com sucesso.');
+    // We can update the list optimistically but let's just refetch to be safe since we are returning the updated entity
+    setEntities(prev => prev.map(e => e.id === updatedEntity.id ? updatedEntity : e));
+    setTimeout(() => setSuccessMsg(null), 8000);
+  };
+
+  const toggleMenu = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveMenuId(activeMenuId === id ? null : id);
+  };
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenuId(null);
+    if (activeMenuId) {
+       window.addEventListener('click', handleOutsideClick);
+    }
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [activeMenuId]);
 
   return (
     <div className="flex flex-col h-full bg-surface-base antialiased text-text-base">
@@ -81,7 +108,7 @@ export default function FinanceEntitiesPage() {
                  Adicione a primeira igreja para iniciar a estrutura financeira.
               </p>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => setIsCreateModalOpen(true)}
                 className="flex items-center justify-center h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors shadow-lg shadow-accent-primary/20 active:scale-[0.98]"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -95,7 +122,7 @@ export default function FinanceEntitiesPage() {
                      {entities.length} {entities.length === 1 ? 'Igreja' : 'Igrejas'}
                    </h2>
                    <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => setIsCreateModalOpen(true)}
                         className="flex items-center justify-center py-2 px-4 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
                    >
                         <Plus className="w-4 h-4 mr-2" />
@@ -105,7 +132,7 @@ export default function FinanceEntitiesPage() {
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {entities.map(entity => (
-                      <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-5 hover:border-border-strong transition-colors">
+                      <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-5 hover:border-border-strong transition-colors relative">
                           <div className="flex items-start gap-4">
                               <div className="w-12 h-12 rounded-full bg-surface-secondary flex items-center justify-center shrink-0">
                                   {entity.hasLogo ? (
@@ -114,10 +141,10 @@ export default function FinanceEntitiesPage() {
                                       <span className="text-text-muted font-medium text-lg">{entity.displayName.charAt(0)}</span>
                                   )}
                               </div>
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-0 pr-6">
                                   <h3 className="text-lg font-medium text-text-primary truncate">{entity.displayName}</h3>
                                   <div className="text-sm text-text-muted mt-1 truncate">{entity.taxIdFormatted}</div>
-                                  <div className="flex items-center gap-2 mt-3">
+                                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                                      {entity.active ? (
                                         <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400">Ativa</span>
                                      ) : (
@@ -132,6 +159,33 @@ export default function FinanceEntitiesPage() {
                                   </div>
                               </div>
                           </div>
+
+                          {/* Menu contextual */}
+                          <div className="absolute top-4 right-4">
+                              <button
+                                  onClick={(e) => toggleMenu(entity.id, e)}
+                                  aria-label={`Ações de ${entity.displayName}`}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-secondary text-text-muted hover:text-text-primary transition-colors"
+                              >
+                                  <MoreHorizontal className="w-5 h-5" />
+                              </button>
+                              
+                              {activeMenuId === entity.id && (
+                                  <div className="absolute right-0 mt-1 w-48 bg-surface-elevated border border-border-subtle rounded-xl shadow-xl overflow-hidden z-10 animate-in fade-in slide-in-from-top-2">
+                                      <button
+                                          onClick={(e) => {
+                                             e.stopPropagation();
+                                             setEditingEntity(entity);
+                                             setActiveMenuId(null);
+                                          }}
+                                          className="w-full h-11 px-4 flex items-center gap-3 text-sm text-text-primary hover:bg-surface-secondary transition-colors text-left"
+                                      >
+                                          <Edit2 className="w-4 h-4 text-text-muted" />
+                                          Editar igreja
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
                       </div>
                   ))}
                </div>
@@ -139,10 +193,18 @@ export default function FinanceEntitiesPage() {
         )}
        </main>
 
-       {isModalOpen && (
+       {isCreateModalOpen && (
            <FinanceEntityOnboarding 
-             onClose={() => setIsModalOpen(false)} 
-             onSuccess={handleSuccess} 
+             onClose={() => setIsCreateModalOpen(false)} 
+             onSuccess={handleCreateSuccess} 
+           />
+       )}
+
+       {editingEntity && (
+           <FinanceEntityEditModal
+             entity={editingEntity}
+             onClose={() => setEditingEntity(null)}
+             onSuccess={handleEditSuccess}
            />
        )}
     </div>

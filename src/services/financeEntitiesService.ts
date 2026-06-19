@@ -88,3 +88,33 @@ export async function listFinanceEntities(): Promise<any> {
   
     return res.json();
 }
+
+export async function updateFinanceEntity(payload: any): Promise<any> {
+    const user = firebaseAuth.currentUser;
+    if (!user) throw new Error('Não autenticado');
+  
+    const token = await user.getIdToken();
+  
+    const res = await fetch('/api/finance/entities/update', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store'
+    });
+  
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 409 && errorData.error === 'FINANCE_ENTITY_ALREADY_EXISTS') {
+        throw new Error('FINANCE_ENTITY_ALREADY_EXISTS');
+      }
+      if (res.status === 404 && errorData.error === 'NOT_FOUND') {
+        throw new Error('NOT_FOUND');
+      }
+      throw new Error(errorData.error || 'Não foi possível atualizar a igreja.');
+    }
+  
+    return res.json();
+}
