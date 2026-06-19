@@ -5,6 +5,11 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
+  const isApplyEnabled = process.env.NESTFINANCE_BOOTSTRAP_APPLY_ENABLED === 'true';
+  if (!isApplyEnabled) {
+    return res.status(503).json({ code: 'BOOTSTRAP_APPLY_DISABLED', error: 'Apply endpoint is currently disabled' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   }
@@ -48,11 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId || typeof financeEntityId !== 'string' || !templateId || !selection || !previewDigest || !idempotencyKey) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
-    }
-
-    const isApplyEnabled = process.env.NESTFINANCE_BOOTSTRAP_APPLY_ENABLED === 'true';
-    if (!isApplyEnabled) {
-      return res.status(503).json({ code: 'BOOTSTRAP_APPLY_DISABLED', error: 'Apply endpoint is currently disabled' });
     }
 
     const { randomUUID, createHash } = await import('crypto');
@@ -164,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const processItems = (type: 'account' | 'fund' | 'category', unscoped: any[], scoped: any[], selectedKeys: string[]) => {
                const templateItems = templates.filter(t => t.entityType === type);
                const handledUnscopedIds = new Set<string>();
+               const planKey = type === 'category' ? 'categories' : type + 's';
 
                for (const tItem of templateItems) {
                   const isSelected = selectedKeys.includes(tItem.templateKey);
@@ -191,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   });
 
                   if (legacyMatch) {
-                     plan[type + 's'].push({
+                     plan[planKey].push({
                         templateKey: tItem.templateKey, entityType: type, existingId: legacyMatch.id,
                         name: legacyMatch.data().name || tItem.name, kind: tItem.kind, action: 'adopt',
                         reason: 'LEGACY_MATCH', active: legacyMatch.data().active
@@ -200,14 +201,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      handledUnscopedIds.add(legacyMatch.id);
                   } else {
                      if (isSelected) {
-                        plan[type + 's'].push({
+                        plan[planKey].push({
                            templateKey: tItem.templateKey, entityType: type, existingId: null,
                            name: tItem.name, kind: tItem.kind, action: 'create',
                            reason: 'TEMPLATE_SELECTED', active: true
                         });
                         summary.create++;
                      } else {
-                        plan[type + 's'].push({
+                        plan[planKey].push({
                            templateKey: tItem.templateKey, entityType: type, existingId: null,
                            name: tItem.name, kind: tItem.kind, action: 'skip',
                            reason: 'NOT_SELECTED', active: null
@@ -219,7 +220,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                for (const u of unscoped) {
                   if (!handledUnscopedIds.has(u.id)) {
-                     plan[type + 's'].push({
+                     plan[planKey].push({
                          templateKey: null, entityType: type, existingId: u.id,
                          name: u.data().name, kind: u.data().kind, action: 'adopt',
                          reason: 'LEGACY_MATCH', active: u.data().active

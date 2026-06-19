@@ -1,3 +1,4 @@
+
 import { getFirebaseAdmin } from './firebaseAdmin.js';
 
 export type SessionResolution = {
@@ -235,3 +236,4 @@ export async function resolveEcosystemSession(uid: string, organizationId: strin
     denialReason: 'ENTITLEMENT_NOT_CONFIGURED',
   };
 }
+    

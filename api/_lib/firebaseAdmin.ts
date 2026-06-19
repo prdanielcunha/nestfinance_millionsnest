@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
@@ -31,3 +32,4 @@ export function getFirebaseAdmin(): { auth: Auth; firestore: Firestore } {
     firestore: getFirestore(app),
   };
 }
+    
