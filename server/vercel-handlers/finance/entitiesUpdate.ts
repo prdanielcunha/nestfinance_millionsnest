@@ -69,16 +69,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const {
         financeEntityId,
+        expectedUpdatedAt,
         displayName,
         legalName,
         tradeName,
         registeredAddress,
         operationalAddress,
         operationalAddressSameAsRegistered,
+        confirmClearRegisteredAddress,
+        confirmClearOperationalAddress
     } = req.body;
 
     const extraKeys = Object.keys(req.body).filter(k => 
-      !['financeEntityId', 'displayName', 'legalName', 'tradeName', 'registeredAddress', 'operationalAddress', 'operationalAddressSameAsRegistered'].includes(k)
+      !['financeEntityId', 'expectedUpdatedAt', 'displayName', 'legalName', 'tradeName', 'registeredAddress', 'operationalAddress', 'operationalAddressSameAsRegistered', 'confirmClearRegisteredAddress', 'confirmClearOperationalAddress'].includes(k)
     );
     if (extraKeys.length > 0) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
@@ -86,6 +89,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId || typeof financeEntityId !== 'string' || !financeEntityId.startsWith('fent_') || financeEntityId.length !== 37) {
         return res.status(400).json({ error: 'INVALID_ENTITY_ID' });
+    }
+
+    if (!expectedUpdatedAt || typeof expectedUpdatedAt !== 'string') {
+        return res.status(400).json({ error: 'MISSING_REQUIRED_FIELDS' });
+    }
+
+    if (confirmClearRegisteredAddress !== undefined && typeof confirmClearRegisteredAddress !== 'boolean') {
+        return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+    }
+    
+    if (confirmClearOperationalAddress !== undefined && typeof confirmClearOperationalAddress !== 'boolean') {
+        return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
     const cleanString = (val: any) => typeof val === 'string' && val.trim() ? val.replace(/\s+/g, ' ').trim() : null;
@@ -149,6 +164,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const currentData = entityDoc.data()!;
             
+            let currentUpdatedAt = '';
+            if (currentData.updatedAt) {
+                 currentUpdatedAt = currentData.updatedAt.toDate().toISOString();
+            } else if (currentData.createdAt) {
+                 currentUpdatedAt = currentData.createdAt.toDate().toISOString();
+            }
+
+            if (currentUpdatedAt && expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) {
+                 throw new Error('FINANCE_ENTITY_VERSION_CONFLICT');
+            }
+
             // Check for No-Op
             const isAddressEqual = (a: any, b: any) => {
                  return a?.postalCode === b?.postalCode &&
@@ -167,6 +193,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const registeredAddressChanged = !isAddressEqual(currentData.registeredAddress, cleanRegisteredAddress);
             const operationalAddressChanged = !isAddressEqual(currentData.operationalAddress, cleanOperationalAddress);
             const isSameAsRegisteredChanged = currentData.operationalAddressSameAsRegistered !== isSameAsRegistered;
+
+            const isEmptyAddress = (addr: any) => {
+                return !addr?.postalCode && !addr?.street && !addr?.number && !addr?.complement && !addr?.neighborhood && !addr?.city && !addr?.state;
+            };
+
+            const isCurrentRegEmpty = isEmptyAddress(currentData.registeredAddress);
+            const isNewRegEmpty = isEmptyAddress(cleanRegisteredAddress);
+            if (!isCurrentRegEmpty && isNewRegEmpty && !confirmClearRegisteredAddress) {
+                throw new Error('ADDRESS_CLEAR_CONFIRMATION_REQUIRED');
+            }
+
+            const isCurrentOpEmpty = isEmptyAddress(currentData.operationalAddress);
+            const isNewOpEmpty = isEmptyAddress(cleanOperationalAddress);
+            if (!isCurrentOpEmpty && isNewOpEmpty && !confirmClearOperationalAddress && !isSameAsRegistered) {
+                throw new Error('ADDRESS_CLEAR_CONFIRMATION_REQUIRED');
+            }
 
             if (!displayNameChanged && !normalizedDisplayNameChanged && !legalNameChanged && !tradeNameChanged && !registeredAddressChanged && !operationalAddressChanged && !isSameAsRegisteredChanged) {
                 isNoOp = true;
@@ -227,10 +269,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  auditChanges.tradeNameChanged = true;
             }
             if (registeredAddressChanged) {
-                 auditChanges.registeredAddressChangedFields = getChangedFields(currentData.registeredAddress, cleanRegisteredAddress);
+                 if (isNewRegEmpty && !isCurrentRegEmpty) {
+                     auditChanges.registeredAddressCleared = true;
+                 } else {
+                     auditChanges.registeredAddressChangedFields = getChangedFields(currentData.registeredAddress, cleanRegisteredAddress);
+                 }
             }
             if (operationalAddressChanged) {
-                 auditChanges.operationalAddressChangedFields = getChangedFields(currentData.operationalAddress, cleanOperationalAddress);
+                 if (isNewOpEmpty && !isCurrentOpEmpty && !isSameAsRegistered) {
+                     auditChanges.operationalAddressCleared = true;
+                 } else {
+                     auditChanges.operationalAddressChangedFields = getChangedFields(currentData.operationalAddress, cleanOperationalAddress);
+                 }
             }
             if (isSameAsRegisteredChanged) {
                  auditChanges.operationalAddressSameAsRegistered = { from: currentData.operationalAddressSameAsRegistered, to: isSameAsRegistered };

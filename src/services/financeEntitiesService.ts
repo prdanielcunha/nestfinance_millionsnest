@@ -89,6 +89,33 @@ export async function listFinanceEntities(): Promise<any> {
     return res.json();
 }
 
+export async function getFinanceEntityDetail(financeEntityId: string): Promise<any> {
+    const user = firebaseAuth.currentUser;
+    if (!user) throw new Error('Não autenticado');
+  
+    const token = await user.getIdToken();
+  
+    const res = await fetch('/api/finance/entities/detail', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ financeEntityId }),
+      cache: 'no-store'
+    });
+  
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 404 && errorData.error === 'FINANCE_ENTITY_NOT_FOUND') {
+         throw new Error('FINANCE_ENTITY_NOT_FOUND');
+      }
+      throw new Error(errorData.error || 'Não foi possível carregar os detalhes da igreja.');
+    }
+  
+    return res.json();
+}
+
 export async function updateFinanceEntity(payload: any): Promise<any> {
     const user = firebaseAuth.currentUser;
     if (!user) throw new Error('Não autenticado');

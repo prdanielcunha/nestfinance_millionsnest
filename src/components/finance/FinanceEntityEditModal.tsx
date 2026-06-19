@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Building2, MapPin } from 'lucide-react';
-import { updateFinanceEntity } from '@/src/services/financeEntitiesService';
+import { X, Save, Building2, MapPin, Search } from 'lucide-react';
+import { updateFinanceEntity, lookupCnpj } from '@/src/services/financeEntitiesService';
 
 interface FinanceEntityEditModalProps {
   entity: any;
@@ -38,6 +38,28 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
     state: entity.operationalAddress?.state || '',
   });
 
+  const [confirmClearReg, setConfirmClearReg] = useState(false);
+  const [confirmClearOp, setConfirmClearOp] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState<'reg' | 'op' | null>(null);
+  
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupData, setLookupData] = useState<any>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const formatAddress = (addr: any) => ({
+    postalCode: addr.postalCode?.trim() || null,
+    street: addr.street?.trim() || null,
+    number: addr.number?.trim() || null,
+    complement: addr.complement?.trim() || null,
+    neighborhood: addr.neighborhood?.trim() || null,
+    city: addr.city?.trim() || null,
+    state: addr.state?.trim() || null,
+  });
+
+  const isEmptyAddress = (addr: any) => {
+    return !addr.postalCode && !addr.street && !addr.number && !addr.complement && !addr.neighborhood && !addr.city && !addr.state;
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -50,44 +72,75 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
 
     try {
       setLoading(true);
+
+      const regAddrClean = formatAddress(registeredAddress);
+      const opAddrClean = formatAddress(operationalAddress);
+
       const payload: any = {
         financeEntityId: entity.id,
+        expectedUpdatedAt: entity.updatedAt,
         displayName: displayName.trim(),
         legalName: legalName.trim(),
         tradeName: tradeName.trim() || null,
-        registeredAddress: {
-           postalCode: registeredAddress.postalCode.trim() || null,
-           street: registeredAddress.street.trim() || null,
-           number: registeredAddress.number.trim() || null,
-           complement: registeredAddress.complement.trim() || null,
-           neighborhood: registeredAddress.neighborhood.trim() || null,
-           city: registeredAddress.city.trim() || null,
-           state: registeredAddress.state.trim() || null,
-        },
+        registeredAddress: regAddrClean,
         operationalAddressSameAsRegistered: operationalAddressSame,
         operationalAddress: operationalAddressSame ? {
            postalCode: null, street: null, number: null, complement: null, neighborhood: null, city: null, state: null
-        } : {
-           postalCode: operationalAddress.postalCode.trim() || null,
-           street: operationalAddress.street.trim() || null,
-           number: operationalAddress.number.trim() || null,
-           complement: operationalAddress.complement.trim() || null,
-           neighborhood: operationalAddress.neighborhood.trim() || null,
-           city: operationalAddress.city.trim() || null,
-           state: operationalAddress.state.trim() || null,
-        }
+        } : opAddrClean,
       };
+
+      if (confirmClearReg) payload.confirmClearRegisteredAddress = true;
+      if (confirmClearOp) payload.confirmClearOperationalAddress = true;
 
       const res = await updateFinanceEntity(payload);
       onSuccess(res.entity);
     } catch (err: any) {
       if (err.message === 'FINANCE_ENTITY_ALREADY_EXISTS') {
         setErrorMsg('Já existe uma igreja com esse nome.');
+      } else if (err.message === 'ADDRESS_CLEAR_CONFIRMATION_REQUIRED') {
+         if (isEmptyAddress(formatAddress(registeredAddress)) && !isEmptyAddress(entity.registeredAddress)) {
+             setShowClearConfirm('reg');
+         } else if (!operationalAddressSame && isEmptyAddress(formatAddress(operationalAddress)) && !isEmptyAddress(entity.operationalAddress)) {
+             setShowClearConfirm('op');
+         }
+      } else if (err.message === 'FINANCE_ENTITY_VERSION_CONFLICT') {
+         setErrorMsg('Esta igreja foi atualizada em outro lugar. Feche e abra novamente para recarregar os dados antes de salvar.');
       } else {
         setErrorMsg(err.message || 'Não foi possível atualizar a igreja. Tente novamente.');
       }
       setLoading(false);
     }
+  };
+
+  const handleLookup = async () => {
+     if (lookupLoading) return;
+     setLookupError(null);
+     setLookupLoading(true);
+     setLookupData(null);
+     try {
+       const res = await lookupCnpj(entity.taxId);
+       setLookupData(res);
+     } catch (err: any) {
+        setLookupError('Não conseguimos consultar os dados agora. Você pode preencher ou corrigir manualmente.');
+     } finally {
+        setLookupLoading(false);
+     }
+  };
+
+  const applyLookup = () => {
+      if (!lookupData) return;
+      setLegalName(lookupData.companyName || '');
+      setTradeName(lookupData.tradeName || '');
+      setRegisteredAddress({
+         postalCode: lookupData.address?.postalCode || '',
+         street: lookupData.address?.street || '',
+         number: lookupData.address?.number || '',
+         complement: lookupData.address?.complement || '',
+         neighborhood: lookupData.address?.neighborhood || '',
+         city: lookupData.address?.city || '',
+         state: lookupData.address?.state || '',
+      });
+      setLookupData(null);
   };
 
   const handleRegChange = (field: string, value: string) => {
@@ -210,11 +263,50 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
 
              {/* Section 2: Endereço Cadastral */}
              <div className="space-y-6 pt-4">
-               <h3 className="text-base font-semibold text-text-primary border-b border-border-subtle pb-2 flex items-center gap-2">
-                 <MapPin className="w-4 h-4 text-text-muted" />
-                 Endereço cadastral
-               </h3>
-               <p className="text-xs text-text-muted -mt-4 mb-4">Endereço relacionado ao cadastro do CNPJ.</p>
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border-subtle pb-2 gap-4">
+                 <div>
+                   <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+                     <MapPin className="w-4 h-4 text-text-muted" />
+                     Dados cadastrais
+                   </h3>
+                   <p className="text-xs text-text-muted mt-1">Endereço relacionado ao cadastro do CNPJ.</p>
+                 </div>
+                 <button
+                    type="button"
+                    onClick={handleLookup}
+                    disabled={lookupLoading || loading}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-secondary text-text-secondary text-sm hover:text-text-primary hover:bg-border-subtle transition-colors"
+                 >
+                    {lookupLoading ? <div className="w-4 h-4 border-2 border-text-muted border-t-accent-primary rounded-full animate-spin" /> : <Search className="w-4 h-4" />}
+                    Buscar novamente os dados do CNPJ
+                 </button>
+               </div>
+
+               {lookupError && (
+                  <div className="p-3 bg-surface-secondary border border-border-subtle rounded-lg text-sm text-text-secondary mt-2">
+                     {lookupError}
+                  </div>
+               )}
+
+               {lookupData && (
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mt-2 animate-in fade-in">
+                      <p className="text-emerald-400 font-medium text-sm mb-2">Dados encontrados. Confira antes de aplicá-los ao formulário.</p>
+                      <div className="text-sm text-emerald-400 mb-3 space-y-1">
+                          <p><strong>Razão:</strong> {lookupData.companyName}</p>
+                          {lookupData.tradeName && <p><strong>Fantasia:</strong> {lookupData.tradeName}</p>}
+                          <p><strong>Endereço:</strong> {lookupData.address?.street}, {lookupData.address?.number} - {lookupData.address?.city}/{lookupData.address?.state}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <button type="button" onClick={applyLookup} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">
+                              Usar dados encontrados
+                          </button>
+                          <button type="button" onClick={() => setLookupData(null)} className="px-3 py-1.5 bg-transparent text-emerald-400 hover:bg-emerald-500/10 rounded-lg text-sm transition-colors">
+                              Cancelar
+                          </button>
+                      </div>
+                      <p className="text-xs text-emerald-400/80 mt-3">Preencha novamente com os dados encontrados para este CNPJ. Nada será salvo sem sua confirmação.</p>
+                  </div>
+               )}
 
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-1">
@@ -300,6 +392,41 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
 
           </form>
         </div>
+
+        {/* Clearance Confirmation Modal Overlay */}
+        {showClearConfirm && (
+           <div className="absolute inset-0 z-10 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-surface-elevated border border-border-subtle p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
+                 <h3 className="text-lg font-semibold text-text-primary mb-2">
+                    Remover todo o endereço {showClearConfirm === 'reg' ? 'cadastral' : 'operacional'}?
+                 </h3>
+                 <p className="text-sm text-text-secondary mb-6">
+                    Todos os campos desse endereço serão apagados. Esta ação ficará registrada no histórico.
+                 </p>
+                 <div className="flex items-center justify-end gap-3">
+                    <button
+                       type="button"
+                       onClick={() => setShowClearConfirm(null)}
+                       className="px-4 py-2 rounded-lg bg-surface-secondary text-text-primary font-medium hover:bg-border-subtle transition-colors text-sm"
+                    >
+                       Cancelar
+                    </button>
+                    <button
+                       type="button"
+                       onClick={(e) => {
+                          if (showClearConfirm === 'reg') setConfirmClearReg(true);
+                          else setConfirmClearOp(true);
+                          setShowClearConfirm(null);
+                          handleUpdate(e as any);
+                       }}
+                       className="px-4 py-2 rounded-lg bg-rose-500 text-white font-medium hover:bg-rose-600 transition-colors text-sm shadow-lg shadow-rose-500/20"
+                    >
+                       Remover endereço
+                    </button>
+                 </div>
+              </div>
+           </div>
+        )}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border-subtle bg-surface-base shrink-0">

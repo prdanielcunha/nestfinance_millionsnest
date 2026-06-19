@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Plus, AlertCircle, MoreHorizontal, Edit2 } from 'lucide-react';
-import { listFinanceEntities } from '@/src/services/financeEntitiesService';
+import { listFinanceEntities, getFinanceEntityDetail } from '@/src/services/financeEntitiesService';
 import FinanceEntityOnboarding from '@/src/components/finance/FinanceEntityOnboarding';
 import FinanceEntityEditModal from '@/src/components/finance/FinanceEntityEditModal';
 
@@ -14,6 +14,7 @@ export default function FinanceEntitiesPage() {
   
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEntities();
@@ -50,6 +51,21 @@ export default function FinanceEntitiesPage() {
   const toggleMenu = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveMenuId(activeMenuId === id ? null : id);
+  };
+
+  const handleEditClick = async (entity: any) => {
+    setActiveMenuId(null);
+    setLoadingDetailId(entity.id);
+    setSuccessMsg(null);
+    setError(null);
+    try {
+      const res = await getFinanceEntityDetail(entity.id);
+      setEditingEntity(res.entity);
+    } catch (err: any) {
+      setError(err.message || 'Não foi possível carregar os dados da igreja. Tente novamente.');
+    } finally {
+      setLoadingDetailId(null);
+    }
   };
 
   // Close menus on outside click
@@ -175,13 +191,17 @@ export default function FinanceEntitiesPage() {
                                       <button
                                           onClick={(e) => {
                                              e.stopPropagation();
-                                             setEditingEntity(entity);
-                                             setActiveMenuId(null);
+                                             handleEditClick(entity);
                                           }}
-                                          className="w-full h-11 px-4 flex items-center gap-3 text-sm text-text-primary hover:bg-surface-secondary transition-colors text-left"
+                                          disabled={loadingDetailId === entity.id}
+                                          className="w-full h-11 px-4 flex items-center gap-3 text-sm text-text-primary hover:bg-surface-secondary transition-colors text-left disabled:opacity-50"
                                       >
-                                          <Edit2 className="w-4 h-4 text-text-muted" />
-                                          Editar igreja
+                                          {loadingDetailId === entity.id ? (
+                                              <div className="w-4 h-4 border-2 border-text-muted border-t-accent-primary rounded-full animate-spin" />
+                                          ) : (
+                                              <Edit2 className="w-4 h-4 text-text-muted" />
+                                          )}
+                                          {loadingDetailId === entity.id ? 'Carregando...' : 'Editar igreja'}
                                       </button>
                                   </div>
                               )}
