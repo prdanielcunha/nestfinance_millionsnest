@@ -62,7 +62,10 @@ export class CnpjWsCompanyRegistryProvider implements CompanyRegistryProvider {
       const pActDesc = cleanString(estab.atividade_principal?.descricao);
 
       // We only consider it valid if it has at least taxId and legalName
-      const legalName = cleanString(empresa.razao_social) || '';
+      const legalName = cleanString(empresa.razao_social);
+      if (!legalName || legalName.length < 2) {
+         throw new Error('REGISTRY_INVALID_RESPONSE');
+      }
 
       const tipoLog = cleanString(estab.tipo_logradouro) || '';
       const log = cleanString(estab.logradouro) || '';

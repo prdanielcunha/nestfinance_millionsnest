@@ -32,14 +32,18 @@ export class BrasilApiCompanyRegistryProvider implements CompanyRegistryProvider
         throw new Error('REGISTRY_INVALID_RESPONSE');
       }
 
-      // Minimal safe mapper
       const cleanString = (val: any) => typeof val === 'string' && val.trim() ? val.trim() : null;
       
+      const legalName = cleanString(data.razao_social);
+      if (!legalName || legalName.length < 2) {
+         throw new Error('REGISTRY_INVALID_RESPONSE');
+      }
+
       return {
         provider: 'brasilapi',
         providerDataset: 'minha_receita',
         taxId: normalizedTaxId,
-        legalName: cleanString(data.razao_social) || '',
+        legalName: legalName,
         tradeName: cleanString(data.nome_fantasia),
         registrationStatus: cleanString(data.descricao_situacao_cadastral),
         registrationStatusDate: cleanString(data.data_situacao_cadastral),

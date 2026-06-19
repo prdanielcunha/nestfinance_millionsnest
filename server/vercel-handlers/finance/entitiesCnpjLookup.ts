@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = randomBytes(16).toString('hex');
   res.setHeader('X-NestFinance-Request-Id', requestId);
   
-  const logDiagnosis = (outcome: string, provider: string, httpStatus: number, durationMs: number, errorCode?: string) => {
+  const logDiagnosis = (outcome: string, provider: string, httpStatus: number, durationMs: number, extra?: any) => {
     console.log(JSON.stringify({
       event: 'finance_entity_cnpj_lookup',
       requestId,
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       outcome,
       httpStatus,
       durationMs,
-      errorCode
+      ...extra
     }));
   };
 
@@ -84,13 +84,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { taxId } = req.body;
 
     if (!taxId || typeof taxId !== 'string') {
-      logDiagnosis('error', 'none', 400, Date.now() - startTime, 'INVALID_TAX_ID');
+      logDiagnosis('error', 'none', 400, Date.now() - startTime, { errorCode: 'INVALID_TAX_ID' });
       return res.status(400).json({ error: 'INVALID_TAX_ID' });
     }
 
     const normalized = normalizeCnpj(taxId);
     if (!isValidCnpj(normalized)) {
-       logDiagnosis('error', 'none', 400, Date.now() - startTime, 'INVALID_TAX_ID');
+       logDiagnosis('error', 'none', 400, Date.now() - startTime, { errorCode: 'INVALID_TAX_ID' });
        return res.status(400).json({ error: 'INVALID_TAX_ID' });
     }
 
@@ -106,7 +106,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await provider.lookupCnpj(normalized, controller.signal);
       clearTimeout(timeout);
       
-      logDiagnosis('success', result.provider, 200, Date.now() - startTime);
+      const hasLegalName = !!result.legalName;
+      const hasTradeName = !!result.tradeName;
+      const addressFieldCount = Object.values(result.registeredAddress || {}).filter(v => !!v).length;
+      
+      logDiagnosis('success', result.provider, 200, Date.now() - startTime, {
+          hasLegalName,
+          hasTradeName,
+          addressFieldCount
+      });
 
       return res.status(200).json({
         found: true,
@@ -134,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const isNotFound = providerError.message === 'REGISTRY_NOT_FOUND';
       
-      logDiagnosis('error', 'chain', isNotFound ? 404 : 503, Date.now() - startTime, providerError.message);
+      logDiagnosis(isNotFound ? 'not_found' : 'invalid_response', 'chain', isNotFound ? 404 : 503, Date.now() - startTime, { errorCode: providerError.message });
       
       return res.status(isNotFound ? 404 : 503).json({
           found: false,
@@ -149,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Do not log the entire error in production due to sensitive fields
     console.error(`Cnpj Lookup error for request ${requestId}:`, error.code || error.message);
-    logDiagnosis('error', 'none', 500, Date.now() - startTime, 'INTERNAL_SERVER_ERROR');
+    logDiagnosis('network_error', 'none', 500, Date.now() - startTime, { errorCode: 'INTERNAL_SERVER_ERROR' });
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', requestId });
   }
 }

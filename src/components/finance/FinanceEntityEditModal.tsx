@@ -112,6 +112,25 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
     }
   };
 
+  const formatAddressPreview = (addr: any) => {
+      if (!addr) return 'Endereço não informado';
+      const parts = [];
+      const streetNumber = [addr.street, addr.number].filter(Boolean).join(', ');
+      if (streetNumber) parts.push(streetNumber);
+      if (addr.neighborhood) parts.push(addr.neighborhood);
+      
+      const cityState = [addr.city, addr.state].filter(Boolean).join('/');
+      if (cityState) parts.push(cityState);
+
+      if (parts.length === 0) return 'Endereço não informado';
+      
+      return (
+          <span className="flex flex-col gap-0.5">
+             {parts.map((p, i) => <span key={i}>{p}</span>)}
+          </span>
+      );
+  };
+
   const handleLookup = async () => {
      if (lookupLoading) return;
      setLookupError(null);
@@ -121,25 +140,38 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
        const res = await lookupCnpj(entity.taxId);
        setLookupData(res);
      } catch (err: any) {
-        setLookupError('Não conseguimos consultar os dados agora. Você pode preencher ou corrigir manualmente.');
+        if (err.message === 'INVALID_RESPONSE') {
+            setLookupError('Não conseguimos interpretar os dados encontrados. Tente novamente ou continue preenchendo manualmente.');
+        } else {
+            setLookupError('Não conseguimos consultar os dados agora. Tente novamente ou continue preenchendo manualmente.');
+        }
      } finally {
         setLookupLoading(false);
      }
   };
 
   const applyLookup = () => {
-      if (!lookupData) return;
-      setLegalName(lookupData.companyName || '');
-      setTradeName(lookupData.tradeName || '');
-      setRegisteredAddress({
-         postalCode: lookupData.address?.postalCode || '',
-         street: lookupData.address?.street || '',
-         number: lookupData.address?.number || '',
-         complement: lookupData.address?.complement || '',
-         neighborhood: lookupData.address?.neighborhood || '',
-         city: lookupData.address?.city || '',
-         state: lookupData.address?.state || '',
-      });
+      if (!lookupData || !lookupData.entity) return;
+      
+      const newEntity = lookupData.entity;
+      
+      if (newEntity.legalName && newEntity.legalName.trim().length >= 2) {
+          setLegalName(newEntity.legalName);
+      }
+      
+      if (newEntity.tradeName !== undefined) {
+          setTradeName(newEntity.tradeName || '');
+      }
+
+      setRegisteredAddress(prev => ({
+         postalCode: newEntity.registeredAddress?.postalCode ?? prev.postalCode,
+         street: newEntity.registeredAddress?.street ?? prev.street,
+         number: newEntity.registeredAddress?.number ?? prev.number,
+         complement: newEntity.registeredAddress?.complement ?? prev.complement,
+         neighborhood: newEntity.registeredAddress?.neighborhood ?? prev.neighborhood,
+         city: newEntity.registeredAddress?.city ?? prev.city,
+         state: newEntity.registeredAddress?.state ?? prev.state,
+      }));
       setLookupData(null);
   };
 
@@ -288,13 +320,13 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
                   </div>
                )}
 
-               {lookupData && (
+               {lookupData && lookupData.entity && (
                   <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mt-2 animate-in fade-in">
                       <p className="text-emerald-400 font-medium text-sm mb-2">Dados encontrados. Confira antes de aplicá-los ao formulário.</p>
                       <div className="text-sm text-emerald-400 mb-3 space-y-1">
-                          <p><strong>Razão:</strong> {lookupData.companyName}</p>
-                          {lookupData.tradeName && <p><strong>Fantasia:</strong> {lookupData.tradeName}</p>}
-                          <p><strong>Endereço:</strong> {lookupData.address?.street}, {lookupData.address?.number} - {lookupData.address?.city}/{lookupData.address?.state}</p>
+                          <p><strong>Razão social:</strong> {lookupData.entity.legalName}</p>
+                          {lookupData.entity.tradeName && <p><strong>Nome fantasia:</strong> {lookupData.entity.tradeName}</p>}
+                          <p><strong>Endereço cadastral:</strong> {formatAddressPreview(lookupData.entity.registeredAddress)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                           <button type="button" onClick={applyLookup} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors">

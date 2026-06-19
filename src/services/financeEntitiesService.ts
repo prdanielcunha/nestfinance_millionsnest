@@ -33,7 +33,51 @@ export async function lookupCnpj(taxId: string): Promise<any> {
     throw new Error(errorData.error || 'Não foi possível consultar o CNPJ.');
   }
 
-  return res.json();
+  const data = await res.json();
+  
+  if (!data || data.found !== true || !data.entity) {
+      throw new Error('INVALID_RESPONSE');
+  }
+
+  const entity = data.entity;
+  if (!entity.legalName || typeof entity.legalName !== 'string' || entity.legalName.trim().length === 0) {
+      throw new Error('INVALID_RESPONSE');
+  }
+
+  const formatAddressStr = (val: any) => (typeof val === 'string' && val.trim() ? val.trim() : null);
+
+  const parsedResponse = {
+      found: true,
+      provider: data.provider,
+      providerDataset: data.providerDataset,
+      queriedAt: data.queriedAt,
+      entity: {
+          taxId: entity.taxId,
+          taxIdFormatted: entity.taxIdFormatted,
+          legalName: entity.legalName.trim(),
+          tradeName: formatAddressStr(entity.tradeName),
+          registrationStatus: formatAddressStr(entity.registrationStatus),
+          registrationStatusDate: formatAddressStr(entity.registrationStatusDate),
+          openingDate: formatAddressStr(entity.openingDate),
+          legalNatureCode: formatAddressStr(entity.legalNatureCode),
+          legalNatureDescription: formatAddressStr(entity.legalNatureDescription),
+          primaryActivityCode: formatAddressStr(entity.primaryActivityCode),
+          primaryActivityDescription: formatAddressStr(entity.primaryActivityDescription),
+          registeredAddress: typeof entity.registeredAddress === 'object' && entity.registeredAddress ? {
+              postalCode: formatAddressStr(entity.registeredAddress.postalCode),
+              street: formatAddressStr(entity.registeredAddress.street),
+              number: formatAddressStr(entity.registeredAddress.number),
+              complement: formatAddressStr(entity.registeredAddress.complement),
+              neighborhood: formatAddressStr(entity.registeredAddress.neighborhood),
+              city: formatAddressStr(entity.registeredAddress.city),
+              state: formatAddressStr(entity.registeredAddress.state)
+          } : {
+              postalCode: null, street: null, number: null, complement: null, neighborhood: null, city: null, state: null
+          }
+      }
+  };
+
+  return parsedResponse;
 }
 
 export async function createFinanceEntity(payload: any): Promise<any> {
