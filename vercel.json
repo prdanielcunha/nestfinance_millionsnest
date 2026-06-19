@@ -97,6 +97,10 @@
       "destination": "/api/finance-gateway?operation=entities-bootstrap-preview"
     },
     {
+      "source": "/api/finance/entities/bootstrap/apply",
+      "destination": "/api/finance-gateway?operation=entities-bootstrap-apply"
+    },
+    {
       "source": "/api/system/release",
       "destination": "/api/system-gateway?operation=release"
     },

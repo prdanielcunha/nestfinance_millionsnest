@@ -30,6 +30,7 @@ async function main() {
     { method: 'POST', url: '/api/finance/entities/list', operation: 'entities-list', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/bootstrap/status', operation: 'entities-bootstrap-status', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/bootstrap/preview', operation: 'entities-bootstrap-preview', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/bootstrap/apply', operation: 'entities-bootstrap-apply', gateway: '/api/finance-gateway' },
     { method: 'GET', url: '/api/system/release', operation: 'release', gateway: '/api/system-gateway' }
   ];
 

@@ -1,19 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { BOOTSTRAP_TEMPLATES } from '../../../shared/finance/bootstrapTemplates.js';
-import { normalizeName } from '../../../shared/finance/bootstrapHelpers.js';
-
-type BootstrapPlanItem = {
-  templateKey: string | null;
-  entityType: 'account' | 'fund' | 'category';
-  existingId: string | null;
-  name: string;
-  kind?: 'income' | 'expense';
-  action: 'adopt' | 'create' | 'skip' | 'conflict';
-  reason: 'LEGACY_MATCH' | 'ALREADY_SCOPED' | 'TEMPLATE_SELECTED' | 'NOT_SELECTED' | 'NAME_CONFLICT' | 'HISTORICAL_LOCK_CONFLICT' | 'INVALID_EXISTING_DATA';
-  active: boolean | null;
-};
+import { BOOTSTRAP_TEMPLATES, BootstrapPlanItem } from '../../../shared/finance/bootstrapTemplates.js';
+import { normalizeName, computePreviewDigest } from '../../../shared/finance/bootstrapHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -246,6 +235,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supportsExpense: pm.supportsExpense
     }));
 
+    const finalPaymentMethodCodes = enrichedPaymentMethods.filter(pm => pm.enabled).map(pm => pm.code);
+    const previewDigest = computePreviewDigest(financeEntityId, templateId, legacyAssignment, plan, finalPaymentMethodCodes);
+
     return res.status(200).json({
        financeEntity: {
           id: financeEntityId,
@@ -261,7 +253,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        summary,
        paymentMethods: enrichedPaymentMethods,
        warnings: [],
-       canApply: summary.conflict === 0 && (summary.create > 0 || summary.adopt > 0)
+       canApply: summary.conflict === 0 && (summary.create > 0 || summary.adopt > 0),
+       previewDigest
     });
 
   } catch (error: any) {

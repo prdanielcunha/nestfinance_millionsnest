@@ -1,5 +1,37 @@
 export type BootstrapTemplateId = 'church-br-v1' | 'obpc-br-v1';
 
+import { PaymentMethodCode } from './paymentMethods';
+
+export type BootstrapPlanItem = {
+  templateKey: string | null;
+  entityType: 'account' | 'fund' | 'category';
+  existingId: string | null;
+  name: string;
+  kind?: 'income' | 'expense';
+  action: 'adopt' | 'create' | 'skip' | 'conflict';
+  reason: 'LEGACY_MATCH' | 'ALREADY_SCOPED' | 'TEMPLATE_SELECTED' | 'NOT_SELECTED' | 'NAME_CONFLICT' | 'HISTORICAL_LOCK_CONFLICT' | 'INVALID_EXISTING_DATA';
+  active: boolean | null;
+};
+
+export type BootstrapApplyRequest = {
+  financeEntityId: string;
+  templateId: BootstrapTemplateId;
+
+  legacyAssignment:
+    | 'none'
+    | 'assign_unscoped_to_this_entity';
+
+  selection: {
+    accountTemplateKeys: string[];
+    fundTemplateKeys: string[];
+    categoryTemplateKeys: string[];
+    paymentMethodCodes: PaymentMethodCode[];
+  };
+
+  previewDigest: string;
+  idempotencyKey: string;
+};
+
 export type BootstrapItem = {
   templateKey: string;
   entityType: 'account' | 'fund' | 'category';
