@@ -92,6 +92,79 @@ export async function applyBootstrap(payload: BootstrapApplyRequest): Promise<an
     }
 }
 
+export type BootstrapVerificationResponse = {
+  verified: boolean;
+  status: 'passed' | 'failed';
+  summary: {
+    expectedDocuments: number;
+    verifiedDocuments: number;
+    expectedLocks: number;
+    verifiedLocks: number;
+    settingsVerified: boolean;
+    auditLogVerified: boolean;
+    idempotencyVerified: boolean;
+  };
+  issues: Array<{
+    code: string;
+    area: 'document' | 'lock' | 'settings' | 'audit' | 'idempotency';
+    message: string;
+  }>;
+};
+
+export async function verifyBootstrap(payload: { financeEntityId: string; idempotencyKey: string; }): Promise<BootstrapVerificationResponse> {
+    const user = firebaseAuth.currentUser;
+    if (!user) throw new Error('Não autenticado');
+
+    const token = await user.getIdToken();
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const res = await fetch('/api/finance/entities/bootstrap/verify', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            cache: 'no-store',
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        let data = {};
+        const textResponse = await res.text();
+        try {
+            data = textResponse ? JSON.parse(textResponse) : {};
+        } catch {
+             throw new Error('O servidor retornou uma resposta inválida.');
+        }
+
+        if (!res.ok) {
+             const errorData: any = data;
+             const err = new Error(errorData.error || 'Não foi possível verificar a preparação.');
+             (err as any).code = errorData.code || 'UNKNOWN';
+             (err as any).status = res.status;
+             throw err;
+        }
+
+        return data as BootstrapVerificationResponse;
+    } catch (e: any) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+             const err = new Error('A conexão demorou muito para responder.');
+             (err as any).code = 'NETWORK_TIMEOUT';
+             throw err;
+        }
+        if (!e.status && !e.code) {
+            (e as any).code = 'NETWORK_ERROR';
+        }
+        throw e;
+    }
+}
+
 export async function previewBootstrap(payload: any): Promise<any> {
     const user = firebaseAuth.currentUser;
     if (!user) throw new Error('Não autenticado');

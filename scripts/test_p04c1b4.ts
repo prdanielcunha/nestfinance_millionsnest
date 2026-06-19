@@ -101,7 +101,7 @@ async function run() {
 
     await check('1. flag ausente mantém botão de aplicação oculto ou inativo', () => {
         // UI_ENABLED is checked in rendering and logic.
-        return wizardCode.includes('UI_ENABLED ? (') && wizardCode.includes('disabled={true} className="h-12 px-6 rounded-xl bg-surface-secondary text-text-muted');
+        return wizardCode.includes('canFinalize = UI_ENABLED') && wizardCode.includes('{canFinalize && (');
     });
 
     await check('2. flag false não chama applyBootstrap', () => {

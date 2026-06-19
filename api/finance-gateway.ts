@@ -23,6 +23,7 @@ import entitiesUpdate from '../server/vercel-handlers/finance/entitiesUpdate.js'
 import entitiesBootstrapStatus from '../server/vercel-handlers/finance/entitiesBootstrapStatus.js';
 import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entitiesBootstrapPreview.js';
 import entitiesBootstrapApply from '../server/vercel-handlers/finance/entitiesBootstrapApply.js';
+import entitiesBootstrapVerify from '../server/vercel-handlers/finance/entitiesBootstrapVerify.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -81,6 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesBootstrapPreview(req, res);
     case 'entities-bootstrap-apply':
       return entitiesBootstrapApply(req, res);
+    case 'entities-bootstrap-verify':
+      return entitiesBootstrapVerify(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

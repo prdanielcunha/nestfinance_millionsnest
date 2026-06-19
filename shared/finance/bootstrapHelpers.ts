@@ -29,6 +29,59 @@ export function buildCategoryUniqKey(financeEntityId: string, kind: 'income' | '
   return `uniq_${hash}`;
 }
 
+export function computeExpectedStateHash(
+  type: 'account' | 'fund' | 'category',
+  data: any
+): string {
+  const payload: any = {};
+  if (type === 'account') {
+    payload.active = data.active;
+    payload.customized = data.customized;
+    payload.documentId = data.documentId;
+    payload.financeEntityId = data.financeEntityId;
+    payload.normalizedName = data.normalizedName;
+    payload.source = data.source;
+    payload.templateId = data.templateId;
+    payload.templateKey = data.templateKey;
+    payload.templateVersion = data.templateVersion;
+    payload.type = data.type;
+  } else if (type === 'fund') {
+    payload.active = data.active;
+    payload.customized = data.customized;
+    payload.documentId = data.documentId;
+    payload.financeEntityId = data.financeEntityId;
+    payload.normalizedName = data.normalizedName;
+    payload.restricted = data.restricted;
+    payload.source = data.source;
+    payload.templateId = data.templateId;
+    payload.templateKey = data.templateKey;
+    payload.templateVersion = data.templateVersion;
+  } else if (type === 'category') {
+    payload.active = data.active;
+    payload.customized = data.customized;
+    payload.documentId = data.documentId;
+    payload.financeEntityId = data.financeEntityId;
+    payload.kind = data.kind;
+    payload.normalizedName = data.normalizedName;
+    payload.source = data.source;
+    payload.templateId = data.templateId;
+    payload.templateKey = data.templateKey;
+    payload.templateVersion = data.templateVersion;
+  }
+  
+  // order keys
+  const sortedKeys = Object.keys(payload).sort();
+  const sortedPayload: any = {};
+  for (const k of sortedKeys) {
+    if (payload[k] !== undefined) {
+      sortedPayload[k] = payload[k];
+    }
+  }
+
+  const canonicalString = JSON.stringify(sortedPayload);
+  return createHash('sha256').update(canonicalString).digest('hex');
+}
+
 export function computePreviewDigest(
   financeEntityId: string,
   templateId: string,

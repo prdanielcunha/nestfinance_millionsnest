@@ -101,6 +101,10 @@
       "destination": "/api/finance-gateway?operation=entities-bootstrap-apply"
     },
     {
+      "source": "/api/finance/entities/bootstrap/verify",
+      "destination": "/api/finance-gateway?operation=entities-bootstrap-verify"
+    },
+    {
       "source": "/api/system/release",
       "destination": "/api/system-gateway?operation=release"
     },

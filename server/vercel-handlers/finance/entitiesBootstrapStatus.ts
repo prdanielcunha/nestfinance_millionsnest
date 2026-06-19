@@ -94,6 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status = 'legacy_data_available';
     }
     
+    const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
+    const applicationAvailability = await getApplicationAvailability(financeEntityId);
+
     return res.status(200).json({
        status,
        counts: {
@@ -105,7 +108,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
            unscopedCategories
        },
        canAdoptLegacyData,
-       recommendedTemplateId: 'obpc-br-v1'
+       recommendedTemplateId: 'obpc-br-v1',
+       applicationAvailability
     });
 
   } catch (error: any) {

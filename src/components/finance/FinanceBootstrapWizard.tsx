@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Calendar, Plus, Save, Building2 } from 'lucide-react';
-import { previewBootstrap, applyBootstrap } from '@/src/services/financeBootstrapService';
+import { previewBootstrap, applyBootstrap, verifyBootstrap } from '@/src/services/financeBootstrapService';
 import { BOOTSTRAP_TEMPLATES, BootstrapTemplateId, BootstrapItem } from '@/shared/finance/bootstrapTemplates';
 import { PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
 
@@ -26,7 +26,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'stale_preview' | 'blocked' | 'recoverable_error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'stale_preview' | 'blocked' | 'recoverable_error' | 'verifying' | 'verified' | 'verification_failed' | 'verification_error'>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
 
@@ -98,11 +98,42 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
       }
   };
 
+  const canFinalize = UI_ENABLED && 
+                      previewPlan?.applicationAvailability?.available === true && 
+                      previewPlan?.canApply === true &&
+                      submitStatus !== 'submitting' &&
+                      submitStatus !== 'verifying' &&
+                      submitStatus !== 'verified' &&
+                      submitStatus !== 'success';
+
+  const handleVerify = async (key: string) => {
+      setSubmitStatus('verifying');
+      setSubmitError(null);
+      try {
+          const verifyRes = await verifyBootstrap({ financeEntityId: entity.id, idempotencyKey: key });
+          if (verifyRes.verified && verifyRes.status === 'passed') {
+              setSubmitStatus('verified');
+          } else {
+              setSubmitStatus('verification_failed');
+          }
+      } catch (e: any) {
+          setSubmitStatus('verification_error');
+      }
+  };
+
   const handleApply = async () => {
-      if (!UI_ENABLED) return;
-      if (submitStatus === 'submitting' || submitStatus === 'success') return;
+      if (!canFinalize && submitStatus !== 'verification_failed' && submitStatus !== 'verification_error') return;
+      if (submitStatus === 'submitting' || submitStatus === 'verifying' || submitStatus === 'verified' || submitStatus === 'success') return;
       
       let key = idempotencyKey;
+
+      if (submitStatus === 'verification_failed' || submitStatus === 'verification_error') {
+          if (key) {
+             handleVerify(key);
+             return;
+          }
+      }
+
       if (!key) {
          key = crypto.randomUUID();
          setIdempotencyKey(key);
@@ -112,7 +143,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
       setSubmitError(null);
 
       try {
-          await applyBootstrap({
+          const res = await applyBootstrap({
               financeEntityId: entity.id,
               templateId,
               legacyAssignment,
@@ -122,13 +153,18 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
                   fundTemplateKeys: Array.from(selectedFunds),
                   categoryTemplateKeys: Array.from(selectedCategories)
               },
-              previewDigest: previewPlan.digest,
+              previewDigest: previewPlan.previewDigest,
               idempotencyKey: key
           });
 
-          setSubmitStatus('success');
+          // Irrespective of status 201 or 200, we verify
+          handleVerify(key);
       } catch (err: any) {
-          if (err.status === 503 || err.code === 'BOOTSTRAP_APPLY_DISABLED') {
+          if (err.code === 'BOOTSTRAP_ENTITY_NOT_ENABLED') {
+              setSubmitStatus('recoverable_error');
+              setSubmitError('A conclusão ainda não está disponível para esta igreja\nSeu plano foi preservado e nenhuma alteração foi feita.');
+              setIdempotencyKey(null);
+          } else if (err.status === 503 || err.code === 'BOOTSTRAP_APPLY_DISABLED') {
               setSubmitStatus('blocked');
               setSubmitError(err.message || 'A conclusão ainda não está disponível.');
           } else if (err.status === 409 && err.code === 'PREVIEW_MISMATCH') {
@@ -226,19 +262,20 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
                     uiEnabled={UI_ENABLED}
                     submitStatus={submitStatus}
                     submitError={submitError}
+                    canFinalize={canFinalize}
                 />
             )}
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-border-subtle bg-surface-base shrink-0 flex items-center justify-between">
-           {step > 1 && step < 6 && !previewLoading && !previewError && submitStatus !== 'success' ? (
+           {step > 1 && step < 6 && !previewLoading && !previewError && submitStatus !== 'success' && submitStatus !== 'verified' && submitStatus !== 'verifying' && submitStatus !== 'verification_failed' && submitStatus !== 'verification_error' ? (
                <button onClick={() => setStep(s => s - 1)} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors disabled:opacity-50">
                   Voltar
                </button>
            ) : <div />}
 
-           {step < 6 && !previewLoading && !previewError && submitStatus !== 'success' && (
+           {step < 6 && !previewLoading && !previewError && submitStatus !== 'success' && submitStatus !== 'verified' && submitStatus !== 'verifying' && submitStatus !== 'verification_failed' && submitStatus !== 'verification_error' && (
                <button onClick={handleNext} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                   Próximo <ChevronRight className="w-4 h-4 ml-2" />
                </button>
@@ -246,27 +283,34 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
 
            {step === 6 && !previewLoading && !previewError && (
                <div className="flex gap-4 ml-auto">
-                   {submitStatus === 'success' ? (
+                   {submitStatus === 'verified' || submitStatus === 'success' ? (
                        <button onClick={onClose} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors">
                            Fechar e continuar
                        </button>
+                   ) : submitStatus === 'verification_failed' || submitStatus === 'verification_error' ? (
+                       <>
+                           <button onClick={onClose} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors">
+                              Fechar
+                           </button>
+                           <button onClick={handleApply} disabled={submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+                              <Save className="w-4 h-4 mr-2" />
+                              Verificar novamente
+                           </button>
+                       </>
                    ) : (
                        <>
-                           <button onClick={() => { setStep(5); setSubmitStatus('idle'); setSubmitError(null); }} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors disabled:opacity-50">
+                           <button onClick={() => { setStep(5); setSubmitStatus('idle'); setSubmitError(null); }} disabled={submitStatus === 'submitting' || submitStatus === 'verifying'} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors disabled:opacity-50">
                               Voltar e revisar
                            </button>
-                           {UI_ENABLED ? (
-                               <button onClick={handleApply} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+                           {canFinalize && (
+                               <button onClick={handleApply} disabled={submitStatus === 'submitting' || submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                                   {submitStatus === 'submitting' ? (
                                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Preparando...</>
+                                  ) : submitStatus === 'verifying' ? (
+                                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Verificando...</>
                                   ) : (
                                       <><Save className="w-4 h-4 mr-2" /> Concluir preparação</>
                                   )}
-                               </button>
-                           ) : (
-                               <button disabled={true} className="h-12 px-6 rounded-xl bg-surface-secondary text-text-muted font-medium cursor-not-allowed flex items-center">
-                                  <Save className="w-4 h-4 mr-2" />
-                                  Revisar plano
                                </button>
                            )}
                        </>
@@ -462,16 +506,52 @@ function Step4({ templates, selected, setSelected }: any) {
     );
 }
 
-function Step5({ previewPlan, uiEnabled, submitStatus, submitError }: any) {
-    if (submitStatus === 'success') {
+function Step5({ previewPlan, uiEnabled, submitStatus, submitError, canFinalize }: any) {
+    if (submitStatus === 'verified' || submitStatus === 'success') {
         return (
             <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="polite">
                 <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 mx-auto text-emerald-500">
                    <Check className="w-10 h-10" />
                 </div>
-                <h3 className="text-3xl font-semibold text-text-primary mb-4">Estrutura financeira preparada</h3>
+                <h3 className="text-3xl font-semibold text-text-primary mb-4">Estrutura financeira preparada e conferida</h3>
                 <p className="text-text-secondary text-lg max-w-md mx-auto">
-                    Os cadastros desta igreja estão prontos para uso. Nenhuma movimentação financeira foi criada.
+                    Os cadastros desta igreja estão prontos para uso. Nenhuma movimentação financeira foi criada. A organização dos dados e os registros de segurança foram verificados.
+                </p>
+            </div>
+        );
+    }
+    
+    if (submitStatus === 'verifying') {
+        return (
+            <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="polite">
+                <div className="w-20 h-20 border-4 border-surface-secondary border-t-accent-primary rounded-full animate-spin mb-6 mx-auto" />
+                <h3 className="text-2xl font-semibold text-text-primary mb-4">Conferindo a preparação...</h3>
+                <p className="text-text-secondary text-lg max-w-md mx-auto">
+                    Estamos verificando os cadastros, configurações e registros de segurança.
+                </p>
+            </div>
+        );
+    }
+
+    if (submitStatus === 'verification_failed') {
+        return (
+            <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="assertive">
+                <AlertCircle className="w-20 h-20 text-rose-500 mb-6 mx-auto" />
+                <h3 className="text-2xl font-semibold text-text-primary mb-4">A preparação foi concluída, mas precisa de conferência</h3>
+                <p className="text-text-secondary text-lg max-w-md mx-auto">
+                    Encontramos uma diferença durante a verificação de segurança. Nenhuma nova tentativa será feita automaticamente.
+                </p>
+            </div>
+        );
+    }
+
+    if (submitStatus === 'verification_error') {
+        return (
+            <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="assertive">
+                <AlertCircle className="w-20 h-20 text-amber-500 mb-6 mx-auto" />
+                <h3 className="text-2xl font-semibold text-text-primary mb-4">Não foi possível confirmar a preparação</h3>
+                <p className="text-text-secondary text-lg max-w-md mx-auto">
+                    A operação precisa ser revisada com segurança antes de continuar. Nenhuma nova aplicação será feita automaticamente. Você pode tentar a conferência novamente com segurança.
                 </p>
             </div>
         );
@@ -479,19 +559,19 @@ function Step5({ previewPlan, uiEnabled, submitStatus, submitError }: any) {
 
     return (
         <div className="max-w-4xl mx-auto h-full animate-in fade-in pb-12">
-            {!uiEnabled && (
+            {!canFinalize && (
                 <div className="mb-8 text-center" aria-live="polite">
                     <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 mx-auto text-emerald-400">
                        <Check className="w-8 h-8" />
                     </div>
                     <h3 className="text-xl font-medium text-text-primary mb-2">Plano preparado</h3>
                     <p className="text-text-secondary text-sm max-w-lg mx-auto">
-                        Nenhuma alteração foi feita ainda.<br/>A conclusão desta preparação será liberada em breve.
+                        Nenhuma alteração foi feita ainda.<br/>A conclusão desta preparação ainda não está liberada.
                     </p>
                 </div>
             )}
 
-            {uiEnabled && submitStatus === 'idle' && (
+            {canFinalize && submitStatus === 'idle' && (
                 <div className="mb-8 text-center">
                     <h3 className="text-2xl font-medium text-text-primary mb-2">Tudo pronto para preparar esta igreja?</h3>
                     <p className="text-text-secondary text-base max-w-lg mx-auto">
@@ -500,7 +580,7 @@ function Step5({ previewPlan, uiEnabled, submitStatus, submitError }: any) {
                 </div>
             )}
 
-            {uiEnabled && submitError && (
+            {canFinalize && submitError && (
                  <div className="mb-8 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center" aria-live="assertive">
                     <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
                     <p className="text-text-primary font-medium">{submitError}</p>

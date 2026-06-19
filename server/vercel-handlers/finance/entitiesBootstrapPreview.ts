@@ -238,6 +238,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const finalPaymentMethodCodes = enrichedPaymentMethods.filter(pm => pm.enabled).map(pm => pm.code);
     const previewDigest = computePreviewDigest(financeEntityId, templateId, legacyAssignment, plan, finalPaymentMethodCodes);
 
+    const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
+    const applicationAvailability = await getApplicationAvailability(financeEntityId);
+
     return res.status(200).json({
        financeEntity: {
           id: financeEntityId,
@@ -254,7 +257,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        paymentMethods: enrichedPaymentMethods,
        warnings: [],
        canApply: summary.conflict === 0 && (summary.create > 0 || summary.adopt > 0),
-       previewDigest
+       previewDigest,
+       applicationAvailability
     });
 
   } catch (error: any) {

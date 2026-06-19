@@ -57,8 +57,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { randomUUID, createHash } = await import('crypto');
     const { BOOTSTRAP_TEMPLATES } = await import('../../../shared/finance/bootstrapTemplates.js');
-    const { computePreviewDigest, normalizeName } = await import('../../../shared/finance/bootstrapHelpers.js');
+    const { computePreviewDigest, normalizeName, computeExpectedStateHash } = await import('../../../shared/finance/bootstrapHelpers.js');
     const { generateStableId } = await import('../../../api/_lib/financeIdentity.js');
+    const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
+
+    const appAvailability = await getApplicationAvailability(financeEntityId);
+    if (!appAvailability.available) {
+       return res.status(503).json({ code: 'BOOTSTRAP_ENTITY_NOT_ENABLED', error: 'Apply endpoint is currently disabled for this entity' });
+    }
 
     const templates = BOOTSTRAP_TEMPLATES[templateId as keyof typeof BOOTSTRAP_TEMPLATES];
     if (!templates) {
@@ -179,7 +185,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   if (collisionWithScoped) {
                      plan[planKey].push({
                         templateKey: tItem.templateKey, entityType: type, existingId: collisionWithScoped.id,
-                        name: tItem.name, kind: tItem.kind, action: 'conflict', reason: 'ALREADY_SCOPED', active: collisionWithScoped.data().active
+                        name: tItem.name, kind: tItem.kind, action: 'conflict', reason: 'ALREADY_SCOPED', active: collisionWithScoped.data().active,
+                        originalData: collisionWithScoped.data()
                      });
                      summary.conflict++;
                      continue;
@@ -195,7 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      plan[planKey].push({
                         templateKey: tItem.templateKey, entityType: type, existingId: legacyMatch.id,
                         name: legacyMatch.data().name || tItem.name, kind: tItem.kind, action: 'adopt',
-                        reason: 'LEGACY_MATCH', active: legacyMatch.data().active
+                        reason: 'LEGACY_MATCH', active: legacyMatch.data().active,
+                        originalData: legacyMatch.data()
                      });
                      summary.adopt++;
                      handledUnscopedIds.add(legacyMatch.id);
@@ -204,14 +212,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         plan[planKey].push({
                            templateKey: tItem.templateKey, entityType: type, existingId: null,
                            name: tItem.name, kind: tItem.kind, action: 'create',
-                           reason: 'TEMPLATE_SELECTED', active: true
+                           reason: 'TEMPLATE_SELECTED', active: true, originalData: null
                         });
                         summary.create++;
                      } else {
                         plan[planKey].push({
                            templateKey: tItem.templateKey, entityType: type, existingId: null,
                            name: tItem.name, kind: tItem.kind, action: 'skip',
-                           reason: 'NOT_SELECTED', active: null
+                           reason: 'NOT_SELECTED', active: null, originalData: null
                         });
                         summary.skip++;
                      }
@@ -223,7 +231,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      plan[planKey].push({
                          templateKey: null, entityType: type, existingId: u.id,
                          name: u.data().name, kind: u.data().kind, action: 'adopt',
-                         reason: 'LEGACY_MATCH', active: u.data().active
+                         reason: 'LEGACY_MATCH', active: u.data().active,
+                         originalData: u.data()
                      });
                      summary.adopt++;
                   }
@@ -404,12 +413,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                createdAt: ts
             });
 
-            // 6. Idempotency
+            // 6. Idempotency & Verification Manifest
+            const manifestDocuments: any[] = [];
+            for (const lData of locksData) {
+               if (lData.item.action === 'adopt' || lData.item.action === 'create') {
+                  const docId = lData.expectedDocId;
+                  const type = lData.item.entityType;
+                  const action = lData.item.action;
+
+                  const dataForHash: any = {
+                      active: action === 'adopt' ? lData.item.active : true,
+                      customized: action === 'adopt' ? true : false,
+                      documentId: docId,
+                      financeEntityId,
+                      normalizedName: normalizeName(lData.item.name),
+                      source: action === 'adopt' ? 'migration' : 'setup_template',
+                      templateId,
+                      templateKey: lData.item.templateKey || null,
+                      templateVersion: lData.item.templateKey ? 1 : null
+                  };
+
+                  if (type === 'account') {
+                      dataForHash.type = action === 'adopt' ? (lData.item.originalData?.type || 'checking') : 'checking';
+                  } else if (type === 'fund') {
+                      dataForHash.restricted = action === 'adopt' ? !!lData.item.originalData?.restricted : false;
+                  } else if (type === 'category') {
+                      dataForHash.kind = lData.item.kind;
+                  }
+
+                  const expectedStateHash = computeExpectedStateHash(type as 'account' | 'fund' | 'category', dataForHash);
+
+                  manifestDocuments.push({
+                      entityType: type,
+                      documentId: docId,
+                      action,
+                      lockId: lData.lockId,
+                      expectedStateHash
+                  });
+               }
+            }
+
             const idemData = {
                requestFingerprint,
                financeEntityId,
                requestId,
                status: 'completed',
+               manifest: {
+                   version: 1,
+                   financeEntityId,
+                   requestId,
+                   auditId,
+                   settingsDocumentId: `entity_${financeEntityId}`,
+                   summary: {
+                       adopted: summary.adopt,
+                       created: summary.create,
+                       skipped: summary.skip
+                   },
+                   documents: manifestDocuments
+               },
                result: {
                    summary,
                    bootstrapStatus: 'ready'

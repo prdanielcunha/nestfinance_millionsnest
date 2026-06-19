@@ -48,3 +48,7 @@ export function isValidFundId(id: string): boolean {
 export function isValidCategoryId(id: string): boolean {
   return /^cat_(?:[a-f0-9]{16}|[a-f0-9]{32})$/.test(id);
 }
+
+export function isValidFinanceEntityId(id: string): boolean {
+  return /^fent_[a-f0-9]{32}$/.test(id);
+}
