@@ -1,7 +1,9 @@
 
-import * as admin from 'firebase-admin';
+import * as adminNamespace from 'firebase-admin';
 
-let defaultApp: admin.app.App | undefined;
+const admin = (adminNamespace as any).default || adminNamespace;
+
+let defaultApp: adminNamespace.app.App | undefined;
 
 export function getFirebaseAdmin() {
   if (!defaultApp) {
