@@ -89,6 +89,14 @@
       "destination": "/api/finance-gateway?operation=entities-update"
     },
     {
+      "source": "/api/finance/entities/bootstrap/status",
+      "destination": "/api/finance-gateway?operation=entities-bootstrap-status"
+    },
+    {
+      "source": "/api/finance/entities/bootstrap/preview",
+      "destination": "/api/finance-gateway?operation=entities-bootstrap-preview"
+    },
+    {
       "source": "/api/system/release",
       "destination": "/api/system-gateway?operation=release"
     },

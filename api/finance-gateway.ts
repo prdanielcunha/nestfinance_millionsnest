@@ -20,6 +20,8 @@ import entitiesCreate from '../server/vercel-handlers/finance/entitiesCreate.js'
 import entitiesList from '../server/vercel-handlers/finance/entitiesList.js';
 import entitiesDetail from '../server/vercel-handlers/finance/entitiesDetail.js';
 import entitiesUpdate from '../server/vercel-handlers/finance/entitiesUpdate.js';
+import entitiesBootstrapStatus from '../server/vercel-handlers/finance/entitiesBootstrapStatus.js';
+import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entitiesBootstrapPreview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -72,6 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesList(req, res);
     case 'entities-update':
       return entitiesUpdate(req, res);
+    case 'entities-bootstrap-status':
+      return entitiesBootstrapStatus(req, res);
+    case 'entities-bootstrap-preview':
+      return entitiesBootstrapPreview(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

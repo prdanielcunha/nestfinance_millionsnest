@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Plus, AlertCircle, MoreHorizontal, Edit2 } from 'lucide-react';
 import { listFinanceEntities, getFinanceEntityDetail } from '@/src/services/financeEntitiesService';
+import { getBootstrapStatus } from '@/src/services/financeBootstrapService';
 import FinanceEntityOnboarding from '@/src/components/finance/FinanceEntityOnboarding';
 import FinanceEntityEditModal from '@/src/components/finance/FinanceEntityEditModal';
+import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
 
 export default function FinanceEntitiesPage() {
   const [entities, setEntities] = useState<any[]>([]);
+  const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -16,6 +19,8 @@ export default function FinanceEntitiesPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
 
+  const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
+
   useEffect(() => {
     fetchEntities();
   }, []);
@@ -25,6 +30,17 @@ export default function FinanceEntitiesPage() {
       setLoading(true);
       const res = await listFinanceEntities();
       setEntities(res.entities || []);
+      
+      const statuses: Record<string, any> = {};
+      await Promise.all((res.entities || []).map(async (e: any) => {
+          try {
+              const statusData = await getBootstrapStatus(e.id);
+              statuses[e.id] = statusData;
+          } catch (e) {
+              // ignore fetch status error for individual entity
+          }
+      }));
+      setBootstrapStatuses(statuses);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Não foi possível carregar as igrejas.');
@@ -176,6 +192,30 @@ export default function FinanceEntitiesPage() {
                               </div>
                           </div>
 
+                           {bootstrapStatuses[entity.id] && bootstrapStatuses[entity.id].status !== 'ready' && (
+                               <div className="mt-5 p-4 rounded-xl bg-surface-secondary/50 border border-border-subtle flex flex-col sm:flex-row sm:items-center gap-4">
+                                   <div className="flex-1">
+                                       <div className="flex items-center gap-2 mb-1">
+                                           <AlertCircle className="w-4 h-4 text-accent-primary" />
+                                           <h4 className="text-sm font-medium text-text-primary">Estrutura financeira pendente</h4>
+                                       </div>
+                                       <p className="text-xs text-text-secondary">
+                                           {bootstrapStatuses[entity.id].status === 'legacy_data_available' 
+                                               ? 'Há cadastros existentes para organizar.' 
+                                               : 'Prepare os cadastros básicos para começar.'}
+                                       </p>
+                                   </div>
+                                   <button 
+                                      onClick={() => setBootstrappingEntity({ entity, statusData: bootstrapStatuses[entity.id] })}
+                                      className="shrink-0 h-9 px-4 rounded-lg bg-surface-elevated border border-border-subtle text-text-primary text-sm font-medium hover:border-accent-primary hover:text-accent-primary transition-colors focus:outline-none focus:ring-2 focus:ring-accent-primary/20"
+                                   >
+                                       {bootstrapStatuses[entity.id].status === 'legacy_data_available' 
+                                            ? 'Organizar dados financeiros' 
+                                            : 'Preparar estrutura financeira'}
+                                   </button>
+                               </div>
+                           )}
+
                           {/* Menu contextual */}
                           <div className="absolute top-4 right-4">
                               <button
@@ -225,6 +265,14 @@ export default function FinanceEntitiesPage() {
              entity={editingEntity}
              onClose={() => setEditingEntity(null)}
              onSuccess={handleEditSuccess}
+           />
+       )}
+
+       {bootstrappingEntity && (
+           <FinanceBootstrapWizard
+             entity={bootstrappingEntity.entity}
+             statusData={bootstrappingEntity.statusData}
+             onClose={() => setBootstrappingEntity(null)}
            />
        )}
     </div>

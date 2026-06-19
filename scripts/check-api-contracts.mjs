@@ -28,6 +28,8 @@ async function main() {
     { method: 'POST', url: '/api/finance/entities/detail', operation: 'entities-detail', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/update', operation: 'entities-update', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/entities/list', operation: 'entities-list', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/bootstrap/status', operation: 'entities-bootstrap-status', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/bootstrap/preview', operation: 'entities-bootstrap-preview', gateway: '/api/finance-gateway' },
     { method: 'GET', url: '/api/system/release', operation: 'release', gateway: '/api/system-gateway' }
   ];
 
