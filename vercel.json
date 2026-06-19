@@ -37,6 +37,14 @@
       "destination": "/api/finance-gateway?operation=funds-create"
     },
     {
+      "source": "/api/finance/funds/archive",
+      "destination": "/api/finance-gateway?operation=funds-archive"
+    },
+    {
+      "source": "/api/finance/funds/reactivate",
+      "destination": "/api/finance-gateway?operation=funds-reactivate"
+    },
+    {
       "source": "/api/finance/categories/list",
       "destination": "/api/finance-gateway?operation=categories-list"
     },
@@ -59,6 +67,18 @@
     {
       "source": "/api/finance/accounts/update",
       "destination": "/api/finance-gateway?operation=accounts-update"
+    },
+    {
+      "source": "/api/finance/entities/cnpj-lookup",
+      "destination": "/api/finance-gateway?operation=entities-cnpj-lookup"
+    },
+    {
+      "source": "/api/finance/entities/create",
+      "destination": "/api/finance-gateway?operation=entities-create"
+    },
+    {
+      "source": "/api/finance/entities/list",
+      "destination": "/api/finance-gateway?operation=entities-list"
     },
     {
       "source": "/api/system/release",

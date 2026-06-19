@@ -8,11 +8,16 @@ import accountsReactivate from '../server/vercel-handlers/finance/accountsReacti
 import accountsUpdate from '../server/vercel-handlers/finance/accountsUpdate.js';
 import fundsList from '../server/vercel-handlers/finance/fundsList.js';
 import fundsCreate from '../server/vercel-handlers/finance/fundsCreate.js';
+import fundsArchive from '../server/vercel-handlers/finance/fundsArchive.js';
+import fundsReactivate from '../server/vercel-handlers/finance/fundsReactivate.js';
 import categoriesList from '../server/vercel-handlers/finance/categoriesList.js';
 import categoriesCreate from '../server/vercel-handlers/finance/categoriesCreate.js';
 import categoriesArchive from '../server/vercel-handlers/finance/categoriesArchive.js';
 import categoriesReactivate from '../server/vercel-handlers/finance/categoriesReactivate.js';
 import categoriesUpdate from '../server/vercel-handlers/finance/categoriesUpdate.js';
+import entitiesCnpjLookup from '../server/vercel-handlers/finance/entitiesCnpjLookup.js';
+import entitiesCreate from '../server/vercel-handlers/finance/entitiesCreate.js';
+import entitiesList from '../server/vercel-handlers/finance/entitiesList.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -41,6 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return fundsList(req, res);
     case 'funds-create':
       return fundsCreate(req, res);
+    case 'funds-archive':
+      return fundsArchive(req, res);
+    case 'funds-reactivate':
+      return fundsReactivate(req, res);
     case 'categories-list':
       return categoriesList(req, res);
     case 'categories-create':
@@ -51,6 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return categoriesReactivate(req, res);
     case 'categories-update':
       return categoriesUpdate(req, res);
+    case 'entities-cnpj-lookup':
+      return entitiesCnpjLookup(req, res);
+    case 'entities-create':
+      return entitiesCreate(req, res);
+    case 'entities-list':
+      return entitiesList(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

@@ -15,12 +15,17 @@ async function main() {
     { method: 'POST', url: '/api/finance/accounts/reactivate', operation: 'accounts-reactivate', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/funds/list', operation: 'funds-list', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/funds/create', operation: 'funds-create', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/funds/archive', operation: 'funds-archive', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/funds/reactivate', operation: 'funds-reactivate', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/list', operation: 'categories-list', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/create', operation: 'categories-create', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/archive', operation: 'categories-archive', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/reactivate', operation: 'categories-reactivate', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/categories/update', operation: 'categories-update', gateway: '/api/finance-gateway' },
     { method: 'POST', url: '/api/finance/accounts/update', operation: 'accounts-update', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/cnpj-lookup', operation: 'entities-cnpj-lookup', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/create', operation: 'entities-create', gateway: '/api/finance-gateway' },
+    { method: 'POST', url: '/api/finance/entities/list', operation: 'entities-list', gateway: '/api/finance-gateway' },
     { method: 'GET', url: '/api/system/release', operation: 'release', gateway: '/api/system-gateway' }
   ];
 

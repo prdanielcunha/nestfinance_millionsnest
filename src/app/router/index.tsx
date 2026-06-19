@@ -11,6 +11,7 @@ const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
 const SetupPage = lazy(() => import('@/src/pages/finance/SetupPage'));
 const FinanceSettingsPage = lazy(() => import('@/src/pages/finance/settings/FinanceSettingsPage'));
 const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/FinanceAccountsPage'));
+const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/FinanceEntitiesPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
 const CountPage = lazy(() => import('@/src/pages/finance/CountPage'));
@@ -60,6 +61,10 @@ const routes: RouteObject[] = [
           {
             path: APP_ROUTES.financeSettingsAccounts,
             element: <Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense>,
+          },
+          {
+            path: APP_ROUTES.financeSettingsEntities,
+            element: <Suspense fallback={<PageFallback />}><FinanceEntitiesPage /></Suspense>,
           },
           {
             path: APP_ROUTES.financeSettingsFunds,

@@ -61,7 +61,10 @@ export default function FinancePage() {
         : 0;
       setHasAccounts(activeAccountsCount > 0);
 
-      setHasFunds(fundsData.funds && fundsData.funds.length > 0);
+      const activeFundsCount = fundsData.funds
+        ? fundsData.funds.filter((f: any) => f.active !== false).length
+        : 0;
+      setHasFunds(activeFundsCount > 0);
       
       const activeCategoriesCount = categoriesData.categories 
         ? categoriesData.categories.filter((c: any) => c.active !== false).length 
