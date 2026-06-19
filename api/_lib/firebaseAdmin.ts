@@ -1,14 +1,14 @@
 
-import * as adminNamespace from 'firebase-admin';
+import admin from 'firebase-admin';
 
-const admin = (adminNamespace as any).default || adminNamespace;
-
-let defaultApp: adminNamespace.app.App | undefined;
+let defaultApp: admin.app.App | undefined;
 
 export function getFirebaseAdmin() {
+  const firebaseAdmin = (admin as any).default || admin;
+
   if (!defaultApp) {
-    if (admin.apps.length > 0) {
-      defaultApp = admin.app();
+    if (firebaseAdmin.apps?.length > 0) {
+      defaultApp = firebaseAdmin.app();
     } else {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -20,8 +20,8 @@ export function getFirebaseAdmin() {
         throw new Error('MISSING_FIREBASE_CREDENTIALS');
       }
 
-      defaultApp = admin.initializeApp({
-        credential: admin.credential.cert({
+      defaultApp = firebaseAdmin.initializeApp({
+        credential: firebaseAdmin.credential.cert({
           projectId,
           clientEmail,
           privateKey,
@@ -31,8 +31,8 @@ export function getFirebaseAdmin() {
   }
 
   return {
-    auth: admin.auth(),
-    firestore: admin.firestore()
+    auth: firebaseAdmin.auth(),
+    firestore: firebaseAdmin.firestore()
   };
 }
     
