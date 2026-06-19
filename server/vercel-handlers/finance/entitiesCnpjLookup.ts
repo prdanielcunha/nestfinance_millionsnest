@@ -2,10 +2,26 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { normalizeCnpj, isValidCnpj, getCnpjFormat, formatCnpj } from '../../../shared/finance/taxId.js';
-import { BrasilApiCompanyRegistryProvider } from '../../providers/companyRegistry/BrasilApiCompanyRegistryProvider.js';
+import { CompanyRegistryProviderChain } from '../../providers/companyRegistry/CompanyRegistryProviderChain.js';
+import { randomBytes } from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+
+  const requestId = randomBytes(16).toString('hex');
+  res.setHeader('X-NestFinance-Request-Id', requestId);
+  
+  const logDiagnosis = (outcome: string, provider: string, httpStatus: number, durationMs: number, errorCode?: string) => {
+    console.log(JSON.stringify({
+      event: 'finance_entity_cnpj_lookup',
+      requestId,
+      provider,
+      outcome,
+      httpStatus,
+      durationMs,
+      errorCode
+    }));
+  };
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -40,6 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { auth } = admin;
 
+  const startTime = Date.now();
+
   try {
     const decodedToken = await auth.verifyIdToken(idToken, true);
 
@@ -66,32 +84,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { taxId } = req.body;
 
     if (!taxId || typeof taxId !== 'string') {
+      logDiagnosis('error', 'none', 400, Date.now() - startTime, 'INVALID_TAX_ID');
       return res.status(400).json({ error: 'INVALID_TAX_ID' });
     }
 
     const normalized = normalizeCnpj(taxId);
     if (!isValidCnpj(normalized)) {
+       logDiagnosis('error', 'none', 400, Date.now() - startTime, 'INVALID_TAX_ID');
        return res.status(400).json({ error: 'INVALID_TAX_ID' });
     }
 
-    const format = getCnpjFormat(normalized);
-
-    // Provide abort controller for 6 seconds timeout
+    // Pass abort controller to the chain to clean up memory
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 6000);
+    }, 9000); // give the chain 9 secs to complete max before outer limit
 
-    const provider = new BrasilApiCompanyRegistryProvider();
+    const provider = new CompanyRegistryProviderChain();
     
-    // BrasilAPI only fully supports numeric CNPJs, but we can try alphanumeric if they add it.
-    if (format === 'alphanumeric') {
-        return res.status(400).json({ error: 'REGISTRY_AUTOMATIC_LOOKUP_UNSUPPORTED' });
-    }
-
     try {
       const result = await provider.lookupCnpj(normalized, controller.signal);
       clearTimeout(timeout);
+      
+      logDiagnosis('success', result.provider, 200, Date.now() - startTime);
 
       return res.status(200).json({
         found: true,
@@ -117,24 +132,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (providerError: any) {
       clearTimeout(timeout);
       
-      const allowedErrors = [
-          'REGISTRY_NOT_FOUND',
-          'REGISTRY_PROVIDER_UNAVAILABLE',
-          'REGISTRY_PROVIDER_TIMEOUT',
-          'REGISTRY_INVALID_RESPONSE'
-      ];
-
-      if (allowedErrors.includes(providerError.message)) {
-          return res.status(404).json({ error: providerError.message });
-      }
-
-      throw providerError; // Handled by outer catch
+      const isNotFound = providerError.message === 'REGISTRY_NOT_FOUND';
+      
+      logDiagnosis('error', 'chain', isNotFound ? 404 : 503, Date.now() - startTime, providerError.message);
+      
+      return res.status(isNotFound ? 404 : 503).json({
+          found: false,
+          reason: isNotFound ? 'NOT_FOUND' : 'PROVIDER_UNAVAILABLE',
+          requestId
+      });
     }
   } catch (error: any) {
     if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
-    console.error('Cnpj Lookup error:', error);
-    return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    
+    // Do not log the entire error in production due to sensitive fields
+    console.error(`Cnpj Lookup error for request ${requestId}:`, error.code || error.message);
+    logDiagnosis('error', 'none', 500, Date.now() - startTime, 'INTERNAL_SERVER_ERROR');
+    return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', requestId });
   }
 }

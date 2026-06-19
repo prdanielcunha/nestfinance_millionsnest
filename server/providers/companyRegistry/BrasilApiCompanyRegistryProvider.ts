@@ -7,10 +7,20 @@ export class BrasilApiCompanyRegistryProvider implements CompanyRegistryProvider
     const url = `https://brasilapi.com.br/api/cnpj/v1/${normalizedTaxId}`;
     
     try {
-      const response = await fetch(url, { signal });
+      const response = await fetch(url, { 
+          signal,
+          headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'NestFinance/1.0 CNPJ Lookup'
+          }
+      });
       
       if (response.status === 404) {
         throw new Error('REGISTRY_NOT_FOUND');
+      }
+
+      if (response.status === 429) {
+        throw new Error('REGISTRY_PROVIDER_RATE_LIMITED');
       }
       
       if (!response.ok) {

@@ -69,8 +69,8 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
        console.error("Lookup error:", err.message);
        if (err.message === 'REGISTRY_NOT_FOUND') {
          setErrorMsg('Não encontramos dados para este CNPJ. Confira o número ou continue preenchendo manualmente.');
-       } else if (err.message === 'REGISTRY_PROVIDER_UNAVAILABLE' || err.message === 'REGISTRY_PROVIDER_TIMEOUT') {
-         setErrorMsg('A consulta automática está temporariamente indisponível. Você pode continuar o cadastro manualmente.');
+       } else if (err.message === 'PROVIDER_UNAVAILABLE') {
+         setErrorMsg('Não conseguimos consultar os dados agora. Você pode tentar novamente ou continuar manualmente.');
        } else if (err.message === 'INVALID_TAX_ID') {
          setErrorMsg('Confira o CNPJ informado.');
        } else {
@@ -179,11 +179,15 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           
-          {errorMsg && (
+          {(errorMsg && errorMsg.includes('Confira o CNPJ')) ? (
              <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
                 {errorMsg}
              </div>
-          )}
+          ) : errorMsg ? (
+             <div className="mb-6 p-4 rounded-xl bg-surface-secondary border border-border-subtle text-text-secondary text-sm">
+                {errorMsg}
+             </div>
+          ) : null}
 
           {/* STEP 1: IDENTIFY */}
           {step === 1 && (
@@ -206,8 +210,9 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                       value={taxId}
                       onChange={(e) => setTaxId(maskCnpj(e.target.value))}
                       placeholder="00.000.000/0000-00"
-                      className="w-full h-12 px-4 bg-surface-secondary border border-border-subtle rounded-xl text-text-base focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all tabular-nums text-lg"
+                      className="w-full h-12 px-4 bg-surface-secondary border border-border-subtle rounded-xl text-text-base focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all tabular-nums text-lg disabled:opacity-50"
                       autoFocus
+                      disabled={loading}
                     />
                  </div>
 
@@ -217,13 +222,18 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                       disabled={loading || taxId.length < 14}
                       className="w-full h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white font-medium rounded-xl disabled:opacity-50 transition-colors"
                     >
-                      {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Consultar dados'}
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 animate-spin mr-2" /> 
+                          Consultando dados cadastrais...
+                        </>
+                      ) : 'Consultar dados'}
                     </button>
                     <button 
                       type="button"
                       onClick={handleManualEntry}
                       disabled={loading || taxId.length === 0}
-                      className="w-full h-12 flex items-center justify-center bg-transparent border border-border-subtle hover:bg-surface-secondary text-text-primary font-medium rounded-xl transition-colors"
+                      className="w-full h-12 flex items-center justify-center bg-transparent border border-border-subtle hover:bg-surface-secondary text-text-primary font-medium rounded-xl transition-colors disabled:opacity-50"
                     >
                       Preencher manualmente
                     </button>

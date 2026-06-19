@@ -18,14 +18,11 @@ export async function lookupCnpj(taxId: string): Promise<any> {
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    if (res.status === 404 && errorData.error === 'REGISTRY_NOT_FOUND') {
+    if (res.status === 404 && errorData.reason === 'NOT_FOUND') {
       throw new Error('REGISTRY_NOT_FOUND');
     }
-    if (res.status === 404 && errorData.error === 'REGISTRY_PROVIDER_UNAVAILABLE') {
-       throw new Error('REGISTRY_PROVIDER_UNAVAILABLE');
-    }
-     if (res.status === 404 && errorData.error === 'REGISTRY_PROVIDER_TIMEOUT') {
-       throw new Error('REGISTRY_PROVIDER_TIMEOUT');
+    if (res.status === 503 && errorData.reason === 'PROVIDER_UNAVAILABLE') {
+       throw new Error('PROVIDER_UNAVAILABLE');
     }
     if (res.status === 400 && errorData.error === 'INVALID_TAX_ID') {
        throw new Error('INVALID_TAX_ID');

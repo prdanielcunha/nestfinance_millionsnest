@@ -141,7 +141,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const requestId = randomBytes(16).toString('hex');
 
     const taxIdFormat = getCnpjFormat(normalizedTaxId);
-    const source = cleanString(registryConfirmation?.source) === 'brasilapi' ? 'brasilapi' : 'manual';
+    let source = 'manual';
+    let providerDataset = null;
+    
+    if (cleanString(registryConfirmation?.source) === 'brasilapi') {
+      source = 'brasilapi';
+      providerDataset = 'minha_receita';
+    } else if (cleanString(registryConfirmation?.source) === 'cnpjws') {
+      source = 'cnpjws';
+      providerDataset = 'cnpjws_public';
+    }
 
     try {
         await firestore.runTransaction(async (t) => {
@@ -191,7 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 logoPath: null,
                 registrySource: {
                     provider: source,
-                    providerDataset: source === 'brasilapi' ? 'minha_receita' : null,
+                    providerDataset,
                     queriedAt: cleanString(registryConfirmation?.queriedAt) ? new Date(cleanString(registryConfirmation?.queriedAt)!) : null,
                     confirmedAt: FieldValue.serverTimestamp(),
                     confirmedBy: uid,

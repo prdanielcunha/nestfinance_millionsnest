@@ -1,6 +1,6 @@
 export interface CompanyRegistryLookupResult {
-  provider: 'brasilapi' | 'manual';
-  providerDataset: 'minha_receita' | null;
+  provider: 'brasilapi' | 'cnpjws' | 'manual';
+  providerDataset: 'minha_receita' | 'cnpjws_public' | null;
   taxId: string;
   legalName: string;
   tradeName: string | null;
