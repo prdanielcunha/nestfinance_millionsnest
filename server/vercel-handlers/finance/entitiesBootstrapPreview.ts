@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 import { BOOTSTRAP_TEMPLATES, BootstrapPlanItem } from '../../../shared/finance/bootstrapTemplates.js';
 import { normalizeName, computePreviewDigest } from '../../../shared/finance/bootstrapHelpers.js';
 
@@ -36,15 +36,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    if (!sessionList.granted || sessionList.isGlobalAccess !== true) {
-      return res.status(403).json({ error: 'FORBIDDEN' });
-    }
-
     const { financeEntityId, templateId, legacyAssignment, selection } = req.body;
     
     if (!financeEntityId || typeof financeEntityId !== 'string' || !templateId || !selection) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+    }
+
+    const authorization = await canManageFinanceBootstrap(uid, organizationId, financeEntityId);
+    if (!authorization.canApply) {
+      return res.status(403).json({ error: 'FORBIDDEN', reason: authorization.reason });
     }
 
     const templates = BOOTSTRAP_TEMPLATES[templateId as keyof typeof BOOTSTRAP_TEMPLATES];

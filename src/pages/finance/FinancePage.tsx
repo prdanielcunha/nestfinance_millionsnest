@@ -140,8 +140,6 @@ export default function FinancePage() {
      return status === 'ready';
   });
 
-  const UI_ENABLED = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
-
   if (setupStatus === 'not_configured') {
     return (
       <div className="flex flex-col items-center h-full fade-in max-w-xl mx-auto py-12 px-4 sm:px-0">
@@ -212,7 +210,7 @@ export default function FinancePage() {
                  const statusData = bootstrapStatuses[entity.id] || {};
                  const isLegacy = statusData.status === 'legacy_data_available';
                  const isEnabledByBackend = statusData.applicationAvailability?.available === true;
-                 const canApply = UI_ENABLED && (isEnabledByBackend || isLegacy);
+                 const canApply = isEnabledByBackend || isLegacy;
                  return (
                    <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-5 relative">
                       <div className="flex items-start gap-4">
@@ -368,7 +366,7 @@ export default function FinancePage() {
                   const statusData = bootstrapStatuses[entity.id] || {};
                   const isLegacy = statusData.status === 'legacy_data_available';
                   const isEnabledByBackend = statusData.applicationAvailability?.available === true;
-                  const canApply = UI_ENABLED && (isEnabledByBackend || isLegacy);
+                  const canApply = isEnabledByBackend || isLegacy;
                   return (
                     <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-4 flex items-center justify-between">
                        <div className="flex items-center gap-3 min-w-0">

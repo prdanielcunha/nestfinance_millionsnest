@@ -30,8 +30,6 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
 
-  const UI_ENABLED = import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
-
   useEffect(() => {
      setIdempotencyKey(null);
      setSubmitStatus('idle');
@@ -98,8 +96,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
       }
   };
 
-  const canFinalize = UI_ENABLED && 
-                      previewPlan?.applicationAvailability?.available === true && 
+  const canFinalize = previewPlan?.applicationAvailability?.available === true && 
                       previewPlan?.canApply === true &&
                       submitStatus !== 'submitting' &&
                       submitStatus !== 'verifying' &&
@@ -259,7 +256,6 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
             {!previewLoading && !previewError && step === 6 && previewPlan && (
                 <Step5 
                     previewPlan={previewPlan} 
-                    uiEnabled={UI_ENABLED}
                     submitStatus={submitStatus}
                     submitError={submitError}
                     canFinalize={canFinalize}
@@ -506,7 +502,7 @@ function Step4({ templates, selected, setSelected }: any) {
     );
 }
 
-function Step5({ previewPlan, uiEnabled, submitStatus, submitError, canFinalize }: any) {
+function Step5({ previewPlan, submitStatus, submitError, canFinalize }: any) {
     if (submitStatus === 'verified' || submitStatus === 'success') {
         return (
             <div className="max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in pb-12" aria-live="polite">
