@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { ArrowRight, Settings, Landmark, Plus, FolderHeart, Bookmark } from 'lucide-react';
+import { ArrowRight, Settings, Landmark, Plus, FolderHeart, Bookmark, Building2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
+import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
 
 export default function FinancePage() {
   const { accessState } = useAuth();
@@ -13,6 +14,9 @@ export default function FinancePage() {
   const [hasFunds, setHasFunds] = useState(false);
   const [hasCategories, setHasCategories] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [entities, setEntities] = useState<any[]>([]);
+  const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
+  const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
   
   const setupStatus = accessState.financeSetup?.status;
 
@@ -24,7 +28,7 @@ export default function FinancePage() {
     }
   }, [setupStatus]);
 
-    const fetchOnboardingData = async () => {
+  const fetchOnboardingData = async () => {
     try {
       setLoadingOnboarding(true);
       setApiError(false);
@@ -33,7 +37,11 @@ export default function FinancePage() {
       
       const token = await user.getIdToken();
       
-      const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
+      const [entitiesRes, accountsRes, fundsRes, categoriesRes] = await Promise.all([
+        fetch('/api/finance/entities/list', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
         fetch('/api/finance/accounts/list', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -48,13 +56,34 @@ export default function FinancePage() {
         })
       ]);
       
-      if (!accountsRes.ok || !fundsRes.ok || !categoriesRes.ok) {
+      if (!accountsRes.ok || !fundsRes.ok || !categoriesRes.ok || !entitiesRes.ok) {
         throw new Error('API_LOAD_FAIL');
       }
       
+      const entitiesData = await entitiesRes.json();
       const accountsData = await accountsRes.json();
       const fundsData = await fundsRes.json();
       const categoriesData = await categoriesRes.json();
+
+      const foundEntities = entitiesData.entities || [];
+      setEntities(foundEntities);
+
+      const statuses: Record<string, any> = {};
+      await Promise.all(foundEntities.map(async (e: any) => {
+          try {
+              const res = await fetch('/api/finance/entities/bootstrap/status', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ financeEntityId: e.id })
+              });
+              if (res.ok) {
+                  statuses[e.id] = await res.json();
+              }
+          } catch (e) {
+              // ignore
+          }
+      }));
+      setBootstrapStatuses(statuses);
       
       const activeAccountsCount = accountsData.accounts
         ? accountsData.accounts.filter((a: any) => a.active !== false).length
@@ -76,6 +105,13 @@ export default function FinancePage() {
       setLoadingOnboarding(false);
     }
   };
+
+  const pendingEntities = entities.filter(e => {
+     const status = bootstrapStatuses[e.id]?.status;
+     return status && status !== 'ready';
+  });
+
+  const UI_ENABLED = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
 
   if (setupStatus === 'not_configured') {
     return (
@@ -131,6 +167,54 @@ export default function FinancePage() {
             >
               Tentar novamente
             </button>
+          </div>
+        ) : pendingEntities.length > 0 ? (
+          <div className="flex flex-col w-full max-w-3xl justify-start self-start">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">Prepare a estrutura financeira da igreja</h2>
+                <p className="text-sm text-text-secondary">Organize os cadastros básicos antes de começar</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingEntities.map(entity => {
+                 const statusData = bootstrapStatuses[entity.id] || {};
+                 const isLegacy = statusData.status === 'legacy_data_available';
+                 const canApply = UI_ENABLED && (statusData.capabilities?.includes('bootstrap_apply') || isLegacy);
+                 return (
+                   <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-5 relative">
+                      <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 rounded bg-surface-secondary flex items-center justify-center shrink-0">
+                             <Building2 className="w-5 h-5 text-text-muted" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-medium text-text-primary truncate">{entity.displayName}</h3>
+                              <p className="text-xs text-text-secondary mt-1">
+                                  {isLegacy ? 'Cadastros existentes encontrados' : 'Preparação ainda não liberada'}
+                              </p>
+                          </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-border-subtle">
+                         {canApply ? (
+                             <button
+                                onClick={() => setBootstrappingEntity({ entity, statusData })}
+                                className="w-full flex items-center justify-center h-10 rounded-lg bg-surface-secondary hover:bg-border-subtle text-text-primary text-sm font-medium transition-colors"
+                             >
+                                <Building2 className="w-4 h-4 mr-2" />
+                                {isLegacy ? 'Organizar igreja' : 'Preparar igreja'}
+                             </button>
+                         ) : (
+                             <div className="w-full flex items-center justify-center h-10 rounded-lg bg-surface-base border border-border-subtle text-text-muted text-sm cursor-not-allowed">
+                                <AlertCircle className="w-4 h-4 mr-2" />
+                                Preparação ainda não liberada
+                             </div>
+                         )}
+                      </div>
+                   </div>
+                 );
+              })}
+            </div>
           </div>
         ) : !hasAccounts ? (
           <div className="flex flex-col items-center justify-center text-center max-w-sm font-sans">
@@ -244,6 +328,17 @@ export default function FinancePage() {
           </div>
         )}
       </div>
+
+      {bootstrappingEntity && (
+          <FinanceBootstrapWizard
+            entity={bootstrappingEntity.entity}
+            statusData={bootstrappingEntity.statusData}
+            onClose={() => {
+              setBootstrappingEntity(null);
+              fetchOnboardingData(); // Refetch to check if it's ready now
+            }}
+          />
+      )}
     </div>
   );
 }
