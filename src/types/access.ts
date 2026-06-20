@@ -11,7 +11,7 @@ export type EcosystemAccessState = {
   status: AccessStatus;
   organizationId?: string;
   isGlobalAccess?: boolean;
-  accessSource?: 'global_system_role' | 'organization_membership';
+  accessSource?: 'global_system_role' | 'global_role' | 'organization_membership';
   organization?: {
     id: string;
     name: string;

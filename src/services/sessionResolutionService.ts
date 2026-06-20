@@ -43,7 +43,7 @@ export async function resolveEcosystemSession(): Promise<EcosystemAccessState> {
       data?.status === 'granted' &&
       typeof data.organizationId === 'string' &&
       typeof data.isGlobalAccess === 'boolean' &&
-      (data.accessSource === 'global_system_role' || data.accessSource === 'organization_membership') &&
+      (data.accessSource === 'global_system_role' || data.accessSource === 'global_role' || data.accessSource === 'organization_membership') &&
       typeof data.organization === 'object' && data.organization !== null &&
       typeof data.profile === 'object' && data.profile !== null &&
       typeof data.financeSetup === 'object' && data.financeSetup !== null
