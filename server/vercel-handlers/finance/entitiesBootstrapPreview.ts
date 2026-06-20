@@ -85,9 +85,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const summary = { adopt: 0, create: 0, skip: 0, conflict: 0 };
     
+    const bucketMap: Record<string, keyof typeof plan> = {
+      account: 'accounts',
+      fund: 'funds',
+      category: 'categories'
+    };
+
     const processItems = (type: 'account' | 'fund' | 'category', unscoped: any[], scoped: any[], selectedKeys: string[]) => {
        const templateItems = templates.filter(t => t.entityType === type);
        const handledUnscopedIds = new Set<string>();
+       
+       const planKey = bucketMap[type];
+       if (!planKey || !plan[planKey]) {
+          throw new Error(`BOOTSTRAP_PREVIEW_INVALID_ITEM_TYPE: ${type}`);
+       }
 
        for (const tItem of templateItems) {
           const isSelected = selectedKeys.includes(tItem.templateKey);
@@ -100,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
           if (collisionWithScoped) {
-             plan[type + 's' as keyof typeof plan].push({
+             plan[planKey].push({
                 templateKey: tItem.templateKey,
                 entityType: type,
                 existingId: collisionWithScoped.id,
@@ -122,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           if (legacyMatch) {
              if (isSelected) {
-                plan[type + 's' as keyof typeof plan].push({
+                plan[planKey].push({
                    templateKey: tItem.templateKey,
                    entityType: type,
                    existingId: legacyMatch.id,
@@ -134,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 summary.adopt++;
              } else {
-                plan[type + 's' as keyof typeof plan].push({
+                plan[planKey].push({
                    templateKey: tItem.templateKey,
                    entityType: type,
                    existingId: legacyMatch.id,
@@ -150,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              handledUnscopedIds.add(legacyMatch.id);
           } else {
              if (isSelected) {
-                plan[type + 's' as keyof typeof plan].push({
+                plan[planKey].push({
                    templateKey: tItem.templateKey,
                    entityType: type,
                    existingId: null,
@@ -162,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 summary.create++;
              } else {
-                plan[type + 's' as keyof typeof plan].push({
+                plan[planKey].push({
                    templateKey: tItem.templateKey,
                    entityType: type,
                    existingId: null,
@@ -180,7 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        // Handle remaining unscoped that didn't match any template
        for (const u of unscoped) {
           if (!handledUnscopedIds.has(u.id)) {
-             plan[type + 's' as keyof typeof plan].push({
+             plan[planKey].push({
                  templateKey: null,
                  entityType: type,
                  existingId: u.id,
