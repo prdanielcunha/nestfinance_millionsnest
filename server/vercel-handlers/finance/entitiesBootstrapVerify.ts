@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_FINANCE_ENTITY_ID' });
     }
 
-    const { computeExpectedStateHash } = await import('../../../shared/finance/bootstrapHelpers.js');
+    const { computeExpectedStateHash, normalizeName } = await import('../../../shared/finance/bootstrapHelpers.js');
     const { createHash } = await import('crypto');
 
     const idempotencyHash = createHash('sha256').update(idempotencyKey).digest('hex');
@@ -133,15 +133,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const lockSnap = lockSnaps[i];
 
         if (!docSnap.exists) {
-            issues.push({ code: 'DOCUMENT_MISSING', area: 'document', message: `Missing document for type ${d.entityType}` });
+            issues.push({ code: 'DOCUMENT_MISSING', area: 'document', message: `Missing document for type ${d.entityType}`, documentId: d.documentId });
         } else {
             const data = docSnap.data();
             if (data.financeEntityId !== financeEntityId) {
-                issues.push({ code: 'DOCUMENT_ENTITY_MISMATCH', area: 'document', message: 'Document does not belong to financeEntityId' });
+                issues.push({ code: 'DOCUMENT_ENTITY_MISMATCH', area: 'document', message: 'Document does not belong to financeEntityId', documentId: d.documentId });
             } else {
+                // Reconstruct semantic fields that are invariants but not persisted verbatim
+                data.documentId = docSnap.id;
+                data.normalizedName = normalizeName(data.name || '');
+                if (d.entityType === 'account') {
+                    data.type = data.type || 'checking';
+                } else if (d.entityType === 'fund') {
+                    data.restricted = data.restricted || false;
+                }
+                
                 const actualHash = computeExpectedStateHash(d.entityType, data);
                 if (actualHash !== d.expectedStateHash) {
-                    issues.push({ code: 'DOCUMENT_HASH_MISMATCH', area: 'document', message: `State hash mismatch for ${d.entityType}` });
+                    issues.push({ 
+                        code: 'DOCUMENT_HASH_MISMATCH', 
+                        area: 'document', 
+                        message: `State hash mismatch for ${d.entityType}`,
+                        documentId: d.documentId,
+                        expectedStateHash: d.expectedStateHash,
+                        actualStateHash: actualHash
+                    });
                 } else {
                     verifiedDocuments++;
                 }
@@ -149,11 +165,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!lockSnap.exists) {
-            issues.push({ code: 'LOCK_MISSING', area: 'lock', message: `Missing lock for document type ${d.entityType}` });
+            issues.push({ code: 'LOCK_MISSING', area: 'lock', message: `Missing lock for document type ${d.entityType}`, lockId: d.lockId });
         } else {
             const lData = lockSnap.data();
             if (lData.documentId !== d.documentId) {
-                issues.push({ code: 'LOCK_DOCUMENT_MISMATCH', area: 'lock', message: 'Lock points to incorrect document' });
+                issues.push({ code: 'LOCK_DOCUMENT_MISMATCH', area: 'lock', message: 'Lock points to incorrect document', lockId: d.lockId });
             } else {
                 verifiedLocks++;
             }
@@ -199,6 +215,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const verified = idempotencyVerified && settingsVerified && auditLogVerified && (verifiedDocuments === manifest.documents.length) && (verifiedLocks === manifest.documents.length) && issues.length === 0;
+
+    if (!verified) {
+         console.warn(JSON.stringify({
+              msg: '[BOOTSTRAP_VERIFY_MISMATCH]',
+              financeEntityId,
+              idempotencyKeyPrefix: idempotencyKey.substring(0, 8),
+              stage: 'verify',
+              expectedCounts: {
+                  documents: manifest.documents.length,
+                  locks: manifest.documents.length
+              },
+              actualCounts: {
+                  documents: verifiedDocuments,
+                  locks: verifiedLocks
+              },
+              issueCodes: issues.map(i => i.code)
+         }));
+    }
 
     return res.status(200).json({
         verified,
