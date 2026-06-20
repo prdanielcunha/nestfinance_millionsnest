@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -9,6 +10,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isApplyEnabled) {
     return res.status(503).json({ code: 'BOOTSTRAP_APPLY_DISABLED', error: 'Apply endpoint is currently disabled' });
   }
+
+  if (!FieldValue || typeof FieldValue.serverTimestamp !== 'function') {
+    return res.status(500).json({ code: 'SERVER_TIMESTAMP_UNAVAILABLE', error: 'Server timestamp helper is unavailable' });
+  }
+
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -304,7 +310,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             // === FASE DE ESCRITA ===
-            const ts = firestore.FieldValue ? firestore.FieldValue.serverTimestamp() : (admin as any).firestore.FieldValue.serverTimestamp();
+            const ts = FieldValue.serverTimestamp();
 
             // 1. Criar locks
             for (let i = 0; i < lockDocs.length; i++) {
