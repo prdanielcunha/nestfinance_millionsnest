@@ -18,6 +18,10 @@ export default function FinancePage() {
   const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
   const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
   
+  const [activeFinanceEntityId, setActiveFinanceEntityId] = useState<string | null>(
+    localStorage.getItem('nestfinance_active_finance_entity_id') || null
+  );
+
   const setupStatus = accessState.financeSetup?.status;
 
   useEffect(() => {
@@ -37,33 +41,16 @@ export default function FinancePage() {
       
       const token = await user.getIdToken();
       
-      const [entitiesRes, accountsRes, fundsRes, categoriesRes] = await Promise.all([
-        fetch('/api/finance/entities/list', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/finance/accounts/list', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/finance/funds/list', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/finance/categories/list', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
+      const entitiesRes = await fetch('/api/finance/entities/list', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       
-      if (!accountsRes.ok || !fundsRes.ok || !categoriesRes.ok || !entitiesRes.ok) {
+      if (!entitiesRes.ok) {
         throw new Error('API_LOAD_FAIL');
       }
       
       const entitiesData = await entitiesRes.json();
-      const accountsData = await accountsRes.json();
-      const fundsData = await fundsRes.json();
-      const categoriesData = await categoriesRes.json();
 
       const foundEntities = entitiesData.entities || [];
       setEntities(foundEntities);
@@ -85,20 +72,56 @@ export default function FinancePage() {
       }));
       setBootstrapStatuses(statuses);
       
-      const activeAccountsCount = accountsData.accounts
-        ? accountsData.accounts.filter((a: any) => a.active !== false).length
-        : 0;
-      setHasAccounts(activeAccountsCount > 0);
+      const readyList = foundEntities.filter((e: any) => statuses[e.id]?.status === 'ready');
+      if (readyList.length > 0) {
+          let localActive = localStorage.getItem('nestfinance_active_finance_entity_id');
+          let nextId = readyList.find((e: any) => e.id === localActive) ? localActive : readyList[0].id;
+          setActiveFinanceEntityId(nextId);
+          if (nextId) localStorage.setItem('nestfinance_active_finance_entity_id', nextId);
 
-      const activeFundsCount = fundsData.funds
-        ? fundsData.funds.filter((f: any) => f.active !== false).length
-        : 0;
-      setHasFunds(activeFundsCount > 0);
-      
-      const activeCategoriesCount = categoriesData.categories 
-        ? categoriesData.categories.filter((c: any) => c.active !== false).length 
-        : 0;
-      setHasCategories(activeCategoriesCount > 0);
+          const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
+            fetch('/api/finance/accounts/list', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ financeEntityId: nextId })
+            }),
+            fetch('/api/finance/funds/list', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ financeEntityId: nextId })
+            }),
+            fetch('/api/finance/categories/list', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ financeEntityId: nextId })
+            })
+          ]);
+          
+          if (!accountsRes.ok || !fundsRes.ok || !categoriesRes.ok) {
+            throw new Error('API_LOAD_FAIL');
+          }
+          
+          const accountsData = await accountsRes.json();
+          const fundsData = await fundsRes.json();
+          const categoriesData = await categoriesRes.json();
+
+          const activeAccountsCount = accountsData.accounts
+            ? accountsData.accounts.filter((a: any) => a.active !== false).length
+            : 0;
+          setHasAccounts(activeAccountsCount > 0);
+
+          const activeFundsCount = fundsData.funds
+            ? fundsData.funds.filter((f: any) => f.active !== false).length
+            : 0;
+          setHasFunds(activeFundsCount > 0);
+          
+          const activeCategoriesCount = categoriesData.categories 
+            ? categoriesData.categories.filter((c: any) => c.active !== false).length 
+            : 0;
+          setHasCategories(activeCategoriesCount > 0);
+      } else {
+          setActiveFinanceEntityId(null);
+      }
     } catch (err) {
       setApiError(true);
     } finally {
@@ -110,6 +133,11 @@ export default function FinancePage() {
      const status = bootstrapStatuses[e.id]?.status;
      // If status is not explicitly 'ready', treat as pending (including undefined on API failure)
      return status !== 'ready';
+  });
+
+  const readyEntities = entities.filter(e => {
+     const status = bootstrapStatuses[e.id]?.status;
+     return status === 'ready';
   });
 
   const UI_ENABLED = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
@@ -140,8 +168,21 @@ export default function FinancePage() {
 
   return (
     <div className="flex flex-col h-full fade-in space-y-4">
-      <header className="mb-4">
+      <header className="mb-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
         <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Finance</h1>
+        {readyEntities.length > 0 && activeFinanceEntityId && (
+            <select
+               value={activeFinanceEntityId}
+               onChange={(e) => {
+                  setActiveFinanceEntityId(e.target.value);
+                  localStorage.setItem('nestfinance_active_finance_entity_id', e.target.value);
+                  fetchOnboardingData(); 
+               }}
+               className="h-10 px-3 pr-8 rounded-lg outline-none bg-surface-elevated border border-border-subtle text-sm text-text-primary focus:ring-2 focus:ring-accent-primary max-w-xs truncate"
+            >
+               {readyEntities.map(e => <option key={e.id} value={e.id}>{e.displayName}</option>)}
+            </select>
+        )}
       </header>
       
       <div className="flex-1 flex flex-col items-center justify-center border border-border-subtle rounded-2xl bg-surface-secondary/50 p-6 min-h-[40vh]">
@@ -157,7 +198,7 @@ export default function FinancePage() {
               Tentar novamente
             </button>
           </div>
-        ) : pendingEntities.length > 0 ? (
+        ) : readyEntities.length === 0 && pendingEntities.length > 0 ? (
           <div className="flex flex-col w-full max-w-3xl justify-start self-start">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -318,6 +359,41 @@ export default function FinancePage() {
           </div>
         )}
       </div>
+
+      {readyEntities.length > 0 && pendingEntities.length > 0 && (
+          <div className="mt-4 border border-border-subtle rounded-2xl bg-surface-base p-6 max-w-3xl">
+             <h3 className="text-sm font-medium text-text-secondary mb-3">Organizações pendentes</h3>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {pendingEntities.map(entity => {
+                  const statusData = bootstrapStatuses[entity.id] || {};
+                  const isLegacy = statusData.status === 'legacy_data_available';
+                  const isEnabledByBackend = statusData.applicationAvailability?.available === true;
+                  const canApply = UI_ENABLED && (isEnabledByBackend || isLegacy);
+                  return (
+                    <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-4 flex items-center justify-between">
+                       <div className="flex items-center gap-3 min-w-0">
+                           <div className="w-8 h-8 rounded bg-surface-secondary flex items-center justify-center shrink-0">
+                              <Building2 className="w-4 h-4 text-text-muted" />
+                           </div>
+                           <div className="min-w-0">
+                               <h4 className="text-sm font-medium text-text-primary truncate">{entity.displayName}</h4>
+                               <p className="text-xs text-text-secondary truncate">Preparação pendente</p>
+                           </div>
+                       </div>
+                       {canApply && (
+                           <button
+                             onClick={() => setBootstrappingEntity({ entity, statusData })}
+                             className="ml-4 shrink-0 px-3 py-1.5 bg-surface-secondary hover:bg-border-subtle text-text-primary text-xs font-medium rounded-lg transition-colors"
+                           >
+                             Preparar
+                           </button>
+                       )}
+                    </div>
+                  );
+               })}
+             </div>
+          </div>
+      )}
 
       {bootstrappingEntity && (
           <FinanceBootstrapWizard
