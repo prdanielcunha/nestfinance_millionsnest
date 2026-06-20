@@ -108,7 +108,8 @@ export default function FinancePage() {
 
   const pendingEntities = entities.filter(e => {
      const status = bootstrapStatuses[e.id]?.status;
-     return status && status !== 'ready';
+     // If status is not explicitly 'ready', treat as pending (including undefined on API failure)
+     return status !== 'ready';
   });
 
   const UI_ENABLED = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NESTFINANCE_BOOTSTRAP_APPLY_UI_ENABLED === 'true';
@@ -181,7 +182,8 @@ export default function FinancePage() {
               {pendingEntities.map(entity => {
                  const statusData = bootstrapStatuses[entity.id] || {};
                  const isLegacy = statusData.status === 'legacy_data_available';
-                 const canApply = UI_ENABLED && (statusData.capabilities?.includes('bootstrap_apply') || isLegacy);
+                 const isEnabledByBackend = statusData.applicationAvailability?.available === true;
+                 const canApply = UI_ENABLED && (isEnabledByBackend || isLegacy);
                  return (
                    <div key={entity.id} className="bg-surface-elevated border border-border-subtle rounded-xl p-5 relative">
                       <div className="flex items-start gap-4">

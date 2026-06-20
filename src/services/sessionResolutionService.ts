@@ -64,7 +64,9 @@ export async function resolveEcosystemSession(): Promise<EcosystemAccessState> {
           photoURL: data.profile.photoURL,
         },
         financeSetup: {
-          status: data.financeSetup.status,
+          status: (data.financeSetup.status === 'ready' || data.financeSetup.status === 'configured')
+            ? 'configured'
+            : 'not_configured',
         },
       };
     }
