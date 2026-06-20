@@ -54,17 +54,11 @@ export async function resolveEcosystemSession(uid: string, orgId: string) {
   // Safely resolve financeSetup status WITHOUT using bootstrapAvailabilityHelper or ANY dynamic imports
   let status = 'not_started';
   try {
-    const entitiesSnapshot = await db.collection('organizations').doc(orgId).collection('financeEntities')
-      .where('active', '==', true)
-      .limit(1)
-      .get();
-      
-    if (!entitiesSnapshot.empty) {
-      const entityId = entitiesSnapshot.docs[0].id;
-      const settingsDoc = await db.collection('organizations').doc(orgId).collection('financeSettings').doc(`entity_${entityId}`).get();
-      if (settingsDoc.exists) {
-        status = settingsDoc.data()?.bootstrap?.status || 'not_started';
-      }
+    const configDoc = await db.collection('organizations').doc(orgId).collection('financeSettings').doc('config').get();
+    if (configDoc.exists) {
+      status = 'configured';
+    } else {
+      status = 'not_configured';
     }
   } catch (e) {
     // suppress errors

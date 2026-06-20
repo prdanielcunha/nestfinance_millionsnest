@@ -118,33 +118,21 @@ export default function FinancePage() {
     return (
       <div className="flex flex-col items-center h-full fade-in max-w-xl mx-auto py-12 px-4 sm:px-0">
         <div className="w-16 h-16 rounded-2xl bg-surface-elevated border border-border-subtle flex items-center justify-center mb-6">
-          <Settings className="w-8 h-8 text-text-secondary" />
+          <AlertCircle className="w-8 h-8 text-red-500" />
         </div>
         
         <div className="text-center space-y-2 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary tracking-tight">Vamos preparar o NestFinance</h1>
+          <h1 className="text-xl font-semibold text-text-primary tracking-tight">Falha ao carregar a organização</h1>
           <p className="text-text-secondary">
-            Configure a estrutura financeira da organização antes de começar os lançamentos e fechamentos.
+            Não foi possível validar a estrutura organizacional base. Verifique sua conexão ou tente novamente.
           </p>
         </div>
         
-        <div className="w-full bg-surface-secondary border border-border-subtle rounded-2xl p-6 space-y-4 mb-8">
-          <h2 className="text-xs font-semibold text-text-primary uppercase tracking-wider">Próximas etapas</h2>
-          <ol className="list-decimal list-inside space-y-3 text-sm text-text-secondary">
-            <li>Configurações gerais</li>
-            <li>Contas financeiras</li>
-            <li>Fundos</li>
-            <li>Categorias</li>
-            <li>Plano de contas inicial</li>
-          </ol>
-        </div>
-        
         <button 
-          onClick={() => navigate(APP_ROUTES.financeSetup)}
-          className="flex items-center gap-2 bg-text-primary text-background-base px-6 py-3 rounded-full text-sm font-medium transition-transform hover:scale-105 active:scale-95"
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
         >
-          Iniciar configuração
-          <ArrowRight className="w-4 h-4" />
+          Tentar novamente
         </button>
       </div>
     );
@@ -204,7 +192,7 @@ export default function FinancePage() {
                                 className="w-full flex items-center justify-center h-10 rounded-lg bg-surface-secondary hover:bg-border-subtle text-text-primary text-sm font-medium transition-colors"
                              >
                                 <Building2 className="w-4 h-4 mr-2" />
-                                {isLegacy ? 'Organizar igreja' : 'Preparar igreja'}
+                                {isLegacy ? 'Organizar dados financeiros' : 'Preparar igreja'}
                              </button>
                          ) : (
                              <div className="w-full flex items-center justify-center h-10 rounded-lg bg-surface-base border border-border-subtle text-text-muted text-sm cursor-not-allowed">
