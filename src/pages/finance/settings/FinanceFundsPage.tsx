@@ -6,7 +6,8 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import FundFormModal from '@/src/components/finance/FundFormModal';
 import FundActionMenu from '@/src/components/finance/FundActionMenu';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import FinanceBreadcrumb from '@/src/components/finance/FinanceBreadcrumb';
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
 interface Fund {
   id: string;
@@ -123,66 +124,56 @@ export default function FinanceFundsPage() {
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10">
-        <div className="mb-1">
-           <FinanceBreadcrumb pageName="Fundos" />
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(APP_ROUTES.financeSettings)}
-            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Fundos Financeiros</h1>
-            <p className="text-sm text-text-muted mt-0.5 md:hidden">Defina as finalidades e restrições dos destinos dos recursos.</p>
+      <FinanceContextHeader
+        pageName="Fundos"
+        title="Fundos Financeiros"
+        description="Defina as finalidades e restrições dos destinos dos recursos."
+        backTo={APP_ROUTES.financeSettings}
+      />
+
+      <FinanceContextGuard>
+        {/* Difference helper Banner */}
+        <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-xs md:text-sm text-blue-400 flex gap-2.5 items-start">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div>
+            <strong className="text-white block font-medium mb-0.5">Diferença entre Conta e Fundo:</strong>
+            Uma <strong>conta</strong> representa onde o dinheiro está fisicamente guardado (ex: Caixas físicos, Contas Bancárias), enquanto um <strong>fundo</strong> representa a qual finalidade ou restrição aquele dinheiro se destina (ex: Caixa Geral, Missões, Construção). Não confunda um com o outro!
           </div>
         </div>
-      </header>
 
-      {/* Difference helper Banner */}
-      <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-xs md:text-sm text-blue-400 flex gap-2.5 items-start">
-        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-        <div>
-          <strong className="text-white block font-medium mb-0.5">Diferença entre Conta e Fundo:</strong>
-          Uma <strong>conta</strong> representa onde o dinheiro está fisicamente guardado (ex: Caixas físicos, Contas Bancárias), enquanto um <strong>fundo</strong> representa a qual finalidade ou restrição aquele dinheiro se destina (ex: Caixa Geral, Missões, Construção). Não confunda um com o outro!
+        {/* Tabs */}
+        <div className="flex px-4 border-b border-border-subtle bg-surface-base sticky top-[77px] z-10 md:top-[85px]">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'active' 
+                ? 'border-accent-primary text-text-primary' 
+                : 'border-transparent text-text-muted hover:text-text-base'
+            }`}
+          >
+            Ativos <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === 'active' ? 'bg-accent-primary/10 text-accent-primary' : 'bg-surface-elevated text-text-muted'}`}>{funds.filter(f => f.active !== false).length}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('archived')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'archived' 
+                ? 'border-accent-primary text-text-primary' 
+                : 'border-transparent text-text-muted hover:text-text-base'
+            }`}
+          >
+            Arquivados <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === 'archived' ? 'bg-accent-primary/10 text-accent-primary' : 'bg-surface-elevated text-text-muted'}`}>{funds.filter(f => f.active === false).length}</span>
+          </button>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex px-4 border-b border-border-subtle bg-surface-base sticky top-[77px] z-10 md:top-[85px]">
-        <button
-          onClick={() => setActiveTab('active')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'active' 
-              ? 'border-accent-primary text-text-primary' 
-              : 'border-transparent text-text-muted hover:text-text-base'
-          }`}
-        >
-          Ativos <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === 'active' ? 'bg-accent-primary/10 text-accent-primary' : 'bg-surface-elevated text-text-muted'}`}>{funds.filter(f => f.active !== false).length}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('archived')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'archived' 
-              ? 'border-accent-primary text-text-primary' 
-              : 'border-transparent text-text-muted hover:text-text-base'
-          }`}
-        >
-          Arquivados <span className={`px-1.5 py-0.5 rounded-full text-xs ${activeTab === 'archived' ? 'bg-accent-primary/10 text-accent-primary' : 'bg-surface-elevated text-text-muted'}`}>{funds.filter(f => f.active === false).length}</span>
-        </button>
-      </div>
+        {/* Success Banner */}
+        {successMsg && (
+          <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20 text-sm text-emerald-400 flex items-center justify-center animate-in fade-in slide-in-from-top-2">
+            {successMsg}
+          </div>
+        )}
 
-      {/* Success Banner */}
-      {successMsg && (
-        <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20 text-sm text-emerald-400 flex items-center justify-center animate-in fade-in slide-in-from-top-2">
-          {successMsg}
-        </div>
-      )}
-
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto px-4 py-6">
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto px-4 py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 h-64">
             <div className="w-8 h-8 rounded-full border-4 border-surface-elevated border-t-accent-primary animate-spin" />
@@ -277,7 +268,8 @@ export default function FinanceFundsPage() {
             </div>
           </div>
         )}
-      </main>
+        </main>
+      </FinanceContextGuard>
 
       {isModalOpen && (
         <FundFormModal 

@@ -7,6 +7,8 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+
 export default function FinancePage() {
   const { accessState } = useAuth();
   const navigate = useNavigate();
@@ -167,25 +169,31 @@ export default function FinancePage() {
   }
 
   return (
-    <div className="flex flex-col h-full fade-in space-y-4">
-      <header className="mb-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
-        <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Finance</h1>
-        {readyEntities.length > 0 && activeFinanceEntityId && (
+    <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
+      <FinanceContextHeader
+        pageName="Finance"
+        title="Finance"
+        rightContent={
+          readyEntities.length > 0 && activeFinanceEntityId && (
             <select
                value={activeFinanceEntityId}
                onChange={(e) => {
                   const changedEntity = readyEntities.find(en => en.id === e.target.value);
-                  setActiveFinanceEntityId(e.target.value, changedEntity?.displayName);
-                  fetchOnboardingData(); 
+                  if (changedEntity) {
+                    setActiveFinanceEntityId(e.target.value, changedEntity.displayName);
+                    fetchOnboardingData();
+                  }
                }}
                className="h-10 px-3 pr-8 rounded-lg outline-none bg-surface-elevated border border-border-subtle text-sm text-text-primary focus:ring-2 focus:ring-accent-primary max-w-xs truncate"
             >
                {readyEntities.map(e => <option key={e.id} value={e.id}>{e.displayName}</option>)}
             </select>
-        )}
-      </header>
+          )
+        }
+      />
       
-      <div className="flex-1 flex flex-col items-center justify-center border border-border-subtle rounded-2xl bg-surface-secondary/50 p-6 min-h-[40vh]">
+      <main className="flex-1 overflow-y-auto px-4 py-6 font-sans">
+        <div className="flex flex-col items-center justify-center border border-border-subtle rounded-2xl bg-surface-base p-6 min-h-[40vh] w-full">
         {loadingOnboarding ? (
           <div className="w-8 h-8 border-4 border-surface-elevated border-t-accent-primary rounded-full animate-spin" />
         ) : apiError ? (
@@ -394,6 +402,7 @@ export default function FinancePage() {
              </div>
           </div>
       )}
+      </main>
 
       {bootstrappingEntity && (
           <FinanceBootstrapWizard

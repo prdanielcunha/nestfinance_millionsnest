@@ -1,5 +1,5 @@
-import { PlaceholderPage } from '@/src/components/foundation/PlaceholderPage';
+import { FinancePlaceholderPage } from '@/src/components/finance/FinancePlaceholderPage';
 
 export default function AuditPage() {
-  return <PlaceholderPage title="Audit" description="Histórico e trilha de auditoria." />;
+  return <FinancePlaceholderPage pageName="Audit" title="Audit" description="Histórico e trilha de auditoria." />;
 }

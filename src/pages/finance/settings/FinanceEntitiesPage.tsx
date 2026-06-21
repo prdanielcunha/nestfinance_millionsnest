@@ -5,6 +5,8 @@ import { getBootstrapStatus } from '@/src/services/financeBootstrapService';
 import FinanceEntityOnboarding from '@/src/components/finance/FinanceEntityOnboarding';
 import FinanceEntityEditModal from '@/src/components/finance/FinanceEntityEditModal';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { APP_ROUTES } from '@/src/app/router/routes';
 
 export default function FinanceEntitiesPage() {
   const [entities, setEntities] = useState<any[]>([]);
@@ -95,16 +97,12 @@ export default function FinanceEntitiesPage() {
 
   return (
     <div className="flex flex-col h-full bg-surface-base antialiased text-text-base">
-      {/* Header */}
-      <header className="px-6 py-6 border-b border-border-subtle bg-surface-base flex-shrink-0">
-        <div className="flex items-center gap-3 mb-2">
-            <Building2 className="w-6 h-6 text-accent-primary" />
-            <h1 className="text-2xl font-semibold text-text-primary">Igrejas e CNPJs</h1>
-        </div>
-        <p className="text-sm text-text-secondary max-w-2xl">
-          Cada igreja mantém seus próprios dados financeiros, mesmo quando é administrada pela mesma equipe.
-        </p>
-      </header>
+      <FinanceContextHeader
+        pageName="Igrejas e CNPJs"
+        title="Igrejas e CNPJs"
+        description="Cada igreja mantém seus próprios dados financeiros, mesmo quando administrados pela mesma equipe."
+        backTo={APP_ROUTES.financeSettings}
+      />
 
       {/* Success Banner */}
       {successMsg && (

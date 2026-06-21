@@ -7,7 +7,8 @@ import AccountFormModal from '@/src/components/finance/AccountFormModal';
 import { AccountEditModal } from '@/src/components/finance/AccountEditModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import FinanceBreadcrumb from '@/src/components/finance/FinanceBreadcrumb';
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
 import { RELEASE_MARKER } from '@/src/release/releaseMarker';
 
@@ -116,26 +117,15 @@ export default function FinanceAccountsPage() {
       )}
 
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10 transition-colors duration-200">
-        <div className="mb-1">
-           <FinanceBreadcrumb pageName="Contas" />
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(APP_ROUTES.financeSettings)}
-            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
-            <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
-          </div>
-        </div>
-      </header>
+      <FinanceContextHeader
+        pageName="Contas"
+        title="Contas Financeiras"
+        description="Gerencie os locais onde os valores ficam armazenados."
+        backTo={APP_ROUTES.financeSettings}
+      />
 
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto px-4 py-6">
+      <FinanceContextGuard>
+        <main className="flex-1 overflow-y-auto px-4 py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 h-64">
              <div className="w-8 h-8 rounded-full border-4 border-surface-elevated border-t-accent-primary animate-spin" />
@@ -275,7 +265,8 @@ export default function FinanceAccountsPage() {
             )}
           </div>
         )}
-      </main>
+        </main>
+      </FinanceContextGuard>
 
       {isModalOpen && (
         <AccountFormModal 

@@ -7,7 +7,8 @@ import CategoryFormModal from '@/src/components/finance/CategoryFormModal';
 import CategoryActionMenu from '@/src/components/finance/CategoryActionMenu';
 import CategoryEditModal from '@/src/components/finance/CategoryEditModal';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import FinanceBreadcrumb from '@/src/components/finance/FinanceBreadcrumb';
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
 interface Category {
   id: string;
@@ -96,26 +97,16 @@ export default function FinanceCategoriesPage() {
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10">
-        <div className="mb-1">
-           <FinanceBreadcrumb pageName="Categorias" />
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(APP_ROUTES.financeSettings)}
-            className="p-1.5 -ml-1.5 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Categorias Financeiras</h1>
-            <p className="text-sm text-text-muted mt-0.5 md:hidden">Defina a classificação de entradas e saídas da sua organização.</p>
-          </div>
-        </div>
-      </header>
+      <FinanceContextHeader
+        pageName="Categorias"
+        title="Categorias Financeiras"
+        description="Defina a classificação de entradas e saídas da sua organização."
+        backTo={APP_ROUTES.financeSettings}
+      />
 
-      {/* Difference helper Banner */}
-      <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-xs md:text-sm text-blue-400 flex gap-2.5 items-start">
+      <FinanceContextGuard>
+        {/* Difference helper Banner */}
+        <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-xs md:text-sm text-blue-400 flex gap-2.5 items-start">
         <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
         <div>
           <strong className="text-white block font-medium mb-0.5 font-sans">Diferença Conceitual no NestFinance:</strong>
@@ -326,6 +317,7 @@ export default function FinanceCategoriesPage() {
           </div>
         )}
       </main>
+      </FinanceContextGuard>
 
       {isModalOpen && (
         <CategoryFormModal 

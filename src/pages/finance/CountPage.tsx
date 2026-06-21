@@ -1,5 +1,5 @@
-import { PlaceholderPage } from '@/src/components/foundation/PlaceholderPage';
+import { FinancePlaceholderPage } from '@/src/components/finance/FinancePlaceholderPage';
 
 export default function CountPage() {
-  return <PlaceholderPage title="Count" description="Contagem e fechamento de cultos." />;
+  return <FinancePlaceholderPage pageName="Count" title="Count" description="Contagem e fechamento de cultos." />;
 }

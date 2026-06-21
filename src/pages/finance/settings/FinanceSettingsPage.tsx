@@ -1,32 +1,21 @@
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { ArrowLeft, Wallet, Building2, Tags, Landmark, ChevronRight } from 'lucide-react';
+import { Wallet, Building2, Tags, Landmark, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
 
 export default function FinanceSettingsPage() {
   const navigate = useNavigate();
 
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
-      {/* Header */}
-      <header className="flex-shrink-0 pt-8 pb-6 md:pt-10 md:pb-8">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(APP_ROUTES.finance)}
-            className="p-2 -ml-2 text-text-muted hover:text-text-base rounded-full hover:bg-surface-elevated transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Voltar para Visão geral"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-text-primary tracking-tight">
-              Organização financeira
-            </h1>
-          </div>
-        </div>
-      </header>
+      <FinanceContextHeader
+        pageName="Organização Financeira"
+        title="Organização Financeira"
+        backTo={APP_ROUTES.finance}
+      />
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto font-sans max-w-2xl">
+      <main className="flex-1 overflow-y-auto font-sans max-w-2xl px-4 py-8">
         <div className="space-y-4">
           <button
             onClick={() => navigate(APP_ROUTES.financeSettingsEntities)}
