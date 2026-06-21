@@ -56,7 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sessionGranted: true
     });
 
-    const categoriesSnapshot = await access.repository.getCategoriesQuery().limit(200).get();
+    const categoriesSnapshot = await access.repository.getCategoriesQuery().limit(1001).get();
+
+    if (categoriesSnapshot.size > 1000) {
+       console.error(`[CRITICAL] Categories limit exceeded for entity ${financeEntityId}.`);
+       return res.status(400).json({ error: 'CATALOG_LIMIT_EXCEEDED' });
+    }
 
     // Map and sort in memory by: kind, normalizedName
     const docs = categoriesSnapshot.docs.map(doc => ({
@@ -70,8 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (kindA !== kindB) {
         return kindA.localeCompare(kindB);
       }
-      const nameA = typeof a.data.normalizedName === 'string' ? a.data.normalizedName : '';
-      const nameB = typeof b.data.normalizedName === 'string' ? b.data.normalizedName : '';
+      const nameA = a.data.normalizedName || (typeof a.data.name === 'string' ? a.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || a.id;
+      const nameB = b.data.normalizedName || (typeof b.data.name === 'string' ? b.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || b.id;
       return nameA.localeCompare(nameB);
     });
 

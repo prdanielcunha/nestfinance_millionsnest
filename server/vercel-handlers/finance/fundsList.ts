@@ -56,14 +56,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sessionGranted: true
     });
 
-    const fundsSnapshot = await access.repository.getFundsQuery().orderBy('normalizedName').limit(100).get();
+    const fundsSnapshot = await access.repository.getFundsQuery().limit(1001).get();
+
+    if (fundsSnapshot.size > 1000) {
+       console.error(`[CRITICAL] Funds limit exceeded for entity ${financeEntityId}.`);
+       return res.status(400).json({ error: 'CATALOG_LIMIT_EXCEEDED' });
+    }
+
+    const docs = fundsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+
+    docs.sort((a, b) => {
+      const nameA = a.data.normalizedName || (typeof a.data.name === 'string' ? a.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || a.id;
+      const nameB = b.data.normalizedName || (typeof b.data.name === 'string' ? b.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || b.id;
+      return nameA.localeCompare(nameB);
+    });
 
     const validColors = ['slate', 'blue', 'emerald', 'amber', 'violet', 'rose'];
 
     const funds = [];
-    for (const doc of fundsSnapshot.docs) {
+    for (const doc of docs) {
       try {
-        const data = doc.data();
+        const data = doc.data;
         if (!data || typeof data.name !== 'string' || typeof data.restricted !== 'boolean') {
           continue; // Structurally invalid doc
         }

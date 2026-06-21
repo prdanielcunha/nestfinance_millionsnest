@@ -56,11 +56,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sessionGranted: true
     });
 
-    const accountsSnapshot = await access.repository.getAccountsQuery().orderBy('normalizedName').limit(100).get();
+    const accountsSnapshot = await access.repository.getAccountsQuery().limit(1001).get();
+
+    if (accountsSnapshot.size > 1000) {
+       console.error(`[CRITICAL] Account limit exceeded for entity ${financeEntityId}.`);
+       return res.status(400).json({ error: 'CATALOG_LIMIT_EXCEEDED' });
+    }
+
+    const docs = accountsSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+    
+    docs.sort((a, b) => {
+      const nameA = a.data.normalizedName || (typeof a.data.name === 'string' ? a.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || a.id;
+      const nameB = b.data.normalizedName || (typeof b.data.name === 'string' ? b.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '') || b.id;
+      return nameA.localeCompare(nameB);
+    });
 
     const accounts = [];
-    for (const doc of accountsSnapshot.docs) {
-      const data = doc.data();
+    for (const doc of docs) {
+      const data = doc.data;
       access.repository.assertEntityIsolation(data);
       accounts.push({
         id: doc.id,
