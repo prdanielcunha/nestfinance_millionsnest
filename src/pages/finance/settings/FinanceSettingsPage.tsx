@@ -1,5 +1,5 @@
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Wallet, Building2, Tags, Landmark, ChevronRight } from 'lucide-react';
+import { Wallet, Tags, Landmark, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
 
@@ -17,22 +17,6 @@ export default function FinanceSettingsPage() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto font-sans max-w-2xl px-4 py-8">
         <div className="space-y-4">
-          <button
-            onClick={() => navigate(APP_ROUTES.financeSettingsEntities)}
-            className="w-full bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-5 text-left transition-colors flex items-center gap-4 group"
-          >
-            <div className="w-12 h-12 bg-surface-elevated rounded-xl flex items-center justify-center border border-border-subtle shrink-0 group-hover:scale-105 transition-transform text-accent-primary">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-base font-medium text-text-primary mb-1">Igrejas e CNPJs</h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                 Cada igreja mantém seus próprios dados financeiros, mesmo quando é administrada pela mesma equipe.
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-text-muted shrink-0" />
-          </button>
-
           <button
             onClick={() => navigate(APP_ROUTES.financeSettingsAccounts)}
             className="w-full bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-5 text-left transition-colors flex items-center gap-4 group"

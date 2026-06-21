@@ -10,9 +10,10 @@ interface Props {
   description?: string;
   backTo?: string;
   rightContent?: ReactNode;
+  isOrganizational?: boolean;
 }
 
-export function FinanceContextHeader({ pageName, title, description, backTo, rightContent }: Props) {
+export function FinanceContextHeader({ pageName, title, description, backTo, rightContent, isOrganizational }: Props) {
   const { accessState } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export function FinanceContextHeader({ pageName, title, description, backTo, rig
   const orgName = accessState.organization?.name;
   const entityName = activeFinanceEntityName;
   const isLoaded = accessState.organization !== undefined;
-  const isValidEntity = activeFinanceEntityId && activeFinanceEntityName;
+  const isValidEntity = activeFinanceEntityId && activeFinanceEntityName && !isOrganizational;
 
   if (!isLoaded) {
     return (
@@ -47,9 +48,15 @@ export function FinanceContextHeader({ pageName, title, description, backTo, rig
     <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10 transition-colors duration-200">
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
         <div className="flex items-center flex-wrap text-sm text-text-muted">
-          <span className="hidden sm:inline">{orgName || 'Organização'}</span>
-          <span className="mx-2 hidden sm:inline">/</span>
-          {isValidEntity ? (
+          {isOrganizational ? (
+            <>
+              <span className="truncate max-w-[200px] text-text-primary sm:text-text-muted font-medium sm:font-normal">
+                {orgName || 'Organização'}
+              </span>
+              <span className="mx-2">/</span>
+              <span className="text-text-muted sm:text-text-primary sm:font-medium">{pageName}</span>
+            </>
+          ) : isValidEntity ? (
             <>
               <span className="truncate max-w-[200px] text-text-primary sm:text-text-muted font-medium sm:font-normal">
                 {entityName}

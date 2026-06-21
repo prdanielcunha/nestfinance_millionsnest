@@ -101,7 +101,8 @@ export default function FinanceEntitiesPage() {
         pageName="Igrejas e CNPJs"
         title="Igrejas e CNPJs"
         description="Cada igreja mantém seus próprios dados financeiros, mesmo quando administrados pela mesma equipe."
-        backTo={APP_ROUTES.financeSettings}
+        backTo={APP_ROUTES.more}
+        isOrganizational={true}
       />
 
       {/* Success Banner */}
