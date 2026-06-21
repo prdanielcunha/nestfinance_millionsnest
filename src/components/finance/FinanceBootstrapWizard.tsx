@@ -553,26 +553,59 @@ function Step5({ previewPlan, submitStatus, submitError, canFinalize }: any) {
         );
     }
 
+    const creatingAccounts = previewPlan.plan.accounts.filter((p: any) => p.action === 'create');
+    const creatingFunds = previewPlan.plan.funds.filter((p: any) => p.action === 'create');
+    const creatingIncomes = previewPlan.plan.categories.filter((p: any) => p.action === 'create' && p.kind === 'income');
+    const creatingExpenses = previewPlan.plan.categories.filter((p: any) => p.action === 'create' && p.kind === 'expense');
+    
+    const allItems = [...previewPlan.plan.accounts, ...previewPlan.plan.funds, ...previewPlan.plan.categories];
+    const adoptedItems = allItems.filter(p => p.action === 'adopt');
+    const skippedItems = allItems.filter(p => p.action === 'skip');
+    const conflictItems = allItems.filter(p => p.action === 'conflict');
+    const enabledPaymentMethods = previewPlan.paymentMethods.filter((pm: any) => pm.enabled);
+
+    const formatReason = (reason: string) => {
+        if (reason === 'NOT_SELECTED') return 'Não selecionado';
+        if (reason === 'LEGACY_MATCH') return 'Já coberto por outro cadastro (Registro legado)';
+        if (reason === 'CONFLICT') return 'Conflito de dados';
+        return reason;
+    };
+
     return (
         <div className="max-w-4xl mx-auto h-full animate-in fade-in pb-12">
-            {!canFinalize && (
+            {!canFinalize && previewPlan.summary.conflict > 0 && (
+                <div className="mb-8 text-center" aria-live="polite">
+                    <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-4 mx-auto text-rose-500">
+                       <AlertCircle className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-medium text-text-primary mb-2">Atenção: Existem conflitos</h3>
+                    <p className="text-text-secondary text-sm max-w-lg mx-auto">
+                        A preparação não pode ser concluída com as opções atuais. Reveja os itens que estão entrando em conflito.
+                    </p>
+                </div>
+            )}
+
+            {!canFinalize && previewPlan.summary.conflict === 0 && (
                 <div className="mb-8 text-center" aria-live="polite">
                     <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 mx-auto text-emerald-400">
                        <Check className="w-8 h-8" />
                     </div>
-                    <h3 className="text-xl font-medium text-text-primary mb-2">Plano preparado</h3>
+                    <h3 className="text-xl font-medium text-text-primary mb-2">Nenhuma alteração</h3>
                     <p className="text-text-secondary text-sm max-w-lg mx-auto">
-                        Nenhuma alteração foi feita ainda.<br/>A conclusão desta preparação ainda não está liberada.
+                        Nenhum item será criado ou vinculado.
                     </p>
                 </div>
             )}
 
             {canFinalize && submitStatus === 'idle' && (
-                <div className="mb-8 text-center">
-                    <h3 className="text-2xl font-medium text-text-primary mb-2">Tudo pronto para preparar esta igreja?</h3>
-                    <p className="text-text-secondary text-base max-w-lg mx-auto">
-                        Os cadastros selecionados serão organizados para esta igreja. Nenhum lançamento, saldo ou movimentação será criado.
-                    </p>
+                <div className="mb-8 p-6 rounded-xl bg-surface-elevated border border-border-subtle max-w-2xl mx-auto">
+                    <h3 className="text-xl font-medium text-text-primary mb-4 text-center">Tudo pronto para preparar esta igreja?</h3>
+                    <ul className="text-text-secondary text-sm space-y-3">
+                        <li className="flex items-start gap-2"><Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Revisei os cadastros que serão criados para esta igreja.</li>
+                        <li className="flex items-start gap-2"><Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Nenhum lançamento, saldo ou movimentação será criado.</li>
+                        <li className="flex items-start gap-2"><Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Nenhum dado de outra igreja será utilizado.</li>
+                        <li className="flex items-start gap-2"><Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Esta preparação poderá ser conferida no histórico de auditoria.</li>
+                    </ul>
                 </div>
             )}
 
@@ -596,25 +629,175 @@ function Step5({ previewPlan, submitStatus, submitError, canFinalize }: any) {
                    <div className="text-2xl font-bold text-text-muted">{previewPlan.summary.skip}</div>
                    <div className="text-xs text-text-secondary">Não serão incluídos</div>
                </div>
-               <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center">
+               <div className="p-4 rounded-xl bg-surface-elevated border border-border-subtle text-center mb-6">
                    <div className="text-2xl font-bold text-rose-400">{previewPlan.summary.conflict}</div>
                    <div className="text-xs text-text-secondary">Conflitos / Atenção</div>
                </div>
             </div>
 
-            <h4 className="font-medium text-text-primary mb-4 border-b border-border-subtle pb-2">Registros legados arquivados</h4>
-            {previewPlan.plan.categories.filter((p: any) => p.action === 'adopt' && p.active === false).length > 0 ? (
-                <ul className="space-y-2 text-sm max-h-48 overflow-y-auto">
-                    {previewPlan.plan.categories.filter((p: any) => p.action === 'adopt' && p.active === false).map((p: any) => (
-                        <li key={p.existingId} className="p-3 bg-surface-secondary/50 rounded-lg text-text-muted flex justify-between">
-                             <span className="line-through">{p.name}</span>
-                             <span>Arquivada</span>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-sm text-text-muted">Não há registros afetados.</p>
-            )}
+            <div className="space-y-4">
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Contas — {creatingAccounts.length} serão criadas
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {creatingAccounts.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {creatingAccounts.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma conta nova será criada.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Fundos — {creatingFunds.length} serão criados
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {creatingFunds.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {creatingFunds.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhum fundo novo será criado.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Categorias de entrada — {creatingIncomes.length} serão criadas
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {creatingIncomes.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {creatingIncomes.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma categoria de entrada nova será criada.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Categorias de saída — {creatingExpenses.length} serão criadas
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {creatingExpenses.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {creatingExpenses.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        {p.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma categoria de saída nova será criada.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Meios de recebimento e pagamento — {enabledPaymentMethods.length} incluídos
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {enabledPaymentMethods.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {enabledPaymentMethods.map((pm: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex flex-col">
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
+                                            {pm.label}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhum meio de recebimento/pagamento incluído.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Itens vinculados — {adoptedItems.length}
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {adoptedItems.length > 0 ? (
+                            <ul className="space-y-2 mt-2">
+                                {adoptedItems.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex items-start flex-col gap-0.5">
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
+                                            <span className={p.active === false ? 'line-through text-text-muted' : ''}>{p.name} {p.active === false && '(Arquivado)'}</span>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Nenhum item será vinculado.</p>}
+                    </div>
+                </details>
+
+                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group" open={skippedItems.length > 0}>
+                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
+                        Não serão incluídos — {skippedItems.length}
+                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        {skippedItems.length > 0 ? (
+                            <ul className="space-y-3 mt-2">
+                                {skippedItems.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-text-secondary flex flex-col">
+                                        <span className="font-medium text-text-primary flex items-center gap-2">
+                                           <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                                           {p.name}
+                                        </span>
+                                        <span className="pl-3.5 text-text-muted">Motivo: {formatReason(p.reason)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-text-muted mt-2">Todos os itens selecionados ou compatíveis serão processados.</p>}
+                    </div>
+                </details>
+
+                {conflictItems.length > 0 && (
+                <details className="bg-surface-elevated border border-border-subtle border-rose-500/20 rounded-xl overflow-hidden group" open>
+                    <summary className="p-4 cursor-pointer font-medium text-rose-500 hover:bg-rose-500/5 flex justify-between items-center transition-colors">
+                        Conflitos — {conflictItems.length}
+                        <ChevronRight className="w-5 h-5 text-rose-500/70 group-open:rotate-90 transition-transform" />
+                    </summary>
+                    <div className="px-4 pb-4">
+                        <ul className="space-y-3 mt-2">
+                            {conflictItems.map((p: any, i: number) => (
+                                <li key={i} className="text-sm text-rose-500/80 flex flex-col">
+                                    <span className="font-medium text-rose-500 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                        {p.name}
+                                    </span>
+                                    <span className="pl-3.5 opacity-80">Motivo: {formatReason(p.reason)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </details>
+                )}
+            </div>
         </div>
     );
 }
