@@ -21,21 +21,29 @@ export default function FinancePage() {
   const [entities, setEntities] = useState<any[]>([]);
   const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
   const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
+  const [currentEpoch, setCurrentEpoch] = useState(0);
   
   const setupStatus = accessState.financeSetup?.status;
 
   useEffect(() => {
+    let abortController = new AbortController();
+    
     if (setupStatus === 'configured') {
-      fetchOnboardingData();
+      fetchOnboardingData(abortController.signal, currentEpoch);
     } else {
       setLoadingOnboarding(false);
     }
-  }, [setupStatus]);
+    
+    return () => {
+      abortController.abort();
+    };
+  }, [setupStatus, activeFinanceEntityId, currentEpoch]);
 
-  const fetchOnboardingData = async () => {
+  const fetchOnboardingData = async (signal?: AbortSignal, epoch: number = 0) => {
     try {
       setLoadingOnboarding(true);
       setApiError(false);
+      
       const user = firebaseAuth.currentUser;
       if (!user) return;
       
@@ -43,17 +51,15 @@ export default function FinancePage() {
       
       const entitiesRes = await fetch('/api/finance/entities/list', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal
       });
       
-      if (!entitiesRes.ok) {
-        throw new Error('API_LOAD_FAIL');
-      }
-      
+      if (!entitiesRes.ok) throw new Error('API_LOAD_FAIL');
       const entitiesData = await entitiesRes.json();
-
       const foundEntities = entitiesData.entities || [];
-      setEntities(foundEntities);
+      
+      if (!signal?.aborted) setEntities(foundEntities);
 
       const statuses: Record<string, any> = {};
       await Promise.all(foundEntities.map(async (e: any) => {
@@ -61,7 +67,8 @@ export default function FinancePage() {
               const res = await fetch('/api/finance/entities/bootstrap/status', {
                   method: 'POST',
                   headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ financeEntityId: e.id })
+                  body: JSON.stringify({ financeEntityId: e.id }),
+                  signal
               });
               if (res.ok) {
                   statuses[e.id] = await res.json();
@@ -70,7 +77,8 @@ export default function FinancePage() {
               // ignore
           }
       }));
-      setBootstrapStatuses(statuses);
+      
+      if (!signal?.aborted) setBootstrapStatuses(statuses);
       
       const readyList = foundEntities.filter((e: any) => statuses[e.id]?.status === 'ready');
       if (readyList.length > 0) {
@@ -78,26 +86,30 @@ export default function FinancePage() {
              ? activeFinanceEntityId 
              : readyList[0].id;
              
-          if (nextId !== activeFinanceEntityId) {
+          if (nextId !== activeFinanceEntityId && !signal?.aborted) {
             const nextEntity = readyList.find((e: any) => e.id === nextId);
             setActiveFinanceEntityId(nextId, nextEntity?.displayName);
+            return; // Will be triggered again by the useEffect dependency
           }
 
           const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
             fetch('/api/finance/accounts/list', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ financeEntityId: nextId })
+              body: JSON.stringify({ financeEntityId: nextId }),
+              signal
             }),
             fetch('/api/finance/funds/list', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ financeEntityId: nextId })
+              body: JSON.stringify({ financeEntityId: nextId }),
+              signal
             }),
             fetch('/api/finance/categories/list', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ financeEntityId: nextId })
+              body: JSON.stringify({ financeEntityId: nextId }),
+              signal
             })
           ]);
           
@@ -109,27 +121,30 @@ export default function FinancePage() {
           const fundsData = await fundsRes.json();
           const categoriesData = await categoriesRes.json();
 
-          const activeAccountsCount = accountsData.accounts
-            ? accountsData.accounts.filter((a: any) => a.active !== false).length
-            : 0;
-          setHasAccounts(activeAccountsCount > 0);
+          if (!signal?.aborted) {
+            const activeAccountsCount = accountsData.accounts
+              ? accountsData.accounts.filter((a: any) => a.active !== false).length
+              : 0;
+            setHasAccounts(activeAccountsCount > 0);
 
-          const activeFundsCount = fundsData.funds
-            ? fundsData.funds.filter((f: any) => f.active !== false).length
-            : 0;
-          setHasFunds(activeFundsCount > 0);
-          
-          const activeCategoriesCount = categoriesData.categories 
-            ? categoriesData.categories.filter((c: any) => c.active !== false).length 
-            : 0;
-          setHasCategories(activeCategoriesCount > 0);
+            const activeFundsCount = fundsData.funds
+              ? fundsData.funds.filter((f: any) => f.active !== false).length
+              : 0;
+            setHasFunds(activeFundsCount > 0);
+            
+            const activeCategoriesCount = categoriesData.categories 
+              ? categoriesData.categories.filter((c: any) => c.active !== false).length 
+              : 0;
+            setHasCategories(activeCategoriesCount > 0);
+          }
       } else {
-          setActiveFinanceEntityId(null);
+          if (!signal?.aborted) setActiveFinanceEntityId(null);
       }
-    } catch (err) {
-      setApiError(true);
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      if (!signal?.aborted) setApiError(true);
     } finally {
-      setLoadingOnboarding(false);
+      if (!signal?.aborted) setLoadingOnboarding(false);
     }
   };
 
@@ -181,7 +196,7 @@ export default function FinancePage() {
                   const changedEntity = readyEntities.find(en => en.id === e.target.value);
                   if (changedEntity) {
                     setActiveFinanceEntityId(e.target.value, changedEntity.displayName);
-                    fetchOnboardingData();
+                    // fetchOnboardingData() is handled by useEffect dependency tracking
                   }
                }}
                className="h-10 px-3 pr-8 rounded-lg outline-none bg-surface-elevated border border-border-subtle text-sm text-text-primary focus:ring-2 focus:ring-accent-primary max-w-xs truncate"
@@ -195,12 +210,25 @@ export default function FinancePage() {
       <main className="flex-1 overflow-y-auto px-4 py-6 font-sans">
         <div className="flex flex-col items-center justify-center border border-border-subtle rounded-2xl bg-surface-base p-6 min-h-[40vh] w-full">
         {loadingOnboarding ? (
-          <div className="w-8 h-8 border-4 border-surface-elevated border-t-accent-primary rounded-full animate-spin" />
+          <div className="flex flex-col w-full max-w-3xl justify-start self-start space-y-6">
+            <div className="flex flex-col items-start justify-center gap-4">
+              <div className="w-8 h-8 border-4 border-surface-elevated border-t-accent-primary rounded-full animate-spin" />
+              <p className="text-text-secondary text-sm font-medium animate-pulse">
+                Carregando os dados da {activeFinanceEntityId ? (readyEntities.find(e => e.id === activeFinanceEntityId)?.displayName || 'igreja') : 'igreja'}...
+              </p>
+            </div>
+            {/* Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4">
+              <div className="bg-surface-elevated rounded-xl p-5 border border-border-subtle h-[104px] animate-pulse"></div>
+              <div className="bg-surface-elevated rounded-xl p-5 border border-border-subtle h-[104px] animate-pulse hidden sm:block"></div>
+              <div className="bg-surface-elevated rounded-xl p-5 border border-border-subtle h-[104px] animate-pulse hidden sm:block"></div>
+            </div>
+          </div>
         ) : apiError ? (
           <div className="flex flex-col items-center justify-center text-center max-w-sm">
             <p className="text-red-500 text-sm mb-4">Falha ao verificar os dados financeiros da organização.</p>
             <button
-              onClick={fetchOnboardingData}
+              onClick={() => setCurrentEpoch(prev => prev + 1)}
               className="px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
             >
               Tentar novamente
@@ -410,7 +438,7 @@ export default function FinancePage() {
             statusData={bootstrappingEntity.statusData}
             onClose={() => {
               setBootstrappingEntity(null);
-              fetchOnboardingData(); // Refetch to check if it's ready now
+              setCurrentEpoch(prev => prev + 1); // Trigger refetch
             }}
           />
       )}

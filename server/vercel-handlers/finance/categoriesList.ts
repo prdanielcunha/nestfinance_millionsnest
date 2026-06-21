@@ -84,16 +84,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const doc of docs) {
       try {
         const data = doc.data;
-        if (!data || typeof data.name !== 'string' || (data.kind !== 'income' && data.kind !== 'expense')) {
+        if (!data || typeof data.name !== 'string') {
           continue; // skip structurally invalid documents
         }
+        
+        const kind = (data.kind === 'income' || data.kind === 'expense') ? data.kind : 'expense';
         
         access.repository.assertEntityIsolation(data);
 
         const categoryItem: any = {
           id: doc.id,
           name: data.name,
-          kind: data.kind,
+          kind,
           financeEntityId: data.financeEntityId,
           active: typeof data.active === 'boolean' ? data.active : true,
         };

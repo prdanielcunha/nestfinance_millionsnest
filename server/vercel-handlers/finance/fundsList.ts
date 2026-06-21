@@ -77,9 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const doc of docs) {
       try {
         const data = doc.data;
-        if (!data || typeof data.name !== 'string' || typeof data.restricted !== 'boolean') {
+        if (!data || typeof data.name !== 'string') {
           continue; // Structurally invalid doc
         }
+
+        const restricted = typeof data.restricted === 'boolean' ? data.restricted : false;
 
         access.repository.assertEntityIsolation(data);
 
@@ -91,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id: doc.id,
           name: data.name,
           financeEntityId: data.financeEntityId,
-          restricted: data.restricted,
+          restricted,
           colorToken,
           active: typeof data.active === 'boolean' ? data.active : true,
         });
