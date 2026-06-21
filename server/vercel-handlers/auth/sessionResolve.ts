@@ -65,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         organizationId: resolution.organizationId,
         isGlobalAccess: resolution.isGlobalAccess,
         accessSource: resolution.accessSource,
+        capabilities: resolution.capabilities,
         organization: resolution.organization,
         profile: resolution.profile,
         financeSetup: resolution.financeSetup

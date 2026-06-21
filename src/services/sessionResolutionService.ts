@@ -53,6 +53,7 @@ export async function resolveEcosystemSession(): Promise<EcosystemAccessState> {
         organizationId: data.organizationId,
         isGlobalAccess: data.isGlobalAccess,
         accessSource: data.accessSource,
+        capabilities: Array.isArray(data.capabilities) ? data.capabilities : [],
         organization: {
           id: data.organization.id,
           name: data.organization.name,

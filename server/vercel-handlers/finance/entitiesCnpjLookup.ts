@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { canManageFinanceEntities } from './accessHelpers.js';
 import { normalizeCnpj, isValidCnpj, getCnpjFormat, formatCnpj } from '../../../shared/finance/taxId.js';
 import { CompanyRegistryProviderChain } from '../../providers/companyRegistry/CompanyRegistryProviderChain.js';
 import { randomBytes } from 'crypto';
@@ -73,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    if (sessionList.isGlobalAccess !== true) {
+    if (!canManageFinanceEntities(sessionList)) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 

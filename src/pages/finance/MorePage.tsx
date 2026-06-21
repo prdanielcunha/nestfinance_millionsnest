@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { FileText, ShieldCheck, Building2, Wallet, Tags } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
+import { canManageFinanceEntities } from '@/src/lib/permissions';
 
 export default function MorePage() {
   const { accessState } = useAuth();
@@ -13,7 +14,7 @@ export default function MorePage() {
         <p className="text-text-secondary mt-1">Navegação adicional do sistema corporativo.</p>
       </header>
 
-      {accessState.isGlobalAccess && (
+      {canManageFinanceEntities(accessState) && (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-1">Organização</h2>
           

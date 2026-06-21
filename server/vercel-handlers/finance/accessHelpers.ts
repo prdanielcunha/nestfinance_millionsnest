@@ -2,6 +2,12 @@ import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 
+export function canManageFinanceEntities(sessionList: any): boolean {
+  if (sessionList.isGlobalAccess) return true;
+  if (sessionList.capabilities?.includes('organization.manage_entities')) return true;
+  return false;
+}
+
 export interface RequiredAccessArgs {
   db: firestore.Firestore;
   uid: string;
