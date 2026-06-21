@@ -9,6 +9,7 @@
   "scripts": {
     "check:api-contracts": "node scripts/check-api-contracts.mjs",
     "check:vercel-entrypoints": "node scripts/check-vercel-entrypoints.mjs",
+    "check:saas-isolation": "tsx scripts/check-saas-isolation.ts",
     "prebuild": "npm run check:vercel-entrypoints",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",

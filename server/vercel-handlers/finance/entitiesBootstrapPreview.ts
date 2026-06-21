@@ -3,6 +3,7 @@ import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 import { BOOTSTRAP_TEMPLATES, BootstrapPlanItem } from '../../../shared/finance/bootstrapTemplates.js';
 import { normalizeName, computePreviewDigest } from '../../../shared/finance/bootstrapHelpers.js';
+import { requireFinanceEntityAccess } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -42,42 +43,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const authorization = await canManageFinanceBootstrap(uid, organizationId, financeEntityId);
-    if (!authorization.canApply) {
-      return res.status(403).json({ error: 'FORBIDDEN', reason: authorization.reason });
-    }
+    const access = await requireFinanceEntityAccess({
+      db: firestore,
+      uid,
+      organizationId,
+      financeEntityId,
+      sessionGranted: true
+    });
 
     const templates = BOOTSTRAP_TEMPLATES[templateId as keyof typeof BOOTSTRAP_TEMPLATES];
     if (!templates) {
        return res.status(400).json({ error: 'INVALID_TEMPLATE_ID' });
     }
 
-    const orgRef = firestore.collection('organizations').doc(organizationId);
-    const entityDoc = await orgRef.collection('financeEntities').doc(financeEntityId).get();
-    
-    if (!entityDoc.exists) {
-        return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
+    if (legacyAssignment === 'assign_unscoped_to_this_entity') {
+       return res.status(400).json({ error: 'INVALID_LEGACY_ASSIGNMENT' });
     }
 
-    const entityData = entityDoc.data()!;
+    const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
+    const applicationAvailability = await getApplicationAvailability(financeEntityId);
 
-    // Load unscoped + scoped items
-    const accountsSnap = await orgRef.collection('financeAccounts').get();
-    const fundsSnap = await orgRef.collection('financeFunds').get();
-    const categoriesSnap = await orgRef.collection('financeCategories').get();
+    // Load scoped items
+    const accountsSnap = await access.repository.getAccountsQuery().get();
+    const fundsSnap = await access.repository.getFundsQuery().get();
+    const categoriesSnap = await access.repository.getCategoriesQuery().get();
     
-    const OBPC_ORG_ID = 'JPrzMnxJu77hTLJtu7FT';
-    const MONTE_CASTELO_ID = 'fent_b813f062431581b136f98a9dd1432dcc';
-    const canAdoptLegacyData = (organizationId === OBPC_ORG_ID && financeEntityId === MONTE_CASTELO_ID);
-    const useLegacy = legacyAssignment === 'assign_unscoped_to_this_entity' && canAdoptLegacyData;
+    const unscopedAccounts: any[] = [];
+    const unscopedFunds: any[] = [];
+    const unscopedCategories: any[] = [];
 
-    const unscopedAccounts = accountsSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
-    const unscopedFunds = fundsSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
-    const unscopedCategories = categoriesSnap.docs.filter(d => !d.data().financeEntityId && useLegacy);
-
-    const scopedAccounts = accountsSnap.docs.filter(d => d.data().financeEntityId === financeEntityId);
-    const scopedFunds = fundsSnap.docs.filter(d => d.data().financeEntityId === financeEntityId);
-    const scopedCategories = categoriesSnap.docs.filter(d => d.data().financeEntityId === financeEntityId);
+    const scopedAccounts = accountsSnap.docs;
+    const scopedFunds = fundsSnap.docs;
+    const scopedCategories = categoriesSnap.docs;
 
     const plan: { accounts: BootstrapPlanItem[], funds: BootstrapPlanItem[], categories: BootstrapPlanItem[] } = {
        accounts: [], funds: [], categories: []
@@ -249,15 +246,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const finalPaymentMethodCodes = enrichedPaymentMethods.filter(pm => pm.enabled).map(pm => pm.code);
     const previewDigest = computePreviewDigest(financeEntityId, templateId, legacyAssignment, plan, finalPaymentMethodCodes);
 
-    const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
-    const applicationAvailability = await getApplicationAvailability(financeEntityId);
-
     return res.status(200).json({
        financeEntity: {
           id: financeEntityId,
-          displayName: entityData.displayName,
-          city: entityData.operationalAddressSameAsRegistered ? entityData.registeredAddress?.city || null : entityData.operationalAddress?.city || null,
-          state: entityData.operationalAddressSameAsRegistered ? entityData.registeredAddress?.state || null : entityData.operationalAddress?.state || null
+          displayName: access.financeEntity.displayName,
+          city: access.financeEntity.operationalAddressSameAsRegistered ? access.financeEntity.registeredAddress?.city || null : access.financeEntity.operationalAddress?.city || null,
+          state: access.financeEntity.operationalAddressSameAsRegistered ? access.financeEntity.registeredAddress?.state || null : access.financeEntity.operationalAddress?.state || null
        },
        template: {
           id: templateId,
@@ -275,6 +269,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+      return res.status(403).json({ error: 'FORBIDDEN' });
     }
     console.error('Entities bootstrap preview error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });

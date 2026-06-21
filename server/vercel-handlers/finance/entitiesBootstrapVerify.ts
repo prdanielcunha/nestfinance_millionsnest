@@ -199,7 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 issues.push({ code: 'SETTINGS_INVALID_METHODS', area: 'settings', message: 'Settings methods invalid' });
             } else {
                 const { PAYMENT_METHODS } = await import('../../../shared/finance/paymentMethods.js');
-                const validCodes = Object.keys(PAYMENT_METHODS);
+                const validCodes = PAYMENT_METHODS.map((m: any) => m.code);
                 const hasInvalid = pmCodes.some((code: string) => !validCodes.includes(code));
                 
                 const sortedActual = [...pmCodes].sort();

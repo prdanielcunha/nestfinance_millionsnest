@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { requireFinanceEntityAccess } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -42,14 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-
-    if (!sessionList.granted) {
-      return res.status(403).json({ error: 'FORBIDDEN' });
+    const { financeEntityId } = req.body || {};
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
     }
 
-    const categoriesRef = firestore.collection('organizations').doc(organizationId).collection('financeCategories');
-    const categoriesSnapshot = await categoriesRef.limit(200).get();
+    const access = await requireFinanceEntityAccess({
+      db: firestore,
+      uid,
+      organizationId,
+      financeEntityId,
+      sessionGranted: true
+    });
+
+    const categoriesSnapshot = await access.repository.getCategoriesQuery().limit(200).get();
 
     // Map and sort in memory by: kind, normalizedName
     const docs = categoriesSnapshot.docs.map(doc => ({
@@ -75,11 +82,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!data || typeof data.name !== 'string' || (data.kind !== 'income' && data.kind !== 'expense')) {
           continue; // skip structurally invalid documents
         }
+        
+        access.repository.assertEntityIsolation(data);
 
         const categoryItem: any = {
           id: doc.id,
           name: data.name,
           kind: data.kind,
+          financeEntityId: data.financeEntityId,
           active: typeof data.active === 'boolean' ? data.active : true,
         };
 
@@ -98,6 +108,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
+       return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     console.error('List categories error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });

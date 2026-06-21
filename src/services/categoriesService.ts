@@ -1,8 +1,10 @@
 import { firebaseAuth } from '@/src/lib/firebase';
 
-export async function archiveCategory(categoryId: string): Promise<void> {
+export async function archiveCategory(categoryId: string, financeEntityId: string): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('FinanceEntityId is required');
 
   const token = await user.getIdToken();
 
@@ -12,7 +14,7 @@ export async function archiveCategory(categoryId: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ categoryId }),
+    body: JSON.stringify({ categoryId, financeEntityId }),
     cache: 'no-store'
   });
 
@@ -25,9 +27,11 @@ export async function archiveCategory(categoryId: string): Promise<void> {
   }
 }
 
-export async function reactivateCategory(categoryId: string): Promise<void> {
+export async function reactivateCategory(categoryId: string, financeEntityId: string): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('FinanceEntityId is required');
 
   const token = await user.getIdToken();
 
@@ -37,7 +41,7 @@ export async function reactivateCategory(categoryId: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ categoryId }),
+    body: JSON.stringify({ categoryId, financeEntityId }),
     cache: 'no-store'
   });
 
@@ -50,9 +54,11 @@ export async function reactivateCategory(categoryId: string): Promise<void> {
   }
 }
 
-export async function updateCategory(params: { categoryId: string, name: string, accountingCode: string | null }): Promise<any> {
+export async function updateCategory(params: { categoryId: string, name: string, accountingCode: string | null, financeEntityId: string }): Promise<any> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!params.financeEntityId) throw new Error('FinanceEntityId is required');
 
   const token = await user.getIdToken();
 

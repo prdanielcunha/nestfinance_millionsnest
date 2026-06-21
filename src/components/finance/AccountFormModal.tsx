@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Landmark, CreditCard, Wallet, PiggyBank, Building2 } from 'lucide-react';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Props {
   onClose: () => void;
@@ -18,6 +19,7 @@ const ACCOUNT_TYPES: { id: AccountType; label: string; icon: any }[] = [
 ];
 
 export default function AccountFormModal({ onClose, onSuccess }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -55,6 +57,7 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
       const payload: any = {
         name: name.trim(),
         type,
+        financeEntityId: activeFinanceEntityId
       };
       
       if (institutionName.trim()) {

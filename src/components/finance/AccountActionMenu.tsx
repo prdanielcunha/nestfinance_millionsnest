@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, Archive, RefreshCw } from 'lucide-react';
 import { archiveAccount, reactivateAccount } from '@/src/services/accountsService';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Account {
   id: string;
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function AccountActionMenu({ account, onSuccess, onError, isOpen, onToggle, onEdit }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
   const [showConfirmReactivate, setShowConfirmReactivate] = useState(false);
@@ -66,8 +68,9 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
   const handleArchive = async () => {
     if (loading) return;
     try {
+      if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await archiveAccount(account.id);
+      await archiveAccount(account.id, activeFinanceEntityId);
       onSuccess();
       onToggle(false);
       setShowConfirmArchive(false);
@@ -81,8 +84,9 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
   const handleReactivate = async () => {
     if (loading) return;
     try {
+      if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await reactivateAccount(account.id);
+      await reactivateAccount(account.id, activeFinanceEntityId);
       onSuccess();
       onToggle(false);
       setShowConfirmReactivate(false);

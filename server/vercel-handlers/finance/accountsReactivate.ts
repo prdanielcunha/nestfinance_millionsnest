@@ -68,7 +68,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const { accountId } = req.body;
+    const { accountId, financeEntityId } = req.body;
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
 
     if (!accountId || typeof accountId !== 'string') {
       return res.status(400).json({ error: 'INVALID_ACCOUNT_ID' });
@@ -79,6 +83,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const orgRef = firestore.collection('organizations').doc(organizationId);
+    
+    // Check organization and finance entity valid early although inside tx is checked
+    const entityDoc = await orgRef.collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+        return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
+    }
+
     const accountsCol = orgRef.collection('financeAccounts');
     const accountRef = accountsCol.doc(accountId);
     const auditRef = orgRef.collection('financeAuditLogs').doc();
@@ -94,6 +105,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const accountData = accountDoc.data()!;
         if (accountData.organizationId !== organizationId) {
           throw new Error('ACCOUNT_NOT_FOUND');
+        }
+        if (accountData.financeEntityId !== financeEntityId) {
+           throw new Error('FINANCE_ENTITY_MISMATCH');
         }
 
         if (accountData.active === true) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, FolderHeart } from 'lucide-react';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Props {
   onClose: () => void;
@@ -19,6 +20,7 @@ const COLOR_OPTIONS = [
 ] as const;
 
 export default function FundFormModal({ onClose, onSuccess }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +58,7 @@ export default function FundFormModal({ onClose, onSuccess }: Props) {
         name: name.trim(),
         restricted,
         colorToken,
+        financeEntityId: activeFinanceEntityId
       };
 
       const res = await fetch('/api/finance/funds/create', {

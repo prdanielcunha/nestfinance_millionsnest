@@ -68,7 +68,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const { fundId } = req.body;
+    const { fundId, financeEntityId } = req.body;
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
 
     if (!fundId || typeof fundId !== 'string') {
       return res.status(400).json({ error: 'INVALID_FUND_ID' });
@@ -79,6 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const orgRef = firestore.collection('organizations').doc(organizationId);
+
+    const entityDoc = await orgRef.collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+        return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
+    }
+
     const fundsCol = orgRef.collection('financeFunds');
     const fundRef = fundsCol.doc(fundId);
     const auditRef = orgRef.collection('financeAuditLogs').doc();
@@ -94,6 +104,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const fundData = fundDoc.data()!;
         if (fundData.organizationId !== organizationId) {
           throw new Error('FUND_NOT_FOUND');
+        }
+        if (fundData.financeEntityId !== financeEntityId) {
+          throw new Error('FINANCE_ENTITY_MISMATCH');
         }
 
         if (fundData.active === false) {

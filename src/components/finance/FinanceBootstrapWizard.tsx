@@ -635,167 +635,167 @@ function Step5({ previewPlan, submitStatus, submitError, canFinalize }: any) {
                </div>
             </div>
 
-            <div className="space-y-4">
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Contas — {creatingAccounts.length} serão criadas
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
+            <div className="space-y-6">
+                <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                        <span>Contas ({creatingAccounts.length})</span>
+                        <span className="text-xs font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">Serão criadas</span>
+                    </div>
+                    <div className="p-4">
                         {creatingAccounts.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {creatingAccounts.map((p: any, i: number) => (
                                     <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        {p.name}
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                        <span className="truncate" title={p.name}>{p.name}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma conta nova será criada.</p>}
+                        ) : <p className="text-sm text-text-muted">Nenhuma conta nova será criada.</p>}
                     </div>
-                </details>
+                </div>
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Fundos — {creatingFunds.length} serão criados
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
+                <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                        <span>Fundos ({creatingFunds.length})</span>
+                        <span className="text-xs font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">Serão criados</span>
+                    </div>
+                    <div className="p-4">
                         {creatingFunds.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {creatingFunds.map((p: any, i: number) => (
                                     <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        {p.name}
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                        <span className="truncate" title={p.name}>{p.name}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhum fundo novo será criado.</p>}
+                        ) : <p className="text-sm text-text-muted">Nenhum fundo novo será criado.</p>}
                     </div>
-                </details>
+                </div>
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Categorias de entrada — {creatingIncomes.length} serão criadas
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
+                <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                        <span>Categorias de entrada ({creatingIncomes.length})</span>
+                        <span className="text-xs font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">Serão criadas</span>
+                    </div>
+                    <div className="p-4">
                         {creatingIncomes.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {creatingIncomes.map((p: any, i: number) => (
                                     <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        {p.name}
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                        <span className="truncate" title={p.name}>{p.name}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma categoria de entrada nova será criada.</p>}
+                        ) : <p className="text-sm text-text-muted">Nenhuma categoria de entrada nova será criada.</p>}
                     </div>
-                </details>
+                </div>
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Categorias de saída — {creatingExpenses.length} serão criadas
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
+                <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                        <span>Categorias de saída ({creatingExpenses.length})</span>
+                        <span className="text-xs font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">Serão criadas</span>
+                    </div>
+                    <div className="p-4">
                         {creatingExpenses.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {creatingExpenses.map((p: any, i: number) => (
                                     <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        {p.name}
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                        <span className="truncate" title={p.name}>{p.name}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhuma categoria de saída nova será criada.</p>}
+                        ) : <p className="text-sm text-text-muted">Nenhuma categoria de saída nova será criada.</p>}
                     </div>
-                </details>
+                </div>
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Meios de recebimento e pagamento — {enabledPaymentMethods.length} incluídos
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
+                <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                        <span>Meios de recebimento e pagamento ({enabledPaymentMethods.length})</span>
+                        <span className="text-xs font-normal text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full shrink-0">Incluídos</span>
+                    </div>
+                    <div className="p-4">
                         {enabledPaymentMethods.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {enabledPaymentMethods.map((pm: any, i: number) => (
-                                    <li key={i} className="text-sm text-text-secondary flex flex-col">
-                                        <span className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
-                                            {pm.label}
-                                        </span>
+                                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-accent-primary shrink-0" />
+                                        <span className="truncate" title={pm.label}>{pm.label}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhum meio de recebimento/pagamento incluído.</p>}
+                        ) : <p className="text-sm text-text-muted">Nenhum meio de recebimento/pagamento incluído.</p>}
                     </div>
-                </details>
+                </div>
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group">
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Itens vinculados — {adoptedItems.length}
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
-                        {adoptedItems.length > 0 ? (
-                            <ul className="space-y-2 mt-2">
+                {adoptedItems.length > 0 && (
+                    <div className="bg-surface-elevated border border-border-subtle border-blue-500/10 rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-blue-500/10 bg-blue-500/5 font-medium text-blue-500 flex items-center justify-between">
+                            <span>Itens vinculados a IDs existentes ({adoptedItems.length})</span>
+                            <span className="text-xs font-normal text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full shrink-0">Vinculados</span>
+                        </div>
+                        <div className="p-4">
+                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {adoptedItems.map((p: any, i: number) => (
-                                    <li key={i} className="text-sm text-text-secondary flex items-start flex-col gap-0.5">
+                                    <li key={i} className="text-sm text-blue-500/80 flex flex-col gap-0.5">
                                         <span className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
-                                            <span className={p.active === false ? 'line-through text-text-muted' : ''}>{p.name} {p.active === false && '(Arquivado)'}</span>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                            <span className={`truncate ${p.active === false ? 'line-through opacity-70' : ''}`} title={p.name}>
+                                                {p.name} {p.active === false && '(Arquivado)'}
+                                            </span>
                                         </span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Nenhum item será vinculado.</p>}
+                        </div>
                     </div>
-                </details>
+                )}
 
-                <details className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden group" open={skippedItems.length > 0}>
-                    <summary className="p-4 cursor-pointer font-medium text-text-primary hover:bg-surface-secondary/50 flex justify-between items-center transition-colors">
-                        Não serão incluídos — {skippedItems.length}
-                        <ChevronRight className="w-5 h-5 text-text-muted group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
-                        {skippedItems.length > 0 ? (
-                            <ul className="space-y-3 mt-2">
+                {skippedItems.length > 0 && (
+                    <div className="bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-border-subtle bg-surface-secondary/30 font-medium text-text-primary flex items-center justify-between">
+                            <span>Itens ignorados ({skippedItems.length})</span>
+                            <span className="text-xs font-normal text-text-muted bg-surface-base border border-border-subtle px-2 py-0.5 rounded-full shrink-0">Ignorados</span>
+                        </div>
+                        <div className="p-4">
+                            <ul className="space-y-3">
                                 {skippedItems.map((p: any, i: number) => (
                                     <li key={i} className="text-sm text-text-secondary flex flex-col">
                                         <span className="font-medium text-text-primary flex items-center gap-2">
-                                           <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-                                           {p.name}
+                                           <div className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" />
+                                           <span className="truncate">{p.name}</span>
                                         </span>
-                                        <span className="pl-3.5 text-text-muted">Motivo: {formatReason(p.reason)}</span>
+                                        <span className="pl-3.5 text-text-muted mt-1">Motivo: {formatReason(p.reason)}</span>
                                     </li>
                                 ))}
                             </ul>
-                        ) : <p className="text-sm text-text-muted mt-2">Todos os itens selecionados ou compatíveis serão processados.</p>}
+                        </div>
                     </div>
-                </details>
+                )}
 
                 {conflictItems.length > 0 && (
-                <details className="bg-surface-elevated border border-border-subtle border-rose-500/20 rounded-xl overflow-hidden group" open>
-                    <summary className="p-4 cursor-pointer font-medium text-rose-500 hover:bg-rose-500/5 flex justify-between items-center transition-colors">
-                        Conflitos — {conflictItems.length}
-                        <ChevronRight className="w-5 h-5 text-rose-500/70 group-open:rotate-90 transition-transform" />
-                    </summary>
-                    <div className="px-4 pb-4">
-                        <ul className="space-y-3 mt-2">
-                            {conflictItems.map((p: any, i: number) => (
-                                <li key={i} className="text-sm text-rose-500/80 flex flex-col">
-                                    <span className="font-medium text-rose-500 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                        {p.name}
-                                    </span>
-                                    <span className="pl-3.5 opacity-80">Motivo: {formatReason(p.reason)}</span>
-                                </li>
-                            ))}
-                        </ul>
+                    <div className="bg-surface-elevated border border-rose-500/20 rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-rose-500/20 bg-rose-500/5 font-medium text-rose-500 flex items-center justify-between">
+                            <span>Conflitos ({conflictItems.length})</span>
+                            <span className="text-xs font-normal text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full shrink-0">Atenção</span>
+                        </div>
+                        <div className="p-4">
+                            <ul className="space-y-3">
+                                {conflictItems.map((p: any, i: number) => (
+                                    <li key={i} className="text-sm text-rose-500/80 flex flex-col">
+                                        <span className="font-medium text-rose-500 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                            <span className="truncate">{p.name}</span>
+                                        </span>
+                                        <span className="pl-3.5 opacity-80 mt-1">Motivo: {formatReason(p.reason)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
-                </details>
                 )}
             </div>
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { updateAccount } from '@/src/services/accountsService';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface FinanceAccount {
   id: string;
@@ -20,6 +21,7 @@ interface AccountEditModalProps {
 }
 
 export function AccountEditModal({ isOpen, onClose, onSuccess, account }: AccountEditModalProps) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [name, setName] = useState(account.name);
   const [institutionName, setInstitutionName] = useState(account.institutionName || '');
   const [accountLast4, setAccountLast4] = useState(account.accountLast4 || '');
@@ -55,11 +57,13 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
     setError('');
     setIsSubmitting(true);
     try {
+      if (!activeFinanceEntityId) throw new Error('Organização financeira não selecionada.');
       const payload = {
         accountId: account.id,
         name: name.trim(),
         institutionName: institutionName.trim() === '' ? null : institutionName.trim(),
         accountLast4: accountLast4.trim() === '' ? null : accountLast4.trim(),
+        financeEntityId: activeFinanceEntityId,
       };
       const response = await updateAccount(payload);
       onSuccess(response.account);

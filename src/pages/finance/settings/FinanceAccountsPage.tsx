@@ -6,6 +6,8 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import AccountFormModal from '@/src/components/finance/AccountFormModal';
 import { AccountEditModal } from '@/src/components/finance/AccountEditModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import FinanceBreadcrumb from '@/src/components/finance/FinanceBreadcrumb';
 
 import { RELEASE_MARKER } from '@/src/release/releaseMarker';
 
@@ -23,6 +25,7 @@ type TabType = 'active' | 'archived';
 
 export default function FinanceAccountsPage() {
   const navigate = useNavigate();
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +36,13 @@ export default function FinanceAccountsPage() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   useEffect(() => {
-    fetchAccounts();
-  }, []);
+    if (activeFinanceEntityId) {
+      fetchAccounts();
+    } else {
+      setLoading(false);
+      setError('Organização financeira não selecionada.');
+    }
+  }, [activeFinanceEntityId]);
 
   const fetchAccounts = async () => {
     try {
@@ -48,8 +56,10 @@ export default function FinanceAccountsPage() {
       const res = await fetch('/api/finance/accounts/list', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ financeEntityId: activeFinanceEntityId })
       });
       
       if (!res.ok) {
@@ -107,6 +117,9 @@ export default function FinanceAccountsPage() {
 
       {/* Header */}
       <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10 transition-colors duration-200">
+        <div className="mb-1">
+           <FinanceBreadcrumb pageName="Contas" />
+        </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(APP_ROUTES.financeSettings)}
@@ -115,13 +128,6 @@ export default function FinanceAccountsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <div className="hidden md:flex items-center text-xs text-text-muted mb-1 font-medium tracking-wide">
-              <span>Finance</span>
-              <span className="mx-1.5 opacity-50">/</span>
-              <span>Organização financeira</span>
-              <span className="mx-1.5 opacity-50">/</span>
-              <span className="text-text-primary">Contas</span>
-            </div>
             <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Contas Financeiras</h1>
             <p className="text-sm text-text-muted mt-0.5 md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
           </div>

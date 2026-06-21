@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
+import { requireFinanceEntityAccess } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -30,16 +31,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 
-  const idToken = authHeader.split('Bearer ')[1];
+    const idToken = authHeader.split('Bearer ')[1];
 
-  let admin;
-  try {
-    admin = getFirebaseAdmin();
-  } catch (err: any) {
-    return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
-  }
+    let admin;
+    try {
+      admin = getFirebaseAdmin();
+    } catch (err: any) {
+      return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
+    }
 
-  const { auth, firestore } = admin;
+    const { auth, firestore } = admin;
 
   try {
     const decodedToken = await auth.verifyIdToken(idToken, true);
@@ -56,10 +57,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const authorization = await canManageFinanceBootstrap(uid, organizationId, financeEntityId);
-    if (!authorization.canApply) {
-      return res.status(403).json({ error: 'FORBIDDEN', reason: authorization.reason });
-    }
+    const access = await requireFinanceEntityAccess({
+      db: firestore,
+      uid,
+      organizationId,
+      financeEntityId,
+      sessionGranted: true
+    });
 
     const { randomUUID, createHash } = await import('crypto');
     const { BOOTSTRAP_TEMPLATES } = await import('../../../shared/finance/bootstrapTemplates.js');
@@ -77,10 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        return res.status(400).json({ error: 'INVALID_TEMPLATE_ID' });
     }
 
-    const OBPC_ORG_ID = 'JPrzMnxJu77hTLJtu7FT';
-    const MONTE_CASTELO_ID = 'fent_b813f062431581b136f98a9dd1432dcc';
-
-    if (legacyAssignment === 'assign_unscoped_to_this_entity' && (organizationId !== OBPC_ORG_ID || financeEntityId !== MONTE_CASTELO_ID)) {
+    if (legacyAssignment === 'assign_unscoped_to_this_entity') {
        return res.status(400).json({ error: 'INVALID_LEGACY_ASSIGNMENT' });
     }
 
@@ -148,9 +149,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // 6,7,8. ler contas/fundos/categorias (We need unscoped + scoped only, but for transactions we can fetch the entire collection or specific queries. Wait, we can't do .where() in transactions across everything easily in admin sdk, wait we CAN do .where().get() in transaction but it's better to get them directly.
             // Actally, transaction.get(query) works in Admin SDK:
-            const accountsQuery = orgRef.collection('financeAccounts');
-            const fundsQuery = orgRef.collection('financeFunds');
-            const categoriesQuery = orgRef.collection('financeCategories');
+            const accountsQuery = orgRef.collection('financeAccounts').where('financeEntityId', '==', financeEntityId);
+            const fundsQuery = orgRef.collection('financeFunds').where('financeEntityId', '==', financeEntityId);
+            const categoriesQuery = orgRef.collection('financeCategories').where('financeEntityId', '==', financeEntityId);
 
             const [accountsSnap, fundsSnap, categoriesSnap] = await Promise.all([
                transaction.get(accountsQuery),
@@ -158,16 +159,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                transaction.get(categoriesQuery)
             ]);
 
-            const canAdoptLegacyData = (organizationId === OBPC_ORG_ID && financeEntityId === MONTE_CASTELO_ID);
-            const useLegacy = legacyAssignment === 'assign_unscoped_to_this_entity' && canAdoptLegacyData;
+            const unscopedAccounts: any[] = [];
+            const unscopedFunds: any[] = [];
+            const unscopedCategories: any[] = [];
 
-            const unscopedAccounts = accountsSnap.docs.filter((d: any) => !d.data().financeEntityId && useLegacy);
-            const unscopedFunds = fundsSnap.docs.filter((d: any) => !d.data().financeEntityId && useLegacy);
-            const unscopedCategories = categoriesSnap.docs.filter((d: any) => !d.data().financeEntityId && useLegacy);
-
-            const scopedAccounts = accountsSnap.docs.filter((d: any) => d.data().financeEntityId === financeEntityId);
-            const scopedFunds = fundsSnap.docs.filter((d: any) => d.data().financeEntityId === financeEntityId);
-            const scopedCategories = categoriesSnap.docs.filter((d: any) => d.data().financeEntityId === financeEntityId);
+            const scopedAccounts = accountsSnap.docs;
+            const scopedFunds = fundsSnap.docs;
+            const scopedCategories = categoriesSnap.docs;
 
             // 9. Recalcular plano
             const plan: any = { accounts: [], funds: [], categories: [] };

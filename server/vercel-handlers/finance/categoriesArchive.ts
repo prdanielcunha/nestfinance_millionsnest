@@ -69,10 +69,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
-    const { categoryId, ...extras } = req.body;
+    const { categoryId, financeEntityId } = req.body;
 
-    if (Object.keys(extras).length > 0) {
-      return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
     }
 
     if (typeof categoryId !== 'string') {
@@ -83,8 +83,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_CATEGORY_ID' });
     }
 
-    const categoryRef = firestore.collection('organizations').doc(organizationId).collection('financeCategories').doc(categoryId);
-    const auditRef = firestore.collection('organizations').doc(organizationId).collection('financeAuditLogs').doc();
+    const orgRef = firestore.collection('organizations').doc(organizationId);
+
+    const entityDoc = await orgRef.collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+        return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
+    }
+
+    const categoryRef = orgRef.collection('financeCategories').doc(categoryId);
+    const auditRef = orgRef.collection('financeAuditLogs').doc();
 
     const result = await firestore.runTransaction(async (transaction: any) => {
       const doc = await transaction.get(categoryRef);
@@ -97,6 +104,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Check minimum valid structure
       if (!data || typeof data.kind !== 'string' || typeof data.name !== 'string') {
         return { status: 500, body: { error: 'INTERNAL_SERVER_ERROR' } };
+      }
+
+      if (data.financeEntityId !== financeEntityId) {
+        return { status: 403, body: { error: 'FINANCE_ENTITY_MISMATCH' } };
       }
 
       if (data.active === false) {

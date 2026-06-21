@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { requireFinanceEntityAccess } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -42,14 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-
-    if (!sessionList.granted) {
-      return res.status(403).json({ error: 'FORBIDDEN' });
+    const { financeEntityId } = req.body || {};
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
     }
 
-    const fundsRef = firestore.collection('organizations').doc(organizationId).collection('financeFunds');
-    const fundsSnapshot = await fundsRef.orderBy('normalizedName').limit(100).get();
+    const access = await requireFinanceEntityAccess({
+      db: firestore,
+      uid,
+      organizationId,
+      financeEntityId,
+      sessionGranted: true
+    });
+
+    const fundsSnapshot = await access.repository.getFundsQuery().orderBy('normalizedName').limit(100).get();
 
     const validColors = ['slate', 'blue', 'emerald', 'amber', 'violet', 'rose'];
 
@@ -61,6 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue; // Structurally invalid doc
         }
 
+        access.repository.assertEntityIsolation(data);
+
         const colorToken = typeof data.colorToken === 'string' && validColors.includes(data.colorToken)
           ? data.colorToken
           : 'slate';
@@ -68,6 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         funds.push({
           id: doc.id,
           name: data.name,
+          financeEntityId: data.financeEntityId,
           restricted: data.restricted,
           colorToken,
           active: typeof data.active === 'boolean' ? data.active : true,
@@ -82,6 +92,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
+       return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     console.error('List funds error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });

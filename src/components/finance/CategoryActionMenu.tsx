@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, Archive, RefreshCw, Edit2 } from 'lucide-react';
 import { archiveCategory, reactivateCategory } from '@/src/services/categoriesService';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Category {
   id: string;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function CategoryActionMenu({ category, onEdit, onSuccess, onError }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
@@ -55,8 +57,9 @@ export default function CategoryActionMenu({ category, onEdit, onSuccess, onErro
   const handleArchive = async () => {
     if (loading) return;
     try {
+      if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await archiveCategory(category.id);
+      await archiveCategory(category.id, activeFinanceEntityId);
       setShowConfirmArchive(false);
       setIsOpen(false);
       onSuccess(); // Should trigger a fetch and success message
@@ -70,8 +73,9 @@ export default function CategoryActionMenu({ category, onEdit, onSuccess, onErro
   const handleReactivate = async () => {
     if (loading) return;
     try {
+      if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await reactivateCategory(category.id);
+      await reactivateCategory(category.id, activeFinanceEntityId);
       setShowConfirmReactivate(false);
       setIsOpen(false);
       onSuccess();

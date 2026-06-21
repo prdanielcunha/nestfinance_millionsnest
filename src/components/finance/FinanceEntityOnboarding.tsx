@@ -349,7 +349,7 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                         value={displayName} 
                         onChange={e => setDisplayName(e.target.value)} 
                         className="w-full h-12 px-4 bg-surface-secondary border border-border-subtle rounded-xl text-text-base focus:border-accent-primary outline-none transition-all" 
-                        placeholder="Ex: OBPC Monte Castelo"
+                        placeholder="Ex: Congregação Central"
                       />
                   </div>
 

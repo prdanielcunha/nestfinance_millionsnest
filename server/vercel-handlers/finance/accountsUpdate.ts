@@ -73,7 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const { accountId, name, institutionName, accountLast4 } = req.body;
+    const { accountId, name, institutionName, accountLast4, financeEntityId } = req.body;
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
 
     if (!accountId || typeof accountId !== 'string') {
       return res.status(400).json({ error: 'INVALID_ACCOUNT_ID' });
@@ -148,16 +152,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (accountData.organizationId !== organizationId) {
           throw new Error('ACCOUNT_NOT_FOUND');
         }
+        if (accountData.financeEntityId !== financeEntityId) {
+          throw new Error('FINANCE_ENTITY_MISMATCH');
+        }
 
         const currentNormalizedName = accountData.normalizedName;
         const currentName = accountData.name;
         const currentInstitutionName = accountData.institutionName || null;
         const currentAccountLast4 = accountData.accountLast4 || null;
 
-        const currentLogicalKey = buildUniqueKeyLogicName('account', currentNormalizedName);
+        const currentLogicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('account', currentNormalizedName)}`;
         const currentUniqueKeyId = generateUniqueKeyId(currentLogicalKey);
         
-        const newLogicalKey = buildUniqueKeyLogicName('account', normalizedName);
+        const newLogicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('account', normalizedName)}`;
         const newUniqueKeyId = generateUniqueKeyId(newLogicalKey);
 
         const currentUniqueDoc = await t.get(uniqueKeysCol.doc(currentUniqueKeyId));
@@ -192,7 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw new Error('ACCOUNT_ALREADY_EXISTS');
           }
 
-          const legacySnap = await t.get(accountsCol.where('normalizedName', '==', normalizedName));
+          const legacySnap = await t.get(accountsCol.where('financeEntityId', '==', financeEntityId).where('normalizedName', '==', normalizedName));
           const hasLegacy = legacySnap.docs.some(doc => doc.id !== accountId);
           if (hasLegacy) {
             throw new Error('ACCOUNT_ALREADY_EXISTS');
@@ -202,6 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isNameChanged) {
           const newUniqueKeyData = {
             organizationId,
+            financeEntityId,
             entityType: 'financeAccount',
             entityId: accountId,
             scope: 'account',
@@ -219,6 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!currentUniqueDoc.exists) {
           const currentUniqueKeyData = {
             organizationId,
+            financeEntityId,
             entityType: 'financeAccount',
             entityId: accountId,
             scope: 'account',

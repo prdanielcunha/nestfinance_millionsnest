@@ -78,10 +78,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
-    const { name, restricted, colorToken, ...extras } = req.body;
+    const { name, restricted, colorToken, financeEntityId, ...extras } = req.body;
 
     if (Object.keys(extras).length > 0) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
+    }
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
+
+    const entityDoc = await firestore.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+      return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
     }
 
     if (typeof name !== 'string') {
@@ -111,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const logicalKey = buildUniqueKeyLogicName('fund', normalizedName);
+    const logicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('fund', normalizedName)}`;
     const uniqueKeyId = generateUniqueKeyId(logicalKey);
 
     const orgRef = firestore.collection('organizations').doc(organizationId);
@@ -130,13 +139,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw new Error('FUND_ALREADY_EXISTS');
         }
 
-        const legacySnap = await t.get(fundsCol.where('normalizedName', '==', normalizedName).limit(1));
+        const legacySnap = await t.get(fundsCol.where('financeEntityId', '==', financeEntityId).where('normalizedName', '==', normalizedName).limit(1));
         if (!legacySnap.empty) {
           throw new Error('FUND_ALREADY_EXISTS');
         }
 
         const fundData: any = {
           organizationId,
+          financeEntityId,
           name: trimmedName,
           normalizedName,
           restricted,

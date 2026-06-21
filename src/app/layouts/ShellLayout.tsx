@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
+import { FinanceEntityProvider } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
 import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Building2, Tags } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -189,7 +190,9 @@ export function ShellLayout() {
           </header>
           
           <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-            <Outlet />
+            <FinanceEntityProvider>
+                <Outlet />
+            </FinanceEntityProvider>
           </div>
         </main>
 

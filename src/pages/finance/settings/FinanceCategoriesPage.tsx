@@ -6,6 +6,8 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import CategoryFormModal from '@/src/components/finance/CategoryFormModal';
 import CategoryActionMenu from '@/src/components/finance/CategoryActionMenu';
 import CategoryEditModal from '@/src/components/finance/CategoryEditModal';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import FinanceBreadcrumb from '@/src/components/finance/FinanceBreadcrumb';
 
 interface Category {
   id: string;
@@ -20,6 +22,7 @@ type StatusType = 'active' | 'archived';
 
 export default function FinanceCategoriesPage() {
   const navigate = useNavigate();
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +34,13 @@ export default function FinanceCategoriesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusType>('active');
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (activeFinanceEntityId) {
+      fetchCategories();
+    } else {
+      setLoading(false);
+      setError('Organização financeira não selecionada.');
+    }
+  }, [activeFinanceEntityId]);
 
   const fetchCategories = async () => {
     try {
@@ -46,8 +54,10 @@ export default function FinanceCategoriesPage() {
       const res = await fetch('/api/finance/categories/list', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ financeEntityId: activeFinanceEntityId })
       });
 
       if (!res.ok) {
@@ -87,6 +97,9 @@ export default function FinanceCategoriesPage() {
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
       {/* Header */}
       <header className="flex-shrink-0 border-b border-border-subtle bg-surface-base px-4 py-4 flex flex-col gap-4 sticky top-0 z-10">
+        <div className="mb-1">
+           <FinanceBreadcrumb pageName="Categorias" />
+        </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(APP_ROUTES.financeSettings)}
@@ -95,13 +108,6 @@ export default function FinanceCategoriesPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <div className="hidden md:flex items-center text-xs text-text-muted mb-1 font-medium tracking-wide">
-              <span>Finance</span>
-              <span className="mx-1.5 opacity-50">/</span>
-              <span>Organização financeira</span>
-              <span className="mx-1.5 opacity-50">/</span>
-              <span className="text-text-primary">Categorias</span>
-            </div>
             <h1 className="text-xl font-medium tracking-tight text-text-base md:text-lg">Categorias Financeiras</h1>
             <p className="text-sm text-text-muted mt-0.5 md:hidden">Defina a classificação de entradas e saídas da sua organização.</p>
           </div>

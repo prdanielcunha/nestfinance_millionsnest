@@ -1,8 +1,10 @@
 import { firebaseAuth } from '@/src/lib/firebase';
 
-export async function archiveAccount(accountId: string): Promise<void> {
+export async function archiveAccount(accountId: string, financeEntityId: string): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('Organization entity not found');
 
   const token = await user.getIdToken();
 
@@ -12,7 +14,7 @@ export async function archiveAccount(accountId: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId }),
+    body: JSON.stringify({ accountId, financeEntityId }),
     cache: 'no-store'
   });
 
@@ -30,9 +32,12 @@ export async function updateAccount(data: {
   name: string;
   institutionName: string | null;
   accountLast4: string | null;
+  financeEntityId: string;
 }): Promise<any> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!data.financeEntityId) throw new Error('Organization entity not found');
 
   const token = await user.getIdToken();
 
@@ -60,9 +65,11 @@ export async function updateAccount(data: {
   return res.json();
 }
 
-export async function reactivateAccount(accountId: string): Promise<void> {
+export async function reactivateAccount(accountId: string, financeEntityId: string): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('Organization entity not found');
 
   const token = await user.getIdToken();
 
@@ -72,7 +79,7 @@ export async function reactivateAccount(accountId: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId }),
+    body: JSON.stringify({ accountId, financeEntityId }),
     cache: 'no-store'
   });
 

@@ -73,7 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const { categoryId, name, accountingCode } = req.body;
+    const { categoryId, name, accountingCode, financeEntityId } = req.body;
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
 
     if (!categoryId || typeof categoryId !== 'string') {
       return res.status(400).json({ error: 'INVALID_CATEGORY_ID' });
@@ -132,13 +136,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (categoryData.organizationId !== organizationId) {
           throw new Error('CATEGORY_NOT_FOUND');
         }
+        if (categoryData.financeEntityId !== financeEntityId) {
+          throw new Error('FINANCE_ENTITY_MISMATCH');
+        }
 
         const kind = categoryData.kind;
         const currentNormalizedName = categoryData.normalizedName;
         const currentName = categoryData.name;
         const currentAccountingCode = categoryData.accountingCode || null;
 
-        const currentLogicalKey = buildUniqueKeyLogicName('category', currentNormalizedName, kind);
+        const currentLogicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('category', currentNormalizedName, kind)}`;
         const currentUniqueKeyId = generateUniqueKeyId(currentLogicalKey);
         const currentUniqueDoc = await t.get(uniqueKeysCol.doc(currentUniqueKeyId));
 
@@ -150,6 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!currentUniqueDoc.exists) {
             const currentUniqueKeyData = {
               organizationId,
+              financeEntityId,
               entityType: 'financeCategory',
               entityId: categoryId,
               scope: kind,
@@ -180,7 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let newUniqueDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData> | null = null;
 
         if (isNameChanged) {
-          const newLogicalKey = buildUniqueKeyLogicName('category', normalizedName, kind);
+          const newLogicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('category', normalizedName, kind)}`;
           newUniqueKeyId = generateUniqueKeyId(newLogicalKey);
           newUniqueDoc = await t.get(uniqueKeysCol.doc(newUniqueKeyId));
           
@@ -188,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw new Error('CATEGORY_ALREADY_EXISTS');
           }
 
-          const legacySnap = await t.get(categoriesCol.where('normalizedName', '==', normalizedName));
+          const legacySnap = await t.get(categoriesCol.where('financeEntityId', '==', financeEntityId).where('normalizedName', '==', normalizedName));
           const hasLegacy = legacySnap.docs.some(doc => doc.data().kind === kind && doc.id !== categoryId);
           if (hasLegacy) {
             throw new Error('CATEGORY_ALREADY_EXISTS');
@@ -198,6 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isNameChanged) {
           const newUniqueKeyData = {
             organizationId,
+            financeEntityId,
             entityType: 'financeCategory',
             entityId: categoryId,
             scope: kind,
@@ -215,6 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!currentUniqueDoc.exists) {
           const currentUniqueKeyData = {
             organizationId,
+            financeEntityId,
             entityType: 'financeCategory',
             entityId: categoryId,
             scope: kind,

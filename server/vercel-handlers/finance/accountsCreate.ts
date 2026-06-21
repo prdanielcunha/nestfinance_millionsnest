@@ -78,10 +78,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
-    const { name, type, institutionName, accountLast4, ...extras } = req.body;
+    const { name, type, institutionName, accountLast4, financeEntityId, ...extras } = req.body;
 
     if (Object.keys(extras).length > 0) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
+    }
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
+
+    const entityDoc = await firestore.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+      return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
     }
 
     if (typeof name !== 'string') {
@@ -117,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const logicalKey = buildUniqueKeyLogicName('account', normalizedName);
+    const logicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('account', normalizedName)}`;
     const uniqueKeyId = generateUniqueKeyId(logicalKey);
     
     const orgRef = firestore.collection('organizations').doc(organizationId);
@@ -136,13 +145,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw new Error('ACCOUNT_ALREADY_EXISTS');
         }
 
-        const legacySnap = await t.get(accountsCol.where('normalizedName', '==', normalizedName).limit(1));
+        const legacySnap = await t.get(accountsCol.where('financeEntityId', '==', financeEntityId).where('normalizedName', '==', normalizedName).limit(1));
         if (!legacySnap.empty) {
           throw new Error('ACCOUNT_ALREADY_EXISTS');
         }
 
         const accountData: any = {
           organizationId,
+          financeEntityId,
           name: trimmedName,
           normalizedName,
           type,

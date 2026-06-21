@@ -5,10 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 export default function FinancePage() {
   const { accessState } = useAuth();
   const navigate = useNavigate();
+  const { activeFinanceEntityId, setActiveFinanceEntityId } = useFinanceEntity();
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [hasAccounts, setHasAccounts] = useState(false);
   const [hasFunds, setHasFunds] = useState(false);
@@ -18,10 +20,6 @@ export default function FinancePage() {
   const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
   const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
   
-  const [activeFinanceEntityId, setActiveFinanceEntityId] = useState<string | null>(
-    localStorage.getItem('nestfinance_active_finance_entity_id') || null
-  );
-
   const setupStatus = accessState.financeSetup?.status;
 
   useEffect(() => {
@@ -74,10 +72,14 @@ export default function FinancePage() {
       
       const readyList = foundEntities.filter((e: any) => statuses[e.id]?.status === 'ready');
       if (readyList.length > 0) {
-          let localActive = localStorage.getItem('nestfinance_active_finance_entity_id');
-          let nextId = readyList.find((e: any) => e.id === localActive) ? localActive : readyList[0].id;
-          setActiveFinanceEntityId(nextId);
-          if (nextId) localStorage.setItem('nestfinance_active_finance_entity_id', nextId);
+          let nextId = activeFinanceEntityId && readyList.find((e: any) => e.id === activeFinanceEntityId) 
+             ? activeFinanceEntityId 
+             : readyList[0].id;
+             
+          if (nextId !== activeFinanceEntityId) {
+            const nextEntity = readyList.find((e: any) => e.id === nextId);
+            setActiveFinanceEntityId(nextId, nextEntity?.displayName);
+          }
 
           const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
             fetch('/api/finance/accounts/list', {
@@ -172,8 +174,8 @@ export default function FinancePage() {
             <select
                value={activeFinanceEntityId}
                onChange={(e) => {
-                  setActiveFinanceEntityId(e.target.value);
-                  localStorage.setItem('nestfinance_active_finance_entity_id', e.target.value);
+                  const changedEntity = readyEntities.find(en => en.id === e.target.value);
+                  setActiveFinanceEntityId(e.target.value, changedEntity?.displayName);
                   fetchOnboardingData(); 
                }}
                className="h-10 px-3 pr-8 rounded-lg outline-none bg-surface-elevated border border-border-subtle text-sm text-text-primary focus:ring-2 focus:ring-accent-primary max-w-xs truncate"

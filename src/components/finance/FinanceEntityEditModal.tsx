@@ -253,7 +253,7 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     className="w-full h-12 px-4 bg-surface-secondary border border-border-subtle rounded-xl text-text-base focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-text-muted"
-                    placeholder="Ex: OBPC Monte Castelo"
+                    placeholder="Ex: Congregação Central"
                     autoFocus
                     required
                     disabled={loading}

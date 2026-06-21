@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { updateCategory } from '@/src/services/categoriesService';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Category {
   id: string;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function CategoryEditModal({ isOpen, onClose, onSuccess, onError, category }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [name, setName] = useState(category.name);
   const [accountingCode, setAccountingCode] = useState(category.accountingCode || '');
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,11 @@ export default function CategoryEditModal({ isOpen, onClose, onSuccess, onError,
       return;
     }
 
+    if (!activeFinanceEntityId) {
+      onError('Organização financeira não selecionada');
+      return;
+    }
+
     if (loading) return;
 
     try {
@@ -48,7 +55,8 @@ export default function CategoryEditModal({ isOpen, onClose, onSuccess, onError,
       await updateCategory({
         categoryId: category.id,
         name: trimmedName,
-        accountingCode: accountingCode.trim() || null
+        accountingCode: accountingCode.trim() || null,
+        financeEntityId: activeFinanceEntityId
       });
       onSuccess();
       onClose();

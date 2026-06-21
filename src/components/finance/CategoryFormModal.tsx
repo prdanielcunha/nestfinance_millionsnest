@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Props {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function CategoryFormModal({ onClose, onSuccess }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,7 @@ export default function CategoryFormModal({ onClose, onSuccess }: Props) {
       const payload: any = {
         name: name.trim(),
         kind,
+        financeEntityId: activeFinanceEntityId
       };
 
       if (accountingCode.trim() !== '') {

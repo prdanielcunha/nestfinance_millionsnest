@@ -1,8 +1,10 @@
 import { firebaseAuth } from '@/src/lib/firebase';
 
-export async function archiveFund(fundId: string): Promise<any> {
+export async function archiveFund(fundId: string, financeEntityId: string): Promise<any> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('FinanceEntityId is required');
 
   const token = await user.getIdToken();
 
@@ -12,7 +14,7 @@ export async function archiveFund(fundId: string): Promise<any> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ fundId }),
+    body: JSON.stringify({ fundId, financeEntityId }),
     cache: 'no-store'
   });
 
@@ -24,9 +26,11 @@ export async function archiveFund(fundId: string): Promise<any> {
   return res.json();
 }
 
-export async function reactivateFund(fundId: string): Promise<any> {
+export async function reactivateFund(fundId: string, financeEntityId: string): Promise<any> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
+
+  if (!financeEntityId) throw new Error('FinanceEntityId is required');
 
   const token = await user.getIdToken();
 
@@ -36,7 +40,7 @@ export async function reactivateFund(fundId: string): Promise<any> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ fundId }),
+    body: JSON.stringify({ fundId, financeEntityId }),
     cache: 'no-store'
   });
 

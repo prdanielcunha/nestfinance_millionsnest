@@ -78,10 +78,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
-    const { name, kind, accountingCode, ...extras } = req.body;
+    const { name, kind, accountingCode, financeEntityId, ...extras } = req.body;
 
     if (Object.keys(extras).length > 0) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
+    }
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
+
+    const entityDoc = await firestore.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
+    if (!entityDoc.exists) {
+      return res.status(404).json({ error: 'FINANCE_ENTITY_NOT_FOUND' });
     }
 
     if (typeof name !== 'string') {
@@ -120,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const logicalKey = buildUniqueKeyLogicName('category', normalizedName, kind);
+    const logicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('category', normalizedName, kind)}`;
     const uniqueKeyId = generateUniqueKeyId(logicalKey);
 
     const orgRef = firestore.collection('organizations').doc(organizationId);
@@ -139,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw new Error('CATEGORY_ALREADY_EXISTS');
         }
 
-        const legacySnap = await t.get(categoriesCol.where('normalizedName', '==', normalizedName));
+        const legacySnap = await t.get(categoriesCol.where('financeEntityId', '==', financeEntityId).where('normalizedName', '==', normalizedName));
         const hasLegacy = legacySnap.docs.some(doc => doc.data().kind === kind);
         if (hasLegacy) {
           throw new Error('CATEGORY_ALREADY_EXISTS');
@@ -147,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const categoryData: any = {
           organizationId,
+          financeEntityId,
           name: trimmedName,
           normalizedName,
           kind,

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { archiveFund, reactivateFund } from '@/src/services/fundsService';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 
 interface Fund {
   id: string;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function FundActionMenu({ fund, onSuccess, onError, isOpen, onToggle }: Props) {
+  const { activeFinanceEntityId } = useFinanceEntity();
   const [loading, setLoading] = useState(false);
   const [showConfirmArchive, setShowConfirmArchive] = useState(false);
   const [showConfirmReactivate, setShowConfirmReactivate] = useState(false);
@@ -45,8 +47,9 @@ export default function FundActionMenu({ fund, onSuccess, onError, isOpen, onTog
 
   const handleArchive = async () => {
     try {
+      if (!activeFinanceEntityId) throw new Error('Organizacao nao selecionada');
       setLoading(true);
-      const res = await archiveFund(fund.id);
+      const res = await archiveFund(fund.id, activeFinanceEntityId);
       onToggle(false);
       onSuccess(res.fund, 'Fundo arquivado.');
     } catch (err: any) {
@@ -59,8 +62,9 @@ export default function FundActionMenu({ fund, onSuccess, onError, isOpen, onTog
 
   const handleReactivate = async () => {
     try {
+      if (!activeFinanceEntityId) throw new Error('Organizacao nao selecionada');
       setLoading(true);
-      const res = await reactivateFund(fund.id);
+      const res = await reactivateFund(fund.id, activeFinanceEntityId);
       onToggle(false);
       onSuccess(res.fund, 'Fundo reativado.');
     } catch (err: any) {

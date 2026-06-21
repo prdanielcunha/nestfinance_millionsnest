@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { requireFinanceEntityAccess } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -42,34 +43,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-
-    if (!sessionList.granted) {
-      return res.status(403).json({ error: 'FORBIDDEN' });
+    const { financeEntityId } = req.body || {};
+    if (!financeEntityId || typeof financeEntityId !== 'string') {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
     }
 
-    // Returning maximum 100 accounts ordered by name
-    const accountsRef = firestore.collection('organizations').doc(organizationId).collection('financeAccounts');
-    const accountsSnapshot = await accountsRef.orderBy('normalizedName').limit(100).get();
+    const access = await requireFinanceEntityAccess({
+      db: firestore,
+      uid,
+      organizationId,
+      financeEntityId,
+      sessionGranted: true
+    });
 
-    const accounts = accountsSnapshot.docs.map(doc => {
+    const accountsSnapshot = await access.repository.getAccountsQuery().orderBy('normalizedName').limit(100).get();
+
+    const accounts = [];
+    for (const doc of accountsSnapshot.docs) {
       const data = doc.data();
-      return {
+      access.repository.assertEntityIsolation(data);
+      accounts.push({
         id: doc.id,
         name: data.name,
         type: data.type,
         institutionName: data.institutionName,
         accountLast4: data.accountLast4,
         currency: data.currency,
+        financeEntityId: data.financeEntityId,
         active: data.active
-      };
-    });
+      });
+    }
 
     return res.status(200).json({ accounts });
 
   } catch (error: any) {
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
+       return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     console.error('List accounts error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
