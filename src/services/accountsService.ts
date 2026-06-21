@@ -1,6 +1,22 @@
 import { firebaseAuth } from '@/src/lib/firebase';
 
-export async function archiveAccount(accountId: string, financeEntityId: string): Promise<void> {
+function mapFinanceError(data: any, defaultMsg: string): string {
+  const errorCode = data.error || data.message;
+  switch (errorCode) {
+    case 'ACCOUNT_NOT_FOUND':
+      return 'Não encontramos esta conta nesta igreja. Nada foi alterado.';
+    case 'FINANCE_ENTITY_MISMATCH':
+      return 'Esta conta pertence a outra igreja. A operação foi bloqueada por segurança.';
+    case 'INTERNAL_SERVER_ERROR':
+      return 'Ocorreu um erro interno no servidor. Tente novamente mais tarde.';
+    case 'ACCOUNT_ALREADY_EXISTS':
+      return 'Já existe uma conta com esse nome.';
+    default:
+      return defaultMsg;
+  }
+}
+
+export async function archiveAccount(accountId: string, financeEntityId: string): Promise<{changed: boolean}> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
 
@@ -18,13 +34,16 @@ export async function archiveAccount(accountId: string, financeEntityId: string)
     cache: 'no-store'
   });
 
+  const data = await res.json().catch(() => ({}));
+  
   if (!res.ok) {
     if (res.status === 503) {
       throw new Error('A funcionalidade está temporariamente indisponível.');
     }
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Não foi possível arquivar a conta.');
+    throw new Error(mapFinanceError(data, 'Não foi possível arquivar a conta.'));
   }
+  
+  return { changed: data.changed };
 }
 
 export async function updateAccount(data: {
@@ -51,21 +70,19 @@ export async function updateAccount(data: {
     cache: 'no-store'
   });
 
+  const respData = await res.json().catch(() => ({}));
+  
   if (!res.ok) {
-    if (res.status === 409) {
-      throw new Error('Já existe uma conta com esse nome.');
-    }
     if (res.status === 503) {
       throw new Error('A funcionalidade está temporariamente indisponível.');
     }
-    const respData = await res.json().catch(() => ({}));
-    throw new Error(respData.error || 'Não foi possível atualizar a conta. Tente novamente.');
+    throw new Error(mapFinanceError(respData, 'Não foi possível atualizar a conta. Tente novamente.'));
   }
 
-  return res.json();
+  return respData;
 }
 
-export async function reactivateAccount(accountId: string, financeEntityId: string): Promise<void> {
+export async function reactivateAccount(accountId: string, financeEntityId: string): Promise<{changed: boolean}> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
 
@@ -83,11 +100,13 @@ export async function reactivateAccount(accountId: string, financeEntityId: stri
     cache: 'no-store'
   });
 
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 503) {
       throw new Error('A funcionalidade está temporariamente indisponível.');
     }
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Não foi possível reativar a conta.');
+    throw new Error(mapFinanceError(data, 'Não foi possível reativar a conta.'));
   }
+  
+  return { changed: data.changed };
 }

@@ -9,6 +9,7 @@ import {
   generateUniqueKeyId,
   isValidAccountId
 } from '../../../api/_lib/financeIdentity.js';
+import { requireScopedFinanceAccount } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -143,18 +144,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const result = await firestore.runTransaction(async (t) => {
-        const accountDoc = await t.get(accountRef);
-        if (!accountDoc.exists) {
-          throw new Error('ACCOUNT_NOT_FOUND');
-        }
-
-        const accountData = accountDoc.data()!;
-        if (accountData.organizationId !== organizationId) {
-          throw new Error('ACCOUNT_NOT_FOUND');
-        }
-        if (accountData.financeEntityId !== financeEntityId) {
-          throw new Error('FINANCE_ENTITY_MISMATCH');
-        }
+        const { accountRef, accountData } = await requireScopedFinanceAccount({
+          db: firestore,
+          uid,
+          organizationId,
+          financeEntityId,
+          accountId,
+          sessionGranted: sessionList.granted,
+          transaction: t
+        });
 
         const currentNormalizedName = accountData.normalizedName;
         const currentName = accountData.name;
@@ -320,6 +318,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (txError.message === 'ACCOUNT_NOT_FOUND') {
         return res.status(404).json({ error: 'ACCOUNT_NOT_FOUND' });
+      }
+      if (txError.message === 'FINANCE_ENTITY_MISMATCH') {
+        return res.status(403).json({ error: 'FINANCE_ENTITY_MISMATCH' });
       }
       throw txError;
     }

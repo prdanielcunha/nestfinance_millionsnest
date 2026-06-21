@@ -15,7 +15,7 @@ interface Account {
 
 interface Props {
   account: Account;
-  onSuccess: () => void;
+  onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   isOpen: boolean;
   onToggle: (isOpen: boolean) => void;
@@ -70,8 +70,8 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
     try {
       if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await archiveAccount(account.id, activeFinanceEntityId);
-      onSuccess();
+      const res = await archiveAccount(account.id, activeFinanceEntityId);
+      onSuccess(res.changed ? 'Conta arquivada com segurança.' : 'Esta conta já estava arquivada.');
       onToggle(false);
       setShowConfirmArchive(false);
     } catch (err: any) {
@@ -86,8 +86,8 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
     try {
       if (!activeFinanceEntityId) throw new Error('Organização não selecionada');
       setLoading(true);
-      await reactivateAccount(account.id, activeFinanceEntityId);
-      onSuccess();
+      const res = await reactivateAccount(account.id, activeFinanceEntityId);
+      onSuccess(res.changed ? 'Conta reativada com segurança.' : 'Esta conta já estava ativa.');
       onToggle(false);
       setShowConfirmReactivate(false);
     } catch (err: any) {

@@ -66,6 +66,53 @@ export async function requireFinanceEntityAccess({
   };
 }
 
+export async function requireScopedFinanceAccount({
+  db,
+  uid,
+  organizationId,
+  financeEntityId,
+  accountId,
+  requiredPermission,
+  sessionGranted,
+  transaction
+}: {
+  db: firestore.Firestore;
+  uid: string;
+  organizationId: string;
+  financeEntityId: string;
+  accountId: string;
+  requiredPermission?: string;
+  sessionGranted?: boolean;
+  transaction?: firestore.Transaction;
+}) {
+  const context = await requireFinanceEntityAccess({
+    db,
+    uid,
+    organizationId,
+    financeEntityId,
+    requiredPermission,
+    sessionGranted
+  });
+
+  const accountRef = context.repository.getAccountsRef().doc(accountId);
+  const accountDoc = transaction ? await transaction.get(accountRef) : await accountRef.get();
+
+  if (!accountDoc.exists) {
+    throw new Error('ACCOUNT_NOT_FOUND');
+  }
+
+  const accountData = accountDoc.data()!;
+
+  context.repository.assertEntityIsolation(accountData);
+
+  return {
+    context,
+    accountRef,
+    accountDoc,
+    accountData
+  };
+}
+
 export function createFinanceEntityScope(args: {
   db: firestore.Firestore;
   organizationId: string;

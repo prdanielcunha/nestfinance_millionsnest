@@ -254,7 +254,7 @@ export default function FinanceAccountsPage() {
                         account={account}
                         isOpen={selectedAccountId === account.id}
                         onToggle={(isOpen) => setSelectedAccountId(isOpen ? account.id : null)}
-                        onSuccess={() => handleActionSuccess(account.active ? 'Conta arquivada.' : 'Conta reativada.')}
+                        onSuccess={(msg) => handleActionSuccess(msg)}
                         onError={(msg) => setError(msg)}
                         onEdit={(acc) => setEditingAccount(acc)}
                       />
