@@ -29,52 +29,74 @@ export function buildCategoryUniqKey(financeEntityId: string, kind: 'income' | '
   return `uniq_${hash}`;
 }
 
-export function computeExpectedStateHash(
+export function normalizeExpectedBootstrapState(
   type: 'account' | 'fund' | 'category',
   data: any
-): string {
-  const payload: any = {};
+): any {
+  const payload: any = {
+    active: typeof data.active === 'boolean' ? data.active : true,
+    customized: typeof data.customized === 'boolean' ? data.customized : false,
+    documentId: data.documentId,
+    financeEntityId: data.financeEntityId,
+    normalizedName: normalizeName(data.name || data.normalizedName || ''),
+    source: data.source || 'setup_template',
+    templateId: data.templateId || null,
+    templateKey: data.templateKey || null,
+    templateVersion: data.templateKey ? 1 : null,
+  };
+
   if (type === 'account') {
-    payload.active = data.active;
-    payload.customized = data.customized;
-    payload.documentId = data.documentId;
-    payload.financeEntityId = data.financeEntityId;
-    payload.normalizedName = data.normalizedName;
-    payload.source = data.source;
-    payload.templateId = data.templateId;
-    payload.templateKey = data.templateKey;
-    payload.templateVersion = data.templateVersion;
-    payload.type = data.type;
+    payload.type = data.type || 'checking';
   } else if (type === 'fund') {
-    payload.active = data.active;
-    payload.customized = data.customized;
-    payload.documentId = data.documentId;
-    payload.financeEntityId = data.financeEntityId;
-    payload.normalizedName = data.normalizedName;
-    payload.restricted = data.restricted;
-    payload.source = data.source;
-    payload.templateId = data.templateId;
-    payload.templateKey = data.templateKey;
-    payload.templateVersion = data.templateVersion;
+    payload.restricted = typeof data.restricted === 'boolean' ? data.restricted : false;
   } else if (type === 'category') {
-    payload.active = data.active;
-    payload.customized = data.customized;
-    payload.documentId = data.documentId;
-    payload.financeEntityId = data.financeEntityId;
     payload.kind = data.kind;
-    payload.normalizedName = data.normalizedName;
-    payload.source = data.source;
-    payload.templateId = data.templateId;
-    payload.templateKey = data.templateKey;
-    payload.templateVersion = data.templateVersion;
   }
-  
-  // order keys
+
+  return payload;
+}
+
+export function normalizePersistedBootstrapState(
+  type: 'account' | 'fund' | 'category',
+  docId: string,
+  data: any
+): any {
+  const payload: any = {
+    active: typeof data.active === 'boolean' ? data.active : true,
+    customized: typeof data.customized === 'boolean' ? data.customized : false,
+    documentId: docId,
+    financeEntityId: data.financeEntityId,
+    normalizedName: normalizeName(data.name || ''),
+    source: data.source || 'setup_template',
+    templateId: data.templateId || null,
+    templateKey: data.templateKey || null,
+    templateVersion: data.templateKey ? 1 : null,
+  };
+
+  if (type === 'account') {
+    payload.type = data.type || 'checking';
+  } else if (type === 'fund') {
+    payload.restricted = typeof data.restricted === 'boolean' ? data.restricted : false;
+  } else if (type === 'category') {
+    payload.kind = data.kind;
+  }
+
+  return payload;
+}
+
+export function computeExpectedStateHash(
+  payload: any
+): string {
+  // order keys deterministically
   const sortedKeys = Object.keys(payload).sort();
   const sortedPayload: any = {};
   for (const k of sortedKeys) {
-    if (payload[k] !== undefined) {
-      sortedPayload[k] = payload[k];
+    if (payload[k] !== undefined && payload[k] !== null) {
+      if (Array.isArray(payload[k])) {
+         sortedPayload[k] = [...payload[k]].sort();
+      } else {
+         sortedPayload[k] = payload[k];
+      }
     }
   }
 

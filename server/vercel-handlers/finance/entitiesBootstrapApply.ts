@@ -63,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { randomUUID, createHash } = await import('crypto');
     const { BOOTSTRAP_TEMPLATES } = await import('../../../shared/finance/bootstrapTemplates.js');
-    const { computePreviewDigest, normalizeName, computeExpectedStateHash } = await import('../../../shared/finance/bootstrapHelpers.js');
+    const { computePreviewDigest, normalizeName, computeExpectedStateHash, normalizeExpectedBootstrapState } = await import('../../../shared/finance/bootstrapHelpers.js');
     const { generateStableId } = await import('../../../api/_lib/financeIdentity.js');
     const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
 
@@ -447,7 +447,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       dataForHash.kind = lData.item.kind;
                   }
 
-                  const expectedStateHash = computeExpectedStateHash(type as 'account' | 'fund' | 'category', dataForHash);
+                  const expectedStateHash = computeExpectedStateHash(normalizeExpectedBootstrapState(type as 'account' | 'fund' | 'category', dataForHash));
 
                   manifestDocuments.push({
                       entityType: type,

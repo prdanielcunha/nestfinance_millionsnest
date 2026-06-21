@@ -139,16 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (data.financeEntityId !== financeEntityId) {
                 issues.push({ code: 'DOCUMENT_ENTITY_MISMATCH', area: 'document', message: 'Document does not belong to financeEntityId', documentId: d.documentId });
             } else {
-                // Reconstruct semantic fields that are invariants but not persisted verbatim
-                data.documentId = docSnap.id;
-                data.normalizedName = normalizeName(data.name || '');
-                if (d.entityType === 'account') {
-                    data.type = data.type || 'checking';
-                } else if (d.entityType === 'fund') {
-                    data.restricted = data.restricted || false;
-                }
-                
-                const actualHash = computeExpectedStateHash(d.entityType, data);
+                const { normalizePersistedBootstrapState, computeExpectedStateHash } = await import('../../../shared/finance/bootstrapHelpers.js');
+                const actualHash = computeExpectedStateHash(normalizePersistedBootstrapState(d.entityType, d.documentId, data));
                 if (actualHash !== d.expectedStateHash) {
                     issues.push({ 
                         code: 'DOCUMENT_HASH_MISMATCH', 
@@ -176,6 +168,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
+    // First, verify audit log to extract expected state
+    let expectedPaymentMethods: string[] = [];
+    if (!auditSnap.exists) {
+        issues.push({ code: 'AUDIT_MISSING', area: 'audit', message: 'Audit log missing' });
+    } else {
+        const aData = auditSnap.data();
+        if (aData.action !== 'finance.bootstrap.applied') {
+            issues.push({ code: 'AUDIT_ACTION_MISMATCH', area: 'audit', message: 'Audit action incorrect' });
+        } else if (aData.financeEntityId !== financeEntityId || aData.requestId !== manifest.requestId) {
+            issues.push({ code: 'AUDIT_RECORD_MISMATCH', area: 'audit', message: 'Audit record reference incorrect' });
+        } else {
+            auditLogVerified = true;
+            expectedPaymentMethods = Array.isArray(aData.details?.enabledPaymentMethods) ? aData.details.enabledPaymentMethods : [];
+            expectedPaymentMethods.sort();
+        }
+    }
+
     if (!settingsSnap.exists) {
         issues.push({ code: 'SETTINGS_MISSING', area: 'settings', message: 'Settings document missing' });
     } else {
@@ -192,25 +201,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const { PAYMENT_METHODS } = await import('../../../shared/finance/paymentMethods.js');
                 const validCodes = Object.keys(PAYMENT_METHODS);
                 const hasInvalid = pmCodes.some((code: string) => !validCodes.includes(code));
+                
+                const sortedActual = [...pmCodes].sort();
+                const methodsMatch = JSON.stringify(sortedActual) === JSON.stringify(expectedPaymentMethods);
+
                 if (hasInvalid) {
                      issues.push({ code: 'SETTINGS_UNKNOWN_METHOD', area: 'settings', message: 'Settings has unknown payment method code' });
+                } else if (!methodsMatch) {
+                     issues.push({ code: 'SETTINGS_METHODS_MISMATCH', area: 'settings', message: 'Settings payment methods do not match expected manifest array' });
                 } else {
                      settingsVerified = true;
                 }
             }
-        }
-    }
-
-    if (!auditSnap.exists) {
-        issues.push({ code: 'AUDIT_MISSING', area: 'audit', message: 'Audit log missing' });
-    } else {
-        const aData = auditSnap.data();
-        if (aData.action !== 'finance.bootstrap.applied') {
-            issues.push({ code: 'AUDIT_ACTION_MISMATCH', area: 'audit', message: 'Audit action incorrect' });
-        } else if (aData.financeEntityId !== financeEntityId || aData.requestId !== manifest.requestId) {
-            issues.push({ code: 'AUDIT_RECORD_MISMATCH', area: 'audit', message: 'Audit record reference incorrect' });
-        } else {
-            auditLogVerified = true;
         }
     }
 
