@@ -263,9 +263,6 @@ service cloud.firestore {
         allow read: if isAuthenticated() && checkOrgAccess(orgId);
         allow write: if isAuthenticated() && isOrgAdmin(orgId) && checkOrgAccess(orgId);
       }
-      match /financeAuditLogs/{id} {
-        allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
-      }
       match /financeCategories/{id} {
         allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
       }
@@ -277,6 +274,36 @@ service cloud.firestore {
       }
       match /financeFunds/{id} {
         allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
+      }
+
+      // NO DIRECT CLIENT WRITES FOR THESE NESTFINANCE CORE LEDGER COLLECTIONS
+      match /financeTransactions/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeAllocations/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeAuditLogs/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeIdempotency/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeJournalEntries/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeJournalLines/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
+      }
+      match /financeAggregates/{id=**} {
+        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow write: if false;
       }
 
       match /{app}/{document=**} {

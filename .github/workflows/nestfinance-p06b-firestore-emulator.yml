@@ -1,0 +1,105 @@
+name: NestFinance P06B Firestore Emulator Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "api/**"
+      - "server/vercel-handlers/finance/**"
+      - "shared/finance/**"
+      - "scripts/test-transactions-firestore-emulator.ts"
+      - "firebase.json"
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  test-emulator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Preflight Security Checks
+        run: |
+          if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] || [ -n "$FIREBASE_TOKEN" ] || [ -n "$GCLOUD_SERVICE_KEY" ]; then
+            echo "Security Error: Production credentials detected"
+            exit 1
+          fi
+          
+          if grep -q "firebase deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml || grep -q "vercel deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
+            echo "Security Error: Deploy commands detected in workflow"
+            exit 1
+          fi
+
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts; then
+             echo "Security Error: firestore.googleapis.com detected in tests."
+             exit 1
+          fi
+
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts; then
+             echo "Security Error: FakeFirestore detected in tests."
+             exit 1
+          fi
+          
+          echo "Preflight complete."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install tools
+        run: npm install firebase-tools@latest tsx@latest --no-save
+
+      - name: Run P06B Firestore Emulator tests
+        env:
+          NODE_ENV: test
+          FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+          GCLOUD_PROJECT: nestfinance-p06b-emulator
+        run: |
+          mkdir -p artifacts
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+
+      - name: Run Client-side Rules Tests
+        env:
+          NODE_ENV: test
+          FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+        run: |
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
+          
+      - name: Run Additional Checks
+        env:
+          NODE_ENV: test
+        run: |
+          npx tsx scripts/test-transactions-p06b-journey.ts
+          npx tsx scripts/test-transactions-integration.ts
+          npx tsx scripts/test-firestore-seam.ts
+          npx tsx scripts/test-ledger.ts
+          npx tsx scripts/test-authorization.ts
+          npm run lint
+          npm run build
+          npm run check:api-contracts
+          npm run check:vercel-entrypoints
+          npm run check:saas-isolation
+
+      - name: Upload Audit Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p06b-firestore-emulator-report
+          path: artifacts/p06b-firestore-emulator-report.txt
