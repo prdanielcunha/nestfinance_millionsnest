@@ -6,3 +6,5 @@ export * from './transaction.js';
 export * from './journal.js';
 export * from './posting.js';
 export * from './audit.js';
+export * from './postingMappings.js';
+export * from './postingPreview.js';
