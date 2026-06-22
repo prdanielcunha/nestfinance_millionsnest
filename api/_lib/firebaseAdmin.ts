@@ -3,6 +3,15 @@ import admin from 'firebase-admin';
 
 let defaultApp: admin.app.App | undefined;
 
+let firestoreInstance: any = undefined;
+const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
+
+export function resetFirebaseAdminForTests() {
+  if (process.env.NODE_ENV === 'test') {
+    firestoreInstance = undefined;
+  }
+}
+
 export function getFirebaseAdmin() {
   const firebaseAdmin = (admin as any).default || admin;
 
@@ -30,9 +39,22 @@ export function getFirebaseAdmin() {
     }
   }
 
+  if (!firestoreInstance) {
+    if (process.env.NODE_ENV === 'test' && (globalThis as any)[TEST_FIRESTORE_SYMBOL]) {
+      const injected = (globalThis as any)[TEST_FIRESTORE_SYMBOL];
+      if (typeof injected.collection === 'function' && typeof injected.runTransaction === 'function') {
+        firestoreInstance = injected;
+      } else {
+        throw new Error('Invalid Test Firestore Adapter');
+      }
+    } else {
+      firestoreInstance = (firebaseAdmin as any).firestore();
+    }
+  }
+
   return {
     auth: firebaseAdmin.auth(),
-    firestore: firebaseAdmin.firestore()
+    firestore: firestoreInstance
   };
 }
     

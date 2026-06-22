@@ -8,6 +8,17 @@ export function canManageFinanceEntities(sessionList: any): boolean {
   return false;
 }
 
+export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts'): boolean {
+  if (sessionList.isGlobalAccess) return true;
+  
+  const caps = sessionList.capabilities || [];
+  
+  if (caps.includes(requestedCapability)) return true;
+  if (caps.includes('finance.manage')) return true; // broader access
+  
+  return false;
+}
+
 export interface RequiredAccessArgs {
   db: firestore.Firestore;
   uid: string;
@@ -119,6 +130,50 @@ export async function requireScopedFinanceAccount({
   };
 }
 
+export async function requireFinanceTransactionAccess({
+  db,
+  uid,
+  organizationId,
+  financeEntityId,
+  sessionList,
+  capability
+}: {
+  db: firestore.Firestore;
+  uid: string;
+  organizationId: string;
+  financeEntityId: string;
+  sessionList: any;
+  capability: 'finance.view' | 'finance.create_drafts';
+}): Promise<FinanceEntityAccessContext> {
+  if (!organizationId) throw new Error('Organization ID is required');
+  if (!financeEntityId) throw new Error('Finance Entity ID is required');
+  if (!sessionList.granted) throw new Error('Session not granted');
+
+  const entityDoc = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
+  
+  if (!entityDoc.exists) {
+    throw new Error('FINANCE_ENTITY_NOT_FOUND');
+  }
+
+  const data = entityDoc.data();
+  if (data?.active === false) {
+    throw new Error('FINANCE_ENTITY_NOT_ACTIVE');
+  }
+
+  if (!hasFinanceCapability(sessionList, capability)) {
+    throw new Error('FORBIDDEN_FINANCE_ACCESS');
+  }
+
+  const repository = createFinanceEntityScope({ db, organizationId, financeEntityId });
+
+  return {
+    organizationId,
+    financeEntityId,
+    financeEntity: { id: entityDoc.id, ...data },
+    repository
+  };
+}
+
 export function createFinanceEntityScope(args: {
   db: firestore.Firestore;
   organizationId: string;
@@ -145,6 +200,11 @@ export function createFinanceEntityScope(args: {
     getSettingsRef: () => orgRef.collection('financeSettings'),
     getAuditRef: () => orgRef.collection('financeAuditLogs'),
     getUniqueKeysRef: () => orgRef.collection('financeUniqueKeys'),
+    getTransactionsRef: () => orgRef.collection('financeTransactions'),
+    getTransactionsQuery: () => orgRef.collection('financeTransactions').where('financeEntityId', '==', financeEntityId),
+    getAllocationsRef: () => orgRef.collection('financeAllocations'),
+    getAllocationsQuery: () => orgRef.collection('financeAllocations').where('financeEntityId', '==', financeEntityId),
+    getIdempotencyRef: () => orgRef.collection('financeIdempotency'),
     
     assertEntityIsolation
   };

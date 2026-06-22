@@ -24,6 +24,11 @@ import entitiesBootstrapStatus from '../server/vercel-handlers/finance/entitiesB
 import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entitiesBootstrapPreview.js';
 import entitiesBootstrapApply from '../server/vercel-handlers/finance/entitiesBootstrapApply.js';
 import entitiesBootstrapVerify from '../server/vercel-handlers/finance/entitiesBootstrapVerify.js';
+import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
+import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
+import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
+import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
+import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -84,7 +89,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesBootstrapApply(req, res);
     case 'entities-bootstrap-verify':
       return entitiesBootstrapVerify(req, res);
+    case 'transactions-list':
+      return transactionsList(req, res);
+    case 'transactions-detail':
+      return transactionsDetail(req, res);
+    case 'transactions-create-draft':
+      return transactionsCreateDraft(req, res);
+    case 'transactions-update-draft':
+      return transactionsUpdateDraft(req, res);
+    case 'transactions-submit-review':
+      return transactionsSubmitForReview(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
+

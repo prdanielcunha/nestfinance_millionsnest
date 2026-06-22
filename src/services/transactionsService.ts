@@ -1,0 +1,161 @@
+import { getAuth } from 'firebase/auth';
+import type { LedgerTransaction } from '../../shared/finance/ledger/transaction.js';
+
+export interface TransactionsListResponse {
+  items: LedgerTransaction[];
+  nextCursor?: string;
+  hasMore: boolean;
+}
+
+export interface TransactionDetailResponse {
+  transaction: LedgerTransaction;
+  allocations: any[];
+  capabilities: { canEdit: boolean };
+}
+
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+export const transactionsService = {
+  async list(organizationId: string, financeEntityId: string, filters?: any, cursor?: string, pageSize?: number): Promise<TransactionsListResponse> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch('/api/finance?operation=transactions-list', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, filters, cursor, pageSize })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to list transactions');
+    }
+
+    return res.json();
+  },
+
+  async detail(organizationId: string, financeEntityId: string, transactionId: string): Promise<TransactionDetailResponse> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch('/api/finance?operation=transactions-detail', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, transactionId })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to fetch transaction detail');
+    }
+
+    return res.json();
+  },
+
+  async createDraft(organizationId: string, financeEntityId: string, payload: any): Promise<{ transactionId: string, version: number }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch('/api/finance?operation=transactions-create-draft', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        payload, 
+        idempotencyKey: 'idkl_' + generateId(),
+        requestId: 'req_' + generateId()
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to create transaction draft');
+    }
+
+    return res.json();
+  },
+
+  async updateDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, payload: any): Promise<{ changed: boolean, transactionId: string, version: number }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch('/api/finance?operation=transactions-update-draft', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        transactionId, 
+        expectedVersion, 
+        payload,
+        idempotencyKey: 'idup_' + generateId(), 
+        requestId: 'req_' + generateId()
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to update transaction draft');
+    }
+
+    return res.json();
+  },
+
+  async submitForReview(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number): Promise<{ transactionId: string, version: number }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch('/api/finance?operation=transactions-submit-review', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        transactionId, 
+        expectedVersion,
+        idempotencyKey: 'idsm_' + generateId(), 
+        requestId: 'req_' + generateId()
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to submit transaction');
+    }
+
+    return res.json();
+  }
+};

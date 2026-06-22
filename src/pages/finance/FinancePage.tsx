@@ -335,20 +335,44 @@ export default function FinancePage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col w-full max-w-3xl justify-start self-start">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-text-primary">Organização financeira</h2>
-                <p className="text-sm text-text-secondary">Estrutura de contas, fundos e categorias ativas</p>
+          <div className="flex flex-col w-full max-w-3xl justify-start self-start gap-8">
+            <div className="flex flex-col w-full">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-text-primary">Atividade</h2>
+                </div>
               </div>
               <button
-                onClick={() => navigate(APP_ROUTES.financeSettings)}
-                className="hidden sm:flex items-center px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
+                onClick={() => navigate(APP_ROUTES.transactions)}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-xl p-5 text-left transition-colors flex items-center justify-between group"
               >
-                <Settings className="w-4 h-4 mr-2" />
-                Organizar finanças
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-surface-elevated rounded-lg flex items-center justify-center border border-border-subtle group-hover:scale-105 transition-transform text-text-base">
+                     <ArrowRight className="w-5 h-5 text-teal-500/70 group-hover:text-teal-500 transition-colors" />
+                   </div>
+                   <div>
+                     <h3 className="text-sm font-medium text-text-primary mb-1">Ver movimentações</h3>
+                     <p className="text-xs text-text-secondary">Entradas e saídas registradas.</p>
+                   </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-text-muted" />
               </button>
             </div>
+
+            <div className="flex flex-col w-full">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-text-primary">Organização financeira</h2>
+                  <p className="text-sm text-text-secondary">Estrutura de contas, fundos e categorias ativas</p>
+                </div>
+                <button
+                  onClick={() => navigate(APP_ROUTES.financeSettings)}
+                  className="hidden sm:flex items-center px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Organizar finanças
+                </button>
+              </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
@@ -392,6 +416,7 @@ export default function FinancePage() {
               <Settings className="w-4 h-4 mr-2" />
               Organizar finanças
             </button>
+            </div>
           </div>
         )}
       </div>
