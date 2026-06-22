@@ -255,6 +255,24 @@ function TransactionEditContent() {
     { id: 'check', label: 'Cheque' }
   ];
 
+  const selectedAccount = useMemo(() => accounts.find(a => a.id === accountId), [accounts, accountId]);
+
+  const availablePaymentMethods = useMemo(() => {
+     if (!selectedAccount) return paymentMethods;
+     if (selectedAccount.type === 'cash') {
+       return paymentMethods.filter(p => p.id === 'cash');
+     }
+     return paymentMethods;
+  }, [selectedAccount, paymentMethods]);
+
+  useEffect(() => {
+     if (paymentMethod && availablePaymentMethods.length > 0) {
+        if (!availablePaymentMethods.some(p => p.id === paymentMethod)) {
+           setPaymentMethod(availablePaymentMethods[0].id);
+        }
+     }
+  }, [availablePaymentMethods, paymentMethod]);
+
   const totalCents = parseAmountToCents(amountRaw);
   const allocatedCents = isSplit ? allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0) : totalCents;
   const targetDiff = totalCents - allocatedCents;
@@ -357,13 +375,18 @@ function TransactionEditContent() {
           setSaving(false);
           return;
        }
-       if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) msg = 'A divisão não corresponde ao valor total.';
+       if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) msg = 'A divisão precisa ser revisada. O rateio não corresponde ao valor total.';
        else if (msg.includes('FINANCE_ACCOUNT_MISMATCH')) msg = 'Essa conta não pertence à igreja selecionada.';
        else if (msg.includes('FINANCE_CATEGORY_MISMATCH')) msg = 'Essa categoria não pode ser usada nesta movimentação.';
        else if (msg.includes('FINANCE_FUND_MISMATCH')) msg = 'Esse fundo não pertence à igreja selecionada.';
-       else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) msg = 'Não foi possível repetir esta operação com dados diferentes. Revise e tente novamente.';
-       else if (msg.includes('permission') || msg.includes('FORBIDDEN')) msg = 'Você não tem permissão para registrar movimentações.';
-       else msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
+       else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) msg = 'Esta tentativa não pode ser repetida com informações diferentes.';
+       else if (msg.includes('FINANCE_PAYMENT_METHOD_MISMATCH')) msg = 'A forma de pagamento ' + (paymentMethod === 'pix' ? 'Pix' : '') + ' não é compatível com esta conta.';
+       else if (msg.includes('permission') || msg.includes('FORBIDDEN')) msg = 'Você não tem permissão para registrar esta movimentação.';
+       else if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg === 'Erro ao salvar' || err.name === 'TypeError') {
+           msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
+       } else {
+           msg = msg;
+       }
        
        setSaveError(msg);
     } finally {
@@ -449,9 +472,9 @@ function TransactionEditContent() {
   };
 
   return (
-    <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
+    <div className="flex flex-col font-sans -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-8 lg:-mt-8">
       <FinanceEntityContextBar areaName="Editar Rascunho" onBeforeSwitch={handleBeforeSwitch} />
-      <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center justify-between border-b border-border-subtle">
+      <header className="shrink-0 max-w-2xl w-full mx-auto px-4 py-4 sm:px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
            <button 
               onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', transactionId!))}
@@ -464,8 +487,8 @@ function TransactionEditContent() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-xl mx-auto flex flex-col gap-6 pb-[env(safe-area-inset-bottom)]">
+      <div className="px-4 py-4 sm:px-6">
+        <div className="max-w-xl mx-auto flex flex-col gap-6 pb-[calc(10rem+env(safe-area-inset-bottom))]">
           
           {loadingInitial && (
              <div className="flex flex-col gap-6 w-full animate-pulse">
@@ -589,7 +612,7 @@ function TransactionEditContent() {
                           className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                         >
                           <option value="">Não especificado</option>
-                          {paymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                          {availablePaymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                      </div>
                   </div>
@@ -599,7 +622,7 @@ function TransactionEditContent() {
                        type="text"
                        value={description}
                        onChange={e => { setDescription(e.target.value); setSaveSuccess(null); }}
-                       placeholder="Ex: Dízimo mês atual..."
+                       placeholder={direction === 'income' ? 'Ex: Dízimo do mês, oferta...' : 'Ex: Conta de energia, manutenção...'}
                        maxLength={300}
                        className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
                      />
@@ -721,15 +744,15 @@ function TransactionEditContent() {
                  </div>
               </div>
 
-              <div className="fixed sm:relative bottom-16 sm:bottom-0 left-0 right-0 p-4 sm:p-0 bg-surface-base sm:bg-transparent border-t border-border-subtle sm:border-none shadow-[0_-12px_24px_rgba(0,0,0,0.4)] sm:shadow-none pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-0 z-40 mt-12">
+              <div className="mt-8 sm:mt-12">
                  <div className="max-w-xl mx-auto">
-                     <p className="hidden sm:flex text-center text-xs text-text-muted mb-3 items-center justify-center gap-1.5">
+                     <p className="flex sm:flex text-center text-xs text-text-muted mb-4 items-center justify-center gap-1.5">
                         <Landmark className="w-3.5 h-3.5" />
                         Este rascunho está salvo em <span className="font-medium text-text-primary">{activeFinanceEntityName || activeFinanceEntityId}</span>
                      </p>
                      
                      {!accountId && (
-                         <span className="block text-center text-xs text-text-muted mb-2 sm:hidden">Escolha uma conta para continuar</span>
+                         <span className="block text-center text-xs text-text-muted mb-3 sm:hidden">Escolha uma conta para continuar</span>
                      )}
                      
                      <button 
@@ -755,6 +778,6 @@ function TransactionEditContent() {
 
         </div>
       </div>
-    </main>
+    </div>
   );
 }
