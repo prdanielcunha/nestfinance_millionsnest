@@ -35,17 +35,20 @@ function TransactionDetailContent() {
   const navigate = useNavigate();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { getTransactionDetail } = useTransactions();
+  const { getTransactionDetail, updateDraft } = useTransactions();
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [returningToDraft, setReturningToDraft] = useState(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const epochRef = useRef(0);
 
   useEffect(() => {
     let abortController = new AbortController();
     setData(null);
+    idempotencyKeyRef.current = null;
     
     if (activeFinanceEntityId && transactionId) {
       loadData(abortController.signal, ++epochRef.current);
@@ -55,6 +58,42 @@ function TransactionDetailContent() {
       abortController.abort();
     };
   }, [activeFinanceEntityId, transactionId]);
+
+  const handleReturnToDraft = async () => {
+    if (returningToDraft || !data?.transaction) return;
+    setReturningToDraft(true);
+    setError(null);
+    
+    if (!idempotencyKeyRef.current) {
+       idempotencyKeyRef.current = 'idre_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    }
+
+    try {
+      const currentVersion = data.transaction.version;
+      const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+      
+      const payload = { intent: 'return_to_draft' };
+      
+      const res = await updateDraft(data.transaction.id, currentVersion, payload, idempotencyKeyRef.current, reqId);
+      
+      if (res.changed) {
+         idempotencyKeyRef.current = null;
+         setData((prev: any) => ({
+           ...prev,
+           transaction: {
+             ...prev.transaction,
+             status: 'draft',
+             version: res.version
+           }
+         }));
+         navigate(APP_ROUTES.transactionEdit.replace(':transactionId', data.transaction.id));
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao reabrir movimentação');
+    } finally {
+      setReturningToDraft(false);
+    }
+  };
 
   const loadData = async (signal?: AbortSignal, currentEpoch?: number) => {
     setLoading(true);
@@ -292,6 +331,32 @@ function TransactionDetailContent() {
                        {tx.createdBy && <span>Registrado por {tx.createdByAlias || tx.createdBy}</span>}
                        {tx.createdBy && tx.updatedAt && <span> • </span>}
                        {tx.updatedAt && <span>Última atualização em {new Date(tx.updatedAt).toLocaleDateString('pt-BR')}</span>}
+                    </div>
+                 )}
+
+                 {data.capabilities?.includes('finance.create_drafts') && (
+                    <div className="pt-4 border-t border-border-subtle mt-4">
+                       {tx.status === 'draft' && (
+                          <button 
+                             onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id))}
+                             className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
+                          >
+                             Editar rascunho
+                          </button>
+                       )}
+                       {tx.status === 'ready_for_review' && (
+                          <button 
+                             onClick={() => handleReturnToDraft()}
+                             disabled={returningToDraft}
+                             className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                             {returningToDraft ? (
+                                <div className="w-5 h-5 border-2 border-text-primary/30 border-t-text-primary rounded-full animate-spin" />
+                             ) : (
+                                'Editar novamente'
+                             )}
+                          </button>
+                       )}
                     </div>
                  )}
                </>

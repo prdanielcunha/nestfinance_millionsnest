@@ -41,12 +41,12 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
-  const createDraft = useCallback(async (payload: any) => {
+  const createDraft = useCallback(async (payload: any, idempotencyKey: string, requestId: string) => {
     if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
     setLoading(true);
     setError(null);
     try {
-      const data = await transactionsService.createDraft(organizationId, activeFinanceEntityId, payload);
+      const data = await transactionsService.createDraft(organizationId, activeFinanceEntityId, payload, idempotencyKey, requestId);
       return data;
     } catch (err: any) {
       setError(err.message);
@@ -56,12 +56,12 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
-  const updateDraft = useCallback(async (transactionId: string, expectedVersion: number, payload: any) => {
+  const updateDraft = useCallback(async (transactionId: string, expectedVersion: number, payload: any, idempotencyKey: string, requestId: string) => {
     if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
     setLoading(true);
     setError(null);
     try {
-      const data = await transactionsService.updateDraft(organizationId, activeFinanceEntityId, transactionId, expectedVersion, payload);
+      const data = await transactionsService.updateDraft(organizationId, activeFinanceEntityId, transactionId, expectedVersion, payload, idempotencyKey, requestId);
       return data;
     } catch (err: any) {
       setError(err.message);

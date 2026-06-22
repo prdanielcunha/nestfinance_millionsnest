@@ -17,6 +17,7 @@ export const APP_ROUTES = {
   transactions: '/finance/transactions',
   transactionCreate: '/finance/transactions/new',
   transactionDetail: '/finance/transactions/:transactionId',
+  transactionEdit: '/finance/transactions/:transactionId/edit',
   accessDenied: '/access-denied',
   unavailable: '/unavailable',
   preview: '/__preview/foundation',

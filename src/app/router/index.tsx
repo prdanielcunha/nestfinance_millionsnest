@@ -23,6 +23,7 @@ const MorePage = lazy(() => import('@/src/pages/finance/MorePage'));
 const TransactionsListPage = lazy(() => import('@/src/pages/finance/transactions/TransactionsListPage'));
 const TransactionCreatePage = lazy(() => import('@/src/pages/finance/transactions/TransactionCreatePage'));
 const TransactionDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionDetailPage'));
+const TransactionEditPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditPage'));
 
 const PageFallback = () => (
   <div className="flex h-[50vh] items-center justify-center fade-in">
@@ -64,6 +65,10 @@ const routes: RouteObject[] = [
           {
             path: APP_ROUTES.transactionDetail,
             element: <Suspense fallback={<PageFallback />}><TransactionDetailPage /></Suspense>,
+          },
+          {
+            path: APP_ROUTES.transactionEdit,
+            element: <Suspense fallback={<PageFallback />}><TransactionEditPage /></Suspense>,
           },
           {
             path: APP_ROUTES.financeSetup,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Landmark, Layers, AlertCircle, ShieldX, Wallet, Plus, Trash2, Split } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { useAuth } from '@/src/hooks/useAuth';
@@ -8,7 +8,7 @@ import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { firebaseAuth } from '@/src/lib/firebase';
 
-export default function TransactionCreatePage() {
+export default function TransactionEditPage() {
   const { accessState } = useAuth();
   
   if (!accessState.capabilities?.includes('finance.create_drafts')) {
@@ -19,7 +19,7 @@ export default function TransactionCreatePage() {
         </div>
         <h3 className="text-lg font-medium text-text-primary mb-2">Acesso Negado</h3>
         <p className="text-sm text-text-muted max-w-sm mb-6">
-           Você não tem permissão para registrar movimentações.
+           Você não tem permissão para editar movimentações.
         </p>
       </main>
     );
@@ -27,15 +27,16 @@ export default function TransactionCreatePage() {
 
   return (
     <FinanceContextGuard>
-      <TransactionCreateContent />
+      <TransactionEditContent />
     </FinanceContextGuard>
   );
 }
 
-function TransactionCreateContent() {
+function TransactionEditContent() {
   const navigate = useNavigate();
+  const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { createDraft } = useTransactions();
+  const { getTransactionDetail, updateDraft } = useTransactions();
   
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [initialError, setInitialError] = useState<string | null>(null);
@@ -44,6 +45,10 @@ function TransactionCreateContent() {
   const [categories, setCategories] = useState<any[]>([]);
   const [funds, setFunds] = useState<any[]>([]);
 
+  const [txExpectedVersion, setTxExpectedVersion] = useState<number | null>(null);
+  const [immutableStatusError, setImmutableStatusError] = useState(false);
+  const [conflictError, setConflictError] = useState(false);
+  
   // Form State
   const [direction, setDirection] = useState<'income' | 'expense'>('expense');
   const [amountRaw, setAmountRaw] = useState('0'); // Value in cents as a string for raw typing
@@ -59,6 +64,7 @@ function TransactionCreateContent() {
   ]);
 
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const epochRef = useRef(0);
@@ -71,26 +77,32 @@ function TransactionCreateContent() {
     // Clear idempotency when entity changes
     idempotencyKeyRef.current = null;
     lastMaterialPayloadRef.current = null;
+    setSaveSuccess(null);
+    setSaveError(null);
+    setConflictError(false);
     
-    if (activeFinanceEntityId) {
-      loadCatalogs(abortController.signal, ++epochRef.current);
+    if (activeFinanceEntityId && transactionId) {
+      loadDataAndCatalogs(abortController.signal, ++epochRef.current);
     }
     
     return () => {
       abortController.abort();
     };
-  }, [activeFinanceEntityId]);
+  }, [activeFinanceEntityId, transactionId]);
 
-  const loadCatalogs = async (signal?: AbortSignal, currentEpoch?: number) => {
+  const loadDataAndCatalogs = async (signal?: AbortSignal, currentEpoch?: number) => {
     setLoadingInitial(true);
     setInitialError(null);
+    setImmutableStatusError(false);
+    setConflictError(false);
 
     try {
       const user = firebaseAuth.currentUser;
       if (!user) throw new Error('Unauthenticated');
       const token = await user.getIdToken();
 
-      const [accountsRes, fundsRes, categoriesRes] = await Promise.all([
+      const [txRes, accountsRes, fundsRes, categoriesRes] = await Promise.all([
+        getTransactionDetail(transactionId!),
         fetch('/api/finance/accounts/list', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -113,6 +125,17 @@ function TransactionCreateContent() {
 
       if (signal?.aborted || currentEpoch !== epochRef.current) return;
 
+      const txData = txRes.transaction;
+      const txAllocs = txRes.allocations || [];
+
+      if (txData.status !== 'draft') {
+         setImmutableStatusError(true);
+         setLoadingInitial(false);
+         return;
+      }
+
+      setTxExpectedVersion(txData.version);
+      
       const accsData = await accountsRes.json().catch(() => ({}));
       const fundsData = await fundsRes.json().catch(() => ({}));
       const catsData = await categoriesRes.json().catch(() => ({}));
@@ -121,11 +144,53 @@ function TransactionCreateContent() {
       const activeFunds = (fundsData.funds || []).filter((f: any) => f.active);
       const activeCats = (catsData.categories || []).filter((c: any) => c.active);
 
+      // Even if inactive, we must inject them if the transaction uses them so the inputs don't break
+      if (txData.accountId && !activeAccounts.some(a => a.id === txData.accountId)) {
+         activeAccounts.push({ id: txData.accountId, name: txData.accountName || 'Conta inativa', active: false });
+      }
+      for (const a of txAllocs) {
+         if (a.categoryId && !activeCats.some(c => c.id === a.categoryId)) {
+             activeCats.push({ id: a.categoryId, name: a.categoryName || 'Categoria inativa', active: false, kind: txData.direction });
+         }
+         if (a.fundId && !activeFunds.some(f => f.id === a.fundId)) {
+             activeFunds.push({ id: a.fundId, name: a.fundName || 'Fundo inativo', active: false });
+         }
+      }
+
       setAccounts(activeAccounts);
       setFunds(activeFunds);
       setCategories(activeCats);
 
-      if (activeAccounts.length > 0) setAccountId(activeAccounts[0].id);
+      // Pre-fill form
+      setDirection(txData.direction as 'income'|'expense');
+      setAmountRaw(txData.amountCents.toString());
+      if (txData.occurredAt) {
+         setOccurredAt(txData.occurredAt.substring(0, 10));
+      }
+      setAccountId(txData.accountId || '');
+      setPaymentMethod(txData.method || '');
+      setDescription(txData.description || '');
+
+      if (txAllocs.length > 1 || (txAllocs.length === 1 && txAllocs[0].amountCents !== txData.amountCents)) {
+         setIsSplit(true);
+         setAllocations(txAllocs.map((a: any) => ({
+            id: 'alloc_' + Math.random().toString(36).substring(2, 8),
+            categoryId: a.categoryId || '',
+            fundId: a.fundId || '',
+            amountRaw: a.amountCents.toString()
+         })));
+      } else if (txAllocs.length === 1) {
+         setIsSplit(false);
+         setAllocations([{
+            id: 'alloc_initial',
+            categoryId: txAllocs[0].categoryId || '',
+            fundId: txAllocs[0].fundId || '',
+            amountRaw: null // Uses total amount
+         }]);
+      } else {
+         setIsSplit(false);
+         setAllocations([{ id: 'alloc_initial', categoryId: '', fundId: '', amountRaw: null }]);
+      }
 
     } catch (err: any) {
       if (signal?.aborted || currentEpoch !== epochRef.current) return;
@@ -139,6 +204,7 @@ function TransactionCreateContent() {
 
   // Auto clean categories when direction changes
   useEffect(() => {
+     if (loadingInitial) return;
      setAllocations(prev => prev.map(a => {
         const cat = categories.find(c => c.id === a.categoryId);
         if (cat && cat.kind !== direction) {
@@ -146,10 +212,11 @@ function TransactionCreateContent() {
         }
         return a;
      }));
-  }, [direction, categories]);
+  }, [direction, categories, loadingInitial]);
 
   const handleDirectionChange = (newDir: 'income' | 'expense') => {
     setDirection(newDir);
+    setSaveSuccess(null);
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +224,7 @@ function TransactionCreateContent() {
     let parsed = parseInt(numericValue, 10);
     if (isNaN(parsed)) parsed = 0;
     setAmountRaw(parsed.toString());
+    setSaveSuccess(null);
   };
   
   const parseAmountToCents = (val: string | null) => {
@@ -190,9 +258,10 @@ function TransactionCreateContent() {
   const targetDiff = totalCents - allocatedCents;
 
   const handleSave = async () => {
-    if (saving) return; // double click prevention
+    if (saving || txExpectedVersion === null) return; 
 
     setSaveError(null);
+    setSaveSuccess(null);
 
     // Basic validation
     if (!accountId) {
@@ -247,7 +316,7 @@ function TransactionCreateContent() {
        allocations: finalAllocs
     };
 
-    // calculate material payload string for comparison
+    // Calculate material payload
     const materialPayloadArray: any[] = [
       activeFinanceEntityId, direction, totalCents, occurredAt, accountId, paymentMethod, description,
       finalAllocs.map(a => `${a.categoryId}|${a.fundId || ''}|${a.amountCents}`).sort()
@@ -255,7 +324,7 @@ function TransactionCreateContent() {
     const materialPayloadString = JSON.stringify(materialPayloadArray);
 
     if (materialPayloadString !== lastMaterialPayloadRef.current || !idempotencyKeyRef.current) {
-       idempotencyKeyRef.current = 'idkl_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+       idempotencyKeyRef.current = 'idup_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
        lastMaterialPayloadRef.current = materialPayloadString;
     }
 
@@ -264,18 +333,28 @@ function TransactionCreateContent() {
     setSaving(true);
     try {
        const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-       const res = await createDraft(payload, idempotencyKeyRef.current, reqId);
+       const res = await updateDraft(transactionId!, txExpectedVersion, payload, idempotencyKeyRef.current, reqId);
        
        if (epochRef.current !== currentEpochOnSave) return; // drop if entity changed
 
        idempotencyKeyRef.current = null;
        lastMaterialPayloadRef.current = null;
 
-       navigate(APP_ROUTES.transactionDetail.replace(':transactionId', res.transactionId), { replace: true });
+       if (res.changed === false) {
+           setSaveSuccess('Nenhuma alteração para salvar');
+       } else {
+           setSaveSuccess('Alterações salvas');
+           setTxExpectedVersion(res.version);
+       }
     } catch (err: any) {
        if (epochRef.current !== currentEpochOnSave) return;
 
        let msg = err.message || 'Erro ao salvar';
+       if (msg.includes('FINANCE_VERSION_CONFLICT')) {
+          setConflictError(true);
+          setSaving(false);
+          return;
+       }
        if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) msg = 'A divisão não corresponde ao valor total.';
        else if (msg.includes('FINANCE_ACCOUNT_MISMATCH')) msg = 'Essa conta não pertence à igreja selecionada.';
        else if (msg.includes('FINANCE_CATEGORY_MISMATCH')) msg = 'Essa categoria não pode ser usada nesta movimentação.';
@@ -285,12 +364,14 @@ function TransactionCreateContent() {
        else msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
        
        setSaveError(msg);
-       setSaving(false);
+    } finally {
+       if (epochRef.current === currentEpochOnSave) setSaving(false);
     }
   };
 
   const addAllocation = () => {
     setAllocations(prev => [...prev, { id: 'alloc_' + Date.now(), categoryId: '', fundId: '', amountRaw: '0' }]);
+    setSaveSuccess(null);
   };
   
   const removeAllocation = (index: number) => {
@@ -300,6 +381,7 @@ function TransactionCreateContent() {
        next.splice(index, 1);
        return next;
     });
+    setSaveSuccess(null);
   };
 
   const updateAllocation = (index: number, field: string, value: string) => {
@@ -308,6 +390,7 @@ function TransactionCreateContent() {
        next[index] = { ...next[index], [field]: value };
        return next;
     });
+    setSaveSuccess(null);
   };
   
   const updateAllocationAmount = (index: number, rawInput: string) => {
@@ -317,6 +400,24 @@ function TransactionCreateContent() {
     updateAllocation(index, 'amountRaw', parsed.toString());
   };
 
+  if (immutableStatusError) {
+     return (
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
+           <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-6 text-amber-500 border border-amber-500/20">
+              <AlertCircle className="w-8 h-8" />
+           </div>
+           <h3 className="text-lg font-medium text-text-primary mb-2">Edição não permitida</h3>
+           <p className="text-sm text-text-muted max-w-sm mb-6">Esta movimentação não pode mais ser editada.</p>
+           <button 
+              onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', transactionId!))} 
+              className="px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
+           >
+              Voltar ao detalhe
+           </button>
+        </main>
+     );
+  }
+
   if (initialError) {
      return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
@@ -325,7 +426,7 @@ function TransactionCreateContent() {
         </div>
         <h3 className="text-lg font-medium text-text-primary mb-2">Erro ao carregar</h3>
         <button 
-          onClick={() => loadCatalogs(undefined, epochRef.current)} 
+          onClick={() => loadDataAndCatalogs(undefined, epochRef.current)} 
           className="px-4 py-2 bg-surface-elevated hover:bg-surface-secondary text-sm font-medium rounded-lg text-text-base border border-border-subtle transition-colors"
         >
           Tentar novamente
@@ -336,15 +437,15 @@ function TransactionCreateContent() {
 
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
-      <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
-        <button 
-           onClick={() => navigate(APP_ROUTES.transactions)}
-           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-2"
-        >
-           <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-           <h1 className="text-lg font-semibold text-text-primary">Nova movimentação</h1>
+      <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center justify-between border-b border-border-subtle">
+        <div className="flex items-center gap-4">
+           <button 
+              onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', transactionId!))}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-2"
+           >
+              <ArrowLeft className="w-5 h-5" />
+           </button>
+           <h1 className="text-lg font-semibold text-text-primary">Editar Rascunho</h1>
         </div>
       </header>
 
@@ -361,10 +462,40 @@ function TransactionCreateContent() {
 
           {!loadingInitial && (
             <>
-              {saveError && (
+              {conflictError && (
+                 <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex flex-col gap-3 text-sm items-start">
+                    <div className="flex items-center gap-3 text-amber-600 font-medium">
+                       <AlertCircle className="w-5 h-5 shrink-0" />
+                       <p>Esta movimentação foi alterada em outro lugar.</p>
+                    </div>
+                    <div className="flex gap-2 w-full mt-2">
+                       <button 
+                          onClick={() => loadDataAndCatalogs(undefined, epochRef.current)}
+                          className="flex-1 bg-surface-elevated hover:bg-surface-secondary text-text-primary rounded-lg py-2 border border-border-subtle transition-colors"
+                       >
+                         Ver versão mais recente
+                       </button>
+                       <button 
+                          onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', transactionId!))}
+                          className="flex-1 bg-surface-elevated hover:bg-surface-secondary text-text-primary rounded-lg py-2 border border-border-subtle transition-colors"
+                       >
+                         Cancelar minhas alterações
+                       </button>
+                    </div>
+                 </div>
+              )}
+
+              {saveError && !conflictError && (
                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl flex gap-3 text-sm items-start">
                     <AlertCircle className="w-5 h-5 shrink-0" />
                     <p>{saveError}</p>
+                 </div>
+              )}
+
+              {saveSuccess && (
+                 <div className="bg-teal-500/10 border border-teal-500/20 text-teal-600 p-4 rounded-xl flex gap-3 text-sm items-start">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <p>{saveSuccess}</p>
                  </div>
               )}
 
@@ -402,22 +533,22 @@ function TransactionCreateContent() {
               {/* Main Form Fields */}
               <div className="bg-surface-elevated border border-border-subtle rounded-2xl overflow-hidden p-5 flex flex-col gap-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 cursor-pointer">
                         <label className="text-sm font-medium text-text-primary">Data</label>
                         <input 
                           type="date"
                           value={occurredAt}
-                          onChange={e => setOccurredAt(e.target.value)}
-                          className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                          onChange={e => { setOccurredAt(e.target.value); setSaveSuccess(null); }}
+                          className="w-full h-10 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                         />
                      </div>
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 cursor-pointer">
                         <label className="text-sm font-medium text-text-primary">Conta</label>
                         {accounts.length > 0 ? (
                             <select 
                               value={accountId}
-                              onChange={e => setAccountId(e.target.value)}
-                              className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                              onChange={e => { setAccountId(e.target.value); setSaveSuccess(null); }}
+                              className="w-full h-10 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                             >
                               <option value="" disabled>Selecione uma conta...</option>
                               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -431,14 +562,14 @@ function TransactionCreateContent() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 cursor-pointer">
                         <label className="text-sm font-medium text-text-primary">
                           {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
                         </label>
                         <select 
                           value={paymentMethod}
-                          onChange={e => setPaymentMethod(e.target.value)}
-                          className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                          onChange={e => { setPaymentMethod(e.target.value); setSaveSuccess(null); }}
+                          className="w-full h-10 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                         >
                           <option value="">Não especificado</option>
                           {paymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
@@ -449,7 +580,7 @@ function TransactionCreateContent() {
                         <input 
                           type="text"
                           value={description}
-                          onChange={e => setDescription(e.target.value)}
+                          onChange={e => { setDescription(e.target.value); setSaveSuccess(null); }}
                           placeholder="Ex: Dízimo mês atual..."
                           maxLength={300}
                           className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm placeholder-text-muted"
@@ -463,7 +594,7 @@ function TransactionCreateContent() {
                  <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Rateio</h3>
                     <button 
-                       onClick={() => setIsSplit(!isSplit)}
+                       onClick={() => { setIsSplit(!isSplit); setSaveSuccess(null); }}
                        className="text-sm text-text-muted hover:text-text-primary transition-colors flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-lg border border-border-subtle"
                     >
                        <Split className="w-4 h-4" />
@@ -506,14 +637,14 @@ function TransactionCreateContent() {
                             </div>
                          )}
 
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                             <div className="flex flex-col gap-1.5 focus-within:z-10">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 cursor-pointer">
+                             <div className="flex flex-col gap-1.5 focus-within:z-10 cursor-pointer">
                                 <label className="text-sm font-medium text-text-primary">Categoria</label>
                                 {compatibleCategories.length > 0 ? (
                                     <select 
                                       value={alloc.categoryId}
                                       onChange={e => updateAllocation(i, 'categoryId', e.target.value)}
-                                      className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                                      className="w-full h-10 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                                     >
                                       <option value="" disabled>Selecione uma categoria...</option>
                                       {compatibleCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -525,13 +656,13 @@ function TransactionCreateContent() {
                                 )}
                              </div>
                              
-                             <div className="flex flex-col gap-1.5 focus-within:z-10">
+                             <div className="flex flex-col gap-1.5 focus-within:z-10 cursor-pointer">
                                 <label className="text-sm font-medium text-text-primary">Fundo (opcional)</label>
                                 {funds.length > 0 ? (
                                     <select 
                                       value={alloc.fundId}
                                       onChange={e => updateAllocation(i, 'fundId', e.target.value)}
-                                      className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                                      className="w-full h-10 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                                     >
                                       <option value="">Nenhum fundo</option>
                                       {funds.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -561,7 +692,7 @@ function TransactionCreateContent() {
               <div className="pt-6">
                  <button 
                    onClick={handleSave}
-                   disabled={saving}
+                   disabled={saving || conflictError}
                    className="w-full h-12 flex items-center justify-center gap-2 bg-text-primary hover:bg-text-primary/90 text-surface-base rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                    {saving ? (

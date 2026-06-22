@@ -69,7 +69,7 @@ export const transactionsService = {
     return res.json();
   },
 
-  async createDraft(organizationId: string, financeEntityId: string, payload: any): Promise<{ transactionId: string, version: number }> {
+  async createDraft(organizationId: string, financeEntityId: string, payload: any, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
     const auth = getAuth();
     const headers = new Headers();
     if (auth.currentUser) {
@@ -85,8 +85,8 @@ export const transactionsService = {
       body: JSON.stringify({ 
         financeEntityId, 
         payload, 
-        idempotencyKey: 'idkl_' + generateId(),
-        requestId: 'req_' + generateId()
+        idempotencyKey,
+        requestId
       })
     });
 
@@ -98,7 +98,7 @@ export const transactionsService = {
     return res.json();
   },
 
-  async updateDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, payload: any): Promise<{ changed: boolean, transactionId: string, version: number }> {
+  async updateDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, payload: any, idempotencyKey: string, requestId: string): Promise<{ changed: boolean, transactionId: string, version: number }> {
     const auth = getAuth();
     const headers = new Headers();
     if (auth.currentUser) {
@@ -116,8 +116,8 @@ export const transactionsService = {
         transactionId, 
         expectedVersion, 
         payload,
-        idempotencyKey: 'idup_' + generateId(), 
-        requestId: 'req_' + generateId()
+        idempotencyKey, 
+        requestId
       })
     });
 
