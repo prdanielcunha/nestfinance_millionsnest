@@ -4,6 +4,15 @@
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
         { "fieldPath": "direction", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
@@ -12,6 +21,7 @@
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
@@ -20,6 +30,17 @@
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "direction", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
         { "fieldPath": "accountId", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]

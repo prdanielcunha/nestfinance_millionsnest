@@ -86,23 +86,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const snapshot = await query.get();
     
-    const items = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        direction: data.direction,
-        status: data.status,
-        amountCents: data.amountCents,
-        occurredAt: data.occurredAt,
-        accountId: data.accountId,
-        paymentMethod: data.paymentMethod,
-        description: data.description,
-        version: data.version
-      };
-    });
+    const items = [];
+    for (const doc of snapshot.docs) {
+      try {
+        const data = doc.data();
+        let occurredAt = null;
+        if (data.occurredAt) {
+          if (typeof data.occurredAt.toDate === 'function') {
+            occurredAt = data.occurredAt.toDate().toISOString();
+          } else {
+            occurredAt = data.occurredAt;
+          }
+        }
+
+        let createdAt = null;
+        if (data.createdAt) {
+          if (typeof data.createdAt.toDate === 'function') {
+            createdAt = data.createdAt.toDate().toISOString();
+          } else {
+            createdAt = data.createdAt;
+          }
+        }
+
+        let updatedAt = null;
+        if (data.updatedAt) {
+          if (typeof data.updatedAt.toDate === 'function') {
+            updatedAt = data.updatedAt.toDate().toISOString();
+          } else {
+            updatedAt = data.updatedAt;
+          }
+        }
+
+        items.push({
+          id: doc.id,
+          direction: data.direction,
+          status: data.status,
+          amountCents: data.amountCents,
+          occurredAt,
+          createdAt,
+          updatedAt,
+          accountId: data.accountId,
+          paymentMethod: data.paymentMethod,
+          description: data.description,
+          version: data.version || 1
+        });
+      } catch (err: any) {
+        console.error(`Error parsing transaction document ${doc.id}:`, err);
+      }
+    }
 
     let nextCursor = undefined;
-    if (items.length === limit) {
+    if (snapshot.docs.length === limit) {
       nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
     }
 
