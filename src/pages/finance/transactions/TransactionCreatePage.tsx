@@ -339,12 +339,13 @@ function TransactionCreateContent() {
       <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
         <button 
            onClick={() => navigate(APP_ROUTES.transactions)}
-           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-2"
+           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
+           aria-label="Voltar para listagem de movimentações"
         >
-           <ArrowLeft className="w-5 h-5" />
+           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-           <h1 className="text-lg font-semibold text-text-primary">Nova movimentação</h1>
+           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Nova movimentação</h1>
         </div>
       </header>
 
@@ -353,7 +354,7 @@ function TransactionCreateContent() {
           
           {loadingInitial && (
              <div className="flex flex-col gap-6 w-full animate-pulse">
-               <div className="h-10 bg-surface-secondary rounded-xl w-full"></div>
+               <div className="h-12 bg-surface-secondary rounded-xl w-full"></div>
                <div className="h-24 bg-surface-secondary rounded-2xl w-full"></div>
                <div className="h-20 bg-surface-elevated border border-border-subtle rounded-2xl"></div>
              </div>
@@ -372,13 +373,13 @@ function TransactionCreateContent() {
               <div className="flex p-1 bg-surface-elevated border border-border-subtle rounded-xl max-w-sm w-full mx-auto sm:mx-0">
                  <button 
                     onClick={() => handleDirectionChange('income')}
-                    className={`flex-1 h-10 text-sm font-medium rounded-lg transition-colors ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
+                    className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
                  >
                     Entrada
                  </button>
                  <button 
                     onClick={() => handleDirectionChange('expense')}
-                    className={`flex-1 h-10 text-sm font-medium rounded-lg transition-colors ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
+                    className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
                  >
                     Saída
                  </button>
@@ -408,22 +409,22 @@ function TransactionCreateContent() {
                           type="date"
                           value={occurredAt}
                           onChange={e => setOccurredAt(e.target.value)}
-                          className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                          className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
                         />
                      </div>
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">Conta</label>
                         {accounts.length > 0 ? (
                             <select 
                               value={accountId}
                               onChange={e => setAccountId(e.target.value)}
-                              className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                              className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
                             >
                               <option value="" disabled>Selecione uma conta...</option>
                               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
                         ) : (
-                            <div className="h-10 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
+                            <div className="h-12 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
                                Nenhuma conta ativa cadastrada
                             </div>
                         )}
@@ -431,20 +432,20 @@ function TransactionCreateContent() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">
                           {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
                         </label>
                         <select 
                           value={paymentMethod}
                           onChange={e => setPaymentMethod(e.target.value)}
-                          className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                          className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
                         >
                           <option value="">Não especificado</option>
                           {paymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                      </div>
-                     <div className="flex flex-col gap-1.5">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">Descrição (opcional)</label>
                         <input 
                           type="text"
@@ -452,7 +453,7 @@ function TransactionCreateContent() {
                           onChange={e => setDescription(e.target.value)}
                           placeholder="Ex: Dízimo mês atual..."
                           maxLength={300}
-                          className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm placeholder-text-muted"
+                          className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm placeholder-text-muted"
                         />
                      </div>
                   </div>
@@ -464,7 +465,7 @@ function TransactionCreateContent() {
                     <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Rateio</h3>
                     <button 
                        onClick={() => setIsSplit(!isSplit)}
-                       className="text-sm text-text-muted hover:text-text-primary transition-colors flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-lg border border-border-subtle"
+                       className="text-sm text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary transition-colors flex items-center gap-1.5 bg-surface-elevated px-3 py-2 rounded-xl border border-border-subtle"
                     >
                        <Split className="w-4 h-4" />
                        {isSplit ? 'Rateio Simples' : 'Dividir valor'}
@@ -491,7 +492,7 @@ function TransactionCreateContent() {
                                        inputMode="numeric"
                                        value={formatMoneyInput(alloc.amountRaw)}
                                        onChange={(e) => updateAllocationAmount(i, e.target.value)}
-                                       className="w-full h-9 bg-surface-base border border-border-subtle text-text-primary rounded-lg px-3 outline-none focus:border-text-primary transition-colors font-medium"
+                                       className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-lg px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors font-medium"
                                        placeholder="0,00"
                                     />
                                   </div>
@@ -499,45 +500,46 @@ function TransactionCreateContent() {
                                <button 
                                  onClick={() => removeAllocation(i)}
                                  disabled={allocations.length <= 1}
-                                 className="w-9 h-9 mt-5 flex items-center justify-center rounded-lg border border-border-subtle hover:bg-rose-500/10 text-text-muted hover:text-rose-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+                                 className="w-12 h-12 mt-5 flex items-center justify-center rounded-xl border border-border-subtle hover:bg-rose-500/10 text-text-muted hover:text-rose-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+                                 title="Remover rateio"
                                >
-                                 <Trash2 className="w-4 h-4" />
+                                 <Trash2 className="w-5 h-5" />
                                </button>
                             </div>
                          )}
 
                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                             <div className="flex flex-col gap-1.5 focus-within:z-10">
+                             <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                                 <label className="text-sm font-medium text-text-primary">Categoria</label>
                                 {compatibleCategories.length > 0 ? (
                                     <select 
                                       value={alloc.categoryId}
                                       onChange={e => updateAllocation(i, 'categoryId', e.target.value)}
-                                      className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                                      className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
                                     >
                                       <option value="" disabled>Selecione uma categoria...</option>
                                       {compatibleCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 ) : (
-                                    <div className="h-10 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
+                                    <div className="h-12 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
                                        Nenhuma categoria compatível
                                     </div>
                                 )}
                              </div>
                              
-                             <div className="flex flex-col gap-1.5 focus-within:z-10">
+                             <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                                 <label className="text-sm font-medium text-text-primary">Fundo (opcional)</label>
                                 {funds.length > 0 ? (
                                     <select 
                                       value={alloc.fundId}
                                       onChange={e => updateAllocation(i, 'fundId', e.target.value)}
-                                      className="w-full h-10 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary transition-colors text-sm"
+                                      className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
                                     >
                                       <option value="">Nenhum fundo</option>
                                       {funds.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                     </select>
                                 ) : (
-                                    <div className="h-10 bg-surface-elevated border border-border-subtle rounded-xl px-3 flex items-center text-sm text-text-muted">
+                                    <div className="h-12 bg-surface-elevated border border-border-subtle rounded-xl px-3 flex items-center text-sm text-text-muted">
                                        Nenhum fundo ativo
                                     </div>
                                 )}
@@ -549,9 +551,9 @@ function TransactionCreateContent() {
                    {isSplit && (
                       <button 
                         onClick={addAllocation}
-                        className="w-full flex items-center justify-center gap-2 h-10 border border-border-subtle border-dashed rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors text-sm font-medium"
+                        className="w-full flex items-center justify-center gap-2 h-12 border border-border-subtle border-dashed rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
                       >
-                         <Plus className="w-4 h-4" />
+                         <Plus className="w-5 h-5" />
                          Adicionar rateio
                       </button>
                    )}
@@ -562,7 +564,7 @@ function TransactionCreateContent() {
                  <button 
                    onClick={handleSave}
                    disabled={saving}
-                   className="w-full h-12 flex items-center justify-center gap-2 bg-text-primary hover:bg-text-primary/90 text-surface-base rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                   className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary hover:bg-text-primary/90 text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base"
                  >
                    {saving ? (
                       <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />

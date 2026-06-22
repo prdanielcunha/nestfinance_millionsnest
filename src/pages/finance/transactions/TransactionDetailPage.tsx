@@ -268,12 +268,13 @@ function TransactionDetailContent() {
       <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
         <button 
            onClick={() => navigate(APP_ROUTES.transactions)}
-           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-2"
+           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
+           aria-label="Voltar para listagem de movimentações"
         >
-           <ArrowLeft className="w-5 h-5" />
+           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-           <h1 className="text-lg font-semibold text-text-primary">Detalhes</h1>
+           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Detalhes</h1>
         </div>
       </header>
 
@@ -421,7 +422,7 @@ function TransactionDetailContent() {
                              {isBalanced && tx.accountId && tx.method && tx.amountCents > 0 && allocs.length > 0 && !allocs.some((a: any) => !a.categoryId) && (
                                 <button 
                                    onClick={() => setSubmitModalOpen(true)}
-                                   className="w-full h-12 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-xl font-medium transition-colors"
+                                   className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors text-base"
                                 >
                                    Enviar para revisão
                                 </button>
@@ -429,7 +430,7 @@ function TransactionDetailContent() {
 
                              <button 
                                 onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id))}
-                                className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
+                                className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors text-base"
                              >
                                 Editar rascunho
                              </button>
@@ -439,7 +440,7 @@ function TransactionDetailContent() {
                           <button 
                              onClick={() => handleReturnToDraft()}
                              disabled={returningToDraft}
-                             className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                             className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
                           >
                              {returningToDraft ? (
                                 <div className="w-5 h-5 border-2 border-text-primary/30 border-t-text-primary rounded-full animate-spin" />
@@ -510,18 +511,18 @@ function TransactionDetailContent() {
                                 <button 
                                    onClick={handleSubmitForReview}
                                    disabled={submitting}
-                                   className="w-full h-12 flex items-center justify-center bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                   className="w-full h-14 flex items-center justify-center bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-elevated"
                                 >
                                    {submitting ? (
                                       <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />
                                    ) : (
-                                      submitError ? 'Tentar novamente' : 'Enviar para revisão'
+                                      submitError ? 'Tentar novamente' : 'Confirmar envio'
                                    )}
                                 </button>
                                 <button 
                                    onClick={() => setSubmitModalOpen(false)}
                                    disabled={submitting}
-                                   className="w-full h-12 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
+                                   className="w-full h-14 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-elevated"
                                 >
                                    Cancelar
                                 </button>

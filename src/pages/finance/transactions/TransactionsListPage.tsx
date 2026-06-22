@@ -166,24 +166,26 @@ function TransactionsListContent() {
 
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
-      <header className="shrink-0 max-w-3xl w-full mx-auto p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle">
+      <header className="shrink-0 max-w-3xl w-full mx-auto p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle">
         <div className="flex flex-col gap-1">
           <button 
              onClick={() => navigate(APP_ROUTES.finance)}
-             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-2 mb-1"
+             className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4 mb-2 md:mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+             aria-label="Voltar para a página inicial financeira"
           >
-             <ArrowLeft className="w-5 h-5" />
+             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-semibold text-text-primary">Movimentações</h1>
+          <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Movimentações</h1>
           <p className="text-sm text-text-secondary">Entradas e saídas registradas nesta igreja.</p>
         </div>
         
         {/* Filtros */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
            <select 
               value={directionFilter} 
               onChange={e => updateFilter('direction', e.target.value)}
-              className="h-9 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-lg px-3 hover:bg-surface-secondary transition-colors cursor-pointer"
+              className="h-12 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-xl px-4 hover:bg-surface-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-primary min-w-[120px]"
+              aria-label="Filtrar por direção"
            >
               <option value="all">Todas</option>
               <option value="income">Entradas</option>
@@ -192,10 +194,11 @@ function TransactionsListContent() {
            <select 
               value={statusFilter} 
               onChange={e => updateFilter('status', e.target.value)}
-              className="h-9 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-lg px-2 hover:bg-surface-secondary transition-colors cursor-pointer"
+              className="h-12 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-xl px-4 hover:bg-surface-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-primary min-w-[120px]"
+              aria-label="Filtrar por status"
            >
               <option value="all">Últimas</option>
-              {/* <option value="draft">Rascunhos</option> */}
+              <option value="draft">Rascunhos</option>
               <option value="ready_for_review">Revisão</option>
               <option value="posted">Registradas</option>
               <option value="reversed">Revertidas</option>
@@ -204,10 +207,10 @@ function TransactionsListContent() {
            {accessState.capabilities?.includes('finance.create_drafts') && (
               <button 
                 onClick={() => navigate(APP_ROUTES.transactionCreate)}
-                className="h-9 flex items-center px-3 ml-2 bg-text-primary hover:bg-text-primary/90 text-sm font-medium rounded-lg text-surface-base transition-colors shrink-0"
+                className="h-12 flex items-center px-4 md:ml-3 bg-text-primary hover:bg-text-primary/90 text-sm font-medium rounded-xl text-surface-base transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base w-full sm:w-auto justify-center"
               >
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Registrar movimentação</span>
+                <Plus className="w-5 h-5 sm:mr-2" />
+                <span className="inline">Registrar movimentação</span>
               </button>
            )}
         </div>
