@@ -514,130 +514,146 @@ function TransactionEditContent() {
                  </div>
               )}
 
-              {/* Direction Toggle */}
-              <div className="flex p-1 bg-surface-elevated border border-border-subtle rounded-xl max-w-sm w-full mx-auto sm:mx-0">
-                 <button 
-                    onClick={() => handleDirectionChange('income')}
-                    className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
-                 >
-                    Entrada
-                 </button>
-                 <button 
-                    onClick={() => handleDirectionChange('expense')}
-                    className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
-                 >
-                    Saída
-                 </button>
-              </div>
+              {/* Bloco 1: O que aconteceu */}
+              <div className="flex flex-col gap-4">
+                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">O que aconteceu?</h3>
+                  <div className="flex p-1 bg-surface-elevated border border-border-subtle rounded-xl max-w-sm w-full">
+                     <button 
+                        onClick={() => handleDirectionChange('income')}
+                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
+                     >
+                        Entrada
+                     </button>
+                     <button 
+                        onClick={() => handleDirectionChange('expense')}
+                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
+                     >
+                        Saída
+                     </button>
+                  </div>
 
-              {/* Main value area */}
-              <div className="flex flex-col items-center gap-2 py-4">
-                 <p className="text-sm font-medium text-text-secondary">Valor total</p>
-                 <div className="relative group flex items-center justify-center">
-                    <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'}`}>R$</span>
-                    <input 
-                       inputMode="numeric"
-                       value={formatMoneyInput(amountRaw)}
-                       onChange={handleAmountChange}
-                       className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
-                       placeholder="0,00"
-                    />
-                 </div>
-              </div>
-
-              {/* Main Form Fields */}
-              <div className="bg-surface-elevated border border-border-subtle rounded-2xl overflow-hidden p-5 flex flex-col gap-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                        <label className="text-sm font-medium text-text-primary">Data</label>
+                  <div className="flex flex-col items-center gap-2 py-4">
+                     <p className="text-sm font-medium text-text-secondary">Valor total</p>
+                     <div className="relative group flex items-center justify-center">
+                        <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'}`}>R$</span>
                         <input 
-                          type="date"
-                          value={occurredAt}
-                          onChange={e => { setOccurredAt(e.target.value); setSaveSuccess(null); }}
-                          className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
+                           inputMode="numeric"
+                           value={formatMoneyInput(amountRaw)}
+                           onChange={handleAmountChange}
+                           className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
+                           placeholder="0,00"
                         />
                      </div>
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 cursor-pointer">
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 w-full sm:max-w-sm">
+                     <label className="text-sm font-medium text-text-primary">Data</label>
+                     <input 
+                       type="date"
+                       value={occurredAt}
+                       onChange={e => { setOccurredAt(e.target.value); setSaveSuccess(null); }}
+                       className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary transition-colors text-base"
+                     />
+                  </div>
+              </div>
+
+              {/* Bloco 2: Como aconteceu */}
+              <div className="flex flex-col gap-4 mt-8">
+                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como aconteceu?</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">Conta</label>
                         {accounts.length > 0 ? (
                             <select 
                               value={accountId}
                               onChange={e => { setAccountId(e.target.value); setSaveSuccess(null); }}
-                              className="w-full h-12 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
+                              className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                             >
                               <option value="" disabled>Selecione uma conta...</option>
                               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
                         ) : (
-                            <div className="h-12 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
-                               Nenhuma conta ativa cadastrada
+                            <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
+                               Nenhuma conta cadastrada
                             </div>
                         )}
                      </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 cursor-pointer">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">
                           {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
                         </label>
                         <select 
                           value={paymentMethod}
                           onChange={e => { setPaymentMethod(e.target.value); setSaveSuccess(null); }}
-                          className="w-full h-12 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
+                          className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                         >
                           <option value="">Não especificado</option>
                           {paymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                      </div>
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                        <label className="text-sm font-medium text-text-primary">Descrição (opcional)</label>
-                        <input 
-                          type="text"
-                          value={description}
-                          onChange={e => { setDescription(e.target.value); setSaveSuccess(null); }}
-                          placeholder="Ex: Dízimo mês atual..."
-                          maxLength={300}
-                          className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm placeholder-text-muted"
-                        />
-                     </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
+                     <label className="text-sm font-medium text-text-primary">Descrição (opcional)</label>
+                     <input 
+                       type="text"
+                       value={description}
+                       onChange={e => { setDescription(e.target.value); setSaveSuccess(null); }}
+                       placeholder="Ex: Dízimo mês atual..."
+                       maxLength={300}
+                       className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
+                     />
                   </div>
               </div>
 
-              {/* Allocations Split Logic */}
-              <div className="flex flex-col gap-3 mt-2">
-                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Rateio</h3>
-                    <button 
-                       onClick={() => { setIsSplit(!isSplit); setSaveSuccess(null); }}
-                       className="text-sm text-text-muted hover:text-text-primary transition-colors flex items-center gap-1.5 bg-surface-elevated px-3 py-2 rounded-xl border border-border-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                    >
-                       <Split className="w-4 h-4" />
-                       {isSplit ? 'Rateio Simples' : 'Dividir valor'}
-                    </button>
+              {/* Bloco 3: Como classificar */}
+              <div className="flex flex-col gap-4 mt-8">
+                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como deseja separar esse valor?</h3>
+                    {totalCents > 0 ? (
+                        <button 
+                           onClick={() => { setIsSplit(!isSplit); setSaveSuccess(null); }}
+                           className="h-12 text-sm text-text-primary hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary transition-colors flex items-center justify-center sm:justify-start gap-2 bg-surface-elevated px-4 rounded-xl border border-border-subtle"
+                        >
+                           <Split className="w-4 h-4" />
+                           {isSplit ? 'Não dividir' : 'Dividir em mais categorias'}
+                        </button>
+                    ) : (
+                        <div className="flex flex-col items-start sm:items-end">
+                            <button 
+                               disabled
+                               aria-disabled="true"
+                               className="h-12 text-sm text-text-muted bg-surface-base px-4 rounded-xl border border-border-subtle flex items-center gap-2 cursor-not-allowed"
+                            >
+                               <Split className="w-4 h-4" />
+                               Dividir em mais categorias
+                            </button>
+                            <span className="text-xs text-text-muted mt-1 px-1">Informe o valor total antes de dividir</span>
+                        </div>
+                    )}
                  </div>
 
                  {isSplit && totalCents > 0 && targetDiff !== 0 && (
                     <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-3 rounded-xl flex justify-between text-sm items-center">
-                       <span>{targetDiff > 0 ? `Restam faltam:` : `Tem a mais:`}</span>
+                       <span>{targetDiff > 0 ? `Ainda faltam:` : `Passou do valor:`}</span>
                        <span className="font-semibold px-2 bg-amber-500/20 rounded py-0.5" >R$ {formatMoneyInput(Math.abs(targetDiff).toString())}</span>
                     </div>
                  )}
 
                  <div className="flex flex-col gap-3">
                    {allocations.map((alloc, i) => (
-                      <div key={alloc.id} className="bg-surface-elevated border border-border-subtle rounded-2xl p-4 flex flex-col gap-3">
+                      <div key={alloc.id} className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4">
                          {isSplit && (
                             <div className="flex items-center justify-between gap-4">
                                <div className="flex-1">
-                                 <label className="text-xs font-medium text-text-muted uppercase tracking-wider mb-1 block">Valor Deste Rateio</label>
-                                 <div className="flex items-center gap-1">
-                                    <span className="text-text-muted text-sm font-medium">R$</span>
+                                 <label className="text-sm font-medium text-text-primary mb-1 block">Valor</label>
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-text-secondary text-base font-medium">R$</span>
                                     <input 
                                        inputMode="numeric"
                                        value={formatMoneyInput(alloc.amountRaw)}
                                        onChange={(e) => updateAllocationAmount(i, e.target.value)}
-                                       className="w-full h-12 bg-surface-base border border-border-subtle text-text-primary rounded-lg px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors font-medium"
+                                       className="w-full h-14 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary transition-colors text-base font-medium"
                                        placeholder="0,00"
                                     />
                                   </div>
@@ -645,28 +661,28 @@ function TransactionEditContent() {
                                <button 
                                  onClick={() => removeAllocation(i)}
                                  disabled={allocations.length <= 1}
-                                 className="w-12 h-12 mt-5 flex items-center justify-center rounded-xl border border-border-subtle hover:bg-rose-500/10 text-text-muted hover:text-rose-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-                                 title="Remover rateio"
+                                 className="w-14 h-14 mt-6 flex items-center justify-center rounded-xl border border-border-subtle hover:bg-rose-500/10 text-text-muted hover:text-rose-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                                 title="Remover"
                                >
                                  <Trash2 className="w-5 h-5" />
                                </button>
                             </div>
                          )}
 
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 cursor-pointer">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 cursor-pointer">
                              <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 cursor-pointer">
                                 <label className="text-sm font-medium text-text-primary">Categoria</label>
                                 {compatibleCategories.length > 0 ? (
                                     <select 
                                       value={alloc.categoryId}
                                       onChange={e => updateAllocation(i, 'categoryId', e.target.value)}
-                                      className="w-full h-12 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
+                                      className="w-full h-14 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                                     >
                                       <option value="" disabled>Selecione uma categoria...</option>
                                       {compatibleCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 ) : (
-                                    <div className="h-12 border border-border-subtle border-dashed rounded-xl px-3 flex items-center text-sm text-amber-500">
+                                    <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center justify-center text-sm text-amber-500 bg-surface-base">
                                        Nenhuma categoria compatível
                                     </div>
                                 )}
@@ -678,13 +694,13 @@ function TransactionEditContent() {
                                     <select 
                                       value={alloc.fundId}
                                       onChange={e => updateAllocation(i, 'fundId', e.target.value)}
-                                      className="w-full h-12 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-3 outline-none focus:border-text-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm"
+                                      className="w-full h-14 bg-surface-base cursor-pointer border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                                     >
                                       <option value="">Nenhum fundo</option>
                                       {funds.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                     </select>
                                 ) : (
-                                    <div className="h-12 bg-surface-elevated border border-border-subtle rounded-xl px-3 flex items-center text-sm text-text-muted">
+                                    <div className="h-14 bg-surface-base border border-border-subtle rounded-xl px-4 flex items-center text-sm text-text-muted">
                                        Nenhum fundo ativo
                                     </div>
                                 )}
@@ -696,31 +712,42 @@ function TransactionEditContent() {
                    {isSplit && (
                       <button 
                         onClick={addAllocation}
-                        className="w-full flex items-center justify-center gap-2 h-12 border border-border-subtle border-dashed rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                        className="w-full flex items-center justify-center gap-2 h-14 border border-border-subtle border-dashed rounded-2xl text-text-primary hover:bg-surface-elevated transition-colors text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
                       >
                          <Plus className="w-5 h-5" />
-                         Adicionar rateio
+                         Adicionar outra categoria
                       </button>
                    )}
                  </div>
               </div>
 
-              <div className="pt-6">
-                 <p className="text-center text-xs text-text-muted mb-3 flex items-center justify-center gap-1.5">
-                    <Landmark className="w-3.5 h-3.5" />
-                    Este rascunho está salvo em <span className="font-medium text-text-primary">{activeFinanceEntityName || activeFinanceEntityId}</span>
-                 </p>
-                 <button 
-                   onClick={handleSave}
-                   disabled={saving || conflictError}
-                   className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary hover:bg-text-primary/90 text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base"
-                 >
-                   {saving ? (
-                      <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />
-                   ) : (
-                      'Salvar rascunho'
-                   )}
-                 </button>
+              <div className="fixed sm:relative bottom-16 sm:bottom-0 left-0 right-0 p-4 sm:p-0 bg-surface-base sm:bg-transparent border-t border-border-subtle sm:border-none shadow-[0_-12px_24px_rgba(0,0,0,0.4)] sm:shadow-none pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-0 z-40 mt-12">
+                 <div className="max-w-xl mx-auto">
+                     <p className="hidden sm:flex text-center text-xs text-text-muted mb-3 items-center justify-center gap-1.5">
+                        <Landmark className="w-3.5 h-3.5" />
+                        Este rascunho está salvo em <span className="font-medium text-text-primary">{activeFinanceEntityName || activeFinanceEntityId}</span>
+                     </p>
+                     
+                     {!accountId && (
+                         <span className="block text-center text-xs text-text-muted mb-2 sm:hidden">Escolha uma conta para continuar</span>
+                     )}
+                     
+                     <button 
+                       onClick={handleSave}
+                       disabled={saving || conflictError || !accountId || totalCents <= 0 || (isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId)}
+                       aria-disabled={saving || conflictError || !accountId || totalCents <= 0 || (isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId)}
+                       className="w-full h-14 flex items-center justify-center gap-2 bg-accent-primary hover:bg-accent-primary/90 text-background-base rounded-2xl font-medium transition-colors disabled:bg-surface-elevated disabled:text-text-muted disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base"
+                     >
+                       {saving ? (
+                          <>
+                             <div className="w-5 h-5 border-2 border-background-base/30 border-t-background-base rounded-full animate-spin" />
+                             <span>Salvando rascunho...</span>
+                          </>
+                       ) : (
+                          'Salvar rascunho'
+                       )}
+                     </button>
+                 </div>
               </div>
 
             </>

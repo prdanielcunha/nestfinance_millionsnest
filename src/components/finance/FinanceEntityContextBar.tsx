@@ -108,12 +108,11 @@ export function FinanceEntityContextBar({
 
   return (
     <>
-      <div className="bg-surface-elevated border-b border-border-subtle shrink-0">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="shrink-0 bg-surface-base">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex flex-col md:flex-row md:items-center min-w-0">
             {/* Desktop breadcrumb style */}
             <div className="hidden md:flex items-center text-sm">
-              <Building2 className="w-4 h-4 text-text-muted mr-2 shrink-0" />
               <span className="font-medium text-text-primary truncate max-w-[200px]">
                 {activeFinanceEntityName}
               </span>
@@ -146,9 +145,8 @@ export function FinanceEntityContextBar({
             <button
               onClick={handleSwitchClick}
               aria-label={`Trocar igreja atual, ${activeFinanceEntityName}`}
-              className="ml-4 shrink-0 h-8 px-3 inline-flex items-center justify-center rounded-lg bg-surface-base hover:bg-surface-secondary border border-border-subtle text-xs font-medium text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              className="ml-4 shrink-0 h-12 px-4 inline-flex items-center justify-center rounded-lg hover:bg-surface-elevated text-xs font-medium text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
             >
-              <RefreshCw className="w-3 h-3 mr-1.5 text-text-muted" />
               Trocar
             </button>
           )}

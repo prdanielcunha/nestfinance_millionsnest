@@ -239,14 +239,8 @@ function TransactionsListContent() {
           )}
 
           {!loading && !error && items.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-border-subtle border-dashed p-12 text-center text-text-secondary mt-4">
-              <div className="w-12 h-12 bg-surface-secondary rounded-2xl flex items-center justify-center mb-4 text-text-muted">
-                 <Layers className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-medium text-text-primary mb-1">Nenhuma movimentação encontrada</h3>
-              <p className="text-sm text-text-muted max-w-sm">
-                As entradas e saídas desta igreja aparecerão aqui.
-              </p>
+            <div className="flex flex-col items-center justify-center p-12 text-center text-text-secondary mt-12 mb-12">
+              <span className="text-sm font-medium text-text-muted">Nenhuma movimentação registrada.</span>
             </div>
           )}
 

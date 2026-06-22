@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "direction", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "accountId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

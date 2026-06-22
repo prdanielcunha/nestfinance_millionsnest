@@ -31,6 +31,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const sessionList = await resolveEcosystemSession(uid, organizationId);
+    if (!sessionList.granted) {
+       console.log('Session denial reason:', sessionList);
+    }
     
     // Will throw if forbidden or not found/active
     const context = await requireFinanceTransactionAccess({
@@ -63,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Default sorting based on occurrence descending
-    query = query.orderBy('occurredAt', 'desc').orderBy('id', 'desc');
+    query = query.orderBy('occurredAt', 'desc').orderBy('__name__', 'desc');
 
     const limit = Math.min(Math.max(pageSize, 1), 100);
     query = query.limit(limit);
