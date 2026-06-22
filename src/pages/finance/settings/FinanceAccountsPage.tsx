@@ -7,7 +7,7 @@ import AccountFormModal from '@/src/components/finance/AccountFormModal';
 import { AccountEditModal } from '@/src/components/finance/AccountEditModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
 import { RELEASE_MARKER } from '@/src/release/releaseMarker';
@@ -117,12 +117,21 @@ export default function FinanceAccountsPage() {
       )}
 
       {/* Header */}
-      <FinanceContextHeader
-        pageName="Contas"
-        title="Contas Financeiras"
-        description="Gerencie os locais onde os valores ficam armazenados."
-        backTo={APP_ROUTES.financeSettings}
-      />
+      <FinanceEntityContextBar areaName="Contas" />
+      
+      <header className="shrink-0 w-full max-w-2xl mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
+         <button 
+            onClick={() => navigate(APP_ROUTES.financeSettings)}
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
+            aria-label="Voltar para Ajustes"
+         >
+            <ArrowLeft className="w-6 h-6" />
+         </button>
+         <div>
+            <h1 className="text-xl font-semibold text-text-primary tracking-tight">Contas Financeiras</h1>
+            <p className="text-sm text-text-secondary md:hidden">Gerencie os locais onde os valores ficam armazenados.</p>
+         </div>
+      </header>
 
       <FinanceContextGuard>
         <main className="flex-1 overflow-y-auto px-4 py-6">

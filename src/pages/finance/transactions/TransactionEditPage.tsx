@@ -6,6 +6,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
@@ -36,7 +37,7 @@ export default function TransactionEditPage() {
 function TransactionEditContent() {
   const navigate = useNavigate();
   const { transactionId } = useParams<{ transactionId: string }>();
-  const { activeFinanceEntityId } = useFinanceEntity();
+  const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { getTransactionDetail, updateDraft } = useTransactions();
   
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -436,8 +437,20 @@ function TransactionEditContent() {
      );
   }
 
+  const handleBeforeSwitch = () => {
+    if (!saveSuccess) {
+      const confirmDiscard = window.confirm('Você tem alterações que podem não estar salvas. Deseja sair e trocar de igreja? As alterações não salvas serão descartadas.');
+      if (!confirmDiscard) return false;
+    }
+    // Clean states before leaving
+    idempotencyKeyRef.current = null;
+    lastMaterialPayloadRef.current = null;
+    return true;
+  };
+
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
+      <FinanceEntityContextBar areaName="Editar Rascunho" onBeforeSwitch={handleBeforeSwitch} />
       <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center justify-between border-b border-border-subtle">
         <div className="flex items-center gap-4">
            <button 
@@ -693,6 +706,10 @@ function TransactionEditContent() {
               </div>
 
               <div className="pt-6">
+                 <p className="text-center text-xs text-text-muted mb-3 flex items-center justify-center gap-1.5">
+                    <Landmark className="w-3.5 h-3.5" />
+                    Este rascunho está salvo em <span className="font-medium text-text-primary">{activeFinanceEntityName || activeFinanceEntityId}</span>
+                 </p>
                  <button 
                    onClick={handleSave}
                    disabled={saving || conflictError}

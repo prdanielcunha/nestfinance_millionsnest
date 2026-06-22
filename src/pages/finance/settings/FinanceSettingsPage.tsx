@@ -1,18 +1,27 @@
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Wallet, Tags, Landmark, ChevronRight } from 'lucide-react';
+import { Wallet, Tags, Landmark, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 
 export default function FinanceSettingsPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
-      <FinanceContextHeader
-        pageName="Organização Financeira"
-        title="Organização Financeira"
-        backTo={APP_ROUTES.finance}
-      />
+    <div className="flex flex-col h-full fade-in pb-20 md:pb-0 font-sans bg-surface-base">
+      <FinanceEntityContextBar areaName="Ajustes" />
+      
+      <header className="shrink-0 w-full max-w-2xl mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
+         <button 
+            onClick={() => navigate(APP_ROUTES.finance)}
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
+            aria-label="Voltar para a página inicial financeira"
+         >
+            <ArrowLeft className="w-6 h-6" />
+         </button>
+         <div>
+            <h1 className="text-xl font-semibold text-text-primary tracking-tight">Organização Financeira</h1>
+         </div>
+      </header>
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto font-sans max-w-2xl px-4 py-8">

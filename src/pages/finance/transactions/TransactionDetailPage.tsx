@@ -6,6 +6,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export default function TransactionDetailPage() {
@@ -37,6 +38,7 @@ function TransactionDetailContent() {
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { getTransactionDetail, updateDraft, submitForReview } = useTransactions();
+  const { accessState } = useAuth();
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -266,6 +268,7 @@ function TransactionDetailContent() {
 
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
+      <FinanceEntityContextBar areaName="Detalhes" />
       <header className="shrink-0 max-w-2xl w-full mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
         <button 
            onClick={() => navigate(APP_ROUTES.transactions)}

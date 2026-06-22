@@ -6,6 +6,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
@@ -168,6 +169,7 @@ function TransactionsListContent() {
 
   return (
     <main className="flex-1 flex flex-col h-full overflow-hidden bg-surface-base font-sans">
+      <FinanceEntityContextBar areaName="Movimentações" />
       <header className="shrink-0 max-w-3xl w-full mx-auto p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle">
         <div className="flex flex-col gap-1">
           <button 

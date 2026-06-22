@@ -6,7 +6,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export default function FinancePage() {
@@ -273,21 +273,7 @@ export default function FinancePage() {
   // Dashboard Real View
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
-      <FinanceContextHeader
-        pageName="Visão geral"
-        title="Visão geral"
-        rightContent={
-          readyEntities.length > 1 && (
-            <button
-               onClick={handleSwitchEntity}
-               className="h-10 px-4 flex items-center rounded-lg outline-none bg-surface-elevated hover:bg-surface-secondary transition-colors border border-border-subtle text-sm font-medium text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary max-w-xs truncate"
-            >
-               <RefreshCw className="w-4 h-4 mr-2 text-text-secondary" />
-               Trocar igreja
-            </button>
-          )
-        }
-      />
+      <FinanceEntityContextBar areaName="Visão geral" />
       
       <main className="flex-1 overflow-y-auto px-4 py-6 font-sans">
         <div className="max-w-3xl mx-auto flex flex-col gap-8">

@@ -6,7 +6,7 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import FundFormModal from '@/src/components/finance/FundFormModal';
 import FundActionMenu from '@/src/components/finance/FundActionMenu';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
 interface Fund {
@@ -124,12 +124,21 @@ export default function FinanceFundsPage() {
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0">
       {/* Header */}
-      <FinanceContextHeader
-        pageName="Fundos"
-        title="Fundos Financeiros"
-        description="Defina as finalidades e restrições dos destinos dos recursos."
-        backTo={APP_ROUTES.financeSettings}
-      />
+      <FinanceEntityContextBar areaName="Fundos" />
+      
+      <header className="shrink-0 w-full max-w-2xl mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
+         <button 
+            onClick={() => navigate(APP_ROUTES.financeSettings)}
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
+            aria-label="Voltar para Ajustes"
+         >
+            <ArrowLeft className="w-6 h-6" />
+         </button>
+         <div>
+            <h1 className="text-xl font-semibold text-text-primary tracking-tight">Fundos Financeiros</h1>
+            <p className="text-sm text-text-secondary md:hidden">Defina as finalidades e restrições dos destinos dos recursos.</p>
+         </div>
+      </header>
 
       <FinanceContextGuard>
         {/* Difference helper Banner */}
