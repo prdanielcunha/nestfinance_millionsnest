@@ -62,6 +62,7 @@ function TransactionCreateContent() {
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastReqId, setLastReqId] = useState<string | null>(null);
 
   const epochRef = useRef(0);
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -197,10 +198,15 @@ function TransactionCreateContent() {
      return paymentMethods;
   }, [selectedAccount, paymentMethods]);
 
+  const [paymentMethodWarning, setPaymentMethodWarning] = useState<string | null>(null);
+
   useEffect(() => {
      if (paymentMethod && availablePaymentMethods.length > 0) {
         if (!availablePaymentMethods.some(p => p.id === paymentMethod)) {
-           setPaymentMethod(availablePaymentMethods[0].id);
+           setPaymentMethod('');
+           setPaymentMethodWarning('A forma de pagamento anterior foi removida porque não é compatível com a nova conta selecionada.');
+        } else {
+           setPaymentMethodWarning(null);
         }
      }
   }, [availablePaymentMethods, paymentMethod]);
@@ -284,12 +290,14 @@ function TransactionCreateContent() {
     setSaving(true);
     try {
        const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+       setLastReqId(reqId);
        const res = await createDraft(payload, idempotencyKeyRef.current, reqId);
        
        if (epochRef.current !== currentEpochOnSave) return; // drop if entity changed
 
        idempotencyKeyRef.current = null;
        lastMaterialPayloadRef.current = null;
+       setLastReqId(null);
 
        navigate(APP_ROUTES.transactionDetail.replace(':transactionId', res.transactionId), { replace: true });
     } catch (err: any) {
@@ -406,9 +414,23 @@ function TransactionCreateContent() {
           {!loadingInitial && (
             <>
               {saveError && (
-                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl flex gap-3 text-sm items-start">
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                    <p>{saveError}</p>
+                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl flex flex-col gap-3 text-sm items-start">
+                    <div className="flex gap-3">
+                       <AlertCircle className="w-5 h-5 shrink-0" />
+                       <p>{saveError}</p>
+                    </div>
+                    {lastReqId && (
+                       <div className="flex items-center gap-2 mt-1 ml-8 text-rose-500/80 text-xs">
+                          <span>Código de suporte: {lastReqId}</span>
+                          <button
+                             onClick={() => navigator.clipboard.writeText(lastReqId)}
+                             className="underline hover:text-rose-500 transition-colors"
+                             title="Copiar código"
+                          >
+                             Copiar
+                          </button>
+                       </div>
+                    )}
                  </div>
               )}
 
@@ -483,12 +505,17 @@ function TransactionCreateContent() {
                         </label>
                         <select 
                           value={paymentMethod}
-                          onChange={e => setPaymentMethod(e.target.value)}
+                          onChange={e => { setPaymentMethod(e.target.value); setPaymentMethodWarning(null); }}
                           className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                         >
                           <option value="">Não especificado</option>
                           {availablePaymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
+                        {paymentMethodWarning && (
+                           <div className="text-amber-500 text-xs mt-1 px-1">
+                              {paymentMethodWarning}
+                           </div>
+                        )}
                      </div>
                   </div>
                   <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
