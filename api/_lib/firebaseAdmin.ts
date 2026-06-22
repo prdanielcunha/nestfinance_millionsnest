@@ -25,17 +25,26 @@ export function getFirebaseAdmin() {
       // Remove surrounding quotes if they exist and replace escaped newlines
       const privateKey = privateKeyRaw.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
 
-      if (!projectId || !clientEmail || !privateKey) {
-        throw new Error('MISSING_FIREBASE_CREDENTIALS');
-      }
+      if (process.env.FIRESTORE_EMULATOR_HOST) {
+         if (!projectId) {
+            throw new Error('MISSING_FIREBASE_PROJECT_ID_FOR_EMULATOR');
+         }
+         defaultApp = firebaseAdmin.initializeApp({
+            projectId
+         });
+      } else {
+         if (!projectId || !clientEmail || !privateKey) {
+            throw new Error('MISSING_FIREBASE_CREDENTIALS');
+         }
 
-      defaultApp = firebaseAdmin.initializeApp({
-        credential: firebaseAdmin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
+         defaultApp = firebaseAdmin.initializeApp({
+            credential: firebaseAdmin.credential.cert({
+               projectId,
+               clientEmail,
+               privateKey,
+            }),
+         });
+      }
     }
   }
 

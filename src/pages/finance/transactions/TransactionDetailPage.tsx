@@ -35,13 +35,20 @@ function TransactionDetailContent() {
   const navigate = useNavigate();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { getTransactionDetail, updateDraft } = useTransactions();
+  const { getTransactionDetail, updateDraft, submitForReview } = useTransactions();
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [returningToDraft, setReturningToDraft] = useState(false);
+  
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const idempotencyKeyRef = useRef<string | null>(null);
+  const submitIdempotencyKeyRef = useRef<string | null>(null);
 
   const epochRef = useRef(0);
 
@@ -49,6 +56,10 @@ function TransactionDetailContent() {
     let abortController = new AbortController();
     setData(null);
     idempotencyKeyRef.current = null;
+    submitIdempotencyKeyRef.current = null;
+    setSubmitModalOpen(false);
+    setSubmitting(false);
+    setSubmitError(null);
     
     if (activeFinanceEntityId && transactionId) {
       loadData(abortController.signal, ++epochRef.current);
@@ -58,6 +69,59 @@ function TransactionDetailContent() {
       abortController.abort();
     };
   }, [activeFinanceEntityId, transactionId]);
+
+  const handleSubmitForReview = async () => {
+     if (submitting || !data?.transaction) return;
+
+     setSubmitError(null);
+     setSubmitting(true);
+     
+     if (!submitIdempotencyKeyRef.current) {
+        submitIdempotencyKeyRef.current = 'idsm_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+     }
+
+     try {
+        const currentVersion = data.transaction.version;
+        const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+
+        const res = await submitForReview(data.transaction.id, currentVersion, submitIdempotencyKeyRef.current, reqId);
+        
+        submitIdempotencyKeyRef.current = null;
+        setSubmitModalOpen(false);
+        setData((prev: any) => ({
+           ...prev,
+           transaction: {
+              ...prev.transaction,
+              status: 'ready_for_review',
+              version: res.version
+           }
+        }));
+     } catch (err: any) {
+        let msg = err.message || 'Erro ao enviar para revisão';
+        if (msg.includes('FINANCE_VERSION_CONFLICT')) {
+           msg = 'Esta movimentação foi alterada em outro lugar.';
+        } else if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) {
+           msg = 'A divisão não fecha o valor total. Edite o rascunho antes de enviar.';
+        } else if (msg.includes('FINANCE_INVALID_STATE_TRANSITION')) {
+           msg = 'Esta movimentação não está mais disponível para envio.';
+        } else if (msg.includes('FINANCE_ACCOUNT_MISMATCH')) {
+           msg = 'A conta selecionada não é mais válida para esta igreja.';
+        } else if (msg.includes('FINANCE_CATEGORY_MISMATCH')) {
+           msg = 'Uma das categorias não é mais válida para esta movimentação.';
+        } else if (msg.includes('FINANCE_FUND_MISMATCH')) {
+           msg = 'Um dos fundos não é mais válido para esta igreja.';
+        } else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
+           msg = 'Esta tentativa não pode ser repetida com informações diferentes.';
+        } else if (msg.includes('permission') || msg.includes('FORBIDDEN')) {
+           msg = 'Você não tem permissão para enviar esta movimentação para revisão.';
+        } else {
+           msg = 'Não foi possível confirmar se a movimentação foi enviada. Tente novamente com segurança.';
+        }
+        setSubmitError(msg);
+     } finally {
+        setSubmitting(false);
+     }
+  };
 
   const handleReturnToDraft = async () => {
     if (returningToDraft || !data?.transaction) return;
@@ -335,14 +399,41 @@ function TransactionDetailContent() {
                  )}
 
                  {data.capabilities?.includes('finance.create_drafts') && (
-                    <div className="pt-4 border-t border-border-subtle mt-4">
+                    <div className="pt-4 border-t border-border-subtle mt-4 flex flex-col gap-3">
                        {tx.status === 'draft' && (
-                          <button 
-                             onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id))}
-                             className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
-                          >
-                             Editar rascunho
-                          </button>
+                          <>
+                             {(!isBalanced || !tx.accountId || !tx.method || !tx.amountCents || allocs.length === 0 || allocs.some((a: any) => !a.categoryId)) && (
+                                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-xl flex flex-col gap-2 text-sm">
+                                   <div className="flex items-center gap-2 font-medium">
+                                      <AlertCircle className="w-4 h-4 shrink-0" />
+                                      <span>Ainda falta revisar</span>
+                                   </div>
+                                   <ul className="list-disc list-inside ml-2">
+                                      {!tx.amountCents && <li>Informe o valor da movimentação</li>}
+                                      {!tx.accountId && <li>Escolha uma conta</li>}
+                                      {!tx.method && <li>Informe a forma de pagamento/recebimento</li>}
+                                      {(allocs.length === 0 || !isBalanced) && <li>A divisão ainda não fecha o valor total.</li>}
+                                      {allocs.length > 0 && allocs.some((a: any) => !a.categoryId) && <li>Escolha uma categoria para todos os rateios</li>}
+                                   </ul>
+                                </div>
+                             )}
+
+                             {isBalanced && tx.accountId && tx.method && tx.amountCents > 0 && allocs.length > 0 && !allocs.some((a: any) => !a.categoryId) && (
+                                <button 
+                                   onClick={() => setSubmitModalOpen(true)}
+                                   className="w-full h-12 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-xl font-medium transition-colors"
+                                >
+                                   Enviar para revisão
+                                </button>
+                             )}
+
+                             <button 
+                                onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id))}
+                                className="w-full h-12 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
+                             >
+                                Editar rascunho
+                             </button>
+                          </>
                        )}
                        {tx.status === 'ready_for_review' && (
                           <button 
@@ -357,6 +448,86 @@ function TransactionDetailContent() {
                              )}
                           </button>
                        )}
+                    </div>
+                 )}
+
+                 {submitModalOpen && tx.status === 'draft' && (
+                    <div className="fixed inset-0 bg-surface-base/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+                       <div 
+                           role="dialog" 
+                           aria-modal="true" 
+                           aria-labelledby="submit-dialog-title" 
+                           aria-describedby="submit-dialog-desc"
+                           className="bg-surface-elevated w-full max-w-sm rounded-[24px] border border-border-subtle shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300"
+                       >
+                          <div className="p-6 flex flex-col gap-4">
+                             <h3 id="submit-dialog-title" className="text-xl font-semibold text-text-primary">Enviar para revisão?</h3>
+                             <p id="submit-dialog-desc" className="text-sm text-text-muted">
+                                A movimentação ficará pronta para conferência. Ela ainda não será contabilizada e não alterará os saldos.
+                             </p>
+                             
+                             <div className="bg-surface-base border border-border-subtle rounded-xl p-4 flex flex-col gap-2 text-sm mt-2">
+                                <div className="flex justify-between">
+                                   <span className="text-text-muted">Tipo</span>
+                                   <span className="font-medium text-text-primary">{tx.direction === 'income' ? 'Entrada' : 'Saída'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                   <span className="text-text-muted">Valor</span>
+                                   <span className="font-medium text-text-primary font-mono">{formatMoney(tx.amountCents)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                   <span className="text-text-muted">Data</span>
+                                   <span className="font-medium text-text-primary">{new Date(tx.occurredAt).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                   <span className="text-text-muted">Conta</span>
+                                   <span className="font-medium text-text-primary truncate max-w-[140px]">{tx.accountName || 'Conta selecionada'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                   <span className="text-text-muted">Rateios</span>
+                                   <span className="font-medium text-text-primary">{allocs.length} {allocs.length > 1 ? 'itens' : 'item'}</span>
+                                </div>
+                             </div>
+
+                             {submitError && (
+                                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl flex flex-col gap-3 text-sm items-start mt-2">
+                                   <div className="flex items-center gap-3">
+                                      <AlertCircle className="w-5 h-5 shrink-0" />
+                                      <p>{submitError}</p>
+                                   </div>
+                                   {submitError.includes('alterada em outro lugar') && (
+                                       <button 
+                                          onClick={() => loadData(undefined, epochRef.current)}
+                                          className="bg-surface-base border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors w-full mt-1"
+                                       >
+                                          Ver versão mais recente
+                                       </button>
+                                   )}
+                                </div>
+                             )}
+
+                             <div className="flex flex-col gap-3 mt-4">
+                                <button 
+                                   onClick={handleSubmitForReview}
+                                   disabled={submitting}
+                                   className="w-full h-12 flex items-center justify-center bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                   {submitting ? (
+                                      <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />
+                                   ) : (
+                                      submitError ? 'Tentar novamente' : 'Enviar para revisão'
+                                   )}
+                                </button>
+                                <button 
+                                   onClick={() => setSubmitModalOpen(false)}
+                                   disabled={submitting}
+                                   className="w-full h-12 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors"
+                                >
+                                   Cancelar
+                                </button>
+                             </div>
+                          </div>
+                       </div>
                     </div>
                  )}
                </>

@@ -71,12 +71,12 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
-  const submitForReview = useCallback(async (transactionId: string, expectedVersion: number) => {
+  const submitForReview = useCallback(async (transactionId: string, expectedVersion: number, idempotencyKey: string, requestId: string) => {
     if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
     setLoading(true);
     setError(null);
     try {
-      const data = await transactionsService.submitForReview(organizationId, activeFinanceEntityId, transactionId, expectedVersion);
+      const data = await transactionsService.submitForReview(organizationId, activeFinanceEntityId, transactionId, expectedVersion, idempotencyKey, requestId);
       return data;
     } catch (err: any) {
       setError(err.message);
