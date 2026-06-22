@@ -2,20 +2,20 @@ import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 
-export function canManageFinanceEntities(sessionList: any): boolean {
-  if (sessionList.isGlobalAccess) return true;
-  if (sessionList.capabilities?.includes('organization.manage_entities')) return true;
-  return false;
-}
-
-export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts'): boolean {
+export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList.isGlobalAccess) return true;
   
   const caps = sessionList.capabilities || [];
-  
-  if (caps.includes(requestedCapability)) return true;
-  if (caps.includes('finance.manage')) return true; // broader access
-  
+  return caps.includes(requestedCapability);
+}
+
+export function canManageFinanceEntities(sessionList: any): boolean {
+  return hasEffectiveCapability(sessionList, 'organization.manage_entities');
+}
+
+export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts'): boolean {
+  if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
+  if (sessionList.capabilities?.includes('finance.manage')) return true; // broader access
   return false;
 }
 

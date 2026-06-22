@@ -6,11 +6,12 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export default function TransactionDetailPage() {
   const { accessState } = useAuth();
   
-  if (!accessState.capabilities?.includes('finance.view')) {
+  if (!hasEffectiveCapability(accessState, 'finance.view')) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
         <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 text-red-500 border border-red-500/20">
@@ -399,7 +400,7 @@ function TransactionDetailContent() {
                     </div>
                  )}
 
-                 {data.capabilities?.includes('finance.create_drafts') && (
+                 {hasEffectiveCapability(accessState, 'finance.create_drafts') && (
                     <div className="pt-4 border-t border-border-subtle mt-4 flex flex-col gap-3">
                        {tx.status === 'draft' && (
                           <>

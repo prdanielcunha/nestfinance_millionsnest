@@ -7,6 +7,7 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { FinanceContextHeader } from '@/src/components/finance/FinanceContextHeader';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export default function FinancePage() {
   const { accessState } = useAuth();
@@ -21,6 +22,8 @@ export default function FinancePage() {
   const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
   const [currentEpoch, setCurrentEpoch] = useState(0);
   
+  const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
+
   const setupStatus = accessState.financeSetup?.status;
   const returnTo = searchParams.get('returnTo');
 
@@ -97,6 +100,17 @@ export default function FinancePage() {
 
   const pendingEntities = entities.filter(e => bootstrapStatuses[e.id]?.status !== 'ready');
   const readyEntities = entities.filter(e => bootstrapStatuses[e.id]?.status === 'ready');
+
+  const handleSwitchEntity = () => {
+    if (readyEntities.length === 2) {
+      const other = readyEntities.find(e => e.id !== activeFinanceEntityId);
+      if (other) setActiveFinanceEntityId(other.id, other.displayName);
+    } else if (readyEntities.length > 2) {
+      setEntitySelectorOpen(true);
+    } else {
+      setActiveFinanceEntityId(null);
+    }
+  };
 
   // Deep Link Redirect Effect
   useEffect(() => {
@@ -265,7 +279,7 @@ export default function FinancePage() {
         rightContent={
           readyEntities.length > 1 && (
             <button
-               onClick={() => setActiveFinanceEntityId(null)}
+               onClick={handleSwitchEntity}
                className="h-10 px-4 flex items-center rounded-lg outline-none bg-surface-elevated hover:bg-surface-secondary transition-colors border border-border-subtle text-sm font-medium text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary max-w-xs truncate"
             >
                <RefreshCw className="w-4 h-4 mr-2 text-text-secondary" />
@@ -287,7 +301,7 @@ export default function FinancePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {accessState.capabilities?.includes('finance.create_drafts') && (
+              {hasEffectiveCapability(accessState, 'finance.create_drafts') && (
                 <button
                   onClick={() => navigate(APP_ROUTES.transactionCreate)}
                   className="bg-accent-primary hover:bg-accent-hover rounded-2xl p-6 text-left transition-colors flex flex-col items-start justify-center group h-auto sm:h-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
@@ -351,6 +365,37 @@ export default function FinancePage() {
               setCurrentEpoch(prev => prev + 1);
             }}
           />
+      )}
+
+      {entitySelectorOpen && (
+        <div className="fixed inset-0 bg-surface-base/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+           <div className="bg-surface-elevated w-full max-w-sm rounded-[24px] border border-border-subtle shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
+              <div className="p-6 flex flex-col gap-4">
+                 <h3 className="text-xl font-semibold text-text-primary">Selecionar igreja</h3>
+                 <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+                    {readyEntities.map(e => (
+                       <button
+                          key={e.id}
+                          onClick={() => {
+                             setActiveFinanceEntityId(e.id, e.displayName);
+                             setEntitySelectorOpen(false);
+                          }}
+                          className={`flex items-center p-4 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${e.id === activeFinanceEntityId ? 'border-accent-primary bg-accent-primary/10' : 'border-border-subtle hover:bg-surface-secondary'}`}
+                       >
+                          <Building2 className={`w-5 h-5 mr-3 ${e.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-muted'}`} />
+                          <span className={`font-medium ${e.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-primary'}`}>{e.displayName}</span>
+                       </button>
+                    ))}
+                 </div>
+                 <button 
+                    onClick={() => setEntitySelectorOpen(false)}
+                    className="w-full h-12 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors text-sm mt-2"
+                 >
+                    Cancelar
+                 </button>
+              </div>
+           </div>
+        </div>
       )}
     </div>
   );

@@ -33,7 +33,11 @@ export async function resolveEcosystemSession(uid: string, orgId: string) {
   const rawSystemRole = userData.systemRole || userData.appRole || userData.role || '';
   const systemRole = typeof rawSystemRole === 'string' ? rawSystemRole.toLowerCase() : '';
 
-  const globalRoles = ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder'];
+  // ARCHITECTURE DECISION (ADR): 
+  // Papéis globais autorizados do ecossistema MillionsNest possuem acesso completo 
+  // server-side a todos os aplicativos atuais e futuros, inclusive NestFinance.
+  // Papéis apenas organizacionais não recebem esse acesso.
+  const globalRoles = ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'global_support'];
   
   if (globalRoles.includes(systemRole)) {
     isGlobalAccess = true;

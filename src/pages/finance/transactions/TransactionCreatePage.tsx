@@ -7,11 +7,12 @@ import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export default function TransactionCreatePage() {
   const { accessState } = useAuth();
   
-  if (!accessState.capabilities?.includes('finance.create_drafts')) {
+  if (!hasEffectiveCapability(accessState, 'finance.create_drafts')) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
         <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 text-red-500 border border-red-500/20">

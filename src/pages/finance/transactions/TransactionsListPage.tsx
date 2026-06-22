@@ -7,10 +7,12 @@ import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
+import { hasEffectiveCapability } from '@/src/lib/permissions';
+
 export default function TransactionsListPage() {
   const { accessState } = useAuth();
   
-  if (!accessState.capabilities?.includes('finance.view')) {
+  if (!hasEffectiveCapability(accessState, 'finance.view')) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
         <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 text-red-500 border border-red-500/20">
@@ -204,7 +206,7 @@ function TransactionsListContent() {
               <option value="reversed">Revertidas</option>
            </select>
            
-           {accessState.capabilities?.includes('finance.create_drafts') && (
+           {hasEffectiveCapability(accessState, 'finance.create_drafts') && (
               <button 
                 onClick={() => navigate(APP_ROUTES.transactionCreate)}
                 className="h-12 flex items-center px-4 md:ml-3 bg-text-primary hover:bg-text-primary/90 text-sm font-medium rounded-xl text-surface-base transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base w-full sm:w-auto justify-center"
