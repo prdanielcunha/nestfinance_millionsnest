@@ -86,6 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const snapshot = await query.get();
     
+    const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    let ignoredRecordsCount = 0;
+
     const items = [];
     for (const doc of snapshot.docs) {
       try {
@@ -93,16 +96,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let occurredAt = null;
         if (data.occurredAt) {
           if (typeof data.occurredAt.toDate === 'function') {
-            occurredAt = data.occurredAt.toDate().toISOString();
-          } else {
+            try {
+              occurredAt = data.occurredAt.toDate().toISOString();
+            } catch (e) {
+               console.error(`Invalid timestamp occurredAt for document ${doc.id} (req: ${requestId})`);
+               ignoredRecordsCount++;
+               continue;
+            }
+          } else if (typeof data.occurredAt === 'string') {
             occurredAt = data.occurredAt;
+          } else {
+             console.error(`Invalid timestamp occurredAt for document ${doc.id} (req: ${requestId})`);
+             ignoredRecordsCount++;
+             continue;
           }
+        } else {
+           console.error(`Missing occurredAt for document ${doc.id} (req: ${requestId})`);
+           ignoredRecordsCount++;
+           continue;
         }
 
         let createdAt = null;
         if (data.createdAt) {
           if (typeof data.createdAt.toDate === 'function') {
-            createdAt = data.createdAt.toDate().toISOString();
+            try {
+              createdAt = data.createdAt.toDate().toISOString();
+            } catch(e) {
+               console.error(`Invalid timestamp createdAt for document ${doc.id} (req: ${requestId})`);
+               ignoredRecordsCount++;
+               continue;
+            }
           } else {
             createdAt = data.createdAt;
           }
@@ -111,7 +134,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let updatedAt = null;
         if (data.updatedAt) {
           if (typeof data.updatedAt.toDate === 'function') {
-            updatedAt = data.updatedAt.toDate().toISOString();
+            try {
+              updatedAt = data.updatedAt.toDate().toISOString();
+            } catch(e) {
+               console.error(`Invalid timestamp updatedAt for document ${doc.id} (req: ${requestId})`);
+               ignoredRecordsCount++;
+               continue;
+            }
           } else {
             updatedAt = data.updatedAt;
           }
@@ -131,8 +160,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           version: data.version || 1
         });
       } catch (err: any) {
-        console.error(`Error parsing transaction document ${doc.id}:`, err);
+        console.error(`Error processing transaction document ${doc.id} (req: ${requestId}):`, err.name);
+        ignoredRecordsCount++;
       }
+    }
+
+    if (ignoredRecordsCount > 0) {
+      console.log(`[Metrics] Ignored ${ignoredRecordsCount} invalid records during transactionsList (req: ${requestId})`);
     }
 
     let nextCursor = undefined;
