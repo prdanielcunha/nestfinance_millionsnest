@@ -75,13 +75,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_NOT_READY_FOR_SUBMISSION', message: readiness.errors.join('. ') };
       }
 
-      if (txData.direction !== 'transfer' && txData.direction !== 'liability_settlement') {
+      const transactionKind = txData.transactionKind || txData.direction;
+
+      if (transactionKind !== 'transfer' && transactionKind !== 'liability_settlement') {
         // throws if not closed
         assertAllocationsTotal(existingAllocs, txData.amountCents);
       }
 
       // Verify active account
-      if (txData.direction === 'income' || txData.direction === 'expense') {
+      if (transactionKind === 'income' || transactionKind === 'expense') {
           const accountRef = context.repository.getAccountsRef().doc((txData as any).accountId);
           const accountDoc = await t.get(accountRef);
           if (!accountDoc.exists || accountDoc.data()!.financeEntityId !== financeEntityId || !accountDoc.data()!.active) {
@@ -90,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const newVersion = txData.version + 1;
-      const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, txData.direction, 'ready_for_review', txData.occurredAt);
+      const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'ready_for_review', txData.occurredAt);
       
       t.update(txRef, {
         status: 'ready_for_review',

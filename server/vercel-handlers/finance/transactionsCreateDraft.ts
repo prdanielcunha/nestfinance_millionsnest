@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         // inject snapshot type into payload temporarily for validation
-        payload.accountSnapshot = { type: accountDoc.data()!.type };
+        payload.accountSnapshot = { type: accountDoc.data()!.type || 'other' };
       }
 
       const draftValidationWithSnapshots = validateDraftMinimum(payload, financeEntityId);
@@ -198,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         reconciliationStatus: 'unreconciled',
         evidenceIds: [],
         accountId, // still kept for DB compatibility if needed by queries
-        accountSnapshot: { id: accountId, name: accountDoc.data()!.name, type: accountDoc.data()!.type },
+        accountSnapshot: accountDoc ? { id: accountId, name: accountDoc.data()!.name || '', type: accountDoc.data()!.type || 'other' } : undefined,
         allocationIds,
         createdBy: uid,
         updatedBy: uid,
@@ -208,12 +208,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (destinationAccountData) {
         txPayload.sourceAccountId = accountId;
         txPayload.destinationAccountId = destinationAccountId;
-        txPayload.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
+        txPayload.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name || '', type: destinationAccountData.type || 'other' };
       }
       if (liabilityAccountData) {
         txPayload.sourceAccountId = accountId;
         txPayload.liabilityAccountId = payload.liabilityAccountId;
-        txPayload.liabilityAccountSnapshot = { id: payload.liabilityAccountId, name: liabilityAccountData.name, type: liabilityAccountData.type };
+        txPayload.liabilityAccountSnapshot = { id: payload.liabilityAccountId, name: liabilityAccountData.name || '', type: liabilityAccountData.type || 'other' };
         txPayload.settlementType = payload.settlementType;
       }
       if (payload.reimbursement) {
@@ -229,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // We convert temporal strings to server timestamps for persistence if needed, but PRD says ISO-8601 strings and createdAt/updatedAt using serverTimestamp
       const txData = {
         ...txPayload,
-        listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, direction, 'draft', occurredAt),
+        listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, transactionKind, 'draft', occurredAt),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       };
@@ -257,7 +257,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         requestId,
         idempotencyKey,
         afterHash: payloadHash, // Simplified
-        metadata: { status: 'draft', amountCents, direction },
+        metadata: { status: 'draft', amountCents, transactionKind },
         createdAt: FieldValue.serverTimestamp()
       });
 

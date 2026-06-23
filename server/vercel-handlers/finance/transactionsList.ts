@@ -58,7 +58,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let occurredTo = undefined;
 
     if (filters) {
-      if (filters.direction && filters.direction !== 'all') direction = filters.direction;
+      const filterKind = filters.transactionKind || filters.direction;
+      if (filterKind && filterKind !== 'all') direction = filterKind;
       if (filters.status && filters.status !== 'all') status = filters.status;
       if (filters.occurredFrom) occurredFrom = filters.occurredFrom;
       if (filters.occurredTo) occurredTo = filters.occurredTo;
@@ -168,7 +169,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         items.push({
           id: doc.id,
-          direction: data.direction,
+          transactionKind: data.transactionKind || data.direction,
+          direction: data.direction || data.transactionKind,
           status: data.status,
           amountCents: data.amountCents,
           occurredAt,

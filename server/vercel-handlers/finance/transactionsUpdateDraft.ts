@@ -66,12 +66,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          }
       }
 
-      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(txData.direction)) {
+      const existingKind = txData.transactionKind || txData.direction;
+      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(existingKind)) {
           throw { code: 'INVALID_PARAMETERS', message: 'Only income, expense, transfer or liability_settlement transactions can be edited in this phase' };
       }
-      const direction = payload.direction || txData.direction;
-      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(direction)) {
-          throw { code: 'INVALID_PARAMETERS', message: 'Direction must be income, expense, transfer, or liability_settlement' };
+      const transactionKind = payload.transactionKind || payload.direction || existingKind;
+      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(transactionKind)) {
+          throw { code: 'INVALID_PARAMETERS', message: 'transactionKind must be income, expense, transfer, or liability_settlement' };
       }
       
       let newStatus = txData.status;
@@ -86,7 +87,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mergedPayload = {
         ...txData,
         ...payload,
-        direction,
+        transactionKind,
+        direction: transactionKind, // legacy
         amountCents: payload.amountCents !== undefined ? payload.amountCents : txData.amountCents,
         occurredAt: payload.occurredAt || txData.occurredAt,
         accountId: payload.accountId !== undefined ? payload.accountId : (txData as any).accountId,
@@ -107,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
           }
           accountData = accountDoc.data()!;
-          mergedPayload.accountSnapshot = { type: accountData.type };
+          mergedPayload.accountSnapshot = { type: accountData.type || 'other' };
       }
 
       const draftValidationWithSnapshots = validateDraftMinimum(mergedPayload, financeEntityId);
@@ -116,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       let destinationAccountData = null;
-      if (direction === 'transfer' && mergedPayload.destinationAccountId) {
+      if (transactionKind === 'transfer' && mergedPayload.destinationAccountId) {
           const destAccRef = context.repository.getAccountsRef().doc(mergedPayload.destinationAccountId);
           const destAccDoc = await t.get(destAccRef);
           if (!destAccDoc.exists || destAccDoc.data()!.financeEntityId !== financeEntityId || !destAccDoc.data()!.active) {
@@ -126,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       let liabilityAccountData = null;
-      if (direction === 'liability_settlement' && mergedPayload.liabilityAccountId) {
+      if (transactionKind === 'liability_settlement' && mergedPayload.liabilityAccountId) {
           const liabAccRef = context.repository.getAccountsRef().doc(mergedPayload.liabilityAccountId);
           const liabAccDoc = await t.get(liabAccRef);
           if (!liabAccDoc.exists || liabAccDoc.data()!.financeEntityId !== financeEntityId || !liabAccDoc.data()!.active) {
@@ -137,7 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let newRecord: any = {
         ...txData,
-        direction,
+        transactionKind,
+        direction: transactionKind, // legacy fallback
         amountCents: mergedPayload.amountCents,
         occurredAt: mergedPayload.occurredAt,
         accountId: mergedPayload.accountId,
@@ -148,13 +151,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       
       if (accountData) {
-        newRecord.accountSnapshot = { id: mergedPayload.accountId, name: accountData.name, type: accountData.type };
+        newRecord.accountSnapshot = { id: mergedPayload.accountId, name: accountData.name || '', type: accountData.type || 'other' };
       }
 
-      if (mergedPayload.destinationAccountId && destinationAccountData && direction === 'transfer') {
+      if (mergedPayload.destinationAccountId && destinationAccountData && transactionKind === 'transfer') {
           newRecord.sourceAccountId = mergedPayload.accountId;
           newRecord.destinationAccountId = mergedPayload.destinationAccountId;
-          newRecord.destinationAccountSnapshot = { id: mergedPayload.destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
+          newRecord.destinationAccountSnapshot = { id: mergedPayload.destinationAccountId, name: destinationAccountData.name || '', type: destinationAccountData.type || 'other' };
       } else {
           delete newRecord.sourceAccountId;
           delete newRecord.destinationAccountId;
@@ -164,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (liabilityAccountData) {
         newRecord.sourceAccountId = mergedPayload.accountId;
         newRecord.liabilityAccountId = mergedPayload.liabilityAccountId;
-        newRecord.liabilityAccountSnapshot = { id: mergedPayload.liabilityAccountId, name: liabilityAccountData.name, type: liabilityAccountData.type };
+        newRecord.liabilityAccountSnapshot = { id: mergedPayload.liabilityAccountId, name: liabilityAccountData.name || '', type: liabilityAccountData.type || 'other' };
         newRecord.settlementType = mergedPayload.settlementType || (txData as any).settlementType;
       } else {
         delete newRecord.liabilityAccountId;
@@ -211,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!catDoc.exists || catDoc.data()!.financeEntityId !== financeEntityId || !catDoc.data()!.active) {
             throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category invalid or inactive' };
           }
-          if (newRecord.direction !== 'transfer' && catDoc.data()!.kind !== newRecord.direction) {
+          if (newRecord.transactionKind !== 'transfer' && catDoc.data()!.kind !== newRecord.transactionKind) {
             throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category kind mismatch' };
           }
 
@@ -238,7 +241,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           };
           if (a.fundId) allocToSet.fundId = a.fundId;
           
-          validateAllocation(allocToSet, financeEntityId, newRecord.direction as any);
+          validateAllocation(allocToSet, financeEntityId, newRecord.transactionKind as any);
           allocRefsToSet.set(aId, allocToSet);
         }
       }
@@ -268,9 +271,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          return { changed: false, transactionId, version: txData.version };
       }
 
-      const keysNeedUpdate = oldState.occurredAt !== newStateVal.occurredAt || oldState.direction !== newStateVal.direction || oldState.status !== newStateVal.status || !(txData as any).listQueryKeys;
+      const keysNeedUpdate = oldState.occurredAt !== newStateVal.occurredAt || oldState.transactionKind !== newStateVal.transactionKind || oldState.status !== newStateVal.status || !(txData as any).listQueryKeys;
       if (keysNeedUpdate) {
-         newRecord.listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, newRecord.direction, newRecord.status, newRecord.occurredAt);
+         newRecord.listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, newRecord.transactionKind, newRecord.status, newRecord.occurredAt);
       }
 
       newRecord.version = txData.version + 1;

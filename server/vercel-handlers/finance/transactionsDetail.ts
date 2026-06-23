@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        const accDoc = await context.repository.getAccountsRef().doc(txData.accountId).get();
        if (accDoc.exists) {
           const aData = accDoc.data()!;
-          accountSnapshot = { id: aData.id, name: aData.name, type: aData.type };
+          accountSnapshot = { id: aData.id, name: aData.name || '', type: aData.type || 'other' };
        }
     }
 
@@ -114,7 +114,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       transaction: {
         id: txData.id,
-        direction: txData.direction,
+        transactionKind: txData.transactionKind || txData.direction,
+        direction: txData.direction || txData.transactionKind,
         status: txData.status,
         amountCents: txData.amountCents,
         currency: txData.currency,

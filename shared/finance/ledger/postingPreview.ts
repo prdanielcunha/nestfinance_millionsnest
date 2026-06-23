@@ -198,7 +198,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
     blockers.push({ code: 'TRANSACTION_NOT_READY_FOR_REVIEW' });
   }
 
-  if (tx.direction !== 'income' && tx.direction !== 'expense') {
+  if (tx.transactionKind !== 'income' && tx.transactionKind !== 'expense') {
     blockers.push({ code: 'POSTING_DIRECTION_NOT_SUPPORTED' });
   }
 
@@ -230,7 +230,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
 
   try {
     assertAmountCents(tx.amountCents);
-    if (tx.amountCents <= 0 && tx.direction !== 'adjustment') {
+    if (tx.amountCents <= 0 && tx.transactionKind !== 'adjustment') {
       blockers.push({ code: 'JOURNAL_UNBALANCED', details: 'Transaction amount must be strictly positive' });
     }
   } catch (e) {
@@ -261,7 +261,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
 
   const seenCategories = new Map<string, { ledgerAccountId: string; kind: string }>();
 
-  if (tx.direction === 'income' || tx.direction === 'expense') {
+  if (tx.transactionKind === 'income' || tx.transactionKind === 'expense') {
     const mainAcc = mappings.operationalAccount;
     if (!mainAcc || !mainAcc.accountId || !isValidId(mainAcc.accountId)) {
       blockers.push({ code: 'ACCOUNT_LEDGER_MAPPING_MISSING', details: 'Invalid or missing operational account identification' });
@@ -291,7 +291,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
         if (!catMapping.ledgerAccountId || !isValidId(catMapping.ledgerAccountId)) {
           blockers.push({ code: 'CATEGORY_LEDGER_MAPPING_MISSING', resourceId: alloc.categoryId, details: 'Ledger account ID cannot be empty in category mapping' });
         }
-        if (catMapping.kind !== tx.direction) {
+        if (catMapping.kind !== tx.transactionKind) {
           blockers.push({ code: 'CATEGORY_KIND_MISMATCH', resourceId: alloc.categoryId });
         }
       }
@@ -320,7 +320,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
     }
   };
 
-  if (tx.direction === 'income' || tx.direction === 'expense') {
+  if (tx.transactionKind === 'income' || tx.transactionKind === 'expense') {
     if (tx.accountId && mappings.operationalAccount && mappings.operationalAccount.accountId === tx.accountId) {
       validateLedgerAccount(mappings.operationalAccount.assetLedgerAccountId, `Operational account mapping`);
     }
@@ -341,7 +341,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
 
   const lines: PostingPreviewLine[] = [];
 
-  if (tx.direction === 'income') {
+  if (tx.transactionKind === 'income') {
     lines.push({
       organizationId: tx.organizationId,
       financeEntityId: tx.financeEntityId,
@@ -366,7 +366,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
         allocationId: alloc.id
       });
     }
-  } else if (tx.direction === 'expense') {
+  } else if (tx.transactionKind === 'expense') {
     for (const alloc of allocations) {
       const catMapping = mappings.categories.find(c => c.categoryId === alloc.categoryId)!;
       lines.push({
@@ -435,7 +435,7 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
     organizationId: tx.organizationId,
     financeEntityId: tx.financeEntityId,
     transactionId: tx.id,
-    direction: tx.direction,
+    direction: tx.transactionKind,
     status: tx.status,
     amountCents: tx.amountCents,
     currency: tx.currency || 'BRL',
