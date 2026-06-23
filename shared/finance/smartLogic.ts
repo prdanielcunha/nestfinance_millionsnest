@@ -18,6 +18,25 @@ export type FinanceAccountType =
 
 export type AccountNature = 'asset' | 'liability' | 'receivable' | 'clearing';
 
+export const CANONICAL_ACCOUNT_TEMPLATES: Record<string, { type: FinanceAccountType; nature: AccountNature }> = {
+  'church.account.cash': {
+    type: 'cash',
+    nature: 'asset',
+  },
+  'church.account.checking': {
+    type: 'bank_checking',
+    nature: 'asset',
+  },
+  'church.account.savings': {
+    type: 'bank_savings',
+    nature: 'asset',
+  },
+  'church.account.digital_wallet': {
+    type: 'payment_account',
+    nature: 'asset',
+  }
+};
+
 export function getAccountNature(rawType: string | undefined): AccountNature {
   const type = normalizeAccountType(rawType);
   if (['cash', 'bank_checking', 'bank_savings', 'payment_account', 'petty_cash'].includes(type)) return 'asset';

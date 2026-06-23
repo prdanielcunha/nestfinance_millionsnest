@@ -70,6 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { computePreviewDigest, normalizeName, computeExpectedStateHash, normalizeExpectedBootstrapState } = await import('../../../shared/finance/bootstrapHelpers.js');
     const { generateStableId } = await import('../../../api/_lib/financeIdentity.js');
     const { getApplicationAvailability } = await import('./bootstrapAvailabilityHelper.js');
+    const { normalizeAccountType, getAccountNature } = await import('../../../shared/finance/smartLogic.js');
 
     const appAvailability = await getApplicationAvailability(financeEntityId);
     if (!appAvailability.available) {
@@ -361,6 +362,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                    updatedBy: uid
                };
                if (item.entityType === 'category') data.kind = item.kind;
+               if (item.entityType === 'account') {
+                   const tItem = templates.find(t => t.templateKey === item.templateKey);
+                   const rawType = typeof tItem?.metadata?.type === 'string' ? tItem.metadata.type : undefined;
+                   const typeVal = normalizeAccountType(rawType);
+                   const natureVal = getAccountNature(typeVal);
+                   data.type = typeVal;
+                   data.nature = natureVal;
+                   data.configurationStatus = 'complete';
+               }
                transaction.create(ref, data);
             };
 

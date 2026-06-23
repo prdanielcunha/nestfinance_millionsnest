@@ -12,6 +12,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { FinanceSelect } from '@/src/components/finance/FinanceSelect';
 import { getCompatibleAccounts, getCompatiblePaymentInstruments } from '@/shared/finance/smartLogic';
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
+import AccountRepairCard from '@/src/components/finance/AccountRepairCard';
 
 export default function TransactionEditPage() {
   const { accessState } = useAuth();
@@ -42,6 +43,11 @@ export default function TransactionEditPage() {
 }
 
 function TransactionEditContent() {
+  const getAccountLabel = (acc: any) => {
+    const isIncomplete = acc.configurationStatus !== 'complete' || !acc.type || !acc.nature;
+    return isIncomplete ? `${acc.name} (Pendente de Configuração)` : acc.name;
+  };
+
   const navigate = useNavigate();
   const { accessState } = useAuth();
   const { transactionId } = useParams<{ transactionId: string }>();
@@ -771,10 +777,19 @@ function TransactionEditContent() {
                            <FinanceSelect 
                               value={liabilityAccountId}
                               onChange={val => { setLiabilityAccountId(val); setSaveSuccess(null); }}
-                              options={accounts.filter(a => a.nature === 'liability').map(a => ({ value: a.id, label: a.name }))}
+                              options={accounts.filter(a => a.nature === 'liability').map(a => ({ value: a.id, label: getAccountLabel(a) }))}
                               placeholder="Selecione o passivo..."
                               className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
                            />
+                           {accounts.find(a => a.id === liabilityAccountId) && (
+                              <AccountRepairCard 
+                                 account={accounts.find(a => a.id === liabilityAccountId)}
+                                 financeEntityId={activeFinanceEntityId || ''}
+                                 onRepaired={(repairedAcc) => {
+                                    setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                 }}
+                              />
+                           )}
                         </div>
                      </div>
                   )}
@@ -785,13 +800,24 @@ function TransactionEditContent() {
                           {direction === 'transfer' ? 'Da conta de origem' : direction === 'liability_settlement' ? 'Conta de origem (que pagou)' : 'Conta'}
                         </label>
                         {availableAccounts.length > 0 ? (
-                            <FinanceSelect 
-                              value={accountId}
-                              onChange={val => { setAccountId(val); setSaveSuccess(null); }}
-                              options={availableAccounts.map(a => ({ value: a.id, label: a.name }))}
-                              placeholder="Selecione uma conta..."
-                              className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base cursor-pointer"
-                            />
+                            <>
+                              <FinanceSelect 
+                                value={accountId}
+                                onChange={val => { setAccountId(val); setSaveSuccess(null); }}
+                                options={availableAccounts.map(a => ({ value: a.id, label: getAccountLabel(a) }))}
+                                placeholder="Selecione uma conta..."
+                                className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base cursor-pointer"
+                              />
+                              {accounts.find(a => a.id === accountId) && (
+                                 <AccountRepairCard 
+                                    account={accounts.find(a => a.id === accountId)}
+                                    financeEntityId={activeFinanceEntityId || ''}
+                                    onRepaired={(repairedAcc) => {
+                                       setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                    }}
+                                 />
+                              )}
+                            </>
                         ) : (
                             <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
                                Nenhuma conta compatível
@@ -803,13 +829,24 @@ function TransactionEditContent() {
                        <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                           <label className="text-sm font-medium text-text-primary">Para qual conta (destino)</label>
                           {accounts.length > 0 ? (
-                              <FinanceSelect 
-                                value={destinationAccountId}
-                                onChange={val => { setDestinationAccountId(val); setSaveSuccess(null); }}
-                                options={accounts.filter(a => a.id !== accountId).map(a => ({ value: a.id, label: a.name }))}
-                                placeholder="Selecione o destino..."
-                                className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
-                              />
+                              <>
+                                <FinanceSelect 
+                                  value={destinationAccountId}
+                                  onChange={val => { setDestinationAccountId(val); setSaveSuccess(null); }}
+                                  options={accounts.filter(a => a.id !== accountId).map(a => ({ value: a.id, label: getAccountLabel(a) }))}
+                                  placeholder="Selecione o destino..."
+                                  className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                                />
+                                {accounts.find(a => a.id === destinationAccountId) && (
+                                   <AccountRepairCard 
+                                      account={accounts.find(a => a.id === destinationAccountId)}
+                                      financeEntityId={activeFinanceEntityId || ''}
+                                      onRepaired={(repairedAcc) => {
+                                         setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                      }}
+                                   />
+                                )}
+                              </>
                           ) : (
                               <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
                                  Nenhuma conta

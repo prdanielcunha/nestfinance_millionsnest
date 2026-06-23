@@ -150,12 +150,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw new Error('ACCOUNT_ALREADY_EXISTS');
         }
 
+        const { normalizeAccountType, getAccountNature } = await import('../../../shared/finance/smartLogic.js');
+        const normalizedType = normalizeAccountType(type);
+        const nature = getAccountNature(normalizedType);
+
         const accountData: any = {
           organizationId,
           financeEntityId,
           name: trimmedName,
           normalizedName,
-          type,
+          type: normalizedType,
+          nature,
+          configurationStatus: 'complete',
           currency: 'BRL',
           active: true,
           schemaVersion: 1,

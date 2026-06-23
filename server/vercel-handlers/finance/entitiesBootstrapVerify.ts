@@ -216,6 +216,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
+    // Verification of standard/default accounts
+    const accountsVerifySnap = await orgRef.collection('financeAccounts').where('financeEntityId', '==', financeEntityId).get();
+    const { CANONICAL_ACCOUNT_TEMPLATES, getAccountNature } = await import('../../../shared/finance/smartLogic.js');
+    
+    for (const doc of accountsVerifySnap.docs) {
+       const acc = doc.data();
+       if (acc.source === 'setup_template' && !acc.templateKey) {
+          issues.push({
+             code: 'ACCOUNT_TEMPLATE_KEY_MISSING',
+             area: 'account',
+             message: 'Conta padrão sem templateKey esperado',
+             accountId: doc.id
+          });
+       }
+       if (acc.templateKey) {
+          const expectedKey = acc.templateKey;
+          const canon = CANONICAL_ACCOUNT_TEMPLATES[expectedKey];
+          
+          if (!canon) {
+             issues.push({ 
+                code: 'ACCOUNT_TEMPLATE_UNRECOGNIZED', 
+                area: 'account', 
+                message: 'Conta padrão com templateKey não reconhecido', 
+                accountId: doc.id 
+             });
+             continue;
+          }
+
+          if (!acc.type) {
+             issues.push({ 
+                code: 'ACCOUNT_TYPE_MISSING', 
+                area: 'account', 
+                message: 'Conta padrão sem tipo', 
+                accountId: doc.id 
+             });
+          }
+          if (!acc.nature) {
+             issues.push({ 
+                code: 'ACCOUNT_NATURE_MISSING', 
+                area: 'account', 
+                message: 'Conta padrão sem natureza', 
+                accountId: doc.id 
+             });
+          }
+          if (acc.type && acc.nature) {
+             const expectedNature = getAccountNature(acc.type);
+             if (acc.nature !== expectedNature) {
+                issues.push({ 
+                   code: 'ACCOUNT_NATURE_INCOMPATIBLE', 
+                   area: 'account', 
+                   message: 'Conta padrão com natureza incompatível', 
+                   accountId: doc.id 
+                });
+             }
+          }
+          if (acc.nature === 'clearing') {
+             issues.push({ 
+                code: 'ACCOUNT_NATURE_CLEARING', 
+                area: 'account', 
+                message: 'Conta padrão marcada como clearing sem justificativa', 
+                accountId: doc.id 
+             });
+          }
+       }
+    }
+
     const verified = idempotencyVerified && settingsVerified && auditLogVerified && (verifiedDocuments === manifest.documents.length) && (verifiedLocks === manifest.documents.length) && issues.length === 0;
 
     if (!verified) {
