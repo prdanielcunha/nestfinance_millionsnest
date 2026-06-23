@@ -150,10 +150,10 @@ export default function SetupPage() {
                 disabled={loading}
                 className="w-full bg-surface-base border border-border-subtle rounded-xl px-4 py-3 h-[44px] text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-text-primary/20 appearance-none"
               >
-                <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
-                <option value="America/Manaus">America/Manaus (AMT)</option>
-                <option value="America/Bahia">America/Bahia (BRT)</option>
-                <option value="UTC">UTC</option>
+                <option className="bg-surface-base text-text-primary" value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+                <option className="bg-surface-base text-text-primary" value="America/Manaus">America/Manaus (AMT)</option>
+                <option className="bg-surface-base text-text-primary" value="America/Bahia">America/Bahia (BRT)</option>
+                <option className="bg-surface-base text-text-primary" value="UTC">UTC</option>
               </select>
             </div>
             
@@ -166,7 +166,7 @@ export default function SetupPage() {
                 className="w-full bg-surface-base border border-border-subtle rounded-xl px-4 py-3 h-[44px] text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-text-primary/20 appearance-none"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
-                  <option key={num} value={num}>Mês {num}</option>
+                  <option className="bg-surface-base text-text-primary" key={num} value={num}>Mês {num}</option>
                 ))}
               </select>
             </div>
@@ -204,10 +204,10 @@ export default function SetupPage() {
                 disabled={loading}
                 className="w-full bg-surface-base border border-border-subtle rounded-xl px-4 py-3 h-[44px] text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-text-primary/20 appearance-none"
               >
-                <option value="aggregate">Agregado (apenas totais)</option>
-                <option value="anonymous_items">Itens anônimos (valores avulsos sem nome)</option>
-                <option value="identified_items">Itens identificados (valores vinculados a pessoas)</option>
-                <option value="mixed">Misto</option>
+                <option className="bg-surface-base text-text-primary" value="aggregate">Agregado (apenas totais)</option>
+                <option className="bg-surface-base text-text-primary" value="anonymous_items">Itens anônimos (valores avulsos sem nome)</option>
+                <option className="bg-surface-base text-text-primary" value="identified_items">Itens identificados (valores vinculados a pessoas)</option>
+                <option className="bg-surface-base text-text-primary" value="mixed">Misto</option>
               </select>
             </div>
 

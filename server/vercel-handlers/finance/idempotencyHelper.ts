@@ -58,11 +58,9 @@ export async function executeWithIdempotency<T>(
         await validateFn(t);
     }
 
-    t.set(docRef, { status: 'in_progress', payloadHash, createdAt: FieldValue.serverTimestamp() });
-
     const result = await operationFn(t);
 
-    t.update(docRef, { status: 'completed', result, completedAt: FieldValue.serverTimestamp() });
+    t.set(docRef, { status: 'completed', payloadHash, result, createdAt: FieldValue.serverTimestamp(), completedAt: FieldValue.serverTimestamp() });
     
     return result;
   });

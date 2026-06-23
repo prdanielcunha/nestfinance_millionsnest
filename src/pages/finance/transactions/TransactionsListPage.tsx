@@ -199,9 +199,9 @@ function TransactionsListContent() {
               className="h-12 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-xl px-4 hover:bg-surface-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-primary min-w-[120px]"
               aria-label="Filtrar por direção"
            >
-              <option value="all">Todas</option>
-              <option value="income">Entradas</option>
-              <option value="expense">Saídas</option>
+              <option className="bg-surface-elevated text-text-primary" value="all">Todas</option>
+              <option className="bg-surface-elevated text-text-primary" value="income">Entradas</option>
+              <option className="bg-surface-elevated text-text-primary" value="expense">Saídas</option>
            </select>
            <select 
               value={statusFilter} 
@@ -209,11 +209,11 @@ function TransactionsListContent() {
               className="h-12 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-xl px-4 hover:bg-surface-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-primary min-w-[120px]"
               aria-label="Filtrar por status"
            >
-              <option value="all">Últimas</option>
-              <option value="draft">Rascunhos</option>
-              <option value="ready_for_review">Revisão</option>
-              <option value="posted">Registradas</option>
-              <option value="reversed">Revertidas</option>
+              <option className="bg-surface-elevated text-text-primary" value="all">Últimas</option>
+              <option className="bg-surface-elevated text-text-primary" value="draft">Rascunhos</option>
+              <option className="bg-surface-elevated text-text-primary" value="ready_for_review">Revisão</option>
+              <option className="bg-surface-elevated text-text-primary" value="posted">Registradas</option>
+              <option className="bg-surface-elevated text-text-primary" value="reversed">Revertidas</option>
            </select>
            
            {hasEffectiveCapability(accessState, 'finance.create_drafts') && (

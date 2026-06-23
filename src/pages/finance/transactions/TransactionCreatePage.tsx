@@ -491,8 +491,8 @@ function TransactionCreateContent() {
                               onChange={e => setAccountId(e.target.value)}
                               className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                             >
-                              <option value="" disabled>Selecione uma conta...</option>
-                              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                              <option className="bg-surface-elevated text-text-primary" value="" disabled>Selecione uma conta...</option>
+                              {accounts.map(a => <option className="bg-surface-elevated text-text-primary" key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
                         ) : (
                             <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
@@ -510,8 +510,8 @@ function TransactionCreateContent() {
                           onChange={e => { setPaymentMethod(e.target.value); setPaymentMethodWarning(null); }}
                           className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                         >
-                          <option value="">Não especificado</option>
-                          {availablePaymentMethods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                          <option className="bg-surface-elevated text-text-primary" value="">Não especificado</option>
+                          {availablePaymentMethods.map(m => <option className="bg-surface-elevated text-text-primary" key={m.id} value={m.id}>{m.label}</option>)}
                         </select>
                         {paymentMethodWarning && (
                            <div className="text-amber-500 text-xs mt-1 px-1">
@@ -605,8 +605,8 @@ function TransactionCreateContent() {
                                       onChange={e => updateAllocation(i, 'categoryId', e.target.value)}
                                       className="w-full h-14 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                                     >
-                                      <option value="" disabled>Selecione uma categoria...</option>
-                                      {compatibleCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                      <option className="bg-surface-base text-text-primary" value="" disabled>Selecione uma categoria...</option>
+                                      {compatibleCategories.map(c => <option className="bg-surface-base text-text-primary" key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 ) : (
                                     <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center justify-center text-sm text-amber-500 bg-surface-base">
@@ -623,8 +623,8 @@ function TransactionCreateContent() {
                                       onChange={e => updateAllocation(i, 'fundId', e.target.value)}
                                       className="w-full h-14 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
                                     >
-                                      <option value="">Nenhum fundo</option>
-                                      {funds.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                      <option className="bg-surface-base text-text-primary" value="">Nenhum fundo</option>
+                                      {funds.map(f => <option className="bg-surface-base text-text-primary" key={f.id} value={f.id}>{f.name}</option>)}
                                     </select>
                                 ) : (
                                     <div className="h-14 bg-surface-base border border-border-subtle rounded-xl px-4 flex items-center text-sm text-text-muted">
