@@ -65,7 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    if (sessionList.isGlobalAccess !== true) {
+    // Must be global access or have finance.accounts.manage
+    const hasManageAccess = sessionList.isGlobalAccess === true || sessionList.capabilities?.includes('finance.accounts.manage');
+    if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
@@ -78,9 +80,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
     }
 
-    const { name, type, institutionName, accountLast4, financeEntityId, ...extras } = req.body;
+    const { 
+      name, type, institutionName, accountLast4, financeEntityId,
+      nature, operationalPurpose, supportedInstruments, availabilityBehavior
+    } = req.body;
 
-    if (Object.keys(extras).length > 0) {
+    // Check for extra unknown properties
+    const allowedKeys = [
+      'name', 'type', 'institutionName', 'accountLast4', 'financeEntityId',
+      'nature', 'operationalPurpose', 'supportedInstruments', 'availabilityBehavior'
+    ];
+    const extras = Object.keys(req.body).filter(k => !allowedKeys.includes(k));
+    if (extras.length > 0) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD_EXTRA_PROPERTIES' });
     }
 
@@ -102,18 +113,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const validTypes = ['cash', 'checking', 'savings', 'digital_wallet', 'other'];
+    const validTypes = [
+      'cash', 'checking', 'bank_checking', 'savings', 'bank_savings', 
+      'payment_account', 'digital_wallet', 'credit_card', 'petty_cash', 
+      'reimbursement_payable', 'card_receivable', 'other'
+    ];
     if (typeof type !== 'string' || !validTypes.includes(type)) {
       return res.status(400).json({ error: 'INVALID_TYPE' });
     }
 
-    if (institutionName !== undefined) {
+    if (institutionName !== undefined && institutionName !== null) {
       if (typeof institutionName !== 'string' || institutionName.length > 80) {
         return res.status(400).json({ error: 'INVALID_INSTITUTION_NAME' });
       }
     }
 
-    if (accountLast4 !== undefined) {
+    if (accountLast4 !== undefined && accountLast4 !== null) {
       if (typeof accountLast4 !== 'string' || !/^\d{4}$/.test(accountLast4)) {
         return res.status(400).json({ error: 'INVALID_ACCOUNT_LAST4' });
       }
@@ -152,7 +167,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { normalizeAccountType, getAccountNature } = await import('../../../shared/finance/smartLogic.js');
         const normalizedType = normalizeAccountType(type);
-        const nature = getAccountNature(normalizedType);
+        
+        let finalNature;
+        let isConfigured = 'complete';
+
+        // Custom / Other Account Hardening rules (Section 3)
+        if (normalizedType === 'other') {
+          if (!nature || !['asset', 'liability', 'receivable', 'clearing'].includes(nature)) {
+            throw new Error('INVALID_NATURE_FOR_CUSTOM_ACCOUNT');
+          }
+          finalNature = nature;
+
+          // Require explicit operational details
+          if (!operationalPurpose || typeof operationalPurpose !== 'string' || operationalPurpose.trim().length < 5) {
+            throw new Error('INVALID_OPERATIONAL_PURPOSE');
+          }
+          if (!Array.isArray(supportedInstruments) || supportedInstruments.length === 0 || supportedInstruments.some(i => typeof i !== 'string')) {
+            throw new Error('INVALID_SUPPORTED_INSTRUMENTS');
+          }
+          const validBehaviors = ['immediate', 'delayed', 'restricted', 'clearing'];
+          if (!availabilityBehavior || !validBehaviors.includes(availabilityBehavior)) {
+            throw new Error('INVALID_AVAILABILITY_BEHAVIOR');
+          }
+
+          // Force completeness
+          isConfigured = 'complete';
+        } else {
+          // Canonical/Standard type derivations
+          finalNature = getAccountNature(normalizedType);
+        }
 
         const accountData: any = {
           organizationId,
@@ -160,8 +203,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: trimmedName,
           normalizedName,
           type: normalizedType,
-          nature,
-          configurationStatus: 'complete',
+          nature: finalNature,
+          configurationStatus: isConfigured,
           currency: 'BRL',
           active: true,
           schemaVersion: 1,
@@ -171,8 +214,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           updatedBy: uid,
         };
 
-        if (institutionName !== undefined) accountData.institutionName = institutionName.trim();
-        if (accountLast4 !== undefined) accountData.accountLast4 = accountLast4;
+        if (normalizedType === 'other') {
+          accountData.operationalPurpose = operationalPurpose.trim();
+          accountData.supportedInstruments = supportedInstruments;
+          accountData.availabilityBehavior = availabilityBehavior;
+        }
+
+        if (institutionName !== undefined && institutionName !== null) accountData.institutionName = institutionName.trim();
+        if (accountLast4 !== undefined && accountLast4 !== null) accountData.accountLast4 = accountLast4;
 
         const uniqueKeyData = {
           organizationId,
@@ -209,6 +258,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (txError.message === 'ACCOUNT_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'ACCOUNT_ALREADY_EXISTS' });
       }
+      if (
+        txError.message === 'INVALID_NATURE_FOR_CUSTOM_ACCOUNT' ||
+        txError.message === 'INVALID_OPERATIONAL_PURPOSE' ||
+        txError.message === 'INVALID_SUPPORTED_INSTRUMENTS' ||
+        txError.message === 'INVALID_AVAILABILITY_BEHAVIOR'
+      ) {
+        return res.status(400).json({ error: txError.message });
+      }
       throw txError;
     }
 
@@ -220,4 +277,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
-

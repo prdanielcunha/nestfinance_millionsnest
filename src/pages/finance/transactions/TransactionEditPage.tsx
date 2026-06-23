@@ -87,6 +87,7 @@ function TransactionEditContent() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastReqId, setLastReqId] = useState<string | null>(null);
+  const [repairedAccountIds, setRepairedAccountIds] = useState<string[]>([]);
 
   const epochRef = useRef(0);
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -316,6 +317,12 @@ function TransactionEditContent() {
       return null;
     }
 
+    const originAcc = accounts.find(a => a.id === accountId);
+    if (originAcc && (originAcc.configurationStatus !== 'complete' || !originAcc.type || !originAcc.nature)) {
+      setSaveError('A conta selecionada está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.');
+      return null;
+    }
+
     if (direction === 'transfer') {
       if (!destinationAccountId) {
         setSaveError('Selecione a conta de destino para a transferência');
@@ -323,6 +330,11 @@ function TransactionEditContent() {
       }
       if (accountId === destinationAccountId) {
         setSaveError('A conta de destino não pode ser a mesma de origem');
+        return null;
+      }
+      const destAcc = accounts.find(a => a.id === destinationAccountId);
+      if (destAcc && (destAcc.configurationStatus !== 'complete' || !destAcc.type || !destAcc.nature)) {
+        setSaveError('A conta de destino está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.');
         return null;
       }
     }
@@ -335,6 +347,11 @@ function TransactionEditContent() {
       if (!liabilityAccountId) {
          setSaveError('Selecione o passivo a liquidar');
          return null;
+      }
+      const liabAcc = accounts.find(a => a.id === liabilityAccountId);
+      if (liabAcc && (liabAcc.configurationStatus !== 'complete' || !liabAcc.type || !liabAcc.nature)) {
+        setSaveError('O passivo selecionado está incompleto. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.');
+        return null;
       }
     }
 
@@ -405,6 +422,15 @@ function TransactionEditContent() {
        else if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg === 'Erro ao salvar' || err.name === 'TypeError') {
            msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
        }
+
+       const hasRepairedAcc = repairedAccountIds.includes(accountId) || 
+                              (direction === 'transfer' && repairedAccountIds.includes(destinationAccountId)) ||
+                              (direction === 'liability_settlement' && repairedAccountIds.includes(liabilityAccountId));
+
+       if (hasRepairedAcc) {
+          msg = 'A conta foi corrigida. Revise os dados destacados para concluir a movimentação.';
+       }
+
        setSaveError(msg);
   };
 
@@ -787,6 +813,7 @@ function TransactionEditContent() {
                                  financeEntityId={activeFinanceEntityId || ''}
                                  onRepaired={(repairedAcc) => {
                                     setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                    setRepairedAccountIds(prev => [...prev, repairedAcc.id]);
                                  }}
                               />
                            )}
@@ -814,6 +841,7 @@ function TransactionEditContent() {
                                     financeEntityId={activeFinanceEntityId || ''}
                                     onRepaired={(repairedAcc) => {
                                        setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                       setRepairedAccountIds(prev => [...prev, repairedAcc.id]);
                                     }}
                                  />
                               )}
@@ -843,6 +871,7 @@ function TransactionEditContent() {
                                       financeEntityId={activeFinanceEntityId || ''}
                                       onRepaired={(repairedAcc) => {
                                          setAccounts(prev => prev.map(a => a.id === repairedAcc.id ? repairedAcc : a));
+                                         setRepairedAccountIds(prev => [...prev, repairedAcc.id]);
                                       }}
                                    />
                                 )}

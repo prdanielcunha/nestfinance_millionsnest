@@ -131,7 +131,7 @@ function runLedgerTests() {
 
   // Transferências
   const txTransfer = {
-    direction: 'transfer', financeEntityId: 'ent1', amountCents: 100, sourceAccountId: 'a1', destinationAccountId: 'a2' 
+    transactionKind: 'transfer', direction: 'transfer', financeEntityId: 'ent1', amountCents: 100, sourceAccountId: 'a1', destinationAccountId: 'a2' 
   } as LedgerTransaction;
 
   runTest('41. origem e destino iguais rejeitados', () => expectThrow(() => validateTransactionCore({...txTransfer, destinationAccountId: 'a1'} as any), 'FINANCE_ACCOUNT_MISMATCH'));

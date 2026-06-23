@@ -30,6 +30,7 @@ function runPostingPreviewTests() {
     id: 'tx_1234567890abcdef1234567890abcdef',
     organizationId: 'org1',
     financeEntityId: 'ent1',
+    transactionKind: 'income',
     direction: 'income',
     status: 'ready_for_review',
     amountCents: 9500,
@@ -165,7 +166,7 @@ function runPostingPreviewTests() {
   runTest('8. Saída de 28740 com um rateio', () => {
     const res = generatePostingPreview({
       ...baseInput,
-      transaction: { ...baseTx, direction: 'expense', amountCents: 28740 } as LedgerTransaction,
+      transaction: { ...baseTx, transactionKind: 'expense', direction: 'expense', amountCents: 28740 } as LedgerTransaction,
       allocations: [{ ...baseAllocations[0], categoryId: 'cat_energia', amountCents: 28740 }]
     });
     assert.strictEqual(res.ready, true);
@@ -177,7 +178,7 @@ function runPostingPreviewTests() {
   runTest('9. Débito na despesa', () => {
      const res = generatePostingPreview({
       ...baseInput,
-      transaction: { ...baseTx, direction: 'expense', amountCents: 28740 } as LedgerTransaction,
+      transaction: { ...baseTx, transactionKind: 'expense', direction: 'expense', amountCents: 28740 } as LedgerTransaction,
       allocations: [{ ...baseAllocations[0], categoryId: 'cat_energia', amountCents: 28740 }]
     });
     if (!res.ready) throw new Error('Expected ready');
@@ -188,7 +189,7 @@ function runPostingPreviewTests() {
   runTest('10. Crédito no ativo', () => {
      const res = generatePostingPreview({
       ...baseInput,
-      transaction: { ...baseTx, direction: 'expense', amountCents: 28740 } as LedgerTransaction,
+      transaction: { ...baseTx, transactionKind: 'expense', direction: 'expense', amountCents: 28740 } as LedgerTransaction,
       allocations: [{ ...baseAllocations[0], categoryId: 'cat_energia', amountCents: 28740 }]
     });
     if (!res.ready) throw new Error('Expected ready');
@@ -199,7 +200,7 @@ function runPostingPreviewTests() {
   runTest('11. Múltiplos rateios de despesa', () => {
      const res = generatePostingPreview({
       ...baseInput,
-      transaction: { ...baseTx, direction: 'expense', amountCents: 20000 } as LedgerTransaction,
+      transaction: { ...baseTx, transactionKind: 'expense', direction: 'expense', amountCents: 20000 } as LedgerTransaction,
       allocations: [
         { ...baseAllocations[0], categoryId: 'cat_energia', amountCents: 15000 },
         { ...baseAllocations[1], categoryId: 'cat_energia', amountCents: 5000 }
@@ -376,13 +377,13 @@ function runPostingPreviewTests() {
   });
 
   runTest('38. transfer rejeitada', () => {
-    const res = generatePostingPreview({ ...baseInput, transaction: { ...baseTx, direction: 'transfer' } as any });
+    const res = generatePostingPreview({ ...baseInput, transaction: { ...baseTx, transactionKind: 'transfer', direction: 'transfer' } as any });
     assert.strictEqual(res.ready, false);
     if (!res.ready) assert.strictEqual(res.blockers.some(b => b.code === 'POSTING_DIRECTION_NOT_SUPPORTED'), true);
   });
 
   runTest('39. adjustment rejeitado', () => {
-    const res = generatePostingPreview({ ...baseInput, transaction: { ...baseTx, direction: 'adjustment' } as any });
+    const res = generatePostingPreview({ ...baseInput, transaction: { ...baseTx, transactionKind: 'adjustment', direction: 'adjustment' } as any });
     assert.strictEqual(res.ready, false);
     if (!res.ready) assert.strictEqual(res.blockers.some(b => b.code === 'POSTING_DIRECTION_NOT_SUPPORTED'), true);
   });

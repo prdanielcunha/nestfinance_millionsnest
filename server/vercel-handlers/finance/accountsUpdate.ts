@@ -22,14 +22,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
   }
 
-  const contentType = req.headers['content-type'];
-  if (!contentType || !contentType.includes('application/json')) {
+  const contentType = req.headers['content-type'] ?? '';
+  if (!contentType.includes('application/json')) {
     return res.status(415).json({ error: 'UNSUPPORTED_MEDIA_TYPE' });
-  }
-
-  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
-  if (contentLength > 8192) {
-    return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE' });
   }
 
   const authHeader = req.headers.authorization;
@@ -66,7 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    if (sessionList.isGlobalAccess !== true) {
+    // Must be global access or have finance.accounts.manage
+    const hasManageAccess = sessionList.isGlobalAccess === true || sessionList.capabilities?.includes('finance.accounts.manage');
+    if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
@@ -74,7 +71,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const { accountId, name, institutionName, accountLast4, financeEntityId } = req.body;
+    const { 
+      accountId, name, institutionName, accountLast4, financeEntityId,
+      type, nature, configurationStatus, operationalPurpose, supportedInstruments, availabilityBehavior
+    } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
@@ -114,7 +114,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (trimmedInst.length < 2 || trimmedInst.length > 80) {
           return res.status(400).json({ error: 'INVALID_INSTITUTION_NAME_LENGTH' });
         }
-        // reject control chars
         if (/[\x00-\x1F\x7F]/.test(trimmedInst)) {
           return res.status(400).json({ error: 'INVALID_INSTITUTION_NAME' });
         }
@@ -144,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const result = await firestore.runTransaction(async (t) => {
-        const { accountRef, accountData } = await requireScopedFinanceAccount({
+        const { accountData } = await requireScopedFinanceAccount({
           db: firestore,
           uid,
           organizationId,
@@ -171,15 +170,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isVisualNameChanged = currentName !== trimmedName;
         const isInstitutionNameChanged = currentInstitutionName !== parsedInstitutionName;
         const isAccountLast4Changed = currentAccountLast4 !== parsedAccountLast4;
+        
+        const isTypeChanged = type !== undefined && type !== accountData.type;
+        const isNatureChanged = nature !== undefined && nature !== accountData.nature;
+        const isConfigStatusChanged = configurationStatus !== undefined && configurationStatus !== accountData.configurationStatus;
+        const isPurposeChanged = operationalPurpose !== undefined && operationalPurpose !== accountData.operationalPurpose;
+        const isInstrumentsChanged = supportedInstruments !== undefined && JSON.stringify(supportedInstruments) !== JSON.stringify(accountData.supportedInstruments);
+        const isBehaviorChanged = availabilityBehavior !== undefined && availabilityBehavior !== accountData.availabilityBehavior;
 
-        // No-op operation does not write locks or audit logs
-        if (!isNameChanged && !isVisualNameChanged && !isInstitutionNameChanged && !isAccountLast4Changed) {
+        // Check if anything actually changed
+        if (
+          !isNameChanged && !isVisualNameChanged && !isInstitutionNameChanged && !isAccountLast4Changed &&
+          !isTypeChanged && !isNatureChanged && !isConfigStatusChanged && !isPurposeChanged && !isInstrumentsChanged && !isBehaviorChanged
+        ) {
           return {
             changed: false,
             account: {
               id: accountId,
               name: currentName,
               type: accountData.type,
+              nature: accountData.nature,
+              configurationStatus: accountData.configurationStatus,
               institutionName: currentInstitutionName || undefined,
               accountLast4: currentAccountLast4 || undefined,
               currency: accountData.currency,
@@ -188,11 +199,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           };
         }
 
-        let newUniqueDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData> | null = null;
-
         if (isNameChanged) {
-          newUniqueDoc = await t.get(uniqueKeysCol.doc(newUniqueKeyId));
-          
+          const newUniqueDoc = await t.get(uniqueKeysCol.doc(newUniqueKeyId));
           if (newUniqueDoc.exists) {
             throw new Error('ACCOUNT_ALREADY_EXISTS');
           }
@@ -248,39 +256,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         if (isInstitutionNameChanged) {
-          accountUpdateData.institutionName = parsedInstitutionName;
-          if (parsedInstitutionName === null) {
-            accountUpdateData.institutionName = FieldValue.delete();
-          }
+          accountUpdateData.institutionName = parsedInstitutionName === null ? FieldValue.delete() : parsedInstitutionName;
         }
 
         if (isAccountLast4Changed) {
-          accountUpdateData.accountLast4 = parsedAccountLast4;
-          if (parsedAccountLast4 === null) {
-            accountUpdateData.accountLast4 = FieldValue.delete();
+          accountUpdateData.accountLast4 = parsedAccountLast4 === null ? FieldValue.delete() : parsedAccountLast4;
+        }
+
+        // Inline metadata & custom account properties update
+        if (type !== undefined) {
+          const { normalizeAccountType, getAccountNature } = await import('../../../shared/finance/smartLogic.js');
+          const normalizedType = normalizeAccountType(type);
+          accountUpdateData.type = normalizedType;
+
+          if (normalizedType === 'other') {
+            const finalNature = nature || accountData.nature || 'clearing';
+            accountUpdateData.nature = finalNature;
+
+            // Strict Validation rules if we are saving other/custom with configuration complete
+            if (configurationStatus === 'complete' || accountData.configurationStatus === 'complete') {
+              const checkPurpose = operationalPurpose !== undefined ? operationalPurpose : accountData.operationalPurpose;
+              const checkInstruments = supportedInstruments !== undefined ? supportedInstruments : accountData.supportedInstruments;
+              const checkBehavior = availabilityBehavior !== undefined ? availabilityBehavior : accountData.availabilityBehavior;
+
+              if (!['asset', 'liability', 'receivable', 'clearing'].includes(finalNature)) {
+                throw new Error('INVALID_NATURE_FOR_CUSTOM_ACCOUNT');
+              }
+              if (!checkPurpose || typeof checkPurpose !== 'string' || checkPurpose.trim().length < 5) {
+                throw new Error('INVALID_OPERATIONAL_PURPOSE');
+              }
+              if (!Array.isArray(checkInstruments) || checkInstruments.length === 0 || checkInstruments.some(i => typeof i !== 'string')) {
+                throw new Error('INVALID_SUPPORTED_INSTRUMENTS');
+              }
+              const validBehaviors = ['immediate', 'delayed', 'restricted', 'clearing'];
+              if (!checkBehavior || !validBehaviors.includes(checkBehavior)) {
+                throw new Error('INVALID_AVAILABILITY_BEHAVIOR');
+              }
+            }
+          } else {
+            accountUpdateData.nature = getAccountNature(normalizedType);
           }
+        }
+
+        if (nature !== undefined && type === 'other') {
+          if (!['asset', 'liability', 'receivable', 'clearing'].includes(nature)) {
+            throw new Error('INVALID_NATURE_FOR_CUSTOM_ACCOUNT');
+          }
+          accountUpdateData.nature = nature;
+        }
+
+        if (configurationStatus !== undefined) {
+          accountUpdateData.configurationStatus = configurationStatus;
+        }
+
+        if (operationalPurpose !== undefined) {
+          accountUpdateData.operationalPurpose = operationalPurpose.trim();
+        }
+
+        if (supportedInstruments !== undefined) {
+          accountUpdateData.supportedInstruments = supportedInstruments;
+        }
+
+        if (availabilityBehavior !== undefined) {
+          accountUpdateData.availabilityBehavior = availabilityBehavior;
         }
 
         t.update(accountRef, accountUpdateData);
 
         const auditChanges: any = {};
         if (isNameChanged || isVisualNameChanged) {
-          auditChanges.name = {
-            from: currentName,
-            to: trimmedName
-          };
+          auditChanges.name = { from: currentName, to: trimmedName };
         }
         if (isInstitutionNameChanged) {
-          auditChanges.institutionName = {
-            from: currentInstitutionName,
-            to: parsedInstitutionName
-          };
+          auditChanges.institutionName = { from: currentInstitutionName, to: parsedInstitutionName };
         }
         if (isAccountLast4Changed) {
-          auditChanges.accountLast4 = {
-            fromPresent: currentAccountLast4 !== null,
-            toPresent: parsedAccountLast4 !== null
-          };
+          auditChanges.accountLast4 = { fromPresent: currentAccountLast4 !== null, toPresent: parsedAccountLast4 !== null };
+        }
+        if (isTypeChanged) {
+          auditChanges.type = { from: accountData.type, to: accountUpdateData.type };
+        }
+        if (isNatureChanged) {
+          auditChanges.nature = { from: accountData.nature, to: accountUpdateData.nature };
+        }
+        if (isConfigStatusChanged) {
+          auditChanges.configurationStatus = { from: accountData.configurationStatus, to: configurationStatus };
         }
 
         const auditData = {
@@ -297,12 +357,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         t.create(auditRef, auditData);
 
+        const finalAccountType = accountUpdateData.type || accountData.type;
         return {
           changed: true,
           account: {
             id: accountId,
             name: trimmedName,
-            type: accountData.type,
+            type: finalAccountType,
+            nature: accountUpdateData.nature || accountData.nature,
+            configurationStatus: accountUpdateData.configurationStatus || accountData.configurationStatus,
             institutionName: parsedInstitutionName || undefined,
             accountLast4: parsedAccountLast4 || undefined,
             currency: accountData.currency,
@@ -322,6 +385,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (txError.message === 'FINANCE_ENTITY_MISMATCH') {
         return res.status(403).json({ error: 'FINANCE_ENTITY_MISMATCH' });
       }
+      if (
+        txError.message === 'INVALID_NATURE_FOR_CUSTOM_ACCOUNT' ||
+        txError.message === 'INVALID_OPERATIONAL_PURPOSE' ||
+        txError.message === 'INVALID_SUPPORTED_INSTRUMENTS' ||
+        txError.message === 'INVALID_AVAILABILITY_BEHAVIOR'
+      ) {
+        return res.status(400).json({ error: txError.message });
+      }
       throw txError;
     }
 
@@ -329,6 +400,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
+    console.error('Update account error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
