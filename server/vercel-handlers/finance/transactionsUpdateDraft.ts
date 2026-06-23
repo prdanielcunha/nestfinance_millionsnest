@@ -6,6 +6,7 @@ import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './
 import { generateAllocationId, generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { validateAllocation, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
+import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -187,6 +188,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (isNoOpTransaction && isNoOpAllocs) {
          return { changed: false, transactionId, version: txData.version };
+      }
+
+      const keysNeedUpdate = oldState.occurredAt !== newStateVal.occurredAt || oldState.direction !== newStateVal.direction || oldState.status !== newStateVal.status || !(txData as any).listQueryKeys;
+      if (keysNeedUpdate) {
+         newRecord.listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, newRecord.direction, newRecord.status, newRecord.occurredAt);
       }
 
       newRecord.version = txData.version + 1;

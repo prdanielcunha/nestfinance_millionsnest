@@ -39,6 +39,12 @@ export const transactionsService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (res.status === 503 && err.details && err.details.code === 'FIRESTORE_INDEX_REQUIRED') {
+         // Create a richer error payload for index missing
+         const throwErr: any = new Error(err.error || 'Failed to list transactions');
+         throwErr.details = err.details;
+         throw throwErr;
+      }
       throw new Error(err.error || 'Failed to list transactions');
     }
 

@@ -6,6 +6,7 @@ import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './
 import { generateTransactionId, generateAllocationId, generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
+import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -160,6 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // We convert temporal strings to server timestamps for persistence if needed, but PRD says ISO-8601 strings and createdAt/updatedAt using serverTimestamp
       const txData = {
         ...txPayload,
+        listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, direction, 'draft', occurredAt),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       };

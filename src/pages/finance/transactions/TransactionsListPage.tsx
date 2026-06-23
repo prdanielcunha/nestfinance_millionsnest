@@ -7,6 +7,7 @@ import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
+import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
 
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
@@ -48,6 +49,8 @@ function TransactionsListContent() {
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
 
+  const [errorDetails, setErrorDetails] = useState<any>(null);
+
   // Filters
   const directionFilter = searchParams.get('direction') || 'all';
   const statusFilter = searchParams.get('status') || 'all';
@@ -73,6 +76,7 @@ function TransactionsListContent() {
     if (!cursor) setLoading(true);
     else setLoadingMore(true);
     setError(null);
+    setErrorDetails(null);
 
     try {
       const filters: any = {};
@@ -89,6 +93,10 @@ function TransactionsListContent() {
     } catch (err: any) {
       if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
       
+      if (err.details) {
+         setErrorDetails(err.details);
+      }
+
       if (err.message.includes('permission')) {
         setError('FORBIDDEN');
       } else if (err.message.includes('financeEntityId is required')) {
@@ -222,7 +230,13 @@ function TransactionsListContent() {
 
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto flex flex-col gap-3 pb-[env(safe-area-inset-bottom)]">
-          {error && error !== 'FORBIDDEN' && error !== 'FINANCE_ENTITY_REQUIRED' && (
+          {errorDetails?.code === 'FIRESTORE_INDEX_REQUIRED' ? (
+             <FirestoreIndexRemediationCard 
+                remediation={errorDetails.remediation} 
+                requestId={errorDetails.requestId} 
+                onRetry={() => loadData(undefined, undefined, epochRef.current)} 
+             />
+          ) : error && error !== 'FORBIDDEN' && error !== 'FINANCE_ENTITY_REQUIRED' ? (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col items-center justify-center text-center">
               <AlertCircle className="w-6 h-6 text-red-500 mb-2" />
               <p className="text-sm text-red-500 mb-4">{
@@ -236,9 +250,9 @@ function TransactionsListContent() {
                 Tentar novamente
               </button>
             </div>
-          )}
+          ) : null}
 
-          {!loading && !error && items.length === 0 && (
+          {!loading && !error && !errorDetails && items.length === 0 && (
             <div className="flex flex-col items-center justify-center p-12 text-center text-text-secondary mt-12 mb-12">
               <span className="text-sm font-medium text-text-muted">Nenhuma movimentação registrada.</span>
             </div>

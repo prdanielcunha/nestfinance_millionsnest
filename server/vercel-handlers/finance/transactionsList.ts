@@ -2,8 +2,14 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
+import { normalizeFirestoreInfrastructureError } from '../../shared/firestore/indexRemediation.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const startTime = Date.now();
+  let isGlobalAdmin = false;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   }
@@ -34,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!sessionList.granted) {
        console.log('Session denial reason:', sessionList);
     }
+    isGlobalAdmin = sessionList.isGlobalAccess || false;
     
     // Will throw if forbidden or not found/active
     const context = await requireFinanceTransactionAccess({
@@ -45,28 +52,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       capability: 'finance.view'
     });
 
-    let query = context.repository.getTransactionsQuery();
-    
+    let direction = undefined;
+    let status = undefined;
+    let occurredFrom = undefined;
+    let occurredTo = undefined;
+
     if (filters) {
-      if (filters.direction) {
-        query = query.where('direction', '==', filters.direction);
-      }
-      if (filters.status) {
-        query = query.where('status', '==', filters.status);
-      }
-      if (filters.occurredFrom) {
-        query = query.where('occurredAt', '>=', filters.occurredFrom);
-      }
-      if (filters.occurredTo) {
-        query = query.where('occurredAt', '<=', filters.occurredTo);
-      }
-      if (filters.accountId) {
-        query = query.where('accountId', '==', filters.accountId);
-      }
+      if (filters.direction && filters.direction !== 'all') direction = filters.direction;
+      if (filters.status && filters.status !== 'all') status = filters.status;
+      if (filters.occurredFrom) occurredFrom = filters.occurredFrom;
+      if (filters.occurredTo) occurredTo = filters.occurredTo;
     }
 
-    // Default sorting based on occurrence descending
-    query = query.orderBy('occurredAt', 'desc').orderBy('__name__', 'desc');
+    const bounds = getTransactionListQueryBounds(
+      financeEntityId, direction, status, occurredFrom, occurredTo
+    );
+
+    let query = context.repository.getTransactionsQuery()
+      .where(bounds.field, '>=', bounds.startAt)
+      .where(bounds.field, '<', bounds.endBefore)
+      .orderBy(bounds.field, 'asc');
 
     const limit = Math.min(Math.max(pageSize, 1), 100);
     query = query.limit(limit);
@@ -81,18 +86,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (cursorData.financeEntityId !== financeEntityId) {
         return res.status(400).json({ error: 'INVALID_CURSOR' });
       }
-      query = query.startAfter(cursorDoc);
+      
+      const cursorKey = cursorData.listQueryKeys ? cursorData.listQueryKeys[bounds.field.split('.')[1]] : null;
+      if (cursorKey) {
+        query = query.startAfter(cursorKey);
+      } else {
+        // Fallback for document snapshot cursor (it might still fail if not using the exact selected cursor field, but cursorKey is best)
+        query = query.startAfter(cursorDoc);
+      }
     }
 
+    const queryStartTime = Date.now();
     const snapshot = await query.get();
+    const queryDurationMs = Date.now() - queryStartTime;
     
-    const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     let ignoredRecordsCount = 0;
 
     const items = [];
     for (const doc of snapshot.docs) {
       try {
         const data = doc.data();
+
+        if (data.financeEntityId !== financeEntityId) {
+          console.error(`[Integrity Violation] Cross-entity leakage prevented. Document ${doc.id} does not belong to financeEntityId ${financeEntityId} (req: ${requestId})`);
+          ignoredRecordsCount++;
+          continue;
+        }
+
         let occurredAt = null;
         if (data.occurredAt) {
           if (typeof data.occurredAt.toDate === 'function') {
@@ -174,6 +194,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
     }
 
+    console.log(`[Metrics] transactionsList (req: ${requestId}) - queryDuration: ${queryDurationMs}ms, returned: ${items.length}, pageSize: ${limit}, hasMore: ${!!nextCursor}`);
+
     return res.status(200).json({
       items,
       nextCursor,
@@ -181,7 +203,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    console.error('List Transactions Error:', error);
     if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
@@ -191,6 +212,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
+    
+    // Normalize infrastructure errors (e.g. missing indexes)
+    // Always use a fallback requestId
+    const normalizedId = typeof requestId !== 'undefined' && typeof requestId === 'string' ? requestId : `req_${Date.now()}`;
+    const normalizedError = normalizeFirestoreInfrastructureError(error, {
+      requestId: normalizedId,
+      operation: 'transactionsList',
+      isGlobalAdmin
+    });
+
+    console.error('List Transactions Error:', error);
+    
+    if (normalizedError) {
+       console.log(`[Metrics] transactionsList index error handled (req: ${normalizedId}) - URL exposed: ${!!normalizedError.indexCreateUrl}`);
+       const { indexCreateUrl, code, operation, retryable } = normalizedError;
+       if (indexCreateUrl) {
+         return res.status(503).json({
+           error: 'SERVICE_UNAVAILABLE',
+           details: {
+             code,
+             requestId: normalizedId,
+             operation,
+             retryable,
+             remediation: {
+                type: 'CREATE_FIRESTORE_INDEX',
+                url: indexCreateUrl
+             }
+           }
+         });
+       } else {
+         return res.status(503).json({
+            error: 'SERVICE_UNAVAILABLE',
+            details: {
+              code,
+              requestId: normalizedId,
+              operation,
+              retryable
+            }
+         });
+       }
+    }
+
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }
