@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import type { LedgerTransaction } from '../../shared/finance/ledger/transaction.js';
+import { FINANCE_GATEWAY_PATH } from '../config/api';
 
 export interface TransactionsListResponse {
   items: LedgerTransaction[];
@@ -31,7 +32,7 @@ export const transactionsService = {
     headers.set('Content-Type', 'application/json');
     headers.set('x-organization-id', organizationId);
 
-    const res = await fetch('/api/finance?operation=transactions-list', {
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-list`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ financeEntityId, filters, cursor, pageSize })
@@ -61,7 +62,7 @@ export const transactionsService = {
     headers.set('Content-Type', 'application/json');
     headers.set('x-organization-id', organizationId);
 
-    const res = await fetch('/api/finance?operation=transactions-detail', {
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-detail`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ financeEntityId, transactionId })
@@ -85,7 +86,7 @@ export const transactionsService = {
     headers.set('Content-Type', 'application/json');
     headers.set('x-organization-id', organizationId);
 
-    const res = await fetch('/api/finance?operation=transactions-create-draft', {
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-create-draft`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
@@ -114,7 +115,7 @@ export const transactionsService = {
     headers.set('Content-Type', 'application/json');
     headers.set('x-organization-id', organizationId);
 
-    const res = await fetch('/api/finance?operation=transactions-update-draft', {
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-update-draft`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 
@@ -145,7 +146,7 @@ export const transactionsService = {
     headers.set('Content-Type', 'application/json');
     headers.set('x-organization-id', organizationId);
 
-    const res = await fetch('/api/finance?operation=transactions-submit-review', {
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-submit-review`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ 

@@ -311,6 +311,8 @@ function TransactionCreateContent() {
        else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) msg = 'Esta tentativa não pode ser repetida com informações diferentes.';
        else if (msg.includes('FINANCE_PAYMENT_METHOD_MISMATCH')) msg = 'A forma de pagamento ' + (paymentMethod === 'pix' ? 'Pix' : '') + ' não é compatível com esta conta.';
        else if (msg.includes('permission') || msg.includes('FORBIDDEN')) msg = 'Você não tem permissão para registrar esta movimentação.';
+       else if (msg.includes('ROUTE_NOT_FOUND') || msg.includes('Unexpected token')) msg = 'O serviço financeiro está temporariamente indisponível.';
+       else if (msg.includes('Failed to create transaction draft')) msg = 'Não foi possível salvar o rascunho.';
        else if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg === 'Erro ao salvar' || err.name === 'TypeError') {
            msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
        } else {
