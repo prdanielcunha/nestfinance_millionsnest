@@ -110,7 +110,7 @@ export default function SetupPage() {
         <button
           onClick={handleSubmit}
           disabled={loading || success}
-          className="flex items-center justify-center gap-2 bg-text-primary text-background-base px-5 py-2.5 rounded-full text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 min-w-[140px]"
+          className="flex items-center justify-center gap-2 bg-text-primary text-surface-base px-5 py-2.5 rounded-full text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 min-w-[140px]"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-background-base border-t-transparent rounded-full animate-spin" />

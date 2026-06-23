@@ -3,14 +3,17 @@ import { FinanceAllocation, validateAllocation, assertAllocationsTotal } from '.
 import { assertAmountCents } from './money.js';
 import { LedgerDomainError } from './errors.js';
 
-export type TransactionDirection = 'income' | 'expense' | 'transfer' | 'adjustment' | 'liability_settlement';
+export type TransactionKind = 'income' | 'expense' | 'transfer' | 'adjustment' | 'liability_settlement';
+export type CashFlowDirection = 'inflow' | 'outflow' | 'internal' | 'none';
 export type TransactionStatus = 'draft' | 'ready_for_review' | 'posted' | 'reversed';
 
 export type TransactionBase = {
   id: TransactionId;
   organizationId: string;
   financeEntityId: string;
-  direction: TransactionDirection;
+  transactionKind: TransactionKind;
+  cashFlowDirection: CashFlowDirection;
+  direction?: string; // Legacy field for listQueryKeys and backwards compatibility
   status: TransactionStatus;
   amountCents: number;
   currency: string;
@@ -35,16 +38,16 @@ export type TransactionBase = {
 };
 
 export type IncomeTransaction = TransactionBase & {
-  direction: 'income';
+  transactionKind: 'income';
   accountId: string; 
-  accountSnapshot?: { id: string; name: string; type: string };
+  accountSnapshot?: { id: string; name: string; type: string, nature: string };
   allocationIds: string[];
 };
 
 export type ExpenseTransaction = TransactionBase & {
-  direction: 'expense';
+  transactionKind: 'expense';
   accountId: string;
-  accountSnapshot?: { id: string; name: string; type: string };
+  accountSnapshot?: { id: string; name: string; type: string, nature: string };
   allocationIds: string[];
   reimbursement?: { 
     payableId: string;
@@ -54,23 +57,23 @@ export type ExpenseTransaction = TransactionBase & {
 };
 
 export type TransferTransaction = TransactionBase & {
-  direction: 'transfer';
+  transactionKind: 'transfer';
   sourceAccountId: string;
   destinationAccountId: string;
 };
 
 export type AdjustmentTransaction = TransactionBase & {
-  direction: 'adjustment';
+  transactionKind: 'adjustment';
   accountId: string;
   adjustmentType: string;
 };
 
 export type LiabilitySettlementTransaction = TransactionBase & {
-  direction: 'liability_settlement';
+  transactionKind: 'liability_settlement';
   sourceAccountId: string;
   liabilityAccountId: string;
-  liabilityAccountSnapshot?: { id: string; name: string; type: string };
-  settlementType: 'credit_card_bill' | 'reimbursement';
+  liabilityAccountSnapshot?: { id: string; name: string; type: string, nature: string };
+  settlementType: 'credit_card_bill' | 'reimbursement' | 'other_liability';
 };
 
 export type LedgerTransaction = 
@@ -95,7 +98,7 @@ export function assertTransactionStatusTransition(from: TransactionStatus, to: T
 }
 
 export function validateTransactionCore(tx: LedgerTransaction): void {
-  if (tx.amountCents === 0 && tx.direction !== 'adjustment') {
+  if (tx.amountCents === 0 && tx.transactionKind !== 'adjustment') {
     throw new LedgerDomainError('FINANCE_INVALID_AMOUNT', 'Transaction amount must be strictly positive');
   }
   assertAmountCents(tx.amountCents);
@@ -104,7 +107,7 @@ export function validateTransactionCore(tx: LedgerTransaction): void {
     throw new LedgerDomainError('FINANCE_CROSS_ENTITY_REFERENCE', 'FinanceEntityId is missing');
   }
 
-  if (tx.direction === 'transfer') {
+  if (tx.transactionKind === 'transfer') {
     if (tx.sourceAccountId === tx.destinationAccountId) {
       throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and destination accounts must differ');
     }
@@ -113,7 +116,16 @@ export function validateTransactionCore(tx: LedgerTransaction): void {
     }
   }
 
-  if (tx.direction === 'income' || tx.direction === 'expense') {
+  if (tx.transactionKind === 'liability_settlement') {
+    if (tx.sourceAccountId === tx.liabilityAccountId) {
+      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and liability accounts must differ');
+    }
+    if (!tx.sourceAccountId || !tx.liabilityAccountId) {
+      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and liability accounts required');
+    }
+  }
+
+  if (tx.transactionKind === 'income' || tx.transactionKind === 'expense') {
     if (!tx.accountId) {
       throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Account is required');
     }

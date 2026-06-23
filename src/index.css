@@ -3,6 +3,7 @@
 @theme {
   --color-background-base: var(--nf-background-base);
   --color-background-deep: var(--nf-background-deep);
+  --color-surface-base: var(--nf-background-base);
   --color-surface-default: var(--nf-surface-default);
   --color-surface-secondary: var(--nf-surface-secondary);
   --color-surface-elevated: var(--nf-surface-elevated);
@@ -10,6 +11,9 @@
   --color-text-primary: var(--nf-text-primary);
   --color-text-secondary: var(--nf-text-secondary);
   --color-text-muted: var(--nf-text-muted);
+
+  --color-border-subtle: var(--nf-border-subtle);
+  --color-border-strong: var(--nf-border-strong);
 
   --color-accent-primary: var(--nf-accent-primary);
   --color-semantic-success: var(--nf-semantic-success);

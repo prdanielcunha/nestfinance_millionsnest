@@ -434,7 +434,7 @@ function TransactionDetailContent() {
                              {isBalanced && tx.accountId && tx.method && tx.amountCents > 0 && allocs.length > 0 && !allocs.some((a: any) => !a.categoryId) && (
                                 <button 
                                    onClick={() => setSubmitModalOpen(true)}
-                                   className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-background-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors text-base"
+                                   className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors text-base"
                                 >
                                    Concluir movimentação
                                 </button>
@@ -523,7 +523,7 @@ function TransactionDetailContent() {
                                 <button 
                                    onClick={handleSubmitForReview}
                                    disabled={submitting}
-                                   className="w-full h-14 flex items-center justify-center bg-text-primary text-background-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-elevated"
+                                   className="w-full h-14 flex items-center justify-center bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-elevated"
                                 >
                                    {submitting ? (
                                       <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />

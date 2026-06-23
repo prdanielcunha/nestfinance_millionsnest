@@ -11,11 +11,11 @@ const MAX_TIMESTAMP_MS = 9999999999999;
 export function buildTransactionListQueryKeys(
   financeEntityId: string,
   transactionId: string,
-  direction: string,
+  transactionKind: string,
   status: string,
   occurredAtMs: number | string
 ): TransactionListQueryKeys {
-  if (!financeEntityId || !transactionId || !direction || !status || !occurredAtMs) {
+  if (!financeEntityId || !transactionId || !transactionKind || !status || !occurredAtMs) {
     throw new Error('Invalid arguments to buildTransactionListQueryKeys');
   }
 
@@ -23,7 +23,7 @@ export function buildTransactionListQueryKeys(
   if (
     financeEntityId.includes('|') ||
     transactionId.includes('|') ||
-    direction.includes('|') ||
+    transactionKind.includes('|') ||
     status.includes('|')
   ) {
     throw new Error('Arguments must not contain the delimiter |');
@@ -46,15 +46,15 @@ export function buildTransactionListQueryKeys(
   return {
     version: 1,
     all: `${financeEntityId}|${reverseTimestamp}|${transactionId}`,
-    direction: `${financeEntityId}|${direction}|${reverseTimestamp}|${transactionId}`,
+    direction: `${financeEntityId}|${transactionKind}|${reverseTimestamp}|${transactionId}`,
     status: `${financeEntityId}|${status}|${reverseTimestamp}|${transactionId}`,
-    directionStatus: `${financeEntityId}|${direction}|${status}|${reverseTimestamp}|${transactionId}`
+    directionStatus: `${financeEntityId}|${transactionKind}|${status}|${reverseTimestamp}|${transactionId}`
   };
 }
 
 export function getTransactionListQueryBounds(
   financeEntityId: string,
-  direction?: string,
+  transactionKind?: string,
   status?: string,
   occurredFrom?: string,
   occurredTo?: string
@@ -66,12 +66,12 @@ export function getTransactionListQueryBounds(
   let field: string;
   let prefix: string;
 
-  if (direction && status) {
+  if (transactionKind && status) {
     field = 'listQueryKeys.directionStatus';
-    prefix = `${financeEntityId}|${direction}|${status}|`;
-  } else if (direction) {
+    prefix = `${financeEntityId}|${transactionKind}|${status}|`;
+  } else if (transactionKind) {
     field = 'listQueryKeys.direction';
-    prefix = `${financeEntityId}|${direction}|`;
+    prefix = `${financeEntityId}|${transactionKind}|`;
   } else if (status) {
     field = 'listQueryKeys.status';
     prefix = `${financeEntityId}|${status}|`;
