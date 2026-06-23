@@ -9,6 +9,7 @@ import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuar
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { FinanceSelect, FinanceSelectOption } from '@/src/components/finance/FinanceSelect';
 
 export default function TransactionCreatePage() {
   const { accessState } = useAuth();
@@ -486,14 +487,13 @@ function TransactionCreateContent() {
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">Conta</label>
                         {accounts.length > 0 ? (
-                            <select 
+                            <FinanceSelect 
                               value={accountId}
-                              onChange={e => setAccountId(e.target.value)}
-                              className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
-                            >
-                              <option className="bg-surface-elevated text-text-primary" value="" disabled>Selecione uma conta...</option>
-                              {accounts.map(a => <option className="bg-surface-elevated text-text-primary" key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
+                              onChange={val => setAccountId(val)}
+                              options={accounts.map(a => ({ value: a.id, label: a.name }))}
+                              placeholder="Selecione uma conta..."
+                              className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                            />
                         ) : (
                             <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
                                Nenhuma conta cadastrada
@@ -505,14 +505,14 @@ function TransactionCreateContent() {
                         <label className="text-sm font-medium text-text-primary">
                           {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
                         </label>
-                        <select 
+                        <FinanceSelect 
                           value={paymentMethod}
-                          onChange={e => { setPaymentMethod(e.target.value); setPaymentMethodWarning(null); }}
-                          className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
-                        >
-                          <option className="bg-surface-elevated text-text-primary" value="">Não especificado</option>
-                          {availablePaymentMethods.map(m => <option className="bg-surface-elevated text-text-primary" key={m.id} value={m.id}>{m.label}</option>)}
-                        </select>
+                          onChange={val => { setPaymentMethod(val); setPaymentMethodWarning(null); }}
+                          options={availablePaymentMethods.map(m => ({ value: m.id, label: m.label }))}
+                          placeholder="Não especificado"
+                          allowClear
+                          className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                        />
                         {paymentMethodWarning && (
                            <div className="text-amber-500 text-xs mt-1 px-1">
                               {paymentMethodWarning}
@@ -600,14 +600,13 @@ function TransactionCreateContent() {
                              <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                                 <label className="text-sm font-medium text-text-primary">Categoria</label>
                                 {compatibleCategories.length > 0 ? (
-                                    <select 
+                                    <FinanceSelect 
                                       value={alloc.categoryId}
-                                      onChange={e => updateAllocation(i, 'categoryId', e.target.value)}
-                                      className="w-full h-14 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
-                                    >
-                                      <option className="bg-surface-base text-text-primary" value="" disabled>Selecione uma categoria...</option>
-                                      {compatibleCategories.map(c => <option className="bg-surface-base text-text-primary" key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
+                                      onChange={val => updateAllocation(i, 'categoryId', val)}
+                                      options={compatibleCategories.map(c => ({ value: c.id, label: c.name }))}
+                                      placeholder="Selecione uma categoria..."
+                                      className="h-14 bg-surface-base border border-border-subtle rounded-xl text-base"
+                                    />
                                 ) : (
                                     <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center justify-center text-sm text-amber-500 bg-surface-base">
                                        Nenhuma categoria compatível
@@ -618,14 +617,14 @@ function TransactionCreateContent() {
                              <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                                 <label className="text-sm font-medium text-text-primary">Fundo (opcional)</label>
                                 {funds.length > 0 ? (
-                                    <select 
+                                    <FinanceSelect 
                                       value={alloc.fundId}
-                                      onChange={e => updateAllocation(i, 'fundId', e.target.value)}
-                                      className="w-full h-14 bg-surface-base border border-border-subtle text-text-primary rounded-xl px-4 appearance-none outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base"
-                                    >
-                                      <option className="bg-surface-base text-text-primary" value="">Nenhum fundo</option>
-                                      {funds.map(f => <option className="bg-surface-base text-text-primary" key={f.id} value={f.id}>{f.name}</option>)}
-                                    </select>
+                                      onChange={val => updateAllocation(i, 'fundId', val)}
+                                      options={funds.map(f => ({ value: f.id, label: f.name }))}
+                                      placeholder="Nenhum fundo"
+                                      allowClear
+                                      className="h-14 bg-surface-base border border-border-subtle rounded-xl text-base"
+                                    />
                                 ) : (
                                     <div className="h-14 bg-surface-base border border-border-subtle rounded-xl px-4 flex items-center text-sm text-text-muted">
                                        Nenhum fundo ativo
