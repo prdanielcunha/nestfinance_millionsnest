@@ -196,7 +196,9 @@ export function validateDraftMinimum(draft: any, financeEntityId: string): { val
 export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (tx.direction === 'expense' || tx.direction === 'income') {
+  const direction = tx.transactionKind || tx.direction;
+
+  if (direction === 'expense' || direction === 'income') {
     if (!tx.accountId) errors.push('Account is required for income/expense');
     if (!tx.paymentMethod) errors.push('Payment method is required for income/expense');
     
@@ -213,14 +215,14 @@ export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: 
     }
   }
 
-  if (tx.direction === 'transfer') {
+  if (direction === 'transfer') {
     if (!tx.sourceAccountId) errors.push('Source account is required for transfer');
     if (!tx.destinationAccountId) errors.push('Destination account is required for transfer');
     if (!tx.amountCents || tx.amountCents <= 0) errors.push('Valid amount is required for transfer');
     if (!tx.occurredAt) errors.push('Date is required for transfer');
   }
 
-  if (tx.direction === 'liability_settlement') {
+  if (direction === 'liability_settlement') {
     if (!tx.sourceAccountId) errors.push('Source account is required for settlement');
     if (!tx.liabilityAccountId && !tx.destinationAccountId) errors.push('Liability account is required for settlement');
     if (!tx.amountCents || tx.amountCents <= 0) errors.push('Valid amount is required for settlement');
@@ -231,32 +233,154 @@ export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: 
   return { ready: errors.length === 0, errors };
 }
 
+export function validateAccountMetadata(accountData: any): { 
+  valid: boolean; 
+  name?: string; 
+  type?: FinanceAccountType; 
+  nature?: AccountNature;
+  errors?: string[];
+} {
+  const errors: string[] = [];
+  const name = accountData?.name;
+  if (!name || (typeof name === 'string' && name.trim() === '')) {
+    errors.push('Account name is missing or empty');
+  }
+  const rawType = accountData?.type;
+  const type = normalizeAccountType(rawType);
+  if (!rawType || type === 'other') {
+    errors.push('Account type is missing or not configured');
+  }
+  const nature = getAccountNature(rawType);
+  if (nature === 'clearing') {
+    errors.push('Account nature is clearing (unconfigured/invalid type)');
+  }
+
+  return {
+    valid: errors.length === 0,
+    name,
+    type,
+    nature,
+    errors
+  };
+}
+
+export function validateCategoryMetadata(catData: any): {
+  valid: boolean;
+  name?: string;
+  kind?: string;
+  icon?: string;
+  errors?: string[];
+} {
+  const errors: string[] = [];
+  const name = catData?.name;
+  if (!name || (typeof name === 'string' && name.trim() === '')) {
+    errors.push('Category name is missing or empty');
+  }
+  const kind = catData?.kind;
+  if (!kind || !['income', 'expense'].includes(kind)) {
+    errors.push('Category kind is missing or invalid');
+  }
+  return {
+    valid: errors.length === 0,
+    name,
+    kind,
+    icon: catData?.icon,
+    errors
+  };
+}
+
+export function validateFundMetadata(fundData: any): {
+  valid: boolean;
+  name?: string;
+  errors?: string[];
+} {
+  const errors: string[] = [];
+  const name = fundData?.name;
+  if (!name || (typeof name === 'string' && name.trim() === '')) {
+    errors.push('Fund name is missing or empty');
+  }
+  return {
+    valid: errors.length === 0,
+    name,
+    errors
+  };
+}
+
+export type CashFlowDirection = 'inflow' | 'outflow' | 'internal' | 'none';
+
+export function deriveCashFlowDirection(ctx: {
+  transactionKind: string;
+  accountSnapshot?: { nature?: string; type?: string } | null;
+  liabilityAccountSnapshot?: { nature?: string; type?: string } | null;
+  sourceAccountSnapshot?: { nature?: string; type?: string } | null;
+  destinationAccountSnapshot?: { nature?: string; type?: string } | null;
+  paymentMethod?: string;
+  reimbursement?: any;
+}): CashFlowDirection {
+  const kind = ctx.transactionKind;
+  
+  if (kind === 'income') {
+    const nature = ctx.accountSnapshot?.nature || (ctx.accountSnapshot?.type ? getAccountNature(ctx.accountSnapshot.type) : 'asset');
+    if (nature === 'asset') {
+      return 'inflow';
+    }
+    return 'none';
+  }
+  
+  if (kind === 'expense') {
+    const isCreditCard = ctx.paymentMethod === 'credit_card';
+    const isReimbursement = ctx.reimbursement && (ctx.reimbursement.personId || ctx.reimbursement.payableId || ctx.reimbursement.personName || ctx.reimbursement.personName === '');
+    const nature = ctx.accountSnapshot?.nature || (ctx.accountSnapshot?.type ? getAccountNature(ctx.accountSnapshot.type) : 'asset');
+    if (isCreditCard || isReimbursement || nature === 'liability') {
+      return 'none';
+    }
+    return 'outflow';
+  }
+  
+  if (kind === 'transfer') {
+    return 'internal';
+  }
+  
+  if (kind === 'liability_settlement') {
+    return 'outflow';
+  }
+  
+  if (kind === 'adjustment') {
+    return 'none';
+  }
+
+  return 'none';
+}
+
 export function simulatePosting(tx: any): Array<{ accountId: string; effect: 'increase' | 'decrease'; amount: number; nature: string }> {
   // Pure conceptual mapping for preparing the domain for Posting. No actual writes.
   const postings = [];
 
-  if (tx.direction === 'transfer') {
+  const direction = tx.transactionKind || tx.direction;
+
+  if (direction === 'transfer') {
     postings.push({ accountId: tx.sourceAccountId, effect: 'decrease', amount: tx.amountCents, nature: 'asset' });
     postings.push({ accountId: tx.destinationAccountId, effect: 'increase', amount: tx.amountCents, nature: 'asset' });
   }
 
-  if (tx.direction === 'expense') {
+  if (direction === 'expense') {
     const isCreditCard = tx.paymentMethod === 'credit_card';
-    const isReimbursement = tx.reimbursement?.personId;
+    const isReimbursement = tx.reimbursement?.personId || tx.reimbursement?.payableId || tx.reimbursement?.personName;
+    const nature = tx.accountSnapshot?.nature || (tx.accountSnapshot?.type ? getAccountNature(tx.accountSnapshot.type) : 'asset');
     
-    if (isCreditCard || isReimbursement) {
+    if (isCreditCard || isReimbursement || nature === 'liability') {
       postings.push({ accountId: tx.accountId, effect: 'increase', amount: tx.amountCents, nature: 'liability' });
     } else {
       postings.push({ accountId: tx.accountId, effect: 'decrease', amount: tx.amountCents, nature: 'asset' });
     }
   }
 
-  if (tx.direction === 'liability_settlement') {
+  if (direction === 'liability_settlement') {
     postings.push({ accountId: tx.sourceAccountId, effect: 'decrease', amount: tx.amountCents, nature: 'asset' });
     postings.push({ accountId: tx.liabilityAccountId || tx.destinationAccountId, effect: 'decrease', amount: tx.amountCents, nature: 'liability' });
   }
   
-  if (tx.direction === 'income') {
+  if (direction === 'income') {
     postings.push({ accountId: tx.accountId, effect: 'increase', amount: tx.amountCents, nature: 'asset' });
   }
 

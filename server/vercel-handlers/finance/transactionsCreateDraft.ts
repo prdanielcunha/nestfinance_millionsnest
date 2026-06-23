@@ -77,10 +77,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Prepare account data
+      // Precedence of transactionKind over legacy direction
+      if (payload.direction && payload.direction !== transactionKind) {
+        throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };
+      }
+
+      // Prepare account data and validation issues
       let accountDoc;
       let destinationAccountData = null;
       let liabilityAccountData = null;
-      let reimbursementData = null;
+      
+      let accountSnapshot = undefined;
+      let validationIssues: any[] = [];
+
+      const { validateAccountMetadata, validateCategoryMetadata, validateFundMetadata, deriveCashFlowDirection } = await import('../../../shared/finance/smartLogic.js');
 
       if (accountId) {
         const accountRef = context.repository.getAccountsRef().doc(accountId);
@@ -89,8 +99,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
         }
         
+        const accountData = accountDoc.data()!;
+        const accMeta = validateAccountMetadata(accountData);
+        if (!accMeta.valid) {
+          validationIssues.push({
+            code: 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE',
+            field: 'accountId'
+          });
+        } else {
+          accountSnapshot = {
+            id: accountId,
+            name: accMeta.name!,
+            type: accMeta.type!,
+            nature: accMeta.nature!
+          };
+        }
+        
         // inject snapshot type into payload temporarily for validation
-        payload.accountSnapshot = { type: accountDoc.data()!.type || 'other' };
+        payload.accountSnapshot = accountSnapshot || { type: accountData.type || 'other' };
+      } else {
+        validationIssues.push({
+          code: 'FINANCE_ACCOUNT_REQUIRED',
+          field: 'accountId'
+        });
       }
 
       const draftValidationWithSnapshots = validateDraftMinimum(payload, financeEntityId);
@@ -98,6 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: draftValidationWithSnapshots.errors.join('. ') };
       }
 
+      let destinationAccountSnapshot = undefined;
       if (transactionKind === 'transfer') {
         const destAccRef = context.repository.getAccountsRef().doc(destinationAccountId);
         const destAccDoc = await t.get(destAccRef);
@@ -105,8 +137,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Destination account invalid or inactive' };
         }
         destinationAccountData = destAccDoc.data()!;
+        const destMeta = validateAccountMetadata(destinationAccountData);
+        if (!destMeta.valid) {
+          validationIssues.push({
+            code: 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE',
+            field: 'destinationAccountId'
+          });
+        } else {
+          destinationAccountSnapshot = {
+            id: destinationAccountId,
+            name: destMeta.name!,
+            type: destMeta.type!,
+            nature: destMeta.nature!
+          };
+        }
       }
 
+      let liabilityAccountSnapshot = undefined;
       if (transactionKind === 'liability_settlement' && payload.liabilityAccountId) {
         const liabAccRef = context.repository.getAccountsRef().doc(payload.liabilityAccountId);
         const liabAccDoc = await t.get(liabAccRef);
@@ -114,13 +161,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Liability account invalid or inactive' };
         }
         liabilityAccountData = liabAccDoc.data()!;
-      }
-
-      // We need to parse allocations
-      if (!Array.isArray(allocations) || allocations.length === 0) {
-        // Draft can be incomplete, but must have at least one allocation or not?
-        // Prompt: "pelo menos um rateio existir; ... drafts incompletos permitidos somente em draft conforme regra;" 
-        // Wait, "A criação deve validar: allocations... soma exata dos rateios." actually for draft it can be incomplete. Let's allow empty if explicitly requested, or require at least 1? The prompt says "pelo menos um rateio válido antes de postagem". For draft creation "Se qualquer validação falhar: zero transaction". We'll allow empty allocations array during draft creation or just require it. Let's process allocations.
+        const liabMeta = validateAccountMetadata(liabilityAccountData);
+        if (!liabMeta.valid) {
+          validationIssues.push({
+            code: 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE',
+            field: 'liabilityAccountId'
+          });
+        } else {
+          liabilityAccountSnapshot = {
+            id: payload.liabilityAccountId,
+            name: liabMeta.name!,
+            type: liabMeta.type!,
+            nature: liabMeta.nature!
+          };
+        }
       }
 
       const allocsToSave: FinanceAllocation[] = [];
@@ -141,6 +195,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category kind mismatch' };
           }
           const catData = catDoc.data()!;
+          const catMeta = validateCategoryMetadata(catData);
+          if (!catMeta.valid) {
+            validationIssues.push({
+              code: 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE',
+              field: `allocations[${i}].categoryId`
+            });
+          }
 
           // Validate fund
           let fundData = null;
@@ -151,6 +212,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               throw { code: 'FINANCE_FUND_MISMATCH', message: 'Fund invalid or inactive' };
             }
             fundData = fundDoc.data();
+            const fundMeta = validateFundMetadata(fundData);
+            if (!fundMeta.valid) {
+              validationIssues.push({
+                code: 'FINANCE_FUND_CONFIGURATION_INCOMPLETE',
+                field: `allocations[${i}].fundId`
+              });
+            }
           }
 
           const alloc: FinanceAllocation = {
@@ -159,16 +227,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             financeEntityId,
             transactionId: txId,
             categoryId: a.categoryId,
-            categorySnapshot: { id: a.categoryId, name: catData.name, type: catData.kind, icon: catData.icon },
+            categorySnapshot: catMeta.valid ? { id: a.categoryId, name: catMeta.name!, type: catMeta.kind!, icon: catMeta.icon } : undefined as any,
             amountCents: a.amountCents,
             sequence: i,
-            createdAt: new Date().toISOString(), // Use ISO string as requested by P06A
+            createdAt: new Date().toISOString(),
             createdBy: uid,
             schemaVersion: 1
           };
           if (a.fundId) {
             alloc.fundId = a.fundId;
-            if (fundData) {
+            if (fundData && fundData.name) {
               alloc.fundSnapshot = { id: a.fundId, name: fundData.name };
             }
           }
@@ -181,13 +249,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      const cashFlowDirection = deriveCashFlowDirection({
+        transactionKind,
+        accountSnapshot,
+        liabilityAccountSnapshot,
+        sourceAccountSnapshot: accountSnapshot,
+        destinationAccountSnapshot,
+        paymentMethod,
+        reimbursement: payload.reimbursement
+      });
+
       const txPayload: any = {
         id: txId,
         organizationId,
         financeEntityId,
         transactionKind,
         direction: transactionKind, // legacy fallback for listQueryKeys
-        cashFlowDirection: transactionKind === 'income' ? 'inflow' : transactionKind === 'transfer' ? 'internal' : transactionKind === 'expense' ? 'outflow' : 'outflow', // Will be adjusted later if needed
+        cashFlowDirection,
         status: 'draft',
         amountCents,
         currency: 'BRL',
@@ -198,22 +276,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         reconciliationStatus: 'unreconciled',
         evidenceIds: [],
         accountId, // still kept for DB compatibility if needed by queries
-        accountSnapshot: accountDoc ? { id: accountId, name: accountDoc.data()!.name || '', type: accountDoc.data()!.type || 'other' } : undefined,
+        accountSnapshot,
         allocationIds,
         createdBy: uid,
         updatedBy: uid,
         version: 1,
-        schemaVersion: 1
+        schemaVersion: 1,
+        validationIssues
       };
-      if (destinationAccountData) {
+      if (destinationAccountSnapshot) {
         txPayload.sourceAccountId = accountId;
         txPayload.destinationAccountId = destinationAccountId;
-        txPayload.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name || '', type: destinationAccountData.type || 'other' };
+        txPayload.destinationAccountSnapshot = destinationAccountSnapshot;
       }
-      if (liabilityAccountData) {
+      if (liabilityAccountSnapshot) {
         txPayload.sourceAccountId = accountId;
         txPayload.liabilityAccountId = payload.liabilityAccountId;
-        txPayload.liabilityAccountSnapshot = { id: payload.liabilityAccountId, name: liabilityAccountData.name || '', type: liabilityAccountData.type || 'other' };
+        txPayload.liabilityAccountSnapshot = liabilityAccountSnapshot;
         txPayload.settlementType = payload.settlementType;
       }
       if (payload.reimbursement) {
@@ -225,14 +304,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       validateTransactionCore(txPayload as LedgerTransaction);
 
       // Writes
+      const { sanitizeFirestoreObject } = await import('./sanitizeFirestoreObject.js');
       const txRef = context.repository.getTransactionsRef().doc(txId);
-      // We convert temporal strings to server timestamps for persistence if needed, but PRD says ISO-8601 strings and createdAt/updatedAt using serverTimestamp
-      const txData = {
+      const txData = sanitizeFirestoreObject({
         ...txPayload,
         listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, transactionKind, 'draft', occurredAt),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
-      };
+      });
       
       t.set(txRef, txData);
 

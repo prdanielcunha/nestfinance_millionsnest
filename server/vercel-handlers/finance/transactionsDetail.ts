@@ -66,7 +66,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        const accDoc = await context.repository.getAccountsRef().doc(txData.accountId).get();
        if (accDoc.exists) {
           const aData = accDoc.data()!;
-          accountSnapshot = { id: aData.id, name: aData.name || '', type: aData.type || 'other' };
+          const { getAccountNature } = await import('../../../shared/finance/smartLogic.js');
+          accountSnapshot = { 
+            id: aData.id, 
+            name: aData.name || '', 
+            type: aData.type || 'other',
+            nature: aData.type ? getAccountNature(aData.type) : 'asset'
+          };
        }
     }
 
