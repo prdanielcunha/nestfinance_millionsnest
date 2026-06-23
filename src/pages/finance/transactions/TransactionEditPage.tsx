@@ -14,6 +14,10 @@ import { FinanceSelect } from '@/src/components/finance/FinanceSelect';
 export default function TransactionEditPage() {
   const { accessState } = useAuth();
   
+  if (accessState.status === 'initializing' || accessState.status === 'authenticated_unresolved') {
+    return null;
+  }
+
   if (!hasEffectiveCapability(accessState, 'finance.create_drafts')) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">

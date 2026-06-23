@@ -12,6 +12,10 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 export default function TransactionDetailPage() {
   const { accessState } = useAuth();
   
+  if (accessState.status === 'initializing' || accessState.status === 'authenticated_unresolved') {
+    return null;
+  }
+
   if (!hasEffectiveCapability(accessState, 'finance.view')) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">

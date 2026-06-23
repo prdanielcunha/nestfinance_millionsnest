@@ -2,14 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { firebaseAuth } from '../lib/firebase';
 import { EcosystemAccessState } from '../types/access';
-import { resolveEcosystemSession } from '../services/sessionResolutionService';
+import { resolveEcosystemSession, getCachedSessionResult } from '../services/sessionResolutionService';
 
 type AuthState = 'initializing' | 'authenticated' | 'unauthenticated' | 'error';
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>('initializing');
-  const [accessState, setAccessState] = useState<EcosystemAccessState>({ status: 'initializing' });
-  const [user, setUser] = useState<User | null>(null);
+  const cachedSession = getCachedSessionResult();
+  const initialUser = firebaseAuth.currentUser;
+  
+  const [authState, setAuthState] = useState<AuthState>(initialUser ? 'authenticated' : 'initializing');
+  const [accessState, setAccessState] = useState<EcosystemAccessState>(cachedSession || { status: 'initializing' });
+  const [user, setUser] = useState<User | null>(initialUser);
   const requestCounter = useRef(0);
 
   useEffect(() => {
