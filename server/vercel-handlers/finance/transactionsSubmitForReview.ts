@@ -94,16 +94,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newVersion = txData.version + 1;
       const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'ready_for_review', txData.occurredAt);
       
-      t.update(txRef, {
+      const { sanitizeFirestoreObject } = await import('./sanitizeFirestoreObject.js');
+
+      t.update(txRef, sanitizeFirestoreObject({
         status: 'ready_for_review',
         listQueryKeys,
         updatedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
         version: newVersion
-      });
+      }));
 
       const auditId = generateAuditId();
-      t.set(context.repository.getAuditRef().doc(auditId), {
+      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -114,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         idempotencyKey,
         afterHash: payloadHash,
         createdAt: FieldValue.serverTimestamp()
-      });
+      }));
 
       return { transactionId, version: newVersion };
     });

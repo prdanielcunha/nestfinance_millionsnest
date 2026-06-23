@@ -108,25 +108,25 @@ export function validateTransactionCore(tx: LedgerTransaction): void {
   }
 
   if (tx.transactionKind === 'transfer') {
-    if (tx.sourceAccountId === tx.destinationAccountId) {
-      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and destination accounts must differ');
-    }
-    if (!tx.sourceAccountId || !tx.destinationAccountId) {
+    if (tx.status !== 'draft' && (!tx.sourceAccountId || !tx.destinationAccountId)) {
       throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and destination accounts required');
+    }
+    if (tx.sourceAccountId && tx.destinationAccountId && tx.sourceAccountId === tx.destinationAccountId) {
+      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and destination accounts must differ');
     }
   }
 
   if (tx.transactionKind === 'liability_settlement') {
-    if (tx.sourceAccountId === tx.liabilityAccountId) {
-      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and liability accounts must differ');
-    }
-    if (!tx.sourceAccountId || !tx.liabilityAccountId) {
+    if (tx.status !== 'draft' && (!tx.sourceAccountId || !tx.liabilityAccountId)) {
       throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and liability accounts required');
+    }
+    if (tx.sourceAccountId && tx.liabilityAccountId && tx.sourceAccountId === tx.liabilityAccountId) {
+      throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Source and liability accounts must differ');
     }
   }
 
   if (tx.transactionKind === 'income' || tx.transactionKind === 'expense') {
-    if (!tx.accountId) {
+    if (tx.status !== 'draft' && !tx.accountId) {
       throw new LedgerDomainError('FINANCE_ACCOUNT_MISMATCH', 'Account is required');
     }
   }

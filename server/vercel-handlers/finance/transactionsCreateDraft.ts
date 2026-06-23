@@ -32,8 +32,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Invalid requestId' });
     }
 
-    const { transactionKind, amountCents, occurredAt, accountId, paymentMethod, allocations, description, sourceContext, destinationAccountId, settlementType, liabilityAccountId } = payload;
+    const { amountCents, occurredAt, accountId, paymentMethod, allocations, description, sourceContext, destinationAccountId, settlementType, liabilityAccountId } = payload;
+    const transactionKind = payload.transactionKind || payload.direction;
     
+    if (payload.transactionKind && payload.direction && payload.transactionKind !== payload.direction) {
+      return res.status(400).json({ error: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', details: 'transactionKind and legacy direction conflict' });
+    }
+
     if (transactionKind !== 'income' && transactionKind !== 'expense' && transactionKind !== 'transfer' && transactionKind !== 'liability_settlement') {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Invalid transactionKind' });
     }
@@ -69,6 +74,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payloadHash = hashPayload(payload);
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
+      // Precedence of transactionKind over legacy direction
+      if (payload.direction && payload.direction !== transactionKind) {
+        throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };
+      }
+
+      payload.direction = transactionKind;
+
       // Validate Draft Minimums
       const { validateDraftMinimum } = await import('../../../shared/finance/smartLogic.js');
       const draftValidation = validateDraftMinimum(payload, financeEntityId);
@@ -77,11 +89,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Prepare account data
-      // Precedence of transactionKind over legacy direction
-      if (payload.direction && payload.direction !== transactionKind) {
-        throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };
-      }
-
       // Prepare account data and validation issues
       let accountDoc;
       let destinationAccountData = null;
@@ -317,16 +324,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       for (const alloc of allocsToSave) {
         const allocRef = context.repository.getAllocationsRef().doc(alloc.id);
-        t.set(allocRef, {
+        t.set(allocRef, sanitizeFirestoreObject({
           ...alloc,
           createdAt: FieldValue.serverTimestamp()
-        });
+        }));
       }
 
       // Audit Log
       const auditId = generateAuditId();
       const auditRef = context.repository.getAuditRef().doc(auditId);
-      t.set(auditRef, {
+      t.set(auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -338,7 +345,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         afterHash: payloadHash, // Simplified
         metadata: { status: 'draft', amountCents, transactionKind },
         createdAt: FieldValue.serverTimestamp()
-      });
+      }));
 
       return { transactionId: txId, version: 1 };
     });

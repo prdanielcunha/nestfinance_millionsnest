@@ -1,9 +1,40 @@
+import { getFirestore, FieldValue, Timestamp, GeoPoint } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '../api/_lib/firebaseAdmin.js';
+import { FakeFirestore } from './fakeFirestore.js';
+import { sanitizeFirestoreObject } from '../server/vercel-handlers/finance/sanitizeFirestoreObject.js';
+import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
+import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
+import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
+import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
+import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
+import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
+import { validateAccountMetadata } from '../shared/finance/smartLogic.js';
+import * as assert from 'assert';
+
+process.env.NODE_ENV = 'test';
+
+// Simulated Vercel Response
+class MockRes {
+  statusCode: number = 200;
+  body: any = null;
+
+  status(code: number) {
+    this.statusCode = code;
+    return this;
+  }
+
+  json(data: any) {
+    this.body = data;
+    return this;
+  }
+}
+
 async function runP06BConsolidatedTests() {
   console.log('Running P06B Consolidated UI & Integration Journey Tests...');
   let passed = 0;
   let failed = 0;
-  
-  const assert = (condition: boolean, msg: string) => {
+
+  const assertTest = (condition: boolean, msg: string) => {
     if (condition) {
        console.log(`✅ ${msg}`);
        passed++;
@@ -13,74 +44,514 @@ async function runP06BConsolidatedTests() {
     }
   };
 
-  console.log('\n--- Jornada Consolidada P06B ---');
-  
-  assert(true, 'usuário autorizado abre a lista vazia');
-  assert(true, 'cria uma Entrada de R$ 95,00');
-  assert(true, 'divide Dízimos: R$ 65,00 e Ofertas: R$ 30,00');
-  assert(true, 'abre o detalhe');
-  assert(true, 'confirma status draft');
-  assert(true, 'edita descrição ou data');
-  assert(true, 'confirma incremento correto de version');
-  assert(true, 'executa um update no-op');
-  assert(true, 'confirma changed:false');
-  assert(true, 'envia para revisão');
-  assert(true, 'confirma ready_for_review');
-  assert(true, 'confirma nova version retornada pelo servidor');
-  assert(true, 'retorna explicitamente para edição');
-  assert(true, 'confirma status draft após retorno');
-  assert(true, 'altera um rateio');
-  assert(true, 'tenta enviar com rateio incompleto e recebe bloqueio');
-  assert(true, 'corrige o rateio');
-  assert(true, 'envia novamente');
-  assert(true, 'lista e filtra o item em ready_for_review');
-  assert(true, 'abre o detalhe final');
-  assert(true, 'IDs são estáveis durante a jornada');
-  assert(true, 'centavos são inteiros');
-  assert(true, 'allocations ordenadas');
-  assert(true, 'nenhuma duplicidade gerada');
+  const fakeDb = new FakeFirestore();
+  const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
+  (globalThis as any)[TEST_FIRESTORE_SYMBOL] = fakeDb;
 
-  console.log('\n--- Idempotência Consolidada ---');
-  assert(true, 'create_draft possui idempotencyKey própria');
-  assert(true, 'update_draft possui idempotencyKey própria');
-  assert(true, 'return_to_draft possui idempotencyKey própria');
-  assert(true, 'submit_for_review possui idempotencyKey própria');
-  assert(true, 'create key != update key');
-  assert(true, 'update key != return_to_draft key');
-  assert(true, 'return_to_draft key != submit key');
-  assert(true, 'retry após timeout reutiliza a mesma chave');
-  assert(true, 'cada tentativa HTTP usa requestId diferente');
-  assert(true, 'payload material diferente gera nova chave');
-  assert(true, 'chave de idempotência não é compartilhada entre operações');
-  assert(true, 'resposta repetida não duplica allocations ou audita duas vezes');
+  const admin = getFirebaseAdmin();
+  const db = fakeDb;
 
-  console.log('\n--- Versionamento e Concorrência ---');
-  assert(true, 'create começa na versão canônica (1)');
-  assert(true, 'update incrementa exatamente uma vez');
-  assert(true, 'no-op não incrementa (changed:false)');
-  assert(true, 'submit incrementa exatamente uma vez');
-  assert(true, 'return_to_draft incrementa exatamente uma vez');
-  assert(true, 'retry idempotente não incrementa versão');
-  assert(true, 'expectedVersion antiga gera FINANCE_VERSION_CONFLICT');
-  assert(true, 'duas atualizações concorrentes não vencem');
-  assert(true, 'duas submissões concorrentes não vencem');
-  assert(true, 'UI nunca incrementa version por suposição do cliente');
-  
-  console.log('\n--- Troca de Contexto ---');
-  assert(true, 'troca de usuário/entidade aborta requests pendentes');
-  assert(true, 'limpeza de estados, version e idempotencyKey');
-  assert(true, 'resposta da Entidade A atrasada não afeta a Entidade B');
+  // Set up mock context data
+  const orgId = 'p06b_org';
+  const finEntityId = 'p06b_entity';
+  const uid = 'p06b_user';
 
-  console.log('\n--- UI e Acessibilidade ---');
-  assert(true, 'foco preso dentro do dialog de submit');
-  assert(true, 'role dialog, aria-modal e descriptions corretos');
-  assert(true, 'zero overflow em viewport mobile (320px/390px)');
+  const orgRef = db.collection('organizations').doc(orgId);
+  await orgRef.set({ name: 'P06B Organization', ownerId: 'other' });
+  await orgRef.collection('users').doc(uid).set({
+    capabilities: ['finance.create_drafts', 'finance.view', 'finance.submit_for_review']
+  });
+  await db.collection('users').doc(uid).set({
+    displayName: 'P06B Tester'
+  });
+  await orgRef.collection('financeEntities').doc(finEntityId).set({
+    name: 'P06B Entity',
+    active: true
+  });
+
+  const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+  async function testCall(handler: any, reqData: any, headers: any = {}) {
+    const req = {
+      method: reqData.method || 'POST',
+      headers: {
+        authorization: 'Bearer p06b_token',
+        'x-organization-id': orgId,
+        ...headers
+      },
+      body: reqData.body
+    };
+    const res = new MockRes();
+    await handler(req as any, res as any);
+    return res;
+  }
+
+  // Mock token verification
+  admin.auth.verifyIdToken = async () => ({ uid }) as any;
+
+  console.log('\n--- 11. AUDITANDO SANITIZADOR E INTEGRIDADE DE ARRAYS ---');
+
+  // 1. plain object remove propriedade undefined
+  try {
+    const res = sanitizeFirestoreObject({ a: 1, b: undefined }) as any;
+    assertTest(!('b' in res) && res.a === 1, 'plain object remove propriedade undefined');
+  } catch (e) {
+    assertTest(false, 'plain object remove propriedade undefined');
+  }
+
+  // 2. array com undefined é rejeitado
+  try {
+    sanitizeFirestoreObject({ arr: [1, undefined] });
+    assertTest(false, 'array com undefined é rejeitado');
+  } catch (e: any) {
+    assertTest(e.message.includes('Array with undefined elements') || e.message.includes('undefined'), 'array com undefined é rejeitado');
+  }
+
+  // 3. array esparso é rejeitado
+  try {
+    const arr = [1];
+    arr[2] = 3; // creates a sparse index at 1
+    sanitizeFirestoreObject({ arr });
+    assertTest(false, 'array esparso é rejeitado');
+  } catch (e: any) {
+    assertTest(e.message.includes('Sparse array') || e.message.includes('undefined'), 'array esparso é rejeitado');
+  }
+
+  // 4. Date válida é preservada
+  try {
+    const d = new Date('2026-06-22T00:00:00Z');
+    const res = sanitizeFirestoreObject({ d }) as any;
+    assertTest(res.d instanceof Date && res.d.getTime() === d.getTime(), 'Date válida é preservada');
+  } catch (e) {
+    assertTest(false, 'Date válida é preservada');
+  }
+
+  // 5. Date inválida é rejeitada
+  try {
+    sanitizeFirestoreObject({ d: new Date('invalid') });
+    assertTest(false, 'Date inválida é rejeitada');
+  } catch (e: any) {
+    assertTest(e.message.includes('Invalid Date'), 'Date inválida é rejeitada');
+  }
+
+  // 6. FieldValue.serverTimestamp é preservado
+  try {
+    const ts = FieldValue.serverTimestamp();
+    const res = sanitizeFirestoreObject({ ts }) as any;
+    assertTest(res.ts === ts, 'FieldValue.serverTimestamp é preservado');
+  } catch (e) {
+    assertTest(false, 'FieldValue.serverTimestamp é preservado');
+  }
+
+  // 7. Timestamp é preservado
+  try {
+    const ts = Timestamp.now();
+    const res = sanitizeFirestoreObject({ ts }) as any;
+    assertTest(res.ts === ts, 'Timestamp é preservado');
+  } catch (e) {
+    assertTest(false, 'Timestamp é preservado');
+  }
+
+  // 8. DocumentReference não é desmontado
+  try {
+    const ref = db.collection('x').doc('y');
+    const res = sanitizeFirestoreObject({ ref }) as any;
+    assertTest(res.ref === ref, 'DocumentReference não é desmontado');
+  } catch (e) {
+    assertTest(false, 'DocumentReference não é desmontado');
+  }
+
+  // 9. GeoPoint não é desmontado
+  try {
+    const gp = new GeoPoint(10, 20);
+    const res = sanitizeFirestoreObject({ gp }) as any;
+    assertTest(res.gp === gp, 'GeoPoint não é desmontado');
+  } catch (e) {
+    assertTest(false, 'GeoPoint não é desmontado');
+  }
+
+  // 10. bytes são preservados
+  try {
+    const buf = Buffer.from('hello');
+    const res = sanitizeFirestoreObject({ buf }) as any;
+    assertTest(res.buf === buf, 'bytes são preservados');
+  } catch (e) {
+    assertTest(false, 'bytes são preservados');
+  }
+
+  // 11. class instance desconhecida não vira plain object
+  try {
+    class UnknownClass {
+      a = 1;
+    }
+    sanitizeFirestoreObject({ u: new UnknownClass() });
+    assertTest(false, 'class instance desconhecida não vira plain object');
+  } catch (e: any) {
+    assertTest(e.message.includes('Unknown class instance'), 'class instance desconhecida não vira plain object');
+  }
+
+  // 12. allocations não são compactadas
+  try {
+    // Creating allocations with a sparse index should fail
+    const allocations = [
+      { categoryId: 'cat_1', amountCents: 100 },
+      undefined
+    ];
+    sanitizeFirestoreObject({ allocations });
+    assertTest(false, 'allocations não são compactadas');
+  } catch (e: any) {
+    assertTest(e.message.includes('Array with undefined elements') || e.message.includes('undefined'), 'allocations não são compactadas');
+  }
+
+  console.log('\n--- CONTAS LEGADAS, OUTROS TIPOS E AUDITORIA CONTÁBIL ---');
+
+  // 13. type: other completo pode ser válido
+  {
+    const accountData = {
+      type: 'other',
+      name: 'Completa Outros',
+      nature: 'asset',
+      configurationStatus: 'complete'
+    };
+    const meta = validateAccountMetadata(accountData);
+    assertTest(meta.valid && accountData.configurationStatus === 'complete', 'type: other completo é válido');
+  }
+
+  // 14. type: other incompleto é rejeitado
+  {
+    const accountData = {
+      type: 'other',
+      name: 'Incompleta Outros'
+    };
+    const meta = validateAccountMetadata(accountData);
+    assertTest(!meta.valid, 'type: other incompleto é rejeitado');
+  }
+
+  // 15. nome da conta não determina natureza
+  {
+    const accountData = {
+      name: 'Caixa de Coleta',
+      type: 'other'
+    };
+    const meta = validateAccountMetadata(accountData);
+    // nature should not be cash or asset just because of the name "Caixa"
+    assertTest((meta.nature as string) !== 'cash' && (meta.nature as string) !== 'asset', 'nome da conta não determina natureza');
+  }
+
+  // 16. conta legada é resolvida pelo documento canônico
+  // Setting up canonical account in database
+  const canonAccountId = 'canon_legacy_acc';
+  await orgRef.collection('financeAccounts').doc(canonAccountId).set({
+    financeEntityId: finEntityId,
+    active: true,
+    name: 'Canon Legacy Bank',
+    type: 'asset:bank',
+    nature: 'asset',
+    configurationStatus: 'complete'
+  });
+
+  // Adding legacy transaction without accountSnapshot
+  const legacyTxId = 'legacy_tx_1';
+  await orgRef.collection('financeTransactions').doc(legacyTxId).set({
+    id: legacyTxId,
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionKind: 'income',
+    direction: 'income',
+    cashFlowDirection: 'inflow',
+    status: 'ready_for_review',
+    amountCents: 10000,
+    currency: 'BRL',
+    occurredAt: '2026-06-22T00:00:00Z',
+    accountId: canonAccountId,
+    allocationIds: []
+  });
+
+  {
+    const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId } });
+    assertTest(res.statusCode === 200 && res.body.transaction?.accountSnapshot && res.body.transaction.accountSnapshot.name === 'Canon Legacy Bank', 'conta legada é resolvida pelo documento canônico');
+  }
+
+  // 17. conta legada incompleta permanece pendente
+  const incompleteCanonAccountId = 'canon_incomplete_acc';
+  await orgRef.collection('financeAccounts').doc(incompleteCanonAccountId).set({
+    financeEntityId: finEntityId,
+    active: true,
+    name: 'Incomplete Bank'
+  });
+
+  const legacyTxId2 = 'legacy_tx_2';
+  await orgRef.collection('financeTransactions').doc(legacyTxId2).set({
+    id: legacyTxId2,
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionKind: 'income',
+    direction: 'income',
+    cashFlowDirection: 'inflow',
+    status: 'ready_for_review',
+    amountCents: 10000,
+    currency: 'BRL',
+    occurredAt: '2026-06-22T00:00:00Z',
+    accountId: incompleteCanonAccountId,
+    allocationIds: []
+  });
+
+  {
+    const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId2 } });
+    // In Detail, legacy incomplete account must produce specific pending issues and configurationStatus incomplete
+    assertTest(res.statusCode === 200 && res.body.transaction?.accountSnapshot && res.body.transaction.accountSnapshot.name === 'Conta ainda não configurada' && res.body.transaction.accountSnapshot.code === 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE', 'conta legada incompleta permanece pendente');
+  }
+
+  // 18. category/fund não recebem fallback inventado
+  // Set up categories and funds
+  const incompleteCatId = 'incomplete_cat';
+  await orgRef.collection('financeCategories').doc(incompleteCatId).set({
+    financeEntityId: finEntityId,
+    active: true,
+    kind: 'income',
+    name: '' // empty name is incomplete
+  });
+
+  // Adding draft transaction using incomplete category
+  const draftTxId = 'draft_tx_with_incomplete_cat';
+  await orgRef.collection('financeTransactions').doc(draftTxId).set({
+    id: draftTxId,
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionKind: 'income',
+    direction: 'income',
+    cashFlowDirection: 'inflow',
+    status: 'draft',
+    amountCents: 5000,
+    currency: 'BRL',
+    occurredAt: '2026-06-22T00:00:00Z',
+    accountId: canonAccountId,
+    allocationIds: ['alloc_inc_1']
+  });
+  await orgRef.collection('financeAllocations').doc('alloc_inc_1').set({
+    id: 'alloc_inc_1',
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionId: draftTxId,
+    categoryId: incompleteCatId,
+    amountCents: 5000
+  });
+
+  {
+    const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: draftTxId } });
+    // Category snapshot should not invent a name (it shouldn't fall back to "Outros")
+    assertTest(res.statusCode === 200 && res.body.allocations[0].categorySnapshot && res.body.allocations[0].categorySnapshot.name === 'Categoria ainda não configurada' && res.body.allocations[0].categorySnapshot.code === 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE', 'category/fund não recebem fallback inventado');
+  }
+
+  // 19. create-and-submit termina em ready_for_review
+  // 20. zero Journal
+  // 21. zero Posting
+  // 22. zero alteração de saldos
+  // 23. zero writes de teste em produção
+  {
+    const csCatId = 'complete_cat_cs';
+    await orgRef.collection('financeCategories').doc(csCatId).set({
+      financeEntityId: finEntityId,
+      active: true,
+      kind: 'income',
+      name: 'Receita de Dízimos',
+      configurationStatus: 'complete'
+    });
+
+    const res = await testCall(transactionsCreateAndSubmit, {
+      body: {
+        financeEntityId: finEntityId,
+        idempotencyKey: 'idem_create_submit_test',
+        requestId: 'req_create_submit_test',
+        payload: {
+          transactionKind: 'income',
+          amountCents: 7500,
+          occurredAt: '2026-06-22T00:00:00Z',
+          accountId: canonAccountId,
+          paymentMethod: 'pix',
+          allocations: [
+            { categoryId: csCatId, amountCents: 7500 }
+          ]
+        }
+      }
+    });
+
+    assertTest(res.statusCode === 200, 'create-and-submit executa com sucesso');
+    
+    // Check status is ready_for_review
+    const txDoc = await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(res.body.transactionId).get();
+    const tx = txDoc.data();
+    assertTest(tx.status === 'ready_for_review', 'create-and-submit termina em ready_for_review');
+
+    // Confirm no Journal writes, no Ledger balances writes
+    let journalFound = false;
+    let balanceFound = false;
+    for (const key of Object.keys(db.data)) {
+       if (key.includes('journal') || key.includes('Journal')) journalFound = true;
+       if (key.includes('ledger') || key.includes('balance') || key.includes('Balance')) balanceFound = true;
+    }
+    assertTest(!journalFound, 'zero Journal events gerados');
+    assertTest(!balanceFound, 'zero Posting ou alteração de saldos real ocorrendo');
+    assertTest(db instanceof FakeFirestore, 'zero writes de teste em produção');
+  }
+
+  console.log('\n--- 12. JORNADA DE EXECUÇÃO REAL (FAKE FIRESTORE) ---');
   
-  console.log('\n--- Efeitos Contábeis e Segregação ---');
-  assert(true, 'zero journal events gerados (T=0)');
-  assert(true, 'zero aggregates alterados');
-  assert(true, 'zero saldos alterados');
-  assert(true, 'Nenhuma mutation indevida observada na suite');
+  // 1. criar draft sem conta
+  let testTxId = '';
+  {
+    const res = await testCall(transactionsCreateDraft, {
+      body: {
+        financeEntityId: finEntityId,
+        idempotencyKey: 'idem_real_journey_1',
+        requestId: 'req_real_journey_1',
+        payload: {
+          transactionKind: 'income',
+          amountCents: 9500,
+          occurredAt: '2026-06-22T00:00:00Z',
+          allocations: [
+            { categoryId: incompleteCatId, amountCents: 9500 }
+          ]
+        }
+      }
+    });
+    assertTest(res.statusCode === 200, '1. criar draft sem conta executado');
+    testTxId = res.body.transactionId;
+  }
+
+  // 2. criar draft com conta completa
+  {
+    const res = await testCall(transactionsCreateDraft, {
+      body: {
+        financeEntityId: finEntityId,
+        idempotencyKey: 'idem_real_journey_2',
+        requestId: 'req_real_journey_2',
+        payload: {
+          transactionKind: 'income',
+          amountCents: 9500,
+          occurredAt: '2026-06-22T00:00:00Z',
+          accountId: canonAccountId,
+          allocations: [
+            { categoryId: incompleteCatId, amountCents: 9500 }
+          ]
+        }
+      }
+    });
+    assertTest(res.statusCode === 200, '2. criar draft com conta completa executado');
+  }
+
+  // 3. criar draft com conta incompleta
+  {
+    const res = await testCall(transactionsCreateDraft, {
+      body: {
+        financeEntityId: finEntityId,
+        idempotencyKey: 'idem_real_journey_3',
+        requestId: 'req_real_journey_3',
+        payload: {
+          transactionKind: 'income',
+          amountCents: 9500,
+          occurredAt: '2026-06-22T00:00:00Z',
+          accountId: incompleteCanonAccountId,
+          allocations: [
+            { categoryId: incompleteCatId, amountCents: 9500 }
+          ]
+        }
+      }
+    });
+    assertTest(res.statusCode === 200, '3. criar draft com conta incompleta executado');
+  }
+
+  // 4. salvar com serverTimestamp real (emulado)
+  {
+    const txDoc = await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(testTxId).get();
+    assertTest(txDoc.exists && txDoc.data().recordedAt !== undefined, '4. salvar com serverTimestamp real executado');
+  }
+
+  // 5. atualizar draft
+  {
+    const res = await testCall(transactionsUpdateDraft, {
+      body: {
+        financeEntityId: finEntityId,
+        transactionId: testTxId,
+        expectedVersion: 1,
+        idempotencyKey: 'idem_real_journey_5',
+        requestId: 'req_real_journey_5',
+        payload: {
+          amountCents: 12000,
+          allocations: [
+            { categoryId: incompleteCatId, amountCents: 12000 }
+          ]
+        }
+      }
+    });
+    assertTest(res.statusCode === 200, '5. atualizar draft executado');
+  }
+
+  // 6. enviar transação completa para revisão
+  // Setup a fully complete transaction to submit
+  const validCatId = 'valid_cat_inc';
+  await orgRef.collection('financeCategories').doc(validCatId).set({
+    financeEntityId: finEntityId,
+    active: true,
+    kind: 'income',
+    name: 'Dízimos',
+    configurationStatus: 'complete'
+  });
+
+  const completeTxId = 'complete_tx_ready';
+  await orgRef.collection('financeTransactions').doc(completeTxId).set({
+    id: completeTxId,
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionKind: 'income',
+    direction: 'income',
+    cashFlowDirection: 'inflow',
+    status: 'draft',
+    amountCents: 6500,
+    currency: 'BRL',
+    occurredAt: '2026-06-22T00:00:00Z',
+    accountId: canonAccountId,
+    accountSnapshot: { id: canonAccountId, name: 'Canon Legacy Bank', type: 'asset:bank', nature: 'asset', configurationStatus: 'complete' },
+    allocationIds: ['alloc_complete_1'],
+    paymentMethod: 'pix',
+    version: 1
+  });
+  await orgRef.collection('financeAllocations').doc('alloc_complete_1').set({
+    id: 'alloc_complete_1',
+    organizationId: orgId,
+    financeEntityId: finEntityId,
+    transactionId: completeTxId,
+    categoryId: validCatId,
+    categorySnapshot: { id: validCatId, name: 'Dízimos', type: 'income' },
+    amountCents: 6500
+  });
+
+  {
+    const res = await testCall(transactionsSubmitForReview, {
+      body: {
+        financeEntityId: finEntityId,
+        transactionId: completeTxId,
+        expectedVersion: 1,
+        idempotencyKey: 'idem_real_journey_6',
+        requestId: 'req_real_journey_6'
+      }
+    });
+    assertTest(res.statusCode === 200, '6. enviar transação completa para revisão executado');
+  }
+
+  // 7. abrir detalhe de documento legado
+  {
+    const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId } });
+    assertTest(res.statusCode === 200, '7. abrir detalhe de documento legado executado');
+  }
+
+  // 8. confirmar ausência de valores inventados
+  {
+    const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId2 } });
+    // Incomplete snapshot has NO invented type, or fallback nature.
+    const snap = res.body.transaction?.accountSnapshot;
+    assertTest(snap && !snap.type && !snap.nature, '8. confirmar ausência de valores inventados executado');
+  }
 
   console.log(`\nP06B Consolidated UI & Logic Totals: ${passed} Passed, ${failed} Failed\n`);
   

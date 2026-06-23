@@ -81,6 +81,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };
       }
 
+      payload.direction = transactionKind;
+
       const draftValidation = validateDraftMinimum(payload, financeEntityId);
       if (!draftValidation.valid) {
         throw { code: 'INVALID_PARAMETERS', message: draftValidation.errors.join('. ') };
@@ -308,7 +310,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Audit Log
       const auditId = generateAuditId();
       const auditRef = context.repository.getAuditRef().doc(auditId);
-      t.set(auditRef, {
+      t.set(auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -320,7 +322,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         afterHash: payloadHash, // Simplified
         metadata: { status: 'ready_for_review', amountCents, transactionKind },
         createdAt: FieldValue.serverTimestamp()
-      });
+      }));
 
       return { transactionId: txId, version: 1 };
     });

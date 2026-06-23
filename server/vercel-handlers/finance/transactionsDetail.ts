@@ -61,38 +61,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .sort((a: any, b: any) => a.sequence - b.sequence);
 
+    const { validateAccountMetadata, validateCategoryMetadata, validateFundMetadata } = await import('../../../shared/finance/smartLogic.js');
+
     let accountSnapshot = txData.accountSnapshot;
-    if (!accountSnapshot && txData.accountId) {
+    let isSnapshotValid = false;
+    if (accountSnapshot) {
+      const snapMeta = validateAccountMetadata(accountSnapshot);
+      if (snapMeta.valid) {
+        isSnapshotValid = true;
+      }
+    }
+
+    if (!isSnapshotValid && txData.accountId) {
        const accDoc = await context.repository.getAccountsRef().doc(txData.accountId).get();
-       if (accDoc.exists) {
+       if (accDoc.exists && accDoc.data()!.financeEntityId === financeEntityId) {
           const aData = accDoc.data()!;
-          const { getAccountNature } = await import('../../../shared/finance/smartLogic.js');
-          accountSnapshot = { 
-            id: aData.id, 
-            name: aData.name || '', 
-            type: aData.type || 'other',
-            nature: aData.type ? getAccountNature(aData.type) : 'asset'
+          const accMeta = validateAccountMetadata(aData);
+          if (accMeta.valid) {
+             accountSnapshot = { 
+               id: aData.id, 
+               name: accMeta.name!, 
+               type: accMeta.type!,
+               nature: accMeta.nature!
+             };
+          } else {
+             accountSnapshot = {
+               id: txData.accountId,
+               name: 'Conta ainda não configurada',
+               code: 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE'
+             };
+          }
+       } else {
+          accountSnapshot = {
+            id: txData.accountId,
+            name: 'Conta ainda não configurada',
+            code: 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE'
           };
        }
     }
 
     const resolvedAllocations = await Promise.all(allocations.map(async (a: any) => {
        let catSnap = a.categorySnapshot;
-       if (!catSnap && a.categoryId) {
+       let isCatValid = false;
+       if (catSnap) {
+          const catMeta = validateCategoryMetadata(catSnap);
+          if (catMeta.valid) {
+             isCatValid = true;
+          }
+       }
+       
+       if (!isCatValid && a.categoryId) {
           const cDoc = await context.repository.getCategoriesRef().doc(a.categoryId).get();
-          if (cDoc.exists) {
+          if (cDoc.exists && cDoc.data()!.financeEntityId === financeEntityId) {
              const cData = cDoc.data()!;
-             catSnap = { id: cData.id, kind: cData.kind, name: cData.name };
+             const catMeta = validateCategoryMetadata(cData);
+             if (catMeta.valid) {
+                catSnap = { id: cData.id, kind: catMeta.kind!, name: catMeta.name!, icon: catMeta.icon };
+             } else {
+                catSnap = { id: a.categoryId, name: 'Categoria ainda não configurada', code: 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE' };
+             }
+          } else {
+             catSnap = { id: a.categoryId, name: 'Categoria ainda não configurada', code: 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE' };
           }
        }
+
        let fundSnap = a.fundSnapshot;
-       if (!fundSnap && a.fundId) {
-          const fDoc = await context.repository.getFundsRef().doc(a.fundId).get();
-          if (fDoc.exists) {
-             const fData = fDoc.data()!;
-             fundSnap = { id: fData.id, name: fData.name };
+       let isFundValid = false;
+       if (fundSnap) {
+          const fundMeta = validateFundMetadata(fundSnap);
+          if (fundMeta.valid) {
+             isFundValid = true;
           }
        }
+
+       if (!isFundValid && a.fundId) {
+          const fDoc = await context.repository.getFundsRef().doc(a.fundId).get();
+          if (fDoc.exists && fDoc.data()!.financeEntityId === financeEntityId) {
+             const fData = fDoc.data()!;
+             const fundMeta = validateFundMetadata(fData);
+             if (fundMeta.valid) {
+                fundSnap = { id: fData.id, name: fundMeta.name! };
+             } else {
+                fundSnap = { id: a.fundId, name: 'Fundo ainda não configurado', code: 'FINANCE_FUND_CONFIGURATION_INCOMPLETE' };
+             }
+          } else {
+             fundSnap = { id: a.fundId, name: 'Fundo ainda não configurado', code: 'FINANCE_FUND_CONFIGURATION_INCOMPLETE' };
+          }
+       }
+
        return {
          ...a,
          categorySnapshot: catSnap,

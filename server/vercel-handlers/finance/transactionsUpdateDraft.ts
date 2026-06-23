@@ -342,9 +342,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // detect no-op
       // extremely simple no-op detector for the demo, checking against previous hash if provided in the payload? No, we can just hash newRecord minus updatedBy/updatedAt and compare. For reliability, we will skip deep no-op detector due to time, unless requested.
       // Wait, PRD: "Detectar no-op por representação normalizada". Let's stringify.
+      const cleanUndefined = (val: any): any => {
+        if (val === null || val === undefined) return undefined;
+        if (Array.isArray(val)) return val.map(cleanUndefined);
+        if (typeof val === 'object') {
+          const clean: any = {};
+          for (const key of Object.keys(val)) {
+            const v = cleanUndefined(val[key]);
+            if (v !== undefined) {
+              clean[key] = v;
+            }
+          }
+          return clean;
+        }
+        return val;
+      };
+
       const removeDynamic = (obj: any) => {
-         const { updatedBy, updatedAt, version, ...rest } = obj;
-         return rest;
+         const { updatedBy, updatedAt, version, listQueryKeys, createdAt, validationIssues, ...rest } = obj;
+         const cleanedRest = cleanUndefined(rest);
+         const clean: any = { ...cleanedRest };
+         if (validationIssues && Array.isArray(validationIssues) && validationIssues.length === 0) {
+           // treat empty validationIssues as equivalent to missing
+         } else if (validationIssues) {
+           clean.validationIssues = validationIssues;
+         }
+         return clean;
       };
       
       const oldState = removeDynamic(txData);
@@ -389,7 +412,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           action = 'transaction.returned_to_draft';
       }
 
-      t.set(context.repository.getAuditRef().doc(auditId), {
+      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -400,7 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         idempotencyKey,
         afterHash: payloadHash,
         createdAt: FieldValue.serverTimestamp()
-      });
+      }));
 
       return { changed: true, transactionId, version: newRecord.version };
     });

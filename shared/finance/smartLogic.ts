@@ -247,10 +247,11 @@ export function validateAccountMetadata(accountData: any): {
   }
   const rawType = accountData?.type;
   const type = normalizeAccountType(rawType);
-  if (!rawType || type === 'other') {
+  const nature = accountData?.nature || getAccountNature(rawType);
+
+  if (!rawType || (type === 'other' && nature === 'clearing')) {
     errors.push('Account type is missing or not configured');
   }
-  const nature = getAccountNature(rawType);
   if (nature === 'clearing') {
     errors.push('Account nature is clearing (unconfigured/invalid type)');
   }

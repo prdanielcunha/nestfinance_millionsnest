@@ -58,7 +58,7 @@ export function ShellLayout() {
         {/* Sidebar Desktop */}
         <aside className="hidden md:flex flex-col w-64 bg-surface-default border-r border-border-subtle fixed h-full z-10">
           <div className="h-16 flex items-center px-6 border-b border-border-subtle">
-            <img src="/logo_hz.png" alt="NestFinance" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
+            <img src="/logo_horiz.png" alt="NestFinance" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
           </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-1">
             <div className="mb-4 px-3 py-3 bg-surface-secondary rounded-lg border border-border-subtle overflow-hidden">
@@ -183,7 +183,7 @@ export function ShellLayout() {
         <main className="flex-1 md:pl-64 flex flex-col min-h-screen pb-16 md:pb-0">
           {/* Topbar Mobile */}
           <header className="md:hidden h-14 flex items-center justify-between px-4 bg-surface-default border-b border-border-subtle sticky top-0 z-10">
-            <img src="/logo_hz.png" alt="NestFinance" className="h-6 w-auto object-contain" referrerPolicy="no-referrer" />
+            <img src="/logo_horiz.png" alt="NestFinance" className="h-6 w-auto object-contain" referrerPolicy="no-referrer" />
             <div className="text-xs text-text-secondary font-medium truncate max-w-[150px]">
               {orgName}
             </div>
