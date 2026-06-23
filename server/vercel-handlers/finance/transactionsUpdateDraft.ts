@@ -165,7 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         newRecord.sourceAccountId = mergedPayload.accountId;
         newRecord.liabilityAccountId = mergedPayload.liabilityAccountId;
         newRecord.liabilityAccountSnapshot = { id: mergedPayload.liabilityAccountId, name: liabilityAccountData.name, type: liabilityAccountData.type };
-        newRecord.settlementType = mergedPayload.settlementType || txData.settlementType;
+        newRecord.settlementType = mergedPayload.settlementType || (txData as any).settlementType;
       } else {
         delete newRecord.liabilityAccountId;
         delete newRecord.liabilityAccountSnapshot;

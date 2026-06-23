@@ -3,7 +3,7 @@ import { FinanceAllocation, validateAllocation, assertAllocationsTotal } from '.
 import { assertAmountCents } from './money.js';
 import { LedgerDomainError } from './errors.js';
 
-export type TransactionDirection = 'income' | 'expense' | 'transfer' | 'adjustment';
+export type TransactionDirection = 'income' | 'expense' | 'transfer' | 'adjustment' | 'liability_settlement';
 export type TransactionStatus = 'draft' | 'ready_for_review' | 'posted' | 'reversed';
 
 export type TransactionBase = {
@@ -46,6 +46,11 @@ export type ExpenseTransaction = TransactionBase & {
   accountId: string;
   accountSnapshot?: { id: string; name: string; type: string };
   allocationIds: string[];
+  reimbursement?: { 
+    payableId: string;
+    personName: string;
+    description: string;
+  };
 };
 
 export type TransferTransaction = TransactionBase & {
@@ -60,11 +65,20 @@ export type AdjustmentTransaction = TransactionBase & {
   adjustmentType: string;
 };
 
+export type LiabilitySettlementTransaction = TransactionBase & {
+  direction: 'liability_settlement';
+  sourceAccountId: string;
+  liabilityAccountId: string;
+  liabilityAccountSnapshot?: { id: string; name: string; type: string };
+  settlementType: 'credit_card_bill' | 'reimbursement';
+};
+
 export type LedgerTransaction = 
   | IncomeTransaction 
   | ExpenseTransaction 
   | TransferTransaction 
-  | AdjustmentTransaction;
+  | AdjustmentTransaction
+  | LiabilitySettlementTransaction;
 
 export function canTransitionTransactionStatus(from: TransactionStatus, to: TransactionStatus): boolean {
   if (from === 'draft' && to === 'ready_for_review') return true;

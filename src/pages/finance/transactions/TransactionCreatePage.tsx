@@ -163,7 +163,7 @@ function TransactionCreateContent() {
      }));
   }, [direction, categories]);
 
-  const handleDirectionChange = (newDir: 'income' | 'expense' | 'transfer') => {
+  const handleDirectionChange = (newDir: 'income' | 'expense' | 'transfer' | 'liability_settlement') => {
     setDirection(newDir);
     setPaymentMethodWarning(null);
   };
