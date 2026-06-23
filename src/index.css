@@ -57,6 +57,11 @@ html, body {
   overflow-x: hidden;
 }
 
+select option {
+  background-color: var(--nf-surface-elevated);
+  color: var(--nf-text-primary);
+}
+
 ::selection {
   background-color: rgba(25, 211, 176, 0.3);
   color: var(--nf-text-primary);

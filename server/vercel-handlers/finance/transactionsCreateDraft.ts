@@ -117,12 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             transactionId: txId,
             categoryId: a.categoryId,
             amountCents: a.amountCents,
-            fundId: a.fundId,
             sequence: i,
             createdAt: new Date().toISOString(), // Use ISO string as requested by P06A
             createdBy: uid,
             schemaVersion: 1
           };
+          if (a.fundId) alloc.fundId = a.fundId;
           
           validateAllocation(alloc, financeEntityId, direction as 'income'|'expense');
           allocsToSave.push(alloc);
@@ -140,9 +140,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currency: 'BRL',
         occurredAt,
         recordedAt: new Date().toISOString(),
-        paymentMethod,
+        paymentMethod: paymentMethod || 'unspecified',
         sourceContext: sourceContext || 'manual',
-        description,
         reconciliationStatus: 'unreconciled',
         evidenceIds: [],
         accountId,
@@ -152,6 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         version: 1,
         schemaVersion: 1
       } as LedgerTransaction;
+      if (description) txPayload.description = description;
 
       // This throws if core domain constraints fail (e.g., negative amount).
       validateTransactionCore(txPayload);

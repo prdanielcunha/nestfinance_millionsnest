@@ -98,12 +98,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amountCents: payload.amountCents !== undefined ? payload.amountCents : txData.amountCents,
         occurredAt: payload.occurredAt || txData.occurredAt,
         accountId,
-        paymentMethod: payload.paymentMethod || txData.paymentMethod,
-        description: payload.description !== undefined ? payload.description : txData.description,
+        paymentMethod: payload.paymentMethod || txData.paymentMethod || 'unspecified',
         sourceContext: payload.sourceContext || txData.sourceContext,
         status: newStatus,
         updatedBy: uid
       };
+      if (payload.description !== undefined) {
+          if (payload.description === '') delete newRecord.description;
+          else newRecord.description = payload.description;
+      } else if (newRecord.description === undefined) {
+          delete newRecord.description;
+      }
 
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const existingAllocs = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
@@ -153,12 +158,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             transactionId: transactionId,
             categoryId: a.categoryId,
             amountCents: a.amountCents,
-            fundId: a.fundId,
             sequence: i,
             createdAt: existingAlloc ? existingAlloc.createdAt : new Date().toISOString(),
             createdBy: existingAlloc ? existingAlloc.createdBy : uid,
             schemaVersion: 1
           };
+          if (a.fundId) allocToSet.fundId = a.fundId;
           
           validateAllocation(allocToSet, financeEntityId, newRecord.direction as any);
           allocRefsToSet.set(aId, allocToSet);
