@@ -223,7 +223,7 @@ function TransactionsListContent() {
            {hasEffectiveCapability(accessState, 'finance.create_drafts') && (
               <button 
                 onClick={() => navigate(APP_ROUTES.transactionCreate)}
-                className="h-12 flex items-center px-4 md:ml-3 bg-text-primary hover:bg-text-primary/90 text-sm font-medium rounded-xl text-surface-base transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base w-full sm:w-auto justify-center"
+                className="h-12 flex items-center px-4 md:ml-3 bg-text-primary hover:bg-text-primary/90 text-sm font-medium rounded-xl text-background-base transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base w-full sm:w-auto justify-center"
               >
                 <Plus className="w-5 h-5 sm:mr-2" />
                 <span className="inline">Registrar movimentação</span>

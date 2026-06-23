@@ -858,7 +858,7 @@ function TransactionCreateContent() {
                            (direction === 'transfer' && (!destinationAccountId || accountId === destinationAccountId)) ||
                            (direction === 'liability_settlement' && (!settlementType || !liabilityAccountId)) ||
                            ((direction === 'income' || direction === 'expense') && !paymentMethod) ||
-                           ((direction === 'income' || direction === 'expense') && ((isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId) || (totalCents !== allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0))))
+                           ((direction === 'income' || direction === 'expense') && ((isSplit && (allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0) || totalCents !== allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0))) || (!isSplit && !allocations[0].categoryId)))
                          }
                          className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-background-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
                        >
