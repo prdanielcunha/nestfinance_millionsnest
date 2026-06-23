@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { requireFinanceTransactionAccess } from './accessHelpers.js';
@@ -31,7 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = authHeader.split('Bearer ')[1];
     const admin = getFirebaseAdmin();
     const db = admin.firestore;
-    const FieldValue = admin.firestore.FieldValue;
     const decodedToken = await admin.auth.verifyIdToken(token);
     const uid = decodedToken.uid;
     const organizationId = req.headers['x-organization-id'] as string;

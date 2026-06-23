@@ -34,10 +34,11 @@ export class MockRes {
 
 async function runTransactionsIntegrationTests() {
   const fakeDb: any = new FakeFirestore();
-  const FieldValue = {
-    serverTimestamp: () => ({ isEqual: () => true })
-  };
-  (fakeDb as any).FieldValue = FieldValue;
+  // We no longer inject FieldValue into fakeDb to ensure the handlers use the real import from firebase-admin/firestore
+  // const FieldValue = {
+  //   serverTimestamp: () => ({ isEqual: () => true })
+  // };
+  // (fakeDb as any).FieldValue = FieldValue;
 
   const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
   (globalThis as any)[TEST_FIRESTORE_SYMBOL] = fakeDb;
