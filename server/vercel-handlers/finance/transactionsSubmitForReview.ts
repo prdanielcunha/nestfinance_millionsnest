@@ -64,15 +64,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Validations: must be fully valid and allocations complete
-      if (txData.amountCents <= 0) throw { code: 'FINANCE_INVALID_AMOUNT', message: 'Amount strictly positive' };
-      
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const existingAllocs = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
 
-      if (txData.direction !== 'transfer') {
-        if (existingAllocs.length === 0) {
-          throw { code: 'FINANCE_INVALID_ALLOCATION', message: 'Submit requires at least one allocation for income/expense' };
-        }
+      const payloadForReadiness = { ...txData, allocations: existingAllocs };
+
+      const { validateSubmissionReadiness } = await import('../../../shared/finance/smartLogic.js');
+      const readiness = validateSubmissionReadiness(payloadForReadiness);
+      if (!readiness.ready) {
+        throw { code: 'FINANCE_NOT_READY_FOR_SUBMISSION', message: readiness.errors.join('. ') };
+      }
+
+      if (txData.direction !== 'transfer' && txData.direction !== 'liability_settlement') {
         // throws if not closed
         assertAllocationsTotal(existingAllocs, txData.amountCents);
       }

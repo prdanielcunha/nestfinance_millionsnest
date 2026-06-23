@@ -55,7 +55,10 @@ function TransactionCreateContent() {
   const [funds, setFunds] = useState<any[]>([]);
 
   // Form State
-  const [direction, setDirection] = useState<'income' | 'expense' | 'transfer'>('expense');
+  const [direction, setDirection] = useState<'income' | 'expense' | 'transfer' | 'liability_settlement'>('expense');
+
+  const [settlementType, setSettlementType] = useState<'credit_card_bill' | 'reimbursement' | ''>('');
+  const [liabilityAccountId, setLiabilityAccountId] = useState('');
   const [amountRaw, setAmountRaw] = useState('0'); // Value in cents as a string for raw typing
   const [occurredAt, setOccurredAt] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState('');
@@ -249,6 +252,17 @@ function TransactionCreateContent() {
       }
     }
 
+    if (direction === 'liability_settlement') {
+      if (!settlementType) {
+         setSaveError('Selecione o tipo de liquidação');
+         return null;
+      }
+      if (!liabilityAccountId) {
+         setSaveError('Selecione o passivo a liquidar');
+         return null;
+      }
+    }
+
     if (totalCents <= 0) {
       setSaveError('O valor da movimentação deve ser maior que zero');
       return null;
@@ -256,7 +270,7 @@ function TransactionCreateContent() {
 
     // validate allocations
     const finalAllocs = [];
-    if (direction !== 'transfer') {
+    if (direction !== 'transfer' && direction !== 'liability_settlement') {
         if (isSplit) {
            for (const a of allocations) {
               if (!a.categoryId) {
@@ -294,7 +308,9 @@ function TransactionCreateContent() {
        paymentMethod: paymentMethod || undefined,
        description: description || undefined,
        sourceContext: 'manual',
-       allocations: direction === 'transfer' ? [] : finalAllocs
+       allocations: (direction === 'transfer' || direction === 'liability_settlement') ? [] : finalAllocs,
+       settlementType: direction === 'liability_settlement' ? settlementType : undefined,
+       liabilityAccountId: direction === 'liability_settlement' ? liabilityAccountId : undefined
     };
   };
 
@@ -527,36 +543,44 @@ function TransactionCreateContent() {
               {/* Bloco 1: O que aconteceu */}
               <div className="flex flex-col gap-4">
                   <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">O que aconteceu?</h3>
-                  <div className="flex p-1 bg-surface-elevated border border-border-subtle rounded-xl max-w-sm w-full">
+                  <div className="flex flex-col gap-2 p-1 bg-surface-elevated border border-border-subtle rounded-xl max-w-sm w-full">
+                     <div className="flex w-full">
+                       <button 
+                          onClick={() => handleDirectionChange('income')}
+                          className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
+                       >
+                          Entrada
+                       </button>
+                       <button 
+                          onClick={() => handleDirectionChange('expense')}
+                          className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
+                       >
+                          Saída
+                       </button>
+                       <button 
+                          onClick={() => handleDirectionChange('transfer')}
+                          className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'transfer' ? 'bg-amber-500/10 text-amber-500' : 'text-text-muted hover:text-text-primary'}`}
+                       >
+                          Transferência
+                       </button>
+                     </div>
                      <button 
-                        onClick={() => handleDirectionChange('income')}
-                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'income' ? 'bg-teal-500/10 text-teal-500' : 'text-text-muted hover:text-text-primary'}`}
+                        onClick={() => handleDirectionChange('liability_settlement')}
+                        className={`w-full h-10 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'liability_settlement' ? 'bg-blue-500/10 text-blue-500' : 'text-text-muted hover:text-text-primary'}`}
                      >
-                        Entrada
-                     </button>
-                     <button 
-                        onClick={() => handleDirectionChange('expense')}
-                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'expense' ? 'bg-rose-500/10 text-rose-500' : 'text-text-muted hover:text-text-primary'}`}
-                     >
-                        Saída
-                     </button>
-                     <button 
-                        onClick={() => handleDirectionChange('transfer')}
-                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'transfer' ? 'bg-amber-500/10 text-amber-500' : 'text-text-muted hover:text-text-primary'}`}
-                     >
-                        Transferência
+                        Outras Operações (Liquidação)
                      </button>
                   </div>
 
                   <div className="flex flex-col items-center gap-2 py-4">
                      <p className="text-sm font-medium text-text-secondary">Valor total</p>
                      <div className="relative group flex items-center justify-center">
-                        <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : 'text-rose-500'}`}>R$</span>
+                        <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : direction === 'liability_settlement' ? 'text-blue-500' : 'text-rose-500'}`}>R$</span>
                         <input 
                            inputMode="numeric"
                            value={formatMoneyInput(amountRaw)}
                            onChange={handleAmountChange}
-                           className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
+                           className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : direction === 'liability_settlement' ? 'text-blue-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
                            placeholder="0,00"
                         />
                      </div>
@@ -575,9 +599,9 @@ function TransactionCreateContent() {
 
               {/* Bloco 2: Como aconteceu */}
               <div className="flex flex-col gap-4 mt-8">
-                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como a igreja {direction === 'income' ? 'recebeu' : direction === 'transfer' ? 'transferiu' : 'pagou'}?</h3>
+                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como a igreja {direction === 'income' ? 'recebeu' : direction === 'transfer' ? 'transferiu' : direction === 'liability_settlement' ? 'liquidou' : 'pagou'}?</h3>
                   
-                  {direction !== 'transfer' && (
+                  {(direction === 'income' || direction === 'expense') && (
                       <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                          <label className="text-sm font-medium text-text-primary">
                            {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
@@ -598,10 +622,38 @@ function TransactionCreateContent() {
                       </div>
                   )}
 
+                  {direction === 'liability_settlement' && (
+                     <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1.5">
+                           <label className="text-sm font-medium text-text-primary">Tipo de Liquidação</label>
+                           <FinanceSelect 
+                              value={settlementType}
+                              onChange={val => setSettlementType(val as any)}
+                              options={[
+                                 { value: 'credit_card_bill', label: 'Pagar Fatura de Cartão' },
+                                 { value: 'reimbursement', label: 'Reembolsar uma Pessoa' }
+                              ]}
+                              placeholder="Selecione..."
+                              className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                           />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                           <label className="text-sm font-medium text-text-primary">Passivo a liquidar</label>
+                           <FinanceSelect 
+                              value={liabilityAccountId}
+                              onChange={val => setLiabilityAccountId(val)}
+                              options={accounts.filter(a => a.nature === 'liability').map(a => ({ value: a.id, label: a.name }))}
+                              placeholder="Selecione o passivo..."
+                              className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                           />
+                        </div>
+                     </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                         <label className="text-sm font-medium text-text-primary">
-                          {direction === 'transfer' ? 'Da conta de origem (saiu daqui)' : 'Conta'}
+                          {direction === 'transfer' ? 'Da conta de origem (saiu daqui)' : direction === 'liability_settlement' ? 'Conta de origem (que pagou)' : 'Conta'}
                         </label>
                         {availableAccounts.length > 0 ? (
                             <FinanceSelect 
@@ -770,13 +822,18 @@ function TransactionCreateContent() {
                  <div className="max-w-xl mx-auto flex flex-col gap-3">
                      <div className="p-4 bg-surface-elevated rounded-2xl border border-border-subtle -mt-2">
                         <p className="text-sm font-medium text-text-primary">
-                          {direction === 'income' ? 'Entrada' : direction === 'transfer' ? 'Transferência' : 'Saída'} de {formatMoneyInput(totalCents.toString())}
+                          {direction === 'income' ? 'Entrada' : direction === 'transfer' ? 'Transferência' : direction === 'liability_settlement' ? 'Liquidação' : 'Saída'} de {formatMoneyInput(totalCents.toString())}
                         </p>
                         <p className="text-xs text-text-muted mt-1 leading-relaxed">
                           {direction === 'transfer' ? (
                              <>
                               Origem: {selectedAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
                               Destino: {selectedDestinationAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
+                             </>
+                          ) : direction === 'liability_settlement' ? (
+                             <>
+                              Conta Pagadora: {selectedAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
+                              Liquidação: {settlementType === 'credit_card_bill' ? 'Fatura' : settlementType === 'reimbursement' ? 'Reembolso' : <span className="text-amber-500">Pendente</span>}<br/>
                              </>
                           ) : (
                              <>
@@ -798,9 +855,10 @@ function TransactionCreateContent() {
                            saving || 
                            !accountId || 
                            totalCents <= 0 || 
-                           (direction !== 'transfer' && !paymentMethod) || 
                            (direction === 'transfer' && (!destinationAccountId || accountId === destinationAccountId)) ||
-                           (direction !== 'transfer' && ((isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId) || (totalCents !== allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0))))
+                           (direction === 'liability_settlement' && (!settlementType || !liabilityAccountId)) ||
+                           ((direction === 'income' || direction === 'expense') && !paymentMethod) ||
+                           ((direction === 'income' || direction === 'expense') && ((isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId) || (totalCents !== allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0))))
                          }
                          className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-background-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
                        >

@@ -66,12 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          }
       }
 
-      if (txData.direction !== 'income' && txData.direction !== 'expense' && txData.direction !== 'transfer') {
-          throw { code: 'INVALID_PARAMETERS', message: 'Only income, expense, or transfer transactions can be edited in this phase' };
+      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(txData.direction)) {
+          throw { code: 'INVALID_PARAMETERS', message: 'Only income, expense, transfer or liability_settlement transactions can be edited in this phase' };
       }
       const direction = payload.direction || txData.direction;
-      if (direction !== 'income' && direction !== 'expense' && direction !== 'transfer') {
-          throw { code: 'INVALID_PARAMETERS', message: 'Direction must be income, expense, or transfer' };
+      if (!['income', 'expense', 'transfer', 'liability_settlement'].includes(direction)) {
+          throw { code: 'INVALID_PARAMETERS', message: 'Direction must be income, expense, transfer, or liability_settlement' };
       }
       
       let newStatus = txData.status;
@@ -83,34 +83,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Arbitrary status change not allowed' };
       }
 
-      const accountId = payload.accountId || (txData as any).accountId;
+      const mergedPayload = {
+        ...txData,
+        ...payload,
+        direction,
+        amountCents: payload.amountCents !== undefined ? payload.amountCents : txData.amountCents,
+        occurredAt: payload.occurredAt || txData.occurredAt,
+        accountId: payload.accountId !== undefined ? payload.accountId : (txData as any).accountId,
+        paymentMethod: payload.paymentMethod || txData.paymentMethod || 'unspecified'
+      };
+
+      const { validateDraftMinimum } = await import('../../../shared/finance/smartLogic.js');
+      const draftValidation = validateDraftMinimum(mergedPayload, financeEntityId);
+      if (!draftValidation.valid) {
+        throw { code: 'INVALID_PARAMETERS', message: draftValidation.errors.join('. ') };
+      }
+
       let accountData = null;
-      if (accountId) {
-          const accountRef = context.repository.getAccountsRef().doc(accountId);
+      if (mergedPayload.accountId) {
+          const accountRef = context.repository.getAccountsRef().doc(mergedPayload.accountId);
           const accountDoc = await t.get(accountRef);
           if (!accountDoc.exists || accountDoc.data()!.financeEntityId !== financeEntityId || !accountDoc.data()!.active) {
             throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
           }
           accountData = accountDoc.data()!;
+          mergedPayload.accountSnapshot = { type: accountData.type };
       }
 
-      const paymentMethod = payload.paymentMethod || txData.paymentMethod || 'unspecified';
-
-      if (accountData) {
-          const { getCompatibility } = await import('../../../shared/finance/smartLogic.js');
-          const comp = getCompatibility(accountData.type, paymentMethod, direction as any);
-          if (comp.level === 'impossible') {
-            throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: comp.explanation };
-          }
+      const draftValidationWithSnapshots = validateDraftMinimum(mergedPayload, financeEntityId);
+      if (!draftValidationWithSnapshots.valid) {
+        throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: draftValidationWithSnapshots.errors.join('. ') };
       }
 
-      const destinationAccountId = payload.destinationAccountId !== undefined ? payload.destinationAccountId : (txData as any).destinationAccountId;
       let destinationAccountData = null;
-      if (direction === 'transfer') {
-          if (!destinationAccountId) throw { code: 'FINANCE_DESTINATION_ACCOUNT_REQUIRED', message: 'Destination account is required for transfer' };
-          if (accountId === destinationAccountId) throw { code: 'FINANCE_TRANSFER_SAME_ACCOUNT', message: 'Origin and destination accounts must be different' };
-          
-          const destAccRef = context.repository.getAccountsRef().doc(destinationAccountId);
+      if (direction === 'transfer' && mergedPayload.destinationAccountId) {
+          const destAccRef = context.repository.getAccountsRef().doc(mergedPayload.destinationAccountId);
           const destAccDoc = await t.get(destAccRef);
           if (!destAccDoc.exists || destAccDoc.data()!.financeEntityId !== financeEntityId || !destAccDoc.data()!.active) {
             throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Destination account invalid or inactive' };
@@ -118,26 +125,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           destinationAccountData = destAccDoc.data()!;
       }
 
+      let liabilityAccountData = null;
+      if (direction === 'liability_settlement' && mergedPayload.liabilityAccountId) {
+          const liabAccRef = context.repository.getAccountsRef().doc(mergedPayload.liabilityAccountId);
+          const liabAccDoc = await t.get(liabAccRef);
+          if (!liabAccDoc.exists || liabAccDoc.data()!.financeEntityId !== financeEntityId || !liabAccDoc.data()!.active) {
+            throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Liability account invalid or inactive' };
+          }
+          liabilityAccountData = liabAccDoc.data()!;
+      }
+
       let newRecord: any = {
         ...txData,
         direction,
-        amountCents: payload.amountCents !== undefined ? payload.amountCents : txData.amountCents,
-        occurredAt: payload.occurredAt || txData.occurredAt,
-        accountId,
-        paymentMethod,
-        sourceContext: payload.sourceContext || txData.sourceContext,
+        amountCents: mergedPayload.amountCents,
+        occurredAt: mergedPayload.occurredAt,
+        accountId: mergedPayload.accountId,
+        paymentMethod: mergedPayload.paymentMethod,
+        sourceContext: mergedPayload.sourceContext || txData.sourceContext,
         status: newStatus,
         updatedBy: uid
       };
+      
+      if (accountData) {
+        newRecord.accountSnapshot = { id: mergedPayload.accountId, name: accountData.name, type: accountData.type };
+      }
 
-      if (destinationAccountId && destinationAccountData && direction === 'transfer') {
-          newRecord.sourceAccountId = accountId;
-          newRecord.destinationAccountId = destinationAccountId;
-          newRecord.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
+      if (mergedPayload.destinationAccountId && destinationAccountData && direction === 'transfer') {
+          newRecord.sourceAccountId = mergedPayload.accountId;
+          newRecord.destinationAccountId = mergedPayload.destinationAccountId;
+          newRecord.destinationAccountSnapshot = { id: mergedPayload.destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
       } else {
           delete newRecord.sourceAccountId;
           delete newRecord.destinationAccountId;
           delete newRecord.destinationAccountSnapshot;
+      }
+
+      if (liabilityAccountData) {
+        newRecord.sourceAccountId = mergedPayload.accountId;
+        newRecord.liabilityAccountId = mergedPayload.liabilityAccountId;
+        newRecord.liabilityAccountSnapshot = { id: mergedPayload.liabilityAccountId, name: liabilityAccountData.name, type: liabilityAccountData.type };
+        newRecord.settlementType = mergedPayload.settlementType || txData.settlementType;
+      } else {
+        delete newRecord.liabilityAccountId;
+        delete newRecord.liabilityAccountSnapshot;
+        delete newRecord.settlementType;
+      }
+
+      if (mergedPayload.reimbursement !== undefined) {
+        newRecord.reimbursement = mergedPayload.reimbursement;
       }
 
       if (payload.description !== undefined) {

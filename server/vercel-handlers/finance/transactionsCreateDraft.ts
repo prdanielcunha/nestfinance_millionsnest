@@ -69,31 +69,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payloadHash = hashPayload(payload);
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
-      // Validations
-      const accountRef = context.repository.getAccountsRef().doc(accountId);
-      const accountDoc = await t.get(accountRef);
-      if (!accountDoc.exists || accountDoc.data()!.financeEntityId !== financeEntityId || !accountDoc.data()!.active) {
-        throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
+      // Validate Draft Minimums
+      const { validateDraftMinimum } = await import('../../../shared/finance/smartLogic.js');
+      const draftValidation = validateDraftMinimum(payload, financeEntityId);
+      if (!draftValidation.valid) {
+        throw { code: 'INVALID_PARAMETERS', message: draftValidation.errors.join('. ') };
       }
 
-      // Smart Logic Validation
-      const { getCompatibility } = await import('../../../shared/finance/smartLogic.js');
-      const comp = getCompatibility(accountDoc.data()!.type, paymentMethod, direction as any);
-      if (comp.level === 'impossible') {
-        throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: comp.explanation };
-      }
-
+      // Prepare account data
+      let accountDoc;
       let destinationAccountData = null;
-      if (direction === 'transfer') {
-        if (!destinationAccountId) throw { code: 'FINANCE_DESTINATION_ACCOUNT_REQUIRED', message: 'Destination account is required for transfer' };
-        if (accountId === destinationAccountId) throw { code: 'FINANCE_TRANSFER_SAME_ACCOUNT', message: 'Origin and destination accounts must be different' };
+      let liabilityAccountData = null;
+      let reimbursementData = null;
+
+      if (accountId) {
+        const accountRef = context.repository.getAccountsRef().doc(accountId);
+        accountDoc = await t.get(accountRef);
+        if (!accountDoc.exists || accountDoc.data()!.financeEntityId !== financeEntityId || !accountDoc.data()!.active) {
+          throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
+        }
         
+        // inject snapshot type into payload temporarily for validation
+        payload.accountSnapshot = { type: accountDoc.data()!.type };
+      }
+
+      const draftValidationWithSnapshots = validateDraftMinimum(payload, financeEntityId);
+      if (!draftValidationWithSnapshots.valid) {
+        throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: draftValidationWithSnapshots.errors.join('. ') };
+      }
+
+      if (direction === 'transfer') {
         const destAccRef = context.repository.getAccountsRef().doc(destinationAccountId);
         const destAccDoc = await t.get(destAccRef);
         if (!destAccDoc.exists || destAccDoc.data()!.financeEntityId !== financeEntityId || !destAccDoc.data()!.active) {
           throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Destination account invalid or inactive' };
         }
         destinationAccountData = destAccDoc.data()!;
+      }
+
+      if (direction === 'liability_settlement' && payload.liabilityAccountId) {
+        const liabAccRef = context.repository.getAccountsRef().doc(payload.liabilityAccountId);
+        const liabAccDoc = await t.get(liabAccRef);
+        if (!liabAccDoc.exists || liabAccDoc.data()!.financeEntityId !== financeEntityId || !liabAccDoc.data()!.active) {
+          throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Liability account invalid or inactive' };
+        }
+        liabilityAccountData = liabAccDoc.data()!;
       }
 
       // We need to parse allocations
@@ -185,6 +205,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         txPayload.sourceAccountId = accountId;
         txPayload.destinationAccountId = destinationAccountId;
         txPayload.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
+      }
+      if (liabilityAccountData) {
+        txPayload.sourceAccountId = accountId;
+        txPayload.liabilityAccountId = payload.liabilityAccountId;
+        txPayload.liabilityAccountSnapshot = { id: payload.liabilityAccountId, name: liabilityAccountData.name, type: liabilityAccountData.type };
+        txPayload.settlementType = payload.settlementType;
+      }
+      if (payload.reimbursement) {
+        txPayload.reimbursement = payload.reimbursement;
       }
       if (description) txPayload.description = description;
 
