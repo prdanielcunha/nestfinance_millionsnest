@@ -4,6 +4,7 @@ import { APP_ROUTES } from './routes';
 import { RootLayout } from '../layouts/RootLayout';
 import { ShellLayout } from '../layouts/ShellLayout';
 import { RouteErrorBoundary } from '../boundaries/RouteErrorBoundary';
+import { OrganizationalAccessBoundary } from '../boundaries/OrganizationalAccessBoundary';
 import HandoffPage from '@/src/pages/auth/HandoffPage';
 
 // Lazy loaded pages to keep initial bundle small
@@ -84,7 +85,13 @@ const routes: RouteObject[] = [
           },
           {
             path: APP_ROUTES.financeSettingsEntities,
-            element: <Suspense fallback={<PageFallback />}><FinanceEntitiesPage /></Suspense>,
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <OrganizationalAccessBoundary>
+                  <FinanceEntitiesPage />
+                </OrganizationalAccessBoundary>
+              </Suspense>
+            ),
           },
           {
             path: APP_ROUTES.financeSettingsFunds,

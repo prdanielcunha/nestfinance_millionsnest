@@ -29,6 +29,7 @@ import transactionsDetail from '../server/vercel-handlers/finance/transactionsDe
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
+import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -95,6 +96,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsDetail(req, res);
     case 'transactions-create-draft':
       return transactionsCreateDraft(req, res);
+    case 'transactions-create-and-submit':
+      return transactionsCreateAndSubmit(req, res);
     case 'transactions-update-draft':
       return transactionsUpdateDraft(req, res);
     case 'transactions-submit-review':

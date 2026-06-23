@@ -61,6 +61,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .sort((a: any, b: any) => a.sequence - b.sequence);
 
+    let accountSnapshot = txData.accountSnapshot;
+    if (!accountSnapshot && txData.accountId) {
+       const accDoc = await context.repository.getAccountsRef().doc(txData.accountId).get();
+       if (accDoc.exists) {
+          const aData = accDoc.data()!;
+          accountSnapshot = { id: aData.id, name: aData.name, type: aData.type };
+       }
+    }
+
+    const resolvedAllocations = await Promise.all(allocations.map(async (a: any) => {
+       let catSnap = a.categorySnapshot;
+       if (!catSnap && a.categoryId) {
+          const cDoc = await context.repository.getCategoriesRef().doc(a.categoryId).get();
+          if (cDoc.exists) {
+             const cData = cDoc.data()!;
+             catSnap = { id: cData.id, kind: cData.kind, name: cData.name };
+          }
+       }
+       let fundSnap = a.fundSnapshot;
+       if (!fundSnap && a.fundId) {
+          const fDoc = await context.repository.getFundsRef().doc(a.fundId).get();
+          if (fDoc.exists) {
+             const fData = fDoc.data()!;
+             fundSnap = { id: fData.id, name: fData.name };
+          }
+       }
+       return {
+         ...a,
+         categorySnapshot: catSnap,
+         fundSnapshot: fundSnap
+       };
+    }));
+
+    // Resolve user name
+    let creatorName = 'Usuário da equipe';
+    if (txData.createdBy) {
+       try {
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.createdBy).get();
+           if (uDoc.exists) {
+               creatorName = uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
+           }
+       } catch (e) {
+           // ignore
+       }
+    }
+
     // Capabilities effective
     const canEdit = hasFinanceCapability(sessionList, 'finance.create_drafts') 
                     && (txData.status === 'draft' || txData.status === 'ready_for_review');
@@ -81,18 +127,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         counterparty: txData.counterparty,
         reconciliationStatus: txData.reconciliationStatus,
         accountId: txData.accountId,
+        accountSnapshot,
         version: txData.version,
         createdBy: txData.createdBy,
+        creatorName,
         updatedAt: txData.updatedAt
       },
-      allocations: allocations.map(a => ({
+      allocations: resolvedAllocations.map(a => ({
         id: a.id,
-        categoryId: (a as any).categoryId,
-        amountCents: (a as any).amountCents,
-        fundId: (a as any).fundId,
-        costCenterId: (a as any).costCenterId,
-        memo: (a as any).memo,
-        sequence: (a as any).sequence
+        categoryId: a.categoryId,
+        categorySnapshot: a.categorySnapshot,
+        amountCents: a.amountCents,
+        fundId: a.fundId,
+        fundSnapshot: a.fundSnapshot,
+        costCenterId: a.costCenterId,
+        memo: a.memo,
+        sequence: a.sequence
       })),
       capabilities: {
         canEdit

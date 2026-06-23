@@ -13,7 +13,7 @@ export function canManageFinanceEntities(sessionList: any): boolean {
   return hasEffectiveCapability(sessionList, 'organization.manage_entities');
 }
 
-export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts'): boolean {
+export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review'): boolean {
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
   if (sessionList.capabilities?.includes('finance.manage')) return true; // broader access
   return false;
@@ -143,7 +143,7 @@ export async function requireFinanceTransactionAccess({
   organizationId: string;
   financeEntityId: string;
   sessionList: any;
-  capability: 'finance.view' | 'finance.create_drafts';
+  capability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review';
 }): Promise<FinanceEntityAccessContext> {
   if (!organizationId) throw new Error('Organization ID is required');
   if (!financeEntityId) throw new Error('Finance Entity ID is required');

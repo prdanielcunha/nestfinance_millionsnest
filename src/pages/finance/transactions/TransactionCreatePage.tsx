@@ -10,6 +10,8 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { FinanceSelect, FinanceSelectOption } from '@/src/components/finance/FinanceSelect';
+import { getCompatibleAccounts, getCompatiblePaymentInstruments } from '@/shared/finance/smartLogic';
+import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
 
 export default function TransactionCreatePage() {
   const { accessState } = useAuth();
@@ -41,8 +43,9 @@ export default function TransactionCreatePage() {
 
 function TransactionCreateContent() {
   const navigate = useNavigate();
+  const { accessState } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
-  const { createDraft } = useTransactions();
+  const { createDraft, createAndSubmit } = useTransactions();
   
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [initialError, setInitialError] = useState<string | null>(null);
@@ -52,10 +55,11 @@ function TransactionCreateContent() {
   const [funds, setFunds] = useState<any[]>([]);
 
   // Form State
-  const [direction, setDirection] = useState<'income' | 'expense'>('expense');
+  const [direction, setDirection] = useState<'income' | 'expense' | 'transfer'>('expense');
   const [amountRaw, setAmountRaw] = useState('0'); // Value in cents as a string for raw typing
   const [occurredAt, setOccurredAt] = useState(new Date().toISOString().split('T')[0]);
   const [accountId, setAccountId] = useState('');
+  const [destinationAccountId, setDestinationAccountId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [description, setDescription] = useState('');
   
@@ -156,8 +160,9 @@ function TransactionCreateContent() {
      }));
   }, [direction, categories]);
 
-  const handleDirectionChange = (newDir: 'income' | 'expense') => {
+  const handleDirectionChange = (newDir: 'income' | 'expense' | 'transfer') => {
     setDirection(newDir);
+    setPaymentMethodWarning(null);
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,119 +189,163 @@ function TransactionCreateContent() {
     return categories.filter(c => c.kind === direction);
   }, [categories, direction]);
   
-  const paymentMethods = [
-    { id: 'cash', label: 'Dinheiro' },
-    { id: 'pix', label: 'Pix' },
-    { id: 'bank_transfer', label: 'Transferência Bancária' },
-    { id: 'credit_card', label: 'Cartão de Crédito' },
-    { id: 'debit_card', label: 'Cartão de Débito' },
-    { id: 'check', label: 'Cheque' }
-  ];
+  // New Smart Logic Computations
+  const allPaymentMethodsList = ALL_PAYMENT_METHODS;
 
-  const selectedAccount = useMemo(() => accounts.find(a => a.id === accountId), [accounts, accountId]);
+  const validPaymentMethodCodes = getCompatiblePaymentInstruments(undefined, direction);
 
   const availablePaymentMethods = useMemo(() => {
-     if (!selectedAccount) return paymentMethods;
-     if (selectedAccount.type === 'cash') {
-       return paymentMethods.filter(p => p.id === 'cash');
-     }
-     return paymentMethods;
-  }, [selectedAccount, paymentMethods]);
+     if (direction === 'transfer') return [];
+     return allPaymentMethodsList.filter(p => validPaymentMethodCodes.includes(p.code as any));
+  }, [direction, validPaymentMethodCodes]);
 
   const [paymentMethodWarning, setPaymentMethodWarning] = useState<string | null>(null);
 
   useEffect(() => {
      if (paymentMethod && availablePaymentMethods.length > 0) {
-        if (!availablePaymentMethods.some(p => p.id === paymentMethod)) {
+        if (!availablePaymentMethods.some(p => p.code === paymentMethod)) {
            setPaymentMethod('');
-           setPaymentMethodWarning('A forma de pagamento anterior foi removida porque não é compatível com a nova conta selecionada.');
+           setPaymentMethodWarning('A forma de pagamento anterior foi removida porque não é compatível com a operação atual.');
         } else {
            setPaymentMethodWarning(null);
         }
      }
-  }, [availablePaymentMethods, paymentMethod]);
+  }, [availablePaymentMethods, direction]);
+
+  const availableAccounts = useMemo(() => {
+      return getCompatibleAccounts(paymentMethod, direction, accounts);
+  }, [paymentMethod, direction, accounts]);
+
+  useEffect(() => {
+     if (accountId && !availableAccounts.some(a => a.id === accountId)) {
+        setAccountId('');
+     } else if (availableAccounts.length === 1 && !accountId) {
+        setAccountId(availableAccounts[0].id);
+     }
+  }, [availableAccounts, accountId]);
+
+  const selectedAccount = useMemo(() => accounts.find(a => a.id === accountId), [accounts, accountId]);
+  const selectedDestinationAccount = useMemo(() => accounts.find(a => a.id === destinationAccountId), [accounts, destinationAccountId]);
 
   const totalCents = parseAmountToCents(amountRaw);
   const allocatedCents = isSplit ? allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0) : totalCents;
   const targetDiff = totalCents - allocatedCents;
 
-  const handleSave = async () => {
-    if (saving) return; // double click prevention
-
-    setSaveError(null);
-
+  const buildPayloadOrError = () => {
     // Basic validation
     if (!accountId) {
       setSaveError('Selecione uma conta');
-      return;
+      return null;
+    }
+
+    if (direction === 'transfer') {
+      if (!destinationAccountId) {
+        setSaveError('Selecione a conta de destino para a transferência');
+        return null;
+      }
+      if (accountId === destinationAccountId) {
+        setSaveError('A conta de destino não pode ser a mesma de origem');
+        return null;
+      }
     }
 
     if (totalCents <= 0) {
       setSaveError('O valor da movimentação deve ser maior que zero');
-      return;
+      return null;
     }
 
     // validate allocations
     const finalAllocs = [];
-    if (isSplit) {
-       for (const a of allocations) {
-          if (!a.categoryId) {
-             setSaveError('Selecione uma categoria para todos os rateios');
-             return;
-          }
-          const amt = parseAmountToCents(a.amountRaw || '0');
-          if (amt <= 0) {
-             setSaveError('O valor de cada rateio deve ser maior que zero');
-             return;
-          }
-          finalAllocs.push({
-             categoryId: a.categoryId,
-             fundId: a.fundId || undefined,
-             amountCents: amt
-          });
-       }
-    } else {
-       if (!allocations[0].categoryId) {
-          setSaveError('Selecione uma categoria');
-          return;
-       }
-       finalAllocs.push({
-          categoryId: allocations[0].categoryId,
-          fundId: allocations[0].fundId || undefined,
-          amountCents: totalCents
-       });
+    if (direction !== 'transfer') {
+        if (isSplit) {
+           for (const a of allocations) {
+              if (!a.categoryId) {
+                 setSaveError('Selecione uma categoria para todos os rateios');
+                 return null;
+              }
+              const amt = parseAmountToCents(a.amountRaw || '0');
+              if (amt <= 0) {
+                 setSaveError('O valor de cada rateio deve ser maior que zero');
+                 return null;
+              }
+              finalAllocs.push({
+                 categoryId: a.categoryId,
+                 fundId: a.fundId || undefined,
+                 amountCents: amt
+              });
+           }
+        } else {
+           if (allocations[0].categoryId) {
+               finalAllocs.push({
+                  categoryId: allocations[0].categoryId,
+                  fundId: allocations[0].fundId || undefined,
+                  amountCents: totalCents
+               });
+           }
+        }
     }
 
-    const payload = {
+    return {
        direction,
        amountCents: totalCents,
        occurredAt: new Date(occurredAt + 'T12:00:00Z').toISOString(),
        accountId,
+       destinationAccountId: direction === 'transfer' ? destinationAccountId : undefined,
        paymentMethod: paymentMethod || undefined,
        description: description || undefined,
        sourceContext: 'manual',
-       allocations: finalAllocs
+       allocations: direction === 'transfer' ? [] : finalAllocs
     };
+  };
 
-    // calculate material payload string for comparison
-    const materialPayloadArray: any[] = [
-      activeFinanceEntityId, direction, totalCents, occurredAt, accountId, paymentMethod, description,
-      finalAllocs.map(a => `${a.categoryId}|${a.fundId || ''}|${a.amountCents}`).sort()
-    ];
-    const materialPayloadString = JSON.stringify(materialPayloadArray);
-
+  const getOrUpdateIdempotencyKey = (operation: 'draft'|'submit', materialPayloadString: string) => {
     if (materialPayloadString !== lastMaterialPayloadRef.current || !idempotencyKeyRef.current) {
-       idempotencyKeyRef.current = 'idkl_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+       idempotencyKeyRef.current = 'idkl_' + operation + '_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
        lastMaterialPayloadRef.current = materialPayloadString;
     }
+    return idempotencyKeyRef.current;
+  };
 
-    const currentEpochOnSave = epochRef.current;
+  const handleErrorContext = (err: any) => {
+       let msg = err.message || 'Erro ao salvar';
+       if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) msg = 'A divisão precisa ser revisada. O rateio não corresponde ao valor total.';
+       else if (msg.includes('FINANCE_ACCOUNT_MISMATCH')) msg = 'Essa conta não pertence à igreja selecionada.';
+       else if (msg.includes('FINANCE_CATEGORY_MISMATCH')) msg = 'Essa categoria não pode ser usada nesta movimentação.';
+       else if (msg.includes('FINANCE_FUND_MISMATCH')) msg = 'Esse fundo não pertence à igreja selecionada.';
+       else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) msg = 'Esta tentativa não pode ser repetida com informações diferentes.';
+       else if (msg.includes('FINANCE_PAYMENT_METHOD_MISMATCH')) msg = 'A forma de pagamento ' + (paymentMethod === 'pix' ? 'Pix' : '') + ' não é compatível com esta conta.';
+       else if (msg.includes('permission') || msg.includes('FORBIDDEN')) msg = 'Você não tem permissão para registrar esta movimentação.';
+       else if (msg.includes('ROUTE_NOT_FOUND') || msg.includes('Unexpected token')) msg = 'O serviço financeiro está temporariamente indisponível.';
+       else if (msg.includes('Failed to create transaction') || msg.includes('Failed to create and submit')) msg = 'Não foi possível salvar.';
+       else if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg === 'Erro ao salvar' || err.name === 'TypeError') {
+           msg = 'Não foi possível confirmar se a operação foi concluída. Tente novamente com segurança.';
+       }
+       setSaveError(msg);
+       setSaving(false);
+  };
+
+  const handleSaveDraft = async () => {
+    if (saving) return; // double click prevention
+    setSaveError(null);
+    const payload = buildPayloadOrError();
+    if (!payload && saveError) return;
+    if (!payload) return;
+
+    const materialPayloadArray: any[] = [
+      activeFinanceEntityId, direction, totalCents, occurredAt, accountId, paymentMethod, description,
+      payload.allocations.map(a => `${a.categoryId}|${a.fundId || ''}|${a.amountCents}`).sort()
+    ];
+    const materialPayloadString = JSON.stringify(materialPayloadArray);
+    const idempotencyKey = getOrUpdateIdempotencyKey('draft', materialPayloadString);
 
     setSaving(true);
+    const currentEpochOnSave = epochRef.current;
+    
     try {
        const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
        setLastReqId(reqId);
-       const res = await createDraft(payload, idempotencyKeyRef.current, reqId);
+       
+       const res = await createDraft(payload, idempotencyKey, reqId);
        
        if (epochRef.current !== currentEpochOnSave) return; // drop if entity changed
 
@@ -307,26 +356,60 @@ function TransactionCreateContent() {
        navigate(APP_ROUTES.transactionDetail.replace(':transactionId', res.transactionId), { replace: true });
     } catch (err: any) {
        if (epochRef.current !== currentEpochOnSave) return;
+       handleErrorContext(err);
+    }
+  };
 
-       let msg = err.message || 'Erro ao salvar';
-       if (msg.includes('FINANCE_ALLOCATION_TOTAL_MISMATCH')) msg = 'A divisão precisa ser revisada. O rateio não corresponde ao valor total.';
-       else if (msg.includes('FINANCE_ACCOUNT_MISMATCH')) msg = 'Essa conta não pertence à igreja selecionada.';
-       else if (msg.includes('FINANCE_CATEGORY_MISMATCH')) msg = 'Essa categoria não pode ser usada nesta movimentação.';
-       else if (msg.includes('FINANCE_FUND_MISMATCH')) msg = 'Esse fundo não pertence à igreja selecionada.';
-       else if (msg.includes('FINANCE_IDEMPOTENCY_CONFLICT')) msg = 'Esta tentativa não pode ser repetida com informações diferentes.';
-       else if (msg.includes('FINANCE_PAYMENT_METHOD_MISMATCH')) msg = 'A forma de pagamento ' + (paymentMethod === 'pix' ? 'Pix' : '') + ' não é compatível com esta conta.';
-       else if (msg.includes('permission') || msg.includes('FORBIDDEN')) msg = 'Você não tem permissão para registrar esta movimentação.';
-       else if (msg.includes('ROUTE_NOT_FOUND') || msg.includes('Unexpected token')) msg = 'O serviço financeiro está temporariamente indisponível.';
-       else if (msg.includes('Failed to create transaction draft')) msg = 'Não foi possível salvar o rascunho.';
-       else if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg === 'Erro ao salvar' || err.name === 'TypeError') {
-           msg = 'Não foi possível confirmar se o rascunho foi salvo. Tente novamente com segurança.';
-       } else {
-           // Some other application error
-           msg = msg; // keep the original server error if conclusive
-       }
+  const handleCreateAndSubmit = async () => {
+    if (saving) return; // double click prevention
+    setSaveError(null);
+    const payload = buildPayloadOrError();
+    if (!payload && saveError) return;
+    if (!payload) return;
+
+    if (direction !== 'transfer') {
+      if (!paymentMethod) {
+         setSaveError('Para registrar, informe a forma de pagamento e a categoria.');
+         return;
+      }
+      if (payload.allocations.length === 0) {
+         setSaveError('Para registrar, informe a categoria.');
+         return;
+      }
+
+      const calculatedAllocated = payload.allocations.reduce((sum, a) => sum + a.amountCents, 0);
+      if (totalCents !== calculatedAllocated) {
+         setSaveError('A soma dos rateios deve ser exatamente igual ao valor total para registrar.');
+         return;
+      }
+    }
+
+    const materialPayloadArray: any[] = [
+      activeFinanceEntityId, direction, totalCents, occurredAt, accountId, paymentMethod, description,
+      payload.allocations.map(a => `${a.categoryId}|${a.fundId || ''}|${a.amountCents}`).sort()
+    ];
+    const materialPayloadString = JSON.stringify(materialPayloadArray);
+    const idempotencyKey = getOrUpdateIdempotencyKey('submit', materialPayloadString);
+
+    setSaving(true);
+    const currentEpochOnSave = epochRef.current;
+    
+    try {
+       const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+       setLastReqId(reqId);
        
-       setSaveError(msg);
-       setSaving(false);
+       const res = await createAndSubmit(payload, idempotencyKey, reqId);
+       
+       if (epochRef.current !== currentEpochOnSave) return;
+
+       idempotencyKeyRef.current = null;
+       lastMaterialPayloadRef.current = null;
+       setLastReqId(null);
+
+       navigate(APP_ROUTES.transactionDetail.replace(':transactionId', res.transactionId), { replace: true });
+    } catch (err: any) {
+       if (epochRef.current !== currentEpochOnSave) return;
+       handleErrorContext(err);
     }
   };
 
@@ -457,17 +540,23 @@ function TransactionCreateContent() {
                      >
                         Saída
                      </button>
+                     <button 
+                        onClick={() => handleDirectionChange('transfer')}
+                        className={`flex-1 h-12 text-sm font-medium rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${direction === 'transfer' ? 'bg-amber-500/10 text-amber-500' : 'text-text-muted hover:text-text-primary'}`}
+                     >
+                        Transferência
+                     </button>
                   </div>
 
                   <div className="flex flex-col items-center gap-2 py-4">
                      <p className="text-sm font-medium text-text-secondary">Valor total</p>
                      <div className="relative group flex items-center justify-center">
-                        <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'}`}>R$</span>
+                        <span className={`text-4xl font-semibold mr-1 transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : 'text-rose-500'}`}>R$</span>
                         <input 
                            inputMode="numeric"
                            value={formatMoneyInput(amountRaw)}
                            onChange={handleAmountChange}
-                           className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
+                           className={`w-full max-w-[200px] bg-transparent text-5xl lg:text-6xl text-center font-semibold tracking-tight outline-none caret-text-primary transition-colors ${direction === 'income' ? 'text-teal-500' : direction === 'transfer' ? 'text-amber-500' : 'text-rose-500'} placeholder-text-muted/30 focus:border-b-2 border-b border-transparent focus:border-border-subtle pb-1`}
                            placeholder="0,00"
                         />
                      </div>
@@ -486,43 +575,67 @@ function TransactionCreateContent() {
 
               {/* Bloco 2: Como aconteceu */}
               <div className="flex flex-col gap-4 mt-8">
-                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como aconteceu?</h3>
+                  <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como a igreja {direction === 'income' ? 'recebeu' : direction === 'transfer' ? 'transferiu' : 'pagou'}?</h3>
+                  
+                  {direction !== 'transfer' && (
+                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
+                         <label className="text-sm font-medium text-text-primary">
+                           {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
+                         </label>
+                         <FinanceSelect 
+                           value={paymentMethod}
+                           onChange={val => setPaymentMethod(val)}
+                           options={availablePaymentMethods.map(m => ({ value: m.code, label: m.label }))}
+                           placeholder="Selecione..."
+                           allowClear
+                           className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                         />
+                         {paymentMethodWarning && (
+                            <div className="text-amber-500 text-xs mt-1 px-1">
+                               {paymentMethodWarning}
+                            </div>
+                         )}
+                      </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                        <label className="text-sm font-medium text-text-primary">Conta</label>
-                        {accounts.length > 0 ? (
+                        <label className="text-sm font-medium text-text-primary">
+                          {direction === 'transfer' ? 'Da conta de origem (saiu daqui)' : 'Conta'}
+                        </label>
+                        {availableAccounts.length > 0 ? (
                             <FinanceSelect 
                               value={accountId}
                               onChange={val => setAccountId(val)}
-                              options={accounts.map(a => ({ value: a.id, label: a.name }))}
+                              options={availableAccounts.map(a => ({ value: a.id, label: a.name }))}
                               placeholder="Selecione uma conta..."
                               className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
                             />
                         ) : (
                             <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
-                               Nenhuma conta cadastrada
+                               Nenhuma conta compatível
                             </div>
                         )}
                      </div>
 
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                        <label className="text-sm font-medium text-text-primary">
-                          {direction === 'income' ? 'Forma de recebimento' : 'Forma de pagamento'}
-                        </label>
-                        <FinanceSelect 
-                          value={paymentMethod}
-                          onChange={val => { setPaymentMethod(val); setPaymentMethodWarning(null); }}
-                          options={availablePaymentMethods.map(m => ({ value: m.id, label: m.label }))}
-                          placeholder="Não especificado"
-                          allowClear
-                          className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
-                        />
-                        {paymentMethodWarning && (
-                           <div className="text-amber-500 text-xs mt-1 px-1">
-                              {paymentMethodWarning}
-                           </div>
-                        )}
-                     </div>
+                     {direction === 'transfer' && (
+                       <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
+                          <label className="text-sm font-medium text-text-primary">Para a conta (entrou aqui)</label>
+                          {accounts.length > 0 ? (
+                              <FinanceSelect 
+                                value={destinationAccountId}
+                                onChange={val => setDestinationAccountId(val)}
+                                options={accounts.filter(a => a.id !== accountId).map(a => ({ value: a.id, label: a.name }))}
+                                placeholder="Selecione o destino..."
+                                className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base"
+                              />
+                          ) : (
+                              <div className="h-14 border border-border-subtle border-dashed rounded-xl px-4 flex items-center text-sm text-amber-500 bg-surface-elevated">
+                                 Nenhuma conta
+                              </div>
+                          )}
+                       </div>
+                     )}
                   </div>
                   <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
                      <label className="text-sm font-medium text-text-primary">Descrição (opcional)</label>
@@ -530,15 +643,16 @@ function TransactionCreateContent() {
                        type="text"
                        value={description}
                        onChange={e => setDescription(e.target.value)}
-                       placeholder={direction === 'income' ? 'Ex: Dízimo do mês, oferta...' : 'Ex: Conta de energia, manutenção...'}
+                       placeholder={direction === 'income' ? 'Ex: Dízimo do mês, oferta...' : direction === 'transfer' ? 'Ex: Dinheiro passado para a caixinha...' : 'Ex: Conta de energia, manutenção...'}
                        maxLength={300}
                        className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
                      />
                   </div>
               </div>
 
-              {/* Bloco 3: Como classificar */}
+              {direction !== 'transfer' && (
               <div className="flex flex-col gap-4 mt-8">
+                 {/* Bloco 3: Como classificar */}
                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <h3 className="text-sm font-medium text-text-muted px-1 uppercase tracking-wider">Como deseja separar esse valor?</h3>
                     {totalCents > 0 ? (
@@ -650,31 +764,69 @@ function TransactionCreateContent() {
                    )}
                  </div>
               </div>
+              )}
 
               <div className="mt-8 sm:mt-12">
-                 <div className="max-w-xl mx-auto">
-                     <p className="flex sm:flex text-center text-xs text-text-muted mb-4 items-center justify-center gap-1.5">
-                        <Landmark className="w-3.5 h-3.5" />
-                        Este rascunho será salvo em <span className="font-medium text-text-primary">{activeFinanceEntityName || activeFinanceEntityId}</span>
-                     </p>
-                     
-                     {!accountId && (
-                         <span className="block text-center text-xs text-text-muted mb-3 sm:hidden">Escolha uma conta para continuar</span>
-                     )}
-                     
+                 <div className="max-w-xl mx-auto flex flex-col gap-3">
+                     <div className="p-4 bg-surface-elevated rounded-2xl border border-border-subtle -mt-2">
+                        <p className="text-sm font-medium text-text-primary">
+                          {direction === 'income' ? 'Entrada' : direction === 'transfer' ? 'Transferência' : 'Saída'} de {formatMoneyInput(totalCents.toString())}
+                        </p>
+                        <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                          {direction === 'transfer' ? (
+                             <>
+                              Origem: {selectedAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
+                              Destino: {selectedDestinationAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
+                             </>
+                          ) : (
+                             <>
+                              Conta: {selectedAccount?.name || <span className="text-amber-500">Pendente</span>}<br/>
+                              Forma: {paymentMethod ? allPaymentMethodsList.find(p => p.code === paymentMethod)?.label : <span className="text-amber-500">Pendente</span>}<br/>
+                              Categoria: {isSplit ? `${allocations.length} selecionadas` : (
+                                allocations[0].categoryId ? categories.find(c => c.id === allocations[0].categoryId)?.name : <span className="text-amber-500">Pendente</span>
+                              )}<br/>
+                             </>
+                          )}
+                          Igreja: {activeFinanceEntityName || activeFinanceEntityId}
+                        </p>
+                     </div>
+
+                     {hasEffectiveCapability(accessState, 'finance.submit_for_review') ? (
+                       <button 
+                         onClick={handleCreateAndSubmit}
+                         disabled={
+                           saving || 
+                           !accountId || 
+                           totalCents <= 0 || 
+                           (direction !== 'transfer' && !paymentMethod) || 
+                           (direction === 'transfer' && (!destinationAccountId || accountId === destinationAccountId)) ||
+                           (direction !== 'transfer' && ((isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId) || (totalCents !== allocations.reduce((sum, a) => sum + parseAmountToCents(a.amountRaw || '0'), 0))))
+                         }
+                         className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-background-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
+                       >
+                         {saving ? (
+                            <>
+                               <div className="w-5 h-5 border-2 border-background-base/30 border-t-background-base rounded-full animate-spin" />
+                               <span>Registrando...</span>
+                            </>
+                         ) : (
+                            'Registrar movimentação'
+                         )}
+                       </button>
+                     ) : null}
+
                      <button 
-                       onClick={handleSave}
-                       disabled={saving || !accountId || totalCents <= 0 || (isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId)}
-                       aria-disabled={saving || !accountId || totalCents <= 0 || (isSplit && allocations.some(a => !a.categoryId || parseAmountToCents(a.amountRaw) <= 0)) || (!isSplit && !allocations[0].categoryId)}
-                       className="w-full h-14 flex items-center justify-center gap-2 bg-accent-primary hover:bg-accent-primary/90 text-background-base rounded-2xl font-medium transition-colors disabled:bg-surface-elevated disabled:text-text-muted disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base"
+                       onClick={handleSaveDraft}
+                       disabled={saving || !accountId || totalCents <= 0 || (direction === 'transfer' && (!destinationAccountId || accountId === destinationAccountId))}
+                       className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-sm ${hasEffectiveCapability(accessState, 'finance.submit_for_review') ? 'bg-transparent text-text-secondary hover:bg-surface-elevated' : 'bg-surface-elevated text-text-primary hover:bg-surface-secondary border border-border-subtle'}`}
                      >
                        {saving ? (
                           <>
-                             <div className="w-5 h-5 border-2 border-background-base/30 border-t-background-base rounded-full animate-spin" />
-                             <span>Salvando rascunho...</span>
+                             <div className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" />
+                             <span>Salvando...</span>
                           </>
                        ) : (
-                          'Salvar rascunho'
+                          'Salvar como rascunho'
                        )}
                      </button>
                  </div>

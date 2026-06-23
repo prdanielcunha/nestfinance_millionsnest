@@ -66,12 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          }
       }
 
-      if (txData.direction !== 'income' && txData.direction !== 'expense') {
-          throw { code: 'INVALID_PARAMETERS', message: 'Only income and expense transactions can be edited in this phase' };
+      if (txData.direction !== 'income' && txData.direction !== 'expense' && txData.direction !== 'transfer') {
+          throw { code: 'INVALID_PARAMETERS', message: 'Only income, expense, or transfer transactions can be edited in this phase' };
       }
       const direction = payload.direction || txData.direction;
-      if (direction !== 'income' && direction !== 'expense') {
-          throw { code: 'INVALID_PARAMETERS', message: 'Direction must be income or expense' };
+      if (direction !== 'income' && direction !== 'expense' && direction !== 'transfer') {
+          throw { code: 'INVALID_PARAMETERS', message: 'Direction must be income, expense, or transfer' };
       }
       
       let newStatus = txData.status;
@@ -84,12 +84,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const accountId = payload.accountId || (txData as any).accountId;
+      let accountData = null;
       if (accountId) {
           const accountRef = context.repository.getAccountsRef().doc(accountId);
           const accountDoc = await t.get(accountRef);
           if (!accountDoc.exists || accountDoc.data()!.financeEntityId !== financeEntityId || !accountDoc.data()!.active) {
             throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Account invalid or inactive' };
           }
+          accountData = accountDoc.data()!;
+      }
+
+      const paymentMethod = payload.paymentMethod || txData.paymentMethod || 'unspecified';
+
+      if (accountData) {
+          const { getCompatibility } = await import('../../../shared/finance/smartLogic.js');
+          const comp = getCompatibility(accountData.type, paymentMethod, direction as any);
+          if (comp.level === 'impossible') {
+            throw { code: 'FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE', message: comp.explanation };
+          }
+      }
+
+      const destinationAccountId = payload.destinationAccountId !== undefined ? payload.destinationAccountId : (txData as any).destinationAccountId;
+      let destinationAccountData = null;
+      if (direction === 'transfer') {
+          if (!destinationAccountId) throw { code: 'FINANCE_DESTINATION_ACCOUNT_REQUIRED', message: 'Destination account is required for transfer' };
+          if (accountId === destinationAccountId) throw { code: 'FINANCE_TRANSFER_SAME_ACCOUNT', message: 'Origin and destination accounts must be different' };
+          
+          const destAccRef = context.repository.getAccountsRef().doc(destinationAccountId);
+          const destAccDoc = await t.get(destAccRef);
+          if (!destAccDoc.exists || destAccDoc.data()!.financeEntityId !== financeEntityId || !destAccDoc.data()!.active) {
+            throw { code: 'FINANCE_ACCOUNT_MISMATCH', message: 'Destination account invalid or inactive' };
+          }
+          destinationAccountData = destAccDoc.data()!;
       }
 
       let newRecord: any = {
@@ -98,11 +124,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amountCents: payload.amountCents !== undefined ? payload.amountCents : txData.amountCents,
         occurredAt: payload.occurredAt || txData.occurredAt,
         accountId,
-        paymentMethod: payload.paymentMethod || txData.paymentMethod || 'unspecified',
+        paymentMethod,
         sourceContext: payload.sourceContext || txData.sourceContext,
         status: newStatus,
         updatedBy: uid
       };
+
+      if (destinationAccountId && destinationAccountData && direction === 'transfer') {
+          newRecord.sourceAccountId = accountId;
+          newRecord.destinationAccountId = destinationAccountId;
+          newRecord.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
+      } else {
+          delete newRecord.sourceAccountId;
+          delete newRecord.destinationAccountId;
+          delete newRecord.destinationAccountSnapshot;
+      }
+
       if (payload.description !== undefined) {
           if (payload.description === '') delete newRecord.description;
           else newRecord.description = payload.description;
@@ -138,7 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!catDoc.exists || catDoc.data()!.financeEntityId !== financeEntityId || !catDoc.data()!.active) {
             throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category invalid or inactive' };
           }
-          if (catDoc.data()!.kind !== newRecord.direction) {
+          if (newRecord.direction !== 'transfer' && catDoc.data()!.kind !== newRecord.direction) {
             throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category kind mismatch' };
           }
 

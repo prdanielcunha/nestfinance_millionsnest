@@ -37,12 +37,14 @@ export type TransactionBase = {
 export type IncomeTransaction = TransactionBase & {
   direction: 'income';
   accountId: string; 
+  accountSnapshot?: { id: string; name: string; type: string };
   allocationIds: string[];
 };
 
 export type ExpenseTransaction = TransactionBase & {
   direction: 'expense';
   accountId: string;
+  accountSnapshot?: { id: string; name: string; type: string };
   allocationIds: string[];
 };
 

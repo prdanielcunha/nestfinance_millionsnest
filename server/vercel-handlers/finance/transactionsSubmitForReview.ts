@@ -69,12 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const existingAllocs = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
 
-      if (existingAllocs.length === 0) {
-        throw { code: 'FINANCE_INVALID_ALLOCATION', message: 'Submit requires at least one allocation' };
+      if (txData.direction !== 'transfer') {
+        if (existingAllocs.length === 0) {
+          throw { code: 'FINANCE_INVALID_ALLOCATION', message: 'Submit requires at least one allocation for income/expense' };
+        }
+        // throws if not closed
+        assertAllocationsTotal(existingAllocs, txData.amountCents);
       }
-
-      // throws if not closed
-      assertAllocationsTotal(existingAllocs, txData.amountCents);
 
       // Verify active account
       if (txData.direction === 'income' || txData.direction === 'expense') {

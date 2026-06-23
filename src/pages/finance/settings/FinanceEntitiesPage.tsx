@@ -16,7 +16,7 @@ export default function FinanceEntitiesPage() {
 
   const [entities, setEntities] = useState<any[]>([]);
   const [bootstrapStatuses, setBootstrapStatuses] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(hasAccess);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -29,10 +29,8 @@ export default function FinanceEntitiesPage() {
   const [bootstrappingEntity, setBootstrappingEntity] = useState<any | null>(null);
 
   useEffect(() => {
-    if (hasAccess) {
-      fetchEntities();
-    }
-  }, [hasAccess]);
+    fetchEntities();
+  }, []);
 
   const fetchEntities = async () => {
     try {
@@ -102,19 +100,7 @@ export default function FinanceEntitiesPage() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, [activeMenuId]);
 
-  if (!hasAccess) {
-    return (
-      <div className="flex flex-col h-full bg-background-base antialiased text-text-base items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 bg-surface-elevated border border-semantic-danger/30 rounded-full flex items-center justify-center text-semantic-danger mb-4">
-          <ShieldAlert className="w-5 h-5" />
-        </div>
-        <h1 className="text-lg font-medium text-text-primary mb-2">Acesso Negado</h1>
-        <p className="text-sm text-text-secondary max-w-sm">
-          Você não possui permissão para visualizar e gerenciar as igrejas.
-        </p>
-      </div>
-    );
-  }
+  // removed manual hasAccess check since the route boundary protects this page
 
   return (
     <div className="flex flex-col h-full bg-surface-base antialiased text-text-base">

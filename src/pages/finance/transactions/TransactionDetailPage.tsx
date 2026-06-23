@@ -327,7 +327,9 @@ function TransactionDetailContent() {
                       {formatMoney(tx.amountCents, tx.direction)}
                    </h2>
                    <p className="text-text-secondary">
-                      {new Date(tx.occurredAt).toLocaleDateString('pt-BR', { dateStyle: 'long' })}
+                      {tx.occurredAt && !isNaN(new Date(tx.occurredAt).getTime()) 
+                         ? new Date(tx.occurredAt).toLocaleDateString('pt-BR', { dateStyle: 'long' }) 
+                         : 'Data de atualização indisponível'}
                    </p>
                  </div>
 
@@ -343,7 +345,7 @@ function TransactionDetailContent() {
                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Conta de Origem/Destino</p>
                              <p className="text-sm text-text-primary flex items-center gap-2">
                                <Landmark className="w-4 h-4 text-text-muted" />
-                               {tx.accountName || 'Conta desconhecida'}
+                               {tx.accountSnapshot?.name || tx.accountName || 'Conta desconhecida'}
                              </p>
                           </div>
                           {tx.method && (
@@ -360,7 +362,9 @@ function TransactionDetailContent() {
                  </div>
 
                  <div className="flex flex-col gap-3">
-                    <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Rateios</h3>
+                    <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">
+                       {allocs.length === 1 ? 'Classificação do valor' : 'Como o valor foi classificado'}
+                    </h3>
                     
                     {!isBalanced && (
                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex gap-3 text-rose-500 items-start">
@@ -377,11 +381,11 @@ function TransactionDetailContent() {
                           <div key={alloc.id} className="p-4 flex items-center justify-between gap-4">
                              <div className="flex flex-col min-w-0">
                                 <span className="text-sm font-medium text-text-primary truncate">
-                                   {alloc.categoryName || 'Categoria desconhecida'}
+                                   {alloc.categorySnapshot?.name || alloc.categoryName || 'Categoria desconhecida'}
                                 </span>
-                                {alloc.fundName && (
+                                {(alloc.fundSnapshot?.name || alloc.fundName) && (
                                    <span className="text-xs text-text-muted truncate mt-0.5">
-                                      Fundo: {alloc.fundName}
+                                      Fundo: {alloc.fundSnapshot?.name || alloc.fundName}
                                    </span>
                                 )}
                              </div>
@@ -401,9 +405,9 @@ function TransactionDetailContent() {
 
                  {(tx.createdBy || tx.updatedAt) && (
                     <div className="text-xs text-text-muted text-center mt-4">
-                       {tx.createdBy && <span>Registrado por {tx.createdByAlias || tx.createdBy}</span>}
+                       {tx.createdBy && <span>Registrado por {tx.creatorName || tx.createdByAlias || 'usuário da equipe'}</span>}
                        {tx.createdBy && tx.updatedAt && <span> • </span>}
-                       {tx.updatedAt && <span>Última atualização em {new Date(tx.updatedAt).toLocaleDateString('pt-BR')}</span>}
+                       {tx.updatedAt && !isNaN(new Date(tx.updatedAt).getTime()) && <span>Última atualização em {new Date(tx.updatedAt).toLocaleDateString('pt-BR')}</span>}
                     </div>
                  )}
 
@@ -432,7 +436,7 @@ function TransactionDetailContent() {
                                    onClick={() => setSubmitModalOpen(true)}
                                    className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors text-base"
                                 >
-                                   Enviar para revisão
+                                   Concluir movimentação
                                 </button>
                              )}
 
@@ -470,7 +474,7 @@ function TransactionDetailContent() {
                            className="bg-surface-elevated w-full max-w-sm rounded-[24px] border border-border-subtle shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300"
                        >
                           <div className="p-6 flex flex-col gap-4">
-                             <h3 id="submit-dialog-title" className="text-xl font-semibold text-text-primary">Enviar para revisão?</h3>
+                             <h3 id="submit-dialog-title" className="text-xl font-semibold text-text-primary">Concluir movimentação?</h3>
                              <p id="submit-dialog-desc" className="text-sm text-text-muted">
                                 A movimentação ficará pronta para conferência. Ela ainda não será contabilizada e não alterará os saldos.
                              </p>
@@ -524,7 +528,7 @@ function TransactionDetailContent() {
                                    {submitting ? (
                                       <div className="w-5 h-5 border-2 border-surface-base/30 border-t-surface-base rounded-full animate-spin" />
                                    ) : (
-                                      submitError ? 'Tentar novamente' : 'Confirmar envio'
+                                      submitError ? 'Tentar novamente' : 'Concluir movimentação'
                                    )}
                                 </button>
                                 <button 

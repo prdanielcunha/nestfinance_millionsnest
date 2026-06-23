@@ -24,22 +24,20 @@ export function normalizeFirestoreInfrastructureError(
     retryable: true,
   };
 
-  if (context.isGlobalAdmin) {
-    const urlMatch = message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/) || message.match(/https:\/\/console\.cloud\.google\.com[^\s]+/);
-    if (urlMatch) {
-        try {
-            const parsedUrl = new URL(urlMatch[0]);
-            if (
-                parsedUrl.protocol === 'https:' && 
-                (parsedUrl.hostname === 'console.firebase.google.com' || parsedUrl.hostname === 'console.cloud.google.com') &&
-                parsedUrl.pathname.includes('firestore/indexes') || parsedUrl.pathname.includes('firestore/databases') // The paths might vary slightly depending on exactly what google returns
-            ) {
-                 result.indexCreateUrl = parsedUrl.toString();
-            }
-        } catch(e) {
-            // URL parse failed, do not expose
-        }
-    }
+  // Match URL but exclude trailing punctuation like periods or commas
+  const urlMatch = message.match(/https:\/\/console\.firebase\.google\.com[^\s]+?(?=[.)\]'" \n]?$| )/) || message.match(/https:\/\/console\.cloud\.google\.com[^\s]+?(?=[.)\]'" \n]?$| )/);
+  if (urlMatch) {
+      try {
+          const parsedUrl = new URL(urlMatch[0]);
+          if (
+              parsedUrl.protocol === 'https:' && 
+              (parsedUrl.hostname === 'console.firebase.google.com' || parsedUrl.hostname === 'console.cloud.google.com')
+          ) {
+               result.indexCreateUrl = parsedUrl.toString();
+          }
+      } catch(e) {
+          // URL parse failed, do not expose
+      }
   }
 
   // Never expose full stack, raw message, or token parts

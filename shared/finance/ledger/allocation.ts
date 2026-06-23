@@ -8,7 +8,9 @@ export type FinanceAllocation = {
   financeEntityId: string;
   transactionId: TransactionId;
   categoryId: string;
+  categorySnapshot?: { id: string; name: string; type?: string; icon?: string };
   fundId?: string;
+  fundSnapshot?: { id: string; name: string };
   costCenterId?: string;
   amountCents: number;
   memo?: string;

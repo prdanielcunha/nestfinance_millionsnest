@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { direction, amountCents, occurredAt, accountId, paymentMethod, allocations, description, sourceContext, destinationAccountId } = payload;
     
     if (direction !== 'income' && direction !== 'expense' && direction !== 'transfer') {
-      return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Direction must be income, expense or transfer' });
+      return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Direction must be income, expense, or transfer' });
     }
 
     const authHeader = req.headers.authorization;
@@ -56,19 +56,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sessionList = await resolveEcosystemSession(uid, organizationId);
     
+    // We require submit capability
     const context = await requireFinanceTransactionAccess({
       db,
       uid,
       organizationId,
       financeEntityId,
       sessionList,
-      capability: 'finance.create_drafts'
+      capability: 'finance.submit_for_review'
     });
 
-    const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'create_draft', idempotencyKey);
+    const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'create_and_submit', idempotencyKey);
     const payloadHash = hashPayload(payload);
 
-    const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
+      const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
       // Validations
       const accountRef = context.repository.getAccountsRef().doc(accountId);
       const accountDoc = await t.get(accountRef);
@@ -96,67 +97,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         destinationAccountData = destAccDoc.data()!;
       }
 
-      // We need to parse allocations
-      if (!Array.isArray(allocations) || allocations.length === 0) {
-        // Draft can be incomplete, but must have at least one allocation or not?
-        // Prompt: "pelo menos um rateio existir; ... drafts incompletos permitidos somente em draft conforme regra;" 
-        // Wait, "A criação deve validar: allocations... soma exata dos rateios." actually for draft it can be incomplete. Let's allow empty if explicitly requested, or require at least 1? The prompt says "pelo menos um rateio válido antes de postagem". For draft creation "Se qualquer validação falhar: zero transaction". We'll allow empty allocations array during draft creation or just require it. Let's process allocations.
-      }
-
       const allocsToSave: FinanceAllocation[] = [];
       const allocationIds: string[] = [];
       const txId = generateTransactionId();
 
-      if (Array.isArray(allocations)) {
-        for (let i = 0; i < allocations.length; i++) {
-          const a = allocations[i];
-          // Validate category
-          if (!a.categoryId) throw { code: 'INVALID_PARAMETERS', message: 'Category required' };
-          const catRef = context.repository.getCategoriesRef().doc(a.categoryId);
-          const catDoc = await t.get(catRef);
-          if (!catDoc.exists || catDoc.data()!.financeEntityId !== financeEntityId || !catDoc.data()!.active) {
-            throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category invalid or inactive' };
+      if (direction !== 'transfer') {
+          if (!Array.isArray(allocations) || allocations.length === 0) {
+            throw { code: 'FINANCE_INVALID_ALLOCATION', message: 'Submit requires at least one allocation for income/expense' };
           }
-          if (direction !== 'transfer' && catDoc.data()!.kind !== direction) {
-            throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category kind mismatch' };
-          }
-          const catData = catDoc.data()!;
-
-          // Validate fund
-          let fundData = null;
-          if (a.fundId) {
-            const fundRef = context.repository.getFundsRef().doc(a.fundId);
-            const fundDoc = await t.get(fundRef);
-            if (!fundDoc.exists || fundDoc.data()!.financeEntityId !== financeEntityId || !fundDoc.data()!.active) {
-              throw { code: 'FINANCE_FUND_MISMATCH', message: 'Fund invalid or inactive' };
+          for (let i = 0; i < allocations.length; i++) {
+            const a = allocations[i];
+            // Validate category
+            if (!a.categoryId) throw { code: 'INVALID_PARAMETERS', message: 'Category required' };
+            const catRef = context.repository.getCategoriesRef().doc(a.categoryId);
+            const catDoc = await t.get(catRef);
+            if (!catDoc.exists || catDoc.data()!.financeEntityId !== financeEntityId || !catDoc.data()!.active) {
+              throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category invalid or inactive' };
             }
-            fundData = fundDoc.data();
-          }
-
-          const alloc: FinanceAllocation = {
-            id: generateAllocationId(),
-            organizationId,
-            financeEntityId,
-            transactionId: txId,
-            categoryId: a.categoryId,
-            categorySnapshot: { id: a.categoryId, name: catData.name, type: catData.kind, icon: catData.icon },
-            amountCents: a.amountCents,
-            sequence: i,
-            createdAt: new Date().toISOString(), // Use ISO string as requested by P06A
-            createdBy: uid,
-            schemaVersion: 1
-          };
-          if (a.fundId) {
-            alloc.fundId = a.fundId;
-            if (fundData) {
-              alloc.fundSnapshot = { id: a.fundId, name: fundData.name };
+            if (catDoc.data()!.kind !== direction) {
+              throw { code: 'FINANCE_CATEGORY_MISMATCH', message: 'Category kind mismatch' };
             }
+            const catData = catDoc.data()!;
+    
+            // Validate fund
+            let fundData = null;
+            if (a.fundId) {
+              const fundRef = context.repository.getFundsRef().doc(a.fundId);
+              const fundDoc = await t.get(fundRef);
+              if (!fundDoc.exists || fundDoc.data()!.financeEntityId !== financeEntityId || !fundDoc.data()!.active) {
+                throw { code: 'FINANCE_FUND_MISMATCH', message: 'Fund invalid or inactive' };
+              }
+              fundData = fundDoc.data();
+            }
+    
+            const alloc: FinanceAllocation = {
+              id: generateAllocationId(),
+              organizationId,
+              financeEntityId,
+              transactionId: txId,
+              categoryId: a.categoryId,
+              categorySnapshot: { id: a.categoryId, name: catData.name, type: catData.kind, icon: catData.icon },
+              amountCents: a.amountCents,
+              sequence: i,
+              createdAt: new Date().toISOString(),
+              createdBy: uid,
+              schemaVersion: 1
+            };
+            if (a.fundId) {
+              alloc.fundId = a.fundId;
+              if (fundData) {
+                alloc.fundSnapshot = { id: a.fundId, name: fundData.name };
+              }
+            }
+            
+            validateAllocation(alloc, financeEntityId, direction as 'income'|'expense');
+            allocsToSave.push(alloc);
+            allocationIds.push(alloc.id);
           }
-          
-          validateAllocation(alloc, financeEntityId, direction as 'income'|'expense');
-          allocsToSave.push(alloc);
-          allocationIds.push(alloc.id);
-        }
+    
+          // throws if not closed
+          assertAllocationsTotal(allocsToSave, amountCents);
       }
 
       const txPayload: any = {
@@ -164,7 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         organizationId,
         financeEntityId,
         direction,
-        status: 'draft',
+        status: 'ready_for_review',
         amountCents,
         currency: 'BRL',
         occurredAt,
@@ -173,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sourceContext: sourceContext || 'manual',
         reconciliationStatus: 'unreconciled',
         evidenceIds: [],
-        accountId, // still kept for DB compatibility if needed by queries
+        accountId,
         accountSnapshot: { id: accountId, name: accountDoc.data()!.name, type: accountDoc.data()!.type },
         allocationIds,
         createdBy: uid,
@@ -181,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         version: 1,
         schemaVersion: 1
       };
-      if (destinationAccountData) {
+      if (destinationAccountData && direction === 'transfer') {
         txPayload.sourceAccountId = accountId;
         txPayload.destinationAccountId = destinationAccountId;
         txPayload.destinationAccountSnapshot = { id: destinationAccountId, name: destinationAccountData.name, type: destinationAccountData.type };
@@ -193,10 +193,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Writes
       const txRef = context.repository.getTransactionsRef().doc(txId);
-      // We convert temporal strings to server timestamps for persistence if needed, but PRD says ISO-8601 strings and createdAt/updatedAt using serverTimestamp
       const txData = {
         ...txPayload,
-        listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, direction, 'draft', occurredAt),
+        listQueryKeys: buildTransactionListQueryKeys(financeEntityId, txId, direction, 'ready_for_review', occurredAt),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       };
@@ -220,11 +219,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         financeEntityId,
         actor: uid,
         resource: 'transaction',
-        action: 'transaction.created',
+        action: 'transaction.created_and_submitted',
         requestId,
         idempotencyKey,
         afterHash: payloadHash, // Simplified
-        metadata: { status: 'draft', amountCents, direction },
+        metadata: { status: 'ready_for_review', amountCents, direction },
         createdAt: FieldValue.serverTimestamp()
       });
 
@@ -234,7 +233,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(result);
 
   } catch (error: any) {
-    console.error('Create Transaction Error:', error);
+    console.error('Create and Submit Transaction Error:', error);
     if (error.code && error.code.startsWith('FINANCE_')) {
       return res.status(400).json({ error: error.code, details: error.message });
     }
