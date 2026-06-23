@@ -83,7 +83,7 @@ function TransactionsListContent() {
       if (directionFilter !== 'all') filters.direction = directionFilter;
       if (statusFilter !== 'all') filters.status = statusFilter;
 
-      const res = await listTransactions(filters, cursor, 20);
+      const res = await listTransactions(filters, cursor, 25);
       
       if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
       

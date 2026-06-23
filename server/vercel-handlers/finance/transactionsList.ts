@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { financeEntityId, filters, cursor, pageSize = 50 } = req.body;
+    const { financeEntityId, filters, cursor, pageSize = 25 } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'financeEntityId is required' });
