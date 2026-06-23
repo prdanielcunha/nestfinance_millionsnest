@@ -31,6 +31,7 @@ import transactionsUpdateDraft from '../server/vercel-handlers/finance/transacti
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
+import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -101,6 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsCreateAndSubmit(req, res);
     case 'accounts-repair-canonical':
       return accountsRepairCanonical(req, res);
+    case 'accounts-configure-custom':
+      return accountsConfigureCustom(req, res);
     case 'transactions-update-draft':
       return transactionsUpdateDraft(req, res);
     case 'transactions-submit-review':

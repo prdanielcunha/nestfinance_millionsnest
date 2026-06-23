@@ -63,14 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const { accountId, financeEntityId, requestId, idempotencyKey } = req.body;
+    const { accountId, requestId, idempotencyKey } = req.body;
 
     if (!accountId || typeof accountId !== 'string') {
       return res.status(400).json({ error: 'INVALID_ACCOUNT_ID', message: 'O ID da conta é obrigatório.' });
-    }
-
-    if (!financeEntityId || typeof financeEntityId !== 'string') {
-      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED', message: 'O ID da entidade financeira é obrigatório.' });
     }
 
     if (!isValidRequestId(requestId)) {
@@ -100,6 +96,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const orgRef = firestore.collection('organizations').doc(organizationId);
     const accountsRef = orgRef.collection('financeAccounts');
+
+    // Load account first to verify existence and get financeEntityId
+    const accountRef = accountsRef.doc(accountId);
+    const initialSnap = await accountRef.get();
+    if (!initialSnap.exists) {
+      return res.status(404).json({ error: 'FINANCE_ACCOUNT_NOT_FOUND', message: 'A conta informada não foi encontrada.', requestId });
+    }
+    const initialData = initialSnap.data()!;
+    const financeEntityId = initialData.financeEntityId;
+
+    if (!financeEntityId) {
+      return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED', message: 'Entidade financeira da conta não identificada.', requestId });
+    }
+
     const auditRef = orgRef.collection('financeAuditLogs');
     const idempotencyRef = orgRef.collection('financeIdempotency');
 
@@ -108,7 +118,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const result = await executeWithIdempotency(firestore, idempotencyRef, keyHash, payloadHash, async (transaction) => {
-        const accountRef = accountsRef.doc(accountId);
         const accountSnap = (await transaction.get(accountRef)) as any;
 
         if (!accountSnap.exists) {
