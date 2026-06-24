@@ -226,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
-    const eventsSnapshot = await db
+    const eventsSnapshot = await admin.firestore
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')
