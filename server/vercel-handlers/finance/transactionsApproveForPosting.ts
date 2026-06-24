@@ -86,6 +86,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const accountsQ = await t.get(context.repository.getAccountsRef());
       const accounts = accountsQ.docs.map(d => ({id: d.id, ...d.data()}));
 
+      const { evaluateReviewReadiness } = await import('../../../shared/finance/ledger/evaluateReviewReadiness.js');
+      const { computeApprovalSourceHash } = await import('../../../shared/finance/ledger/approvalSourceHash.js');
+      const { buildPostingPlan } = await import('../../../shared/finance/ledger/postingPlan.js');
+      const { loadPostingConfiguration } = await import('./loadPostingConfiguration.js');
+
       // Evaluate review readiness
       const readiness = evaluateReviewReadiness(txData, accounts);
       if (!readiness.ready) {
@@ -98,11 +103,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_SEGREGATION_OF_DUTIES_VIOLATION', message: 'Creator cannot approve their own transaction based on entity policy' };
       }
 
+      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+      const plan = buildPostingPlan({
+        transaction: txData,
+        allocations,
+        mappings,
+        policy,
+        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved' }
+      });
+
+      if (plan.blockers.length > 0) {
+         throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: 'Plano contábil bloqueado: ' + plan.blockers.map(b => b.details).join('. ') };
+      }
+      if (plan.journalEntry.totalDebitCents !== plan.journalEntry.totalCreditCents) {
+         throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: 'Plano contábil desbalanceado.' };
+      }
+
+      const approvedPlanHash = plan.planHash;
+      const approvedReferenceFingerprintHash = referenceFingerprintHash;
       const sourceHash = computeApprovalSourceHash(txData, allocations);
+
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
       const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'approved_for_posting', txData.occurredAt);
       
+      const eventId = approvalIdempotencyKey ? `evt_${approvalIdempotencyKey}` : generateAuditId();
+
+      const approvalPayload = sanitizeFirestoreObject({
+        status: 'approved',
+        approvedBy: uid,
+        approvedAt: FieldValue.serverTimestamp(),
+        approvedVersion: txData.version,
+        approvalSourceHash: sourceHash,
+        approvedPlanHash,
+        approvedReferenceFingerprintHash,
+        postingPlanVersion: 1,
+        comment: comment || null
+      });
+
+      t.set(txRef.collection('approvals').doc('latest'), approvalPayload);
+      t.set(txRef.collection('approvals').doc(eventId), approvalPayload);
+
       t.update(txRef, sanitizeFirestoreObject({
         status: 'approved_for_posting',
         listQueryKeys,
@@ -113,6 +154,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedAt: FieldValue.serverTimestamp(),
         approvedVersion: txData.version,
         approvalSourceHash: sourceHash,
+        approvedPlanHash,
+        approvedReferenceFingerprintHash,
         approvalComment: comment || null
       }));
 
@@ -131,7 +174,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         details: { comment, approvedVersion: txData.version, sourceHash }
       }));
 
-      const eventId = approvalIdempotencyKey ? `evt_${approvalIdempotencyKey}` : generateAuditId();
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
         eventId,
         organizationId,

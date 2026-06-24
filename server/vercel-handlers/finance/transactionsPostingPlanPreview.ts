@@ -6,6 +6,9 @@ import { FinanceAllocation } from '../../../shared/finance/ledger/allocation.js'
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildPostingPlan, describePostingPlan } from '../../../shared/finance/ledger/postingPlan.js';
 
+import { loadPostingConfiguration } from './loadPostingConfiguration.js';
+import { computeApprovalSourceHash } from '../../../shared/finance/ledger/approvalSourceHash.js';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -80,92 +83,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   
   const approval = approvalDoc.exists ? approvalDoc.data() as any : undefined;
 
-  // Resolve accounts and categories from financeEntityData
-  // We need to shape this as PostingMappingSnapshot and PostingPreviewPolicy
-  // For the sake of the engine, let's read the real finance accounts and categories.
+  const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, transaction);
 
-  const accountsSnap = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('accounts').get();
-  const categoriesSnap = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('categories').get();
-  
-  const financeAccounts: any[] = [];
-  const ledgerAccounts: any[] = [];
-  accountsSnap.forEach(doc => {
-    const acc = doc.data();
-    financeAccounts.push({
-      accountId: doc.id,
-      ledgerAccountId: acc.ledgerMapping || `la_default_asset_${doc.id}`,
-      type: acc.type === 'credit_card' ? 'liability' : 'asset'
-    });
-    ledgerAccounts.push({
-      id: acc.ledgerMapping || `la_default_asset_${doc.id}`,
-      organizationId,
-      financeEntityId,
-      active: true, // simplified
-      postingAllowed: true // simplified
-    });
-  });
+  let sealStatus: 'verified' | 'seal_missing' | 'transaction_stale' | 'references_changed' | 'plan_mismatch' = 'verified';
 
-  const categoriesMappings: any[] = [];
-  categoriesSnap.forEach(doc => {
-    const cat = doc.data();
-    categoriesMappings.push({
-      categoryId: doc.id,
-      ledgerAccountId: cat.ledgerMapping || `la_default_${cat.kind}_${doc.id}`,
-      kind: cat.kind
-    });
-    ledgerAccounts.push({
-      id: cat.ledgerMapping || `la_default_${cat.kind}_${doc.id}`,
-      organizationId,
-      financeEntityId,
-      active: true,
-      postingAllowed: true
-    });
-  });
-
-  // Also fake a liability account for reimbursements if they exist in people
-  // We'll just assume any payableId can be mapped to a virtual ledger liability account
-  if (transaction.transactionKind === 'expense' && (transaction as any).reimbursement) {
-     const payableId = (transaction as any).reimbursement.payableId;
-     financeAccounts.push({
-       accountId: payableId,
-       ledgerAccountId: `la_reimbursement_${payableId}`,
-       type: 'liability'
-     });
-     ledgerAccounts.push({
-      id: `la_reimbursement_${payableId}`,
-      organizationId,
-      financeEntityId,
-      active: true,
-      postingAllowed: true
-    });
+  if (!approval || !approval.approvedPlanHash) {
+    sealStatus = 'seal_missing';
+  } else if (transaction.version !== approval.approvedVersion) {
+    sealStatus = 'transaction_stale';
   }
-  
-  if (transaction.transactionKind === 'liability_settlement') {
-    const liabId = (transaction as any).liabilityAccountId;
-    if (!financeAccounts.find(fa => fa.accountId === liabId)) {
-      financeAccounts.push({
-        accountId: liabId,
-        ledgerAccountId: `la_liability_${liabId}`,
-        type: 'liability'
-      });
-      ledgerAccounts.push({
-        id: `la_liability_${liabId}`,
-        organizationId,
-        financeEntityId,
-        active: true,
-        postingAllowed: true
-      });
-    }
-  }
-
-  const mappings = {
-    financeAccounts,
-    categories: categoriesMappings
-  };
-
-  const policy = {
-    ledgerAccounts
-  };
 
   const plan = buildPostingPlan({
     transaction,
@@ -174,6 +100,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mappings,
     policy
   });
+
+  const calculatedPlanHash = plan.planHash;
+  const approvedPlanHash = approval?.approvedPlanHash;
+
+  if (sealStatus === 'verified') {
+    if (referenceFingerprintHash !== approval.approvedReferenceFingerprintHash) {
+      sealStatus = 'references_changed';
+    } else if (calculatedPlanHash !== approvedPlanHash) {
+      sealStatus = 'plan_mismatch';
+    }
+  }
 
   const getAccountName = (accId: string) => {
     if ((transaction as any).accountSnapshot && accId === transaction.accountId) return (transaction as any).accountSnapshot.name;
@@ -188,7 +125,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return (alloc as any)?.categorySnapshot?.name || catId;
   };
 
-  const formatMoney = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+  const formatMoney = (cents: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(cents / 100).replace(/\u00A0/g, ' '); // ensure normal space
+  };
 
   const humanExplanation = describePostingPlan(plan, {
     getAccountName,
@@ -196,7 +138,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     formatMoney
   });
 
-  return res.status(200).json({ plan, humanExplanation });
+  return res.status(200).json({
+    sealStatus,
+    plan: sealStatus === 'plan_mismatch' ? undefined : plan,
+    approvedPlanHash,
+    calculatedPlanHash,
+    humanExplanation: sealStatus === 'plan_mismatch' ? [] : humanExplanation,
+    requestId: req.body?.requestId || 'unknown'
+  });
   } catch (error: any) {
     console.error('transactions-posting-plan-preview error:', error);
     return res.status(400).json({ error: error.message });

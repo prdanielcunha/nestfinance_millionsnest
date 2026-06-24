@@ -11,6 +11,8 @@ import {
   Lock,
   FileClock,
   User,
+  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 import { APP_ROUTES } from "@/src/app/router/routes";
 import { useAuth } from "@/src/hooks/useAuth";
@@ -19,6 +21,13 @@ import { useTransactions } from "@/src/hooks/finance/useTransactions";
 import { FinanceContextGuard } from "@/src/components/finance/FinanceContextGuard";
 import { FinanceEntityContextBar } from "@/src/components/finance/FinanceEntityContextBar";
 import { hasEffectiveCapability } from "@/src/lib/permissions";
+
+const formatBRLCents = (cents: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(cents / 100).replace(/\u00A0/g, ' '); // ensure normal space
+};
 
 export default function TransactionDetailPage() {
   const { accessState } = useAuth();
@@ -294,11 +303,15 @@ function TransactionDetailContent() {
 
   const [postingPlanPreview, setPostingPlanPreview] = useState<any>(null);
   const [humanExplanation, setHumanExplanation] = useState<string[]>([]);
+  const [sealStatus, setSealStatus] = useState<string | null>(null);
   const [loadingPostingPlan, setLoadingPostingPlan] = useState(false);
 
   const loadData = async (signal?: AbortSignal, currentEpoch?: number) => {
     setLoading(true);
     setError(null);
+    setSealStatus(null);
+    setPostingPlanPreview(null);
+    setHumanExplanation([]);
 
     try {
       const res = await getTransactionDetail(transactionId!);
@@ -317,8 +330,10 @@ function TransactionDetailContent() {
             const planRes = await getPostingPlanPreview(res.transaction.id);
             setPostingPlanPreview(planRes.plan);
             setHumanExplanation(planRes.humanExplanation || []);
+            setSealStatus(planRes.sealStatus);
          } catch (e: any) {
             console.error("Failed to load posting plan preview", e);
+            setSealStatus('network_error');
          } finally {
             setLoadingPostingPlan(false);
          }
@@ -749,107 +764,192 @@ function TransactionDetailContent() {
                   )}
 
                   {/* Posting Plan Preview */}
-                  {tx.status === "approved_for_posting" && postingPlanPreview && (
+                  {tx.status === "approved_for_posting" && (
                     <div className="flex flex-col gap-3 mt-4">
                       <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider flex items-center justify-between">
                         <span>Prévia do Lançamento Contábil</span>
                         <span className="bg-amber-500/10 text-amber-600 text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-amber-500/20">Somente prévia</span>
                       </h3>
                       <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4 text-sm">
-                        <p className="text-text-muted text-xs italic">
-                          Ainda não altera saldos. O plano contábil será efetivado ao ser registrado definitivamente.
-                        </p>
-                        {postingPlanPreview.blockers && postingPlanPreview.blockers.length > 0 && (
-                          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                        {loadingPostingPlan ? (
+                          <div className="flex items-center gap-2 text-text-muted">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Calculando plano contábil e verificando selo de aprovação...</span>
+                          </div>
+                        ) : sealStatus === 'seal_missing' ? (
+                           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
                              <div className="flex items-center gap-2 font-medium">
                                <AlertCircle className="w-5 h-5 shrink-0" />
-                               <span>Pendências impeditivas detectadas</span>
+                               <span>Selo de aprovação ausente</span>
                              </div>
-                             <ul className="list-disc list-inside ml-2">
-                               {postingPlanPreview.blockers.map((b: any, i: number) => (
-                                 <li key={i}>{b.code} - {b.details}</li>
-                               ))}
-                             </ul>
-                          </div>
-                        )}
-                        
-                        {postingPlanPreview.journalEntry && (
+                             <p>Esta aprovação foi criada antes da validação final do plano contábil.<br/>Revise e aprove novamente para continuar.</p>
+                           </div>
+                        ) : sealStatus === 'transaction_stale' ? (
+                           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                             <div className="flex items-center gap-2 font-medium">
+                               <AlertCircle className="w-5 h-5 shrink-0" />
+                               <span>A movimentação mudou depois da aprovação.</span>
+                             </div>
+                             <p>Revise e aprove novamente.</p>
+                           </div>
+                        ) : sealStatus === 'references_changed' ? (
+                           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-amber-600">
+                             <div className="flex items-center gap-2 font-medium">
+                               <AlertCircle className="w-5 h-5 shrink-0" />
+                               <span>Configuração contábil alterada</span>
+                             </div>
+                             <p>A configuração contábil mudou depois da aprovação. Revise e aprove novamente antes de lançar.</p>
+                           </div>
+                        ) : sealStatus === 'plan_mismatch' ? (
+                           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                             <div className="flex items-center gap-2 font-medium">
+                               <AlertCircle className="w-5 h-5 shrink-0" />
+                               <span>Plano contábil diverge do aprovado</span>
+                             </div>
+                             <p>Houve uma mudança nos dados que impede o lançamento seguro. Revise e aprove novamente.</p>
+                           </div>
+                        ) : sealStatus === 'network_error' ? (
+                           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                             <div className="flex items-center gap-2 font-medium">
+                               <AlertCircle className="w-5 h-5 shrink-0" />
+                               <span>Erro ao carregar prévia</span>
+                             </div>
+                             <p>Não foi possível comunicar-se com o motor contábil.</p>
+                           </div>
+                        ) : sealStatus === 'verified' && postingPlanPreview ? (
                           <>
-                            {humanExplanation.length > 0 && (
-                               <div className="flex flex-col gap-2 bg-surface-base p-4 rounded-xl border border-border-subtle">
-                                  <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Tradução Contábil</span>
-                                  <ul className="list-disc list-inside text-text-secondary space-y-1">
-                                    {humanExplanation.map((line, idx) => (
-                                      <li key={idx}>{line}</li>
-                                    ))}
-                                  </ul>
-                               </div>
+                            <div className="flex items-center gap-2 text-teal-600 bg-teal-500/10 px-3 py-2 rounded-lg border border-teal-500/20 text-xs font-medium w-max mb-2">
+                               <CheckCircle2 className="w-4 h-4" />
+                               Plano contábil conferido com a aprovação
+                            </div>
+
+                            {postingPlanPreview.blockers && postingPlanPreview.blockers.length > 0 && (
+                              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                                 <div className="flex items-center gap-2 font-medium">
+                                   <AlertCircle className="w-5 h-5 shrink-0" />
+                                   <span>Pendências impeditivas detectadas</span>
+                                 </div>
+                                 <ul className="list-disc list-inside ml-2">
+                                   {postingPlanPreview.blockers.map((b: any, i: number) => (
+                                     <li key={i}>{b.code} - {b.details}</li>
+                                   ))}
+                                 </ul>
+                              </div>
                             )}
 
-                            {postingPlanPreview.accountEffects && postingPlanPreview.accountEffects.length > 0 && (
-                              <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
-                                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Contas Financeiras Afetadas</span>
-                                {postingPlanPreview.accountEffects.map((eff: any, i: number) => (
-                                  <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
-                                    <div className="flex flex-col">
-                                      <span className="text-text-primary font-medium">{eff.financeAccountId}</span>
-                                      {eff.reason === 'liability_created' && <span className="text-[10px] text-amber-500 uppercase">Geração de Passivo</span>}
-                                      {eff.reason === 'liability_settled' && <span className="text-[10px] text-teal-500 uppercase">Liquidação de Passivo</span>}
-                                    </div>
-                                    <span className={eff.effect === 'increase' ? 'text-teal-500 font-medium' : 'text-rose-500 font-medium'}>
-                                      {eff.effect === 'increase' ? '+' : '-'}{formatMoney(eff.amountCents)}
-                                    </span>
+                            {postingPlanPreview.journalEntry && (
+                              <>
+                                {humanExplanation.length > 0 && (
+                                   <div className="flex flex-col gap-2 bg-surface-base p-4 rounded-xl border border-border-subtle">
+                                      <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Tradução Contábil</span>
+                                      <ul className="list-disc list-inside text-text-secondary space-y-1">
+                                        {humanExplanation.map((line, idx) => (
+                                          <li key={idx}>{line}</li>
+                                        ))}
+                                      </ul>
+                                   </div>
+                                )}
+
+                                {postingPlanPreview.accountEffects && postingPlanPreview.accountEffects.length > 0 && (
+                                  <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
+                                    <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Contas Financeiras Afetadas</span>
+                                    {postingPlanPreview.accountEffects.map((eff: any, i: number) => {
+                                      let label = "";
+                                      let colorClass = "text-text-primary";
+                                      if (eff.reason === 'income_received' || eff.reason === 'transfer_in') {
+                                        label = "Entrada na conta";
+                                        colorClass = "text-teal-500";
+                                      } else if (eff.reason === 'expense_paid' || eff.reason === 'transfer_out') {
+                                        label = "Saída da conta";
+                                        colorClass = "text-rose-500";
+                                      } else if (eff.reason === 'liability_created') {
+                                        label = "Obrigação criada";
+                                        colorClass = "text-amber-500";
+                                      } else if (eff.reason === 'liability_settled') {
+                                        label = "Obrigação reduzida";
+                                        colorClass = "text-teal-500";
+                                      } else {
+                                        label = eff.effect === 'increase' ? "Aumenta" : "Diminui";
+                                        colorClass = eff.effect === 'increase' ? "text-teal-500" : "text-rose-500";
+                                      }
+                                      
+                                      return (
+                                        <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
+                                          <div className="flex flex-col">
+                                            <span className="text-text-primary font-medium">{eff.financeAccountId}</span>
+                                            <span className={`text-[10px] uppercase font-bold tracking-wider ${colorClass}`}>{label}</span>
+                                          </div>
+                                          <span className="font-medium whitespace-nowrap">
+                                            {formatBRLCents(eff.amountCents)}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                )}
 
-                            {postingPlanPreview.fundEffects && postingPlanPreview.fundEffects.length > 0 && (
-                              <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
-                                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Fundos Afetados</span>
-                                {postingPlanPreview.fundEffects.map((eff: any, i: number) => (
-                                  <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
-                                    <span className="text-text-primary font-medium">{eff.fundId || "Fundo Geral"}</span>
-                                    <span className={eff.effect === 'increase' ? 'text-teal-500 font-medium' : 'text-rose-500 font-medium'}>
-                                      {eff.effect === 'increase' ? '+' : '-'}{formatMoney(eff.amountCents)}
-                                    </span>
+                                {postingPlanPreview.fundEffects && postingPlanPreview.fundEffects.length > 0 && (
+                                  <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
+                                    <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Fundos Afetados</span>
+                                    {postingPlanPreview.fundEffects.map((eff: any, i: number) => {
+                                      let label = "";
+                                      if (eff.effect === 'increase') label = "Aumento no fundo";
+                                      else if (eff.effect === 'decrease') label = "Redução no fundo";
+                                      
+                                      return (
+                                        <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
+                                          <div className="flex flex-col">
+                                            <span className="text-text-primary font-medium">{eff.fundId || "Fundo Geral"}</span>
+                                            {label && <span className="text-[10px] text-text-muted uppercase">{label}</span>}
+                                          </div>
+                                          <span className="font-medium whitespace-nowrap">
+                                            {formatBRLCents(eff.amountCents)}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                )}
 
-                            <details className="text-[11px] group mt-2">
-                              <summary className="cursor-pointer text-text-muted hover:text-text-primary transition-colors inline-flex items-center select-none font-medium mb-3">
-                                Ver linhas contábeis (avançado)
-                              </summary>
-                              <div className="overflow-x-auto bg-surface-secondary rounded-lg border border-border-subtle">
-                                <table className="w-full text-left border-collapse">
-                                  <thead>
-                                    <tr className="border-b border-border-subtle text-text-muted text-[10px] uppercase tracking-wider">
-                                      <th className="p-3 font-medium">Conta Contábil</th>
-                                      <th className="p-3 font-medium text-right">Débito</th>
-                                      <th className="p-3 font-medium text-right">Crédito</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="text-xs">
-                                    {postingPlanPreview.journalEntry.lines.map((line: any, idx: number) => (
-                                      <tr key={idx} className="border-b border-border-subtle/50 last:border-0">
-                                        <td className="p-3 text-text-primary font-mono">{line.ledgerAccountId}</td>
-                                        <td className="p-3 text-right text-text-primary">{line.debitCents > 0 ? formatMoney(line.debitCents) : '-'}</td>
-                                        <td className="p-3 text-right text-text-primary">{line.creditCents > 0 ? formatMoney(line.creditCents) : '-'}</td>
-                                      </tr>
-                                    ))}
-                                    <tr className="bg-surface-elevated font-medium">
-                                      <td className="p-3 text-right text-text-muted">Total</td>
-                                      <td className="p-3 text-right text-text-primary">{formatMoney(postingPlanPreview.journalEntry.totalDebitCents)}</td>
-                                      <td className="p-3 text-right text-text-primary">{formatMoney(postingPlanPreview.journalEntry.totalCreditCents)}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            </details>
+                                <details className="text-[11px] group mt-2">
+                                  <summary className="cursor-pointer text-text-muted hover:text-text-primary transition-colors inline-flex items-center select-none font-medium mb-3">
+                                    Ver linhas contábeis
+                                  </summary>
+                                  <div className="overflow-x-auto bg-surface-secondary rounded-lg border border-border-subtle">
+                                    <table className="w-full text-left border-collapse">
+                                      <thead>
+                                        <tr className="border-b border-border-subtle text-text-muted text-[10px] uppercase tracking-wider">
+                                          <th className="p-3 font-medium">Conta Contábil</th>
+                                          <th className="p-3 font-medium text-right">Débito</th>
+                                          <th className="p-3 font-medium text-right">Crédito</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="text-xs">
+                                        {postingPlanPreview.journalEntry.lines.map((line: any, idx: number) => (
+                                          <tr key={idx} className="border-b border-border-subtle/50 last:border-0">
+                                            <td className="p-3 text-text-primary font-mono">{line.ledgerAccountId}</td>
+                                            <td className="p-3 text-right text-text-primary whitespace-nowrap">{line.debitCents > 0 ? formatBRLCents(line.debitCents) : '-'}</td>
+                                            <td className="p-3 text-right text-text-primary whitespace-nowrap">{line.creditCents > 0 ? formatBRLCents(line.creditCents) : '-'}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-surface-elevated font-medium">
+                                          <td className="p-3 text-right text-text-muted flex items-center justify-end gap-2">
+                                            {postingPlanPreview.journalEntry.totalDebitCents === postingPlanPreview.journalEntry.totalCreditCents && (
+                                               <span className="text-[10px] text-teal-600 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 uppercase">Balanceado</span>
+                                            )}
+                                            Total
+                                          </td>
+                                          <td className="p-3 text-right text-text-primary whitespace-nowrap">{formatBRLCents(postingPlanPreview.journalEntry.totalDebitCents)}</td>
+                                          <td className="p-3 text-right text-text-primary whitespace-nowrap">{formatBRLCents(postingPlanPreview.journalEntry.totalCreditCents)}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </details>
+                              </>
+                            )}
                           </>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}
