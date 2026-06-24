@@ -1,10 +1,11 @@
 import { LedgerAccountId } from './ids.js';
 
 export type PostingMappingSnapshot = {
-  operationalAccount: {
+  financeAccounts: Array<{
     accountId: string;
-    assetLedgerAccountId: LedgerAccountId;
-  };
+    ledgerAccountId: LedgerAccountId;
+    type: 'asset' | 'liability';
+  }>;
   categories: Array<{
     categoryId: string;
     ledgerAccountId: LedgerAccountId;

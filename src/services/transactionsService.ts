@@ -296,5 +296,32 @@ export const transactionsService = {
     }
 
     return res.json();
+  },
+
+  async getPostingPlanPreview(organizationId: string, financeEntityId: string, transactionId: string): Promise<{ plan: any }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-posting-plan-preview`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        financeEntityId,
+        transactionId
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to get posting plan preview');
+    }
+
+    return res.json();
   }
 };

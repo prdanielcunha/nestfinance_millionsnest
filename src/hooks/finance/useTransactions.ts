@@ -146,6 +146,21 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const getPostingPlanPreview = useCallback(async (transactionId: string) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await transactionsService.getPostingPlanPreview(organizationId, activeFinanceEntityId, transactionId);
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
   return {
     loading,
     error,
@@ -157,6 +172,7 @@ export function useTransactions() {
     submitForReview,
     returnToDraft,
     approveForPosting,
-    invalidateApproval
+    invalidateApproval,
+    getPostingPlanPreview
   };
 }

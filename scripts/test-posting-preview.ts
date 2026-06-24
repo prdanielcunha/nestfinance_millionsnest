@@ -86,7 +86,7 @@ function runPostingPreviewTests() {
   };
 
   const baseMappings = {
-    operationalAccount: { accountId: 'acc1', assetLedgerAccountId: 'la_asset_banco' },
+    financeAccounts: [{ accountId: 'acc1', ledgerAccountId: 'la_asset_banco', type: 'asset' as const }],
     categories: [
       { categoryId: 'cat_dizimo', ledgerAccountId: 'la_income_dizimos', kind: 'income' as const },
       { categoryId: 'cat_oferta', ledgerAccountId: 'la_income_ofertas', kind: 'income' as const },
@@ -475,7 +475,7 @@ function runPostingPreviewTests() {
         { categoryId: 'cat_dizimo', ledgerAccountId: 'la_income_dizimos', kind: 'income' as const },
         { ledgerAccountId: 'la_expense_energia', categoryId: 'cat_energia', kind: 'expense' as const }
       ],
-      operationalAccount: { assetLedgerAccountId: 'la_asset_banco', accountId: 'acc1' }
+      financeAccounts: [{ accountId: 'acc1', ledgerAccountId: 'la_asset_banco', type: 'asset' as const }]
     };
     const res1 = generatePostingPreview(baseInput);
     const res2 = generatePostingPreview({
@@ -574,7 +574,7 @@ function runPostingPreviewTests() {
 
   runTest('H13. Mappings duplicados ou conflitantes geram blockers', () => {
     const conflictingMappings = {
-      operationalAccount: baseMappings.operationalAccount,
+      financeAccounts: baseMappings.financeAccounts,
       categories: [
         ...baseMappings.categories,
         { categoryId: 'cat_dizimo', ledgerAccountId: 'la_alternate_la', kind: 'income' as const }
@@ -633,7 +633,7 @@ function runPostingPreviewTests() {
   runTest('H18. Mapeamento de conta operacional vazio gera blocker', () => {
     const badMappings = {
       ...baseMappings,
-      operationalAccount: { accountId: '', assetLedgerAccountId: 'la_asset_banco' }
+      financeAccounts: [{ accountId: '', ledgerAccountId: 'la_asset_banco', type: 'asset' as const }]
     };
     const res = generatePostingPreview({ ...baseInput, mappings: badMappings });
     assert.strictEqual(res.ready, false);

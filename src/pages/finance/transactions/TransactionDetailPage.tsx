@@ -64,6 +64,7 @@ function TransactionDetailContent() {
     returnToDraft,
     approveForPosting,
     invalidateApproval,
+    getPostingPlanPreview
   } = useTransactions();
   const { accessState } = useAuth();
 
@@ -291,6 +292,10 @@ function TransactionDetailContent() {
     }
   };
 
+  const [postingPlanPreview, setPostingPlanPreview] = useState<any>(null);
+  const [humanExplanation, setHumanExplanation] = useState<string[]>([]);
+  const [loadingPostingPlan, setLoadingPostingPlan] = useState(false);
+
   const loadData = async (signal?: AbortSignal, currentEpoch?: number) => {
     setLoading(true);
     setError(null);
@@ -305,6 +310,20 @@ function TransactionDetailContent() {
         return;
 
       setData(res);
+
+      if (res?.transaction?.status === 'approved_for_posting') {
+         setLoadingPostingPlan(true);
+         try {
+            const planRes = await getPostingPlanPreview(res.transaction.id);
+            setPostingPlanPreview(planRes.plan);
+            setHumanExplanation(planRes.humanExplanation || []);
+         } catch (e: any) {
+            console.error("Failed to load posting plan preview", e);
+         } finally {
+            setLoadingPostingPlan(false);
+         }
+      }
+
     } catch (err: any) {
       if (
         signal?.aborted ||
@@ -726,6 +745,112 @@ function TransactionDetailContent() {
                             </p>
                           </div>
                         )}
+                    </div>
+                  )}
+
+                  {/* Posting Plan Preview */}
+                  {tx.status === "approved_for_posting" && postingPlanPreview && (
+                    <div className="flex flex-col gap-3 mt-4">
+                      <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider flex items-center justify-between">
+                        <span>Prévia do Lançamento Contábil</span>
+                        <span className="bg-amber-500/10 text-amber-600 text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-amber-500/20">Somente prévia</span>
+                      </h3>
+                      <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4 text-sm">
+                        <p className="text-text-muted text-xs italic">
+                          Ainda não altera saldos. O plano contábil será efetivado ao ser registrado definitivamente.
+                        </p>
+                        {postingPlanPreview.blockers && postingPlanPreview.blockers.length > 0 && (
+                          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                             <div className="flex items-center gap-2 font-medium">
+                               <AlertCircle className="w-5 h-5 shrink-0" />
+                               <span>Pendências impeditivas detectadas</span>
+                             </div>
+                             <ul className="list-disc list-inside ml-2">
+                               {postingPlanPreview.blockers.map((b: any, i: number) => (
+                                 <li key={i}>{b.code} - {b.details}</li>
+                               ))}
+                             </ul>
+                          </div>
+                        )}
+                        
+                        {postingPlanPreview.journalEntry && (
+                          <>
+                            {humanExplanation.length > 0 && (
+                               <div className="flex flex-col gap-2 bg-surface-base p-4 rounded-xl border border-border-subtle">
+                                  <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Tradução Contábil</span>
+                                  <ul className="list-disc list-inside text-text-secondary space-y-1">
+                                    {humanExplanation.map((line, idx) => (
+                                      <li key={idx}>{line}</li>
+                                    ))}
+                                  </ul>
+                               </div>
+                            )}
+
+                            {postingPlanPreview.accountEffects && postingPlanPreview.accountEffects.length > 0 && (
+                              <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
+                                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Contas Financeiras Afetadas</span>
+                                {postingPlanPreview.accountEffects.map((eff: any, i: number) => (
+                                  <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
+                                    <div className="flex flex-col">
+                                      <span className="text-text-primary font-medium">{eff.financeAccountId}</span>
+                                      {eff.reason === 'liability_created' && <span className="text-[10px] text-amber-500 uppercase">Geração de Passivo</span>}
+                                      {eff.reason === 'liability_settled' && <span className="text-[10px] text-teal-500 uppercase">Liquidação de Passivo</span>}
+                                    </div>
+                                    <span className={eff.effect === 'increase' ? 'text-teal-500 font-medium' : 'text-rose-500 font-medium'}>
+                                      {eff.effect === 'increase' ? '+' : '-'}{formatMoney(eff.amountCents)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {postingPlanPreview.fundEffects && postingPlanPreview.fundEffects.length > 0 && (
+                              <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
+                                <span className="text-xs font-medium text-text-muted uppercase tracking-wider">Fundos Afetados</span>
+                                {postingPlanPreview.fundEffects.map((eff: any, i: number) => (
+                                  <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
+                                    <span className="text-text-primary font-medium">{eff.fundId || "Fundo Geral"}</span>
+                                    <span className={eff.effect === 'increase' ? 'text-teal-500 font-medium' : 'text-rose-500 font-medium'}>
+                                      {eff.effect === 'increase' ? '+' : '-'}{formatMoney(eff.amountCents)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <details className="text-[11px] group mt-2">
+                              <summary className="cursor-pointer text-text-muted hover:text-text-primary transition-colors inline-flex items-center select-none font-medium mb-3">
+                                Ver linhas contábeis (avançado)
+                              </summary>
+                              <div className="overflow-x-auto bg-surface-secondary rounded-lg border border-border-subtle">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-border-subtle text-text-muted text-[10px] uppercase tracking-wider">
+                                      <th className="p-3 font-medium">Conta Contábil</th>
+                                      <th className="p-3 font-medium text-right">Débito</th>
+                                      <th className="p-3 font-medium text-right">Crédito</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="text-xs">
+                                    {postingPlanPreview.journalEntry.lines.map((line: any, idx: number) => (
+                                      <tr key={idx} className="border-b border-border-subtle/50 last:border-0">
+                                        <td className="p-3 text-text-primary font-mono">{line.ledgerAccountId}</td>
+                                        <td className="p-3 text-right text-text-primary">{line.debitCents > 0 ? formatMoney(line.debitCents) : '-'}</td>
+                                        <td className="p-3 text-right text-text-primary">{line.creditCents > 0 ? formatMoney(line.creditCents) : '-'}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="bg-surface-elevated font-medium">
+                                      <td className="p-3 text-right text-text-muted">Total</td>
+                                      <td className="p-3 text-right text-text-primary">{formatMoney(postingPlanPreview.journalEntry.totalDebitCents)}</td>
+                                      <td className="p-3 text-right text-text-primary">{formatMoney(postingPlanPreview.journalEntry.totalCreditCents)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </details>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
 
