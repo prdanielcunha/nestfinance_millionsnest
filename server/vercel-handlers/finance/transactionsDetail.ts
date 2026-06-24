@@ -226,15 +226,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
-    const eventsSnapshot = await admin.firestore
+    const eventsSnapshot = await db
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')
       .doc(financeEntityId)
       .collection('events')
       .where('transactionId', '==', transactionId)
-      .orderBy('createdAt', 'asc')
-      .orderBy('eventId', 'asc')
       .limit(20)
       .get();
 
@@ -242,7 +240,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map(doc => {
          const d = doc.data();
          return {
-           id: doc.id,
+           ...d,
+           id: doc.id
+         };
+      })
+      .sort((a: any, b: any) => {
+         const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+         const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+         if (aTime !== bTime) return aTime - bTime;
+         return (a.eventId || '').localeCompare(b.eventId || '');
+      })
+      .map((d: any) => {
+         return {
+           id: d.id,
            eventId: d.eventId,
            eventType: d.eventType,
            actorUid: d.actorUid,
