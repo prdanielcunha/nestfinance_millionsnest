@@ -169,6 +169,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        }
     }
 
+    let approverName = undefined;
+    if (txData.approvedBy) {
+       try {
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.approvedBy).get();
+           if (uDoc.exists) {
+               approverName = uDoc.data()?.name || uDoc.data()?.displayName || txData.approvedBy;
+           } else {
+               approverName = txData.approvedBy;
+           }
+       } catch (e) {
+           approverName = txData.approvedBy;
+       }
+    }
+
+    let returnedByName = undefined;
+    if (txData.returnedToDraftBy) {
+       try {
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.returnedToDraftBy).get();
+           if (uDoc.exists) {
+               returnedByName = uDoc.data()?.name || uDoc.data()?.displayName || txData.returnedToDraftBy;
+           } else {
+               returnedByName = txData.returnedToDraftBy;
+           }
+       } catch (e) {
+           returnedByName = txData.returnedToDraftBy;
+       }
+    }
+
     // Capabilities effective
     const canEdit = hasFinanceCapability(sessionList, 'finance.create_drafts') 
                     && (txData.status === 'draft' || txData.status === 'ready_for_review');
@@ -193,9 +221,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (txData.direction === 'expense') {
        accountingEffect = `Saída de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     } else if (txData.direction === 'transfer') {
-       accountingEffect = `Transferência de ${formatMoneyEffect(txData.amountCents)}.`;
+       accountingEffect = `Transferência de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'} para a conta ${txData.destinationAccountSnapshot?.name || 'de destino'}.`;
     } else if (txData.direction === 'liability_settlement') {
-       accountingEffect = `Repasse ou acerto de ${formatMoneyEffect(txData.amountCents)}.`;
+       accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
     return res.status(200).json({
@@ -219,7 +247,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         version: txData.version,
         createdBy: txData.createdBy,
         creatorName,
-        updatedAt: txData.updatedAt
+        updatedAt: txData.updatedAt,
+        destinationAccountId: txData.destinationAccountId,
+        destinationAccountSnapshot: txData.destinationAccountSnapshot,
+        liabilityAccountId: txData.liabilityAccountId,
+        liabilityAccountSnapshot: txData.liabilityAccountSnapshot,
+        settlementType: txData.settlementType,
+        returnedToDraftReason: txData.returnedToDraftReason,
+        returnedToDraftComment: txData.returnedToDraftComment,
+        returnedToDraftAt: txData.returnedToDraftAt,
+        returnedToDraftBy: txData.returnedToDraftBy,
+        returnedByName,
+        approvedBy: txData.approvedBy,
+        approvedWithName: approverName,
+        approvedAt: txData.approvedAt,
+        approvedVersion: txData.approvedVersion,
+        approvalSourceHash: txData.approvalSourceHash,
+        approvalComment: txData.approvalComment
       },
       allocations: resolvedAllocations.map(a => ({
         id: a.id,

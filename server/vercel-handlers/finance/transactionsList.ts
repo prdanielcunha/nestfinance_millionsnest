@@ -4,6 +4,7 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 import { requireFinanceTransactionAccess } from './accessHelpers.js';
 import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { normalizeFirestoreInfrastructureError } from '../../shared/firestore/indexRemediation.js';
+import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -42,6 +43,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     isGlobalAdmin = sessionList.isGlobalAccess || false;
     
+    let direction = undefined;
+    let status = undefined;
+    let occurredFrom = undefined;
+    let occurredTo = undefined;
+    let readinessFilter: 'all' | 'with_issues' | 'ready_to_approve' = 'all';
+
+    if (filters) {
+      const filterKind = filters.transactionKind || filters.direction;
+      if (filterKind && filterKind !== 'all') {
+        if (filterKind === 'with_issues') {
+          readinessFilter = 'with_issues';
+        } else if (filterKind === 'ready_to_approve') {
+          readinessFilter = 'ready_to_approve';
+        } else {
+          direction = filterKind;
+        }
+      }
+      if (filters.status && filters.status !== 'all') status = filters.status;
+      if (filters.occurredFrom) occurredFrom = filters.occurredFrom;
+      if (filters.occurredTo) occurredTo = filters.occurredTo;
+    }
+
+    const requiredCapability = status === 'ready_for_review' ? 'finance.review' : 'finance.view';
+
     // Will throw if forbidden or not found/active
     const context = await requireFinanceTransactionAccess({
       db: admin.firestore,
@@ -49,21 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       organizationId,
       financeEntityId,
       sessionList,
-      capability: 'finance.view'
+      capability: requiredCapability
     });
-
-    let direction = undefined;
-    let status = undefined;
-    let occurredFrom = undefined;
-    let occurredTo = undefined;
-
-    if (filters) {
-      const filterKind = filters.transactionKind || filters.direction;
-      if (filterKind && filterKind !== 'all') direction = filterKind;
-      if (filters.status && filters.status !== 'all') status = filters.status;
-      if (filters.occurredFrom) occurredFrom = filters.occurredFrom;
-      if (filters.occurredTo) occurredTo = filters.occurredTo;
-    }
 
     const bounds = getTransactionListQueryBounds(
       financeEntityId, direction, status, occurredFrom, occurredTo
@@ -105,7 +117,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     let ignoredRecordsCount = 0;
 
-    const items = [];
+    // Load accounts of the entity once to run evaluateReviewReadiness
+    const accountsSnapshot = await context.repository.getAccountsRef().get();
+    const accounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Load allocations for all fetched transactions in a single batch
+    const transactionIds = snapshot.docs.map(d => d.id);
+    let allAllocations: any[] = [];
+    if (transactionIds.length > 0) {
+      const allocationsSnapshot = await context.repository.getAllocationsRef()
+        .where('transactionId', 'in', transactionIds)
+        .get();
+      allAllocations = allocationsSnapshot.docs.map(d => d.data());
+    }
+
+    const rawItems = [];
     for (const doc of snapshot.docs) {
       try {
         const data = doc.data();
@@ -169,8 +195,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-        items.push({
+        const txAllocations = allAllocations.filter(a => a.transactionId === doc.id);
+        const categoryName = txAllocations[0]?.categorySnapshot?.name || '';
+
+        const readiness = evaluateReviewReadiness({
+          ...data,
           id: doc.id,
+          allocationIds: data.allocationIds || txAllocations.map(a => a.id)
+        } as any, accounts);
+
+        const compactDto = {
+          id: doc.id,
+          transactionId: doc.id,
           transactionKind: data.transactionKind || data.direction,
           direction: data.direction || data.transactionKind,
           status: data.status,
@@ -181,8 +217,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           accountId: data.accountId,
           paymentMethod: data.paymentMethod,
           description: data.description,
-          version: data.version || 1
-        });
+          summary: data.description || '',
+          version: data.version || 1,
+          accountName: data.accountSnapshot?.name || '',
+          categoryName,
+          submittedByDisplayName: data.submittedByDisplayName || data.createdBy || 'Sistema',
+          blockerCount: readiness.blockers.length,
+          warningCount: readiness.warnings.length,
+          isReady: readiness.ready
+        };
+
+        // Filter by readiness status on server-side
+        if (readinessFilter === 'ready_to_approve' && !readiness.ready) {
+          continue;
+        }
+        if (readinessFilter === 'with_issues' && readiness.ready) {
+          continue;
+        }
+
+        rawItems.push(compactDto);
       } catch (err: any) {
         console.error(`Error processing transaction document ${doc.id} (req: ${requestId}):`, err.name);
         ignoredRecordsCount++;
@@ -198,10 +251,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
     }
 
-    console.log(`[Metrics] transactionsList (req: ${requestId}) - queryDuration: ${queryDurationMs}ms, returned: ${items.length}, pageSize: ${limit}, hasMore: ${!!nextCursor}`);
+    console.log(`[Metrics] transactionsList (req: ${requestId}) - queryDuration: ${queryDurationMs}ms, returned: ${rawItems.length}, pageSize: ${limit}, hasMore: ${!!nextCursor}`);
 
     return res.status(200).json({
-      items,
+      items: rawItems,
       nextCursor,
       hasMore: !!nextCursor
     });

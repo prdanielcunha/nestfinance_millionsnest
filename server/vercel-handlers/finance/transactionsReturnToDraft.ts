@@ -62,10 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
       
-      if (txData.status !== 'ready_for_review') {
-         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot return transaction not in ready_for_review' };
+      if (txData.status !== 'ready_for_review' && txData.status !== 'approved_for_posting') {
+         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot return transaction not in ready_for_review or approved_for_posting' };
       }
 
+      const isApprovalInvalidation = txData.status === 'approved_for_posting';
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
       const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'draft', txData.occurredAt);
@@ -83,28 +84,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvalSourceHash: FieldValue.delete(),
         approvedVersion: FieldValue.delete(),
         approvedAt: FieldValue.delete(),
-        approvedBy: FieldValue.delete()
+        approvedBy: FieldValue.delete(),
+        approvalComment: FieldValue.delete()
       }));
 
       const auditId = generateAuditId();
+      const eventType = isApprovalInvalidation ? 'transaction.approval_invalidated' : 'transaction.returned_to_draft';
+      const auditAction = isApprovalInvalidation ? 'transaction.approval_invalidated' : 'transaction.returned_to_draft';
+
       t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
         actor: uid,
         resource: 'transaction',
-        action: 'transaction.returned_to_draft',
+        action: auditAction,
         requestId,
         idempotencyKey,
         afterHash: payloadHash,
         createdAt: FieldValue.serverTimestamp(),
-        details: { reasonCode, comment, previousVersion: txData.version, newVersion }
+        details: { reasonCode, comment, previousVersion: txData.version, newVersion, wasApproved: isApprovalInvalidation }
       }));
 
       // internal event for future consumption
       const eventId = generateAuditId();
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
-        type: 'transaction.returned_to_draft',
+        type: eventType,
         transactionId,
         version: newVersion,
         actor: uid,
