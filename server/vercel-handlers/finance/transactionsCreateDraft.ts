@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const token = authHeader.split('Bearer ')[1];
     const admin = getFirebaseAdmin();
-    const db = admin.firestore();
+    const db = admin.firestore;
     const decodedToken = await admin.auth.verifyIdToken(token);
     const uid = decodedToken.uid;
     const organizationId = req.headers['x-organization-id'] as string;

@@ -12,7 +12,7 @@ export function isValidIanaTimeZone(tz: string): boolean {
 
 export async function resolveEcosystemSession(uid: string, orgId: string) {
   const admin = getFirebaseAdmin();
-  const db = admin.firestore();
+  const db = admin.firestore;
 
   let isGlobalAccess = false;
   let accessSource = '';

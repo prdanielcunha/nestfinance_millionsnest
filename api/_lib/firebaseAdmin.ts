@@ -2,9 +2,7 @@
 import admin from 'firebase-admin';
 
 let defaultApp: admin.app.App | undefined;
-
-let firestoreInstance: any = undefined;
-const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
+let firestoreInstance: admin.firestore.Firestore | undefined;
 
 export function resetFirebaseAdminForTests() {
   if (process.env.NODE_ENV === 'test') {
@@ -49,6 +47,7 @@ export function getFirebaseAdmin() {
   }
 
   if (!firestoreInstance) {
+    const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
     if (process.env.NODE_ENV === 'test' && (globalThis as any)[TEST_FIRESTORE_SYMBOL]) {
       const injected = (globalThis as any)[TEST_FIRESTORE_SYMBOL];
       if (typeof injected.collection === 'function' && typeof injected.runTransaction === 'function') {
@@ -63,7 +62,12 @@ export function getFirebaseAdmin() {
 
   return {
     auth: firebaseAdmin.auth(),
-    firestore: firestoreInstance
+    firestore: firestoreInstance as admin.firestore.Firestore
   };
 }
+
+export function getFirestoreDb(): admin.firestore.Firestore {
+  return getFirebaseAdmin().firestore;
+}
+
     

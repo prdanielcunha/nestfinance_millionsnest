@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { ArrowRight, Settings, Plus, Building2, AlertCircle, RefreshCw, Clock } from 'lucide-react';
+import { ArrowRight, Settings, Plus, Building2, AlertCircle, RefreshCw, Clock, ClipboardCheck } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
@@ -8,12 +8,14 @@ import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWiz
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { useTransactions } from '@/src/hooks/finance/useTransactions';
 
 export default function FinancePage() {
   const { accessState } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { activeFinanceEntityId, setActiveFinanceEntityId, lastUsedFinanceEntityId } = useFinanceEntity();
+  const { listTransactions } = useTransactions();
   
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [apiError, setApiError] = useState(false);
@@ -23,6 +25,7 @@ export default function FinancePage() {
   const [currentEpoch, setCurrentEpoch] = useState(0);
   
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
 
   const setupStatus = accessState.financeSetup?.status;
   const returnTo = searchParams.get('returnTo');
@@ -38,6 +41,18 @@ export default function FinancePage() {
       abortController.abort();
     };
   }, [setupStatus, currentEpoch]);
+
+  useEffect(() => {
+    if (activeFinanceEntityId) {
+      listTransactions({ status: 'ready_for_review' })
+        .then((res) => {
+          setReviewCount(res.items.length + (res.hasMore ? '+' : ''));
+        })
+        .catch(() => {
+          setReviewCount(0);
+        });
+    }
+  }, [activeFinanceEntityId, listTransactions]);
 
   const fetchOnboardingData = async (signal?: AbortSignal, epoch: number = 0) => {
     try {
@@ -312,6 +327,36 @@ export default function FinancePage() {
                 </div>
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col w-full">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">Auditoria e Governança</h2>
+                <p className="text-sm text-text-secondary">Processos de aprovação de caixa e competência.</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => navigate(APP_ROUTES.financeReview)}
+              className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex items-center justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+            >
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 text-amber-500 group-hover:scale-105 transition-transform relative">
+                   <ClipboardCheck className="w-6 h-6" />
+                   {reviewCount !== null && reviewCount !== 0 && (
+                     <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full border-2 border-surface-base">
+                       {reviewCount}
+                     </div>
+                   )}
+                 </div>
+                 <div>
+                   <h3 className="text-base font-medium text-text-primary mb-1">Central de Revisões</h3>
+                   <p className="text-sm text-text-secondary">Avaliar lançamentos pendentes de aprovação.</p>
+                 </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
+            </button>
           </div>
 
           <div className="flex flex-col w-full">
