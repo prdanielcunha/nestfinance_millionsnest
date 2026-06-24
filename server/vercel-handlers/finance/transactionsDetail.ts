@@ -226,6 +226,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
+    const eventsSnapshot = await admin.firestore()
+      .collection('organizations')
+      .doc(organizationId)
+      .collection('financeEntities')
+      .doc(financeEntityId)
+      .collection('events')
+      .where('transactionId', '==', transactionId)
+      .get();
+
+    const events = eventsSnapshot.docs
+      .map(doc => {
+         const d = doc.data();
+         return {
+           id: doc.id,
+           eventId: d.eventId,
+           eventType: d.eventType,
+           actorUid: d.actorUid,
+           actorDisplayNameSnapshot: d.actorDisplayNameSnapshot || 'Usuário da equipe',
+           versionBefore: d.versionBefore,
+           versionAfter: d.versionAfter,
+           reasonCode: d.reasonCode,
+           comment: d.comment,
+           sourceHash: d.sourceHash,
+           requestId: d.requestId,
+           createdAt: d.createdAt ? (d.createdAt.toDate ? d.createdAt.toDate().toISOString() : d.createdAt) : null
+         };
+      })
+      .sort((a: any, b: any) => {
+         const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+         const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+         return tA - tB;
+      });
+
     return res.status(200).json({
       transaction: {
         id: txData.id,
@@ -263,7 +296,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedAt: txData.approvedAt,
         approvedVersion: txData.approvedVersion,
         approvalSourceHash: txData.approvalSourceHash,
-        approvalComment: txData.approvalComment
+        approvalComment: txData.approvalComment,
+        approvalStatus: txData.approvalStatus || null,
+        invalidatedBy: txData.invalidatedBy || null,
+        invalidatedAt: txData.invalidatedAt || null,
+        invalidatedReason: txData.invalidatedReason || null,
+        invalidatedComment: txData.invalidatedComment || null
       },
       allocations: resolvedAllocations.map(a => ({
         id: a.id,
@@ -276,6 +314,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         memo: a.memo,
         sequence: a.sequence
       })),
+      events,
       reviewReadiness,
       accountingEffect,
       capabilities: {

@@ -263,5 +263,38 @@ export const transactionsService = {
     }
 
     return res.json();
+  },
+
+  async invalidateApproval(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, expectedApprovalSourceHash: string, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, status: string, approvalStatus: string, version: number, requestId: string }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-invalidate-approval`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        transactionId, 
+        expectedVersion,
+        expectedApprovalSourceHash,
+        reasonCode,
+        comment,
+        idempotencyKey, 
+        requestId
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to invalidate approval');
+    }
+
+    return res.json();
   }
 };

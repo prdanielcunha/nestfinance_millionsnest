@@ -9,6 +9,18 @@ import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '.
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 
+async function getActorDisplayName(db: any, uid: string): Promise<string> {
+  try {
+    const uDoc = await db.collection('user_profiles').doc(uid).get();
+    if (uDoc.exists) {
+      return uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 'Usuário da equipe';
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -70,7 +82,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'create_and_submit', idempotencyKey);
     const payloadHash = hashPayload(payload);
 
-      const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
+    const actorDisplayName = await getActorDisplayName(db, uid);
+
+    const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
       // Validate Draft Minimums and precedence
       const { 
         validateDraftMinimum, validateSubmissionReadiness, validateAccountMetadata, validateCategoryMetadata, validateFundMetadata, deriveCashFlowDirection 
@@ -321,6 +335,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         idempotencyKey,
         afterHash: payloadHash, // Simplified
         metadata: { status: 'ready_for_review', amountCents, transactionKind },
+        createdAt: FieldValue.serverTimestamp()
+      }));
+
+      // Internal Events (sequential: created then submitted_for_review)
+      const baseEvtId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
+      
+      // Event 1: created
+      t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(`${baseEvtId}_1`), sanitizeFirestoreObject({
+        eventId: `${baseEvtId}_1`,
+        organizationId,
+        financeEntityId,
+        transactionId: txId,
+        eventType: 'created',
+        actorUid: uid,
+        actorDisplayNameSnapshot: actorDisplayName,
+        versionBefore: null,
+        versionAfter: 1,
+        requestId,
+        createdAt: FieldValue.serverTimestamp()
+      }));
+
+      // Event 2: submitted_for_review
+      t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(`${baseEvtId}_2`), sanitizeFirestoreObject({
+        eventId: `${baseEvtId}_2`,
+        organizationId,
+        financeEntityId,
+        transactionId: txId,
+        eventType: 'submitted_for_review',
+        actorUid: uid,
+        actorDisplayNameSnapshot: actorDisplayName,
+        versionBefore: 1,
+        versionAfter: 1,
+        requestId,
         createdAt: FieldValue.serverTimestamp()
       }));
 

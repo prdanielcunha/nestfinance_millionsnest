@@ -8,8 +8,6 @@ import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
-import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
-import { computeApprovalSourceHash } from '../../../shared/finance/ledger/approvalSourceHash.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -30,14 +28,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { 
-      financeEntityId, transactionId, expectedVersion, approvalIdempotencyKey, requestId, comment 
+      financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment, requestId, idempotencyKey 
     } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (typeof expectedVersion !== 'number' || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    if (!isValidIdempotencyKey(approvalIdempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!expectedApprovalSourceHash || typeof expectedApprovalSourceHash !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!reasonCode || typeof reasonCode !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    
+    const validReasons = [
+      'amount_needs_change',
+      'account_needs_change',
+      'classification_needs_change',
+      'date_needs_change',
+      'attachment_needs_change',
+      'beneficiary_needs_change',
+      'other'
+    ];
+    if (!validReasons.includes(reasonCode)) {
+      return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Invalid reasonCode' });
+    }
+
+    if (reasonCode === 'other' && (!comment || comment.trim() === '')) {
+      return res.status(400).json({ error: 'FINANCE_MISSING_COMMENT', message: 'Comment required for reason other' });
+    }
 
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
@@ -53,14 +70,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sessionList = await resolveEcosystemSession(uid, organizationId);
     
-    // Check capability: finance.approve_for_posting
+    // Check capability: finance.invalidate_approval (or finance.review as fallback)
     const context = await requireFinanceTransactionAccess({
       db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.approve_for_posting'
+      capability: 'finance.invalidate_approval'
     });
 
-    const payload = { financeEntityId, transactionId, expectedVersion, comment }; 
-    const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'approve_for_posting', approvalIdempotencyKey);
+    const payload = { financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment }; 
+    const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'invalidate_approval', idempotencyKey);
     const payloadHash = hashPayload(payload);
 
     const actorDisplayName = await getActorDisplayName(db, uid);
@@ -72,48 +89,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const txData = txDoc.data() as LedgerTransaction;
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
+
+      // 9. Confirmar que não existe Posting
+      const hasPostingEvidence = txData.status === 'posted' || (txData as any).postingId || (txData as any).journalEntryId || (txData as any).postedAt;
+      if (hasPostingEvidence) {
+        throw { 
+          code: 'FINANCE_APPROVAL_CANNOT_BE_INVALIDATED_AFTER_POSTING', 
+          message: 'Esta movimentação já foi lançada e não pode voltar para rascunho. Será necessário fazer uma reversão.' 
+        };
+      }
+
+      // 5. Exigir status === approved_for_posting
+      if (txData.status !== 'approved_for_posting') {
+         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Only transactions approved for posting can have their approval invalidated' };
+      }
+
+      // 6. Validar expectedVersion
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
       
-      if (txData.status !== 'ready_for_review') {
-         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot approve transaction not in ready_for_review' };
+      // 7. Validar aprovação existente
+      if (!txData.approvedBy || !txData.approvalSourceHash) {
+         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No active approval found to invalidate' };
       }
 
-      // Load allocations
-      const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
-      const allocations = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()}) as any);
-
-      // Load all accounts for readiness check
-      const accountsQ = await t.get(context.repository.getAccountsRef());
-      const accounts = accountsQ.docs.map(d => ({id: d.id, ...d.data()}));
-
-      // Evaluate review readiness
-      const readiness = evaluateReviewReadiness(txData, accounts);
-      if (!readiness.ready) {
-        throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: readiness.blockers.map(b => b.details).join('. ') };
+      // 8. Validar sourceHash atual
+      if (txData.approvalSourceHash !== expectedApprovalSourceHash) {
+         throw { code: 'FINANCE_APPROVAL_HASH_MISMATCH', message: 'Approval source hash mismatch' };
       }
 
-      // Check segregation of duties
-      const entityData = context.financeEntity;
-      if (entityData?.reviewPolicy?.requireDistinctApprover && txData.createdBy === uid) {
-        throw { code: 'FINANCE_SEGREGATION_OF_DUTIES_VIOLATION', message: 'Creator cannot approve their own transaction based on entity policy' };
-      }
-
-      const sourceHash = computeApprovalSourceHash(txData, allocations);
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
-      const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'approved_for_posting', txData.occurredAt);
+      const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'draft', txData.occurredAt);
       
+      // Update transaction - preserving approval but setting status to draft and invalidation info
       t.update(txRef, sanitizeFirestoreObject({
-        status: 'approved_for_posting',
+        status: 'draft',
         listQueryKeys,
         updatedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
         version: newVersion,
-        approvedBy: uid,
-        approvedAt: FieldValue.serverTimestamp(),
-        approvedVersion: txData.version,
-        approvalSourceHash: sourceHash,
-        approvalComment: comment || null
+        approvalStatus: 'invalidated',
+        invalidatedBy: uid,
+        invalidatedAt: FieldValue.serverTimestamp(),
+        invalidatedReason: reasonCode,
+        invalidatedComment: comment || null
       }));
 
       const auditId = generateAuditId();
@@ -123,38 +142,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         financeEntityId,
         actor: uid,
         resource: 'transaction',
-        action: 'transaction.approved_for_posting',
+        action: 'transaction.approval_invalidated',
         requestId,
-        idempotencyKey: approvalIdempotencyKey,
+        idempotencyKey,
         afterHash: payloadHash,
         createdAt: FieldValue.serverTimestamp(),
-        details: { comment, approvedVersion: txData.version, sourceHash }
+        details: { reasonCode, comment, previousVersion: txData.version, newVersion, sourceHash: txData.approvalSourceHash }
       }));
 
-      const eventId = approvalIdempotencyKey ? `evt_${approvalIdempotencyKey}` : generateAuditId();
+      // Internal event
+      const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
         eventId,
         organizationId,
         financeEntityId,
         transactionId,
-        eventType: 'approved_for_posting',
+        eventType: 'approval_invalidated',
         actorUid: uid,
         actorDisplayNameSnapshot: actorDisplayName,
         versionBefore: txData.version,
         versionAfter: newVersion,
+        reasonCode,
         comment: comment || null,
-        sourceHash,
+        sourceHash: txData.approvalSourceHash,
         requestId,
         createdAt: FieldValue.serverTimestamp()
       }));
 
-      return { transactionId, approvalStatus: 'approved_for_posting', approvedVersion: txData.version, sourceHash, version: newVersion };
+      return { transactionId, status: 'draft', approvalStatus: 'invalidated', version: newVersion, requestId };
     });
 
     return res.status(200).json(result);
 
   } catch (error: any) {
-    console.error('Approve Transaction Error:', error);
+    console.error('Invalidate Approval Error:', error);
     if (error.code && error.code.startsWith('FINANCE_')) {
       return res.status(400).json({ error: error.code, details: error.message });
     }

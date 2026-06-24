@@ -131,6 +131,21 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const invalidateApproval = useCallback(async (transactionId: string, expectedVersion: number, expectedApprovalSourceHash: string, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await transactionsService.invalidateApproval(organizationId, activeFinanceEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment, idempotencyKey, requestId);
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
   return {
     loading,
     error,
@@ -141,6 +156,7 @@ export function useTransactions() {
     updateDraft,
     submitForReview,
     returnToDraft,
-    approveForPosting
+    approveForPosting,
+    invalidateApproval
   };
 }

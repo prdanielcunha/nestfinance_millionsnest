@@ -9,6 +9,18 @@ import { validateAllocation, FinanceAllocation } from '../../../shared/finance/l
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 
+async function getActorDisplayName(db: any, uid: string): Promise<string> {
+  try {
+    const uDoc = await db.collection('user_profiles').doc(uid).get();
+    if (uDoc.exists) {
+      return uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 'Usuário da equipe';
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -47,6 +59,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'update_draft', idempotencyKey);
     const payloadHash = hashPayload(payload);
+
+    const actorDisplayName = await getActorDisplayName(db, uid);
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
       const txRef = context.repository.getTransactionsRef().doc(transactionId);
@@ -408,8 +422,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const auditId = generateAuditId();
       let action = 'transaction.updated';
+      let eventType = 'draft_updated';
       if (txData.status === 'ready_for_review' && newStatus === 'draft') {
           action = 'transaction.returned_to_draft';
+          eventType = 'returned_to_draft';
       }
 
       t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
@@ -422,6 +438,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         requestId,
         idempotencyKey,
         afterHash: payloadHash,
+        createdAt: FieldValue.serverTimestamp()
+      }));
+
+      // Internal Event
+      const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
+      t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
+        eventId,
+        organizationId,
+        financeEntityId,
+        transactionId,
+        eventType,
+        actorUid: uid,
+        actorDisplayNameSnapshot: actorDisplayName,
+        versionBefore: txData.version,
+        versionAfter: newRecord.version,
+        requestId,
         createdAt: FieldValue.serverTimestamp()
       }));
 

@@ -32,6 +32,7 @@ import transactionsSubmitForReview from '../server/vercel-handlers/finance/trans
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
 import transactionsApproveForPosting from '../server/vercel-handlers/finance/transactionsApproveForPosting.js';
+import transactionsInvalidateApproval from '../server/vercel-handlers/finance/transactionsInvalidateApproval.js';
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
 import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
 
@@ -112,6 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsSubmitForReview(req, res);
     case 'transactions-return-to-draft':
       return transactionsReturnToDraft(req, res);
+    case 'transactions-invalidate-approval':
+      return transactionsInvalidateApproval(req, res);
     case 'transactions-approve-for-posting':
       return transactionsApproveForPosting(req, res);
     default:

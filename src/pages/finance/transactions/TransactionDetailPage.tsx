@@ -8,6 +8,9 @@ import {
   ShieldX,
   Wallet,
   ShieldCheck,
+  Lock,
+  FileClock,
+  User,
 } from "lucide-react";
 import { APP_ROUTES } from "@/src/app/router/routes";
 import { useAuth } from "@/src/hooks/useAuth";
@@ -60,6 +63,7 @@ function TransactionDetailContent() {
     submitForReview,
     returnToDraft,
     approveForPosting,
+    invalidateApproval,
   } = useTransactions();
   const { accessState } = useAuth();
 
@@ -193,11 +197,17 @@ function TransactionDetailContent() {
         Date.now().toString(36);
 
       let res;
-      if (
-        isReviewMode &&
-        (data.transaction.status === "ready_for_review" ||
-          data.transaction.status === "approved_for_posting")
-      ) {
+      if (isReviewMode && data.transaction.status === "approved_for_posting") {
+        res = await invalidateApproval(
+          data.transaction.id,
+          currentVersion,
+          data.transaction.approvalSourceHash || "",
+          returnReason,
+          returnComment,
+          idempotencyKeyRef.current,
+          reqId,
+        );
+      } else if (isReviewMode && data.transaction.status === "ready_for_review") {
         res = await returnToDraft(
           data.transaction.id,
           currentVersion,
@@ -325,7 +335,7 @@ function TransactionDetailContent() {
     const dict: Record<string, string> = {
       draft: "Rascunho",
       ready_for_review: "Pronto para revisão",
-      approved_for_posting: "Aprovado para Posting",
+      approved_for_posting: "Aprovado para Lançamento (Não Registrado)",
       posted: "Registrado",
       reversed: "Revertido",
     };
@@ -720,114 +730,144 @@ function TransactionDetailContent() {
                   )}
 
                   {/* Revision History Log */}
-                  {(tx.createdBy || tx.returnedToDraftBy || tx.approvedBy) && (
+                  {data.events && data.events.length > 0 && (
                     <div className="flex flex-col gap-3 mt-4">
                       <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">
-                        Histórico da Movimentação
+                        Histórico Imutável da Movimentação
                       </h3>
-                      <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4 text-sm text-text-secondary">
-                        {tx.createdBy && (
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 rounded-full bg-text-muted mt-1.5" />
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                Registrado
-                              </p>
-                              <p className="text-xs text-text-muted">
-                                Por{" "}
-                                {tx.creatorName ||
-                                  tx.createdByAlias ||
-                                  "equipe"}{" "}
-                                em{" "}
-                                {tx.occurredAt
-                                  ? new Date(tx.occurredAt).toLocaleDateString(
-                                      "pt-BR",
-                                    )
-                                  : "-"}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                      <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-5 text-sm text-text-secondary">
+                        {data.events.map((evt: any, idx: number) => {
+                          const dateStr = evt.createdAt ? new Date(evt.createdAt).toLocaleDateString("pt-BR") : "-";
+                          const timeStr = evt.createdAt ? new Date(evt.createdAt).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' }) : "";
 
-                        {tx.returnedToDraftBy && (
-                          <div className="flex items-start gap-3 border-t border-border-subtle pt-3">
-                            <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5" />
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                Devolvido para Correção
-                              </p>
-                              <p className="text-xs text-text-muted">
-                                Por {tx.returnedByName || "revisor"} em{" "}
-                                {tx.returnedToDraftAt
-                                  ? new Date(
-                                      tx.returnedToDraftAt,
-                                    ).toLocaleDateString("pt-BR")
-                                  : "-"}
-                              </p>
-                              <div className="bg-rose-500/5 border border-rose-500/10 rounded-lg p-2.5 mt-1.5 text-xs text-rose-700">
-                                <span className="font-semibold">Motivo:</span>{" "}
-                                {tx.returnedToDraftReason ===
-                                "missing_attachment"
-                                  ? "Falta de comprovante"
-                                  : tx.returnedToDraftReason ===
-                                      "invalid_amount"
-                                    ? "Valor incorreto"
-                                    : tx.returnedToDraftReason ===
-                                        "invalid_category"
-                                      ? "Categoria/Rateio incorreto"
-                                      : tx.returnedToDraftReason ===
-                                          "invalid_account"
-                                        ? "Conta bancária/caixa incorreta"
-                                        : tx.returnedToDraftReason ===
-                                            "need_correction"
-                                          ? "Outra correção necessária"
-                                          : tx.returnedToDraftReason || "Outro"}
-                                {tx.returnedToDraftComment && (
-                                  <p className="mt-1">
-                                    <span className="font-semibold">
-                                      Ajuste:
-                                    </span>{" "}
-                                    {tx.returnedToDraftComment}
-                                  </p>
-                                )}
+                          let title = "";
+                          let details = "";
+                          let dotColor = "bg-text-muted";
+                          let extraContent = null;
+
+                          switch (evt.eventType) {
+                            case 'draft_created':
+                              title = "Rascunho Criado";
+                              details = `Iniciou a movimentação como rascunho (versão ${evt.versionAfter || 1})`;
+                              dotColor = "bg-zinc-400";
+                              break;
+                            case 'draft_updated':
+                              title = "Rascunho Atualizado";
+                              details = `Atualizou os dados do rascunho (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-blue-400";
+                              break;
+                            case 'submitted_for_review':
+                              title = "Enviado para Revisão";
+                              details = `Concluiu os dados e enviou para revisão (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-amber-400";
+                              break;
+                            case 'resubmitted_for_review':
+                              title = "Reenviado para Revisão";
+                              details = `Reenviou para revisão após realizar correções (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-amber-500";
+                              break;
+                            case 'returned_to_draft':
+                              title = "Devolvido para Correção";
+                              details = `Movimentação devolvida para o rascunho (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-rose-500";
+                              
+                              const reasonLabels: Record<string, string> = {
+                                missing_attachment: "Falta de comprovante",
+                                invalid_amount: "Valor incorreto",
+                                invalid_category: "Categoria/Rateio incorreto",
+                                invalid_account: "Conta bancária/caixa incorreta",
+                                need_correction: "Outra correção necessária",
+                                other: "Outro"
+                              };
+                              const reasonLabel = reasonLabels[evt.reasonCode] || evt.reasonCode || "Outro";
+                              extraContent = (
+                                <div className="bg-rose-500/5 border border-rose-500/10 rounded-lg p-3 mt-2 text-xs text-rose-700">
+                                  <div className="font-semibold mb-1">Motivo: {reasonLabel}</div>
+                                  {evt.comment && <div className="text-rose-600 font-normal">"{evt.comment}"</div>}
+                                </div>
+                              );
+                              break;
+                            case 'approved_for_posting':
+                              title = "Aprovado para Lançamento";
+                              details = `Revisor aprovou a movimentação e gerou selo criptográfico (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-teal-500";
+                              extraContent = (
+                                <div className="mt-2 flex flex-col gap-1.5">
+                                  {evt.comment && (
+                                    <div className="bg-teal-500/5 border border-teal-500/10 rounded-lg p-3 text-xs text-teal-700 italic">
+                                      "{evt.comment}"
+                                    </div>
+                                  )}
+                                  {evt.sourceHash && (
+                                    <div className="bg-surface-secondary border border-border-subtle rounded-lg p-2.5 flex items-start gap-2.5 text-[11px] font-mono text-text-muted">
+                                      <Lock className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                                      <div className="break-all">
+                                        <span className="font-semibold text-text-primary block mb-0.5 uppercase tracking-wider text-[9px]">Selo de Integridade (SourceHash)</span>
+                                        {evt.sourceHash}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                              break;
+                            case 'approval_invalidated':
+                              title = "Aprovação Invalidada";
+                              details = `Aprovação de Posting cancelada. Registro retornado para rascunho (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-red-600";
+
+                              const invalidationReasons: Record<string, string> = {
+                                missing_attachment: "Falta de comprovante",
+                                invalid_amount: "Valor incorreto",
+                                invalid_category: "Categoria/Rateio incorreto",
+                                invalid_account: "Conta bancária/caixa incorreta",
+                                need_correction: "Outra correção necessária",
+                                other: "Outro"
+                              };
+                              const invReasonLabel = invalidationReasons[evt.reasonCode] || evt.reasonCode || "Outro";
+                              extraContent = (
+                                <div className="mt-2 flex flex-col gap-1.5">
+                                  <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-3 text-xs text-red-700">
+                                    <div className="font-semibold mb-1">Motivo: {invReasonLabel}</div>
+                                    {evt.comment && <div className="text-red-600 font-normal">"{evt.comment}"</div>}
+                                  </div>
+                                  {evt.sourceHash && (
+                                    <div className="bg-surface-secondary border border-border-subtle rounded-lg p-2.5 flex items-start gap-2.5 text-[11px] font-mono text-text-muted">
+                                      <ShieldX className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                                      <div className="break-all line-through opacity-60">
+                                        <span className="font-semibold text-text-primary block mb-0.5 uppercase tracking-wider text-[9px] line-through">Selo Invalidado</span>
+                                        {evt.sourceHash}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                              break;
+                            default:
+                              title = evt.eventType;
+                              details = `Evento registrado (${evt.versionBefore ? `v${evt.versionBefore}` : ''} → v${evt.versionAfter || ''})`;
+                          }
+
+                          return (
+                            <div key={evt.id || idx} className={`flex items-start gap-3.5 ${idx > 0 ? "border-t border-border-subtle pt-4" : ""}`}>
+                              <div className="flex flex-col items-center">
+                                <div className={`w-3 h-3 rounded-full ${dotColor} mt-1.5 shrink-0 shadow-sm`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <p className="font-semibold text-text-primary text-sm tracking-tight">{title}</p>
+                                  <span className="text-[10px] text-text-muted font-mono shrink-0 bg-surface-secondary px-1.5 py-0.5 rounded border border-border-subtle">
+                                    {dateStr} {timeStr}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-muted leading-relaxed">
+                                  Por <span className="font-medium text-text-secondary">{evt.actorDisplayNameSnapshot || "Usuário da equipe"}</span>
+                                </p>
+                                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{details}</p>
+                                {extraContent}
                               </div>
                             </div>
-                          </div>
-                        )}
-
-                        {tx.approvedBy && (
-                          <div className="flex items-start gap-3 border-t border-border-subtle pt-3">
-                            <div className="w-2 h-2 rounded-full bg-teal-500 mt-1.5" />
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                Aprovado para Posting
-                              </p>
-                              <p className="text-xs text-text-muted">
-                                Por{" "}
-                                {tx.approvedWithName ||
-                                  tx.approvedBy ||
-                                  "revisor"}{" "}
-                                em{" "}
-                                {tx.approvedAt
-                                  ? new Date(tx.approvedAt).toLocaleDateString(
-                                      "pt-BR",
-                                    )
-                                  : "-"}
-                              </p>
-                              {tx.approvalComment && (
-                                <p className="bg-teal-500/5 border border-teal-500/10 rounded-lg p-2.5 mt-1.5 text-xs text-teal-700 italic">
-                                  "{tx.approvalComment}"
-                                </p>
-                              )}
-                              {tx.approvalSourceHash && (
-                                <p className="text-[10px] font-mono text-text-muted mt-2 truncate max-w-[280px]">
-                                  Hash: {tx.approvalSourceHash} (v
-                                  {tx.approvedVersion})
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

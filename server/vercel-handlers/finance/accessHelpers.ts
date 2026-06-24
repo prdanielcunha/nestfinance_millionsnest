@@ -13,9 +13,11 @@ export function canManageFinanceEntities(sessionList: any): boolean {
   return hasEffectiveCapability(sessionList, 'organization.manage_entities');
 }
 
-export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting'): boolean {
+export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft'): boolean {
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
   if (sessionList.capabilities?.includes('finance.manage')) return true; // broader access
+  if (requestedCapability === 'finance.return_to_draft' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
+  if (requestedCapability === 'finance.invalidate_approval' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
   return false;
 }
 
@@ -143,7 +145,7 @@ export async function requireFinanceTransactionAccess({
   organizationId: string;
   financeEntityId: string;
   sessionList: any;
-  capability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting';
+  capability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft';
 }): Promise<FinanceEntityAccessContext> {
   if (!organizationId) throw new Error('Organization ID is required');
   if (!financeEntityId) throw new Error('Finance Entity ID is required');

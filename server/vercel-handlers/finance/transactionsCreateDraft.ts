@@ -9,6 +9,18 @@ import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '.
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 
+async function getActorDisplayName(db: any, uid: string): Promise<string> {
+  try {
+    const uDoc = await db.collection('user_profiles').doc(uid).get();
+    if (uDoc.exists) {
+      return uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 'Usuário da equipe';
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -72,6 +84,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'create_draft', idempotencyKey);
     const payloadHash = hashPayload(payload);
+
+    const actorDisplayName = await getActorDisplayName(db, uid);
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
       // Precedence of transactionKind over legacy direction
@@ -344,6 +358,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         idempotencyKey,
         afterHash: payloadHash, // Simplified
         metadata: { status: 'draft', amountCents, transactionKind },
+        createdAt: FieldValue.serverTimestamp()
+      }));
+
+      // Internal Event
+      const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
+      t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
+        eventId,
+        organizationId,
+        financeEntityId,
+        transactionId: txId,
+        eventType: 'created',
+        actorUid: uid,
+        actorDisplayNameSnapshot: actorDisplayName,
+        versionBefore: null,
+        versionAfter: 1,
+        requestId,
         createdAt: FieldValue.serverTimestamp()
       }));
 
