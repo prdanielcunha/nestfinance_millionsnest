@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Landmark, Layers, AlertCircle, ShieldX, Wallet } from 'lucide-react';
+import { ArrowLeft, Landmark, Layers, AlertCircle, ShieldX, Wallet, ShieldCheck } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -41,14 +41,22 @@ function TransactionDetailContent() {
   const navigate = useNavigate();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { getTransactionDetail, updateDraft, submitForReview } = useTransactions();
+  const { getTransactionDetail, updateDraft, submitForReview, returnToDraft, approveForPosting } = useTransactions();
   const { accessState } = useAuth();
   
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  const searchParams = new URLSearchParams(window.location.search);
+  const isReviewMode = searchParams.get('reviewMode') === 'true';
+
   const [returningToDraft, setReturningToDraft] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [returnReason, setReturnReason] = useState('need_correction');
+  const [returnComment, setReturnComment] = useState('');
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -134,6 +142,7 @@ function TransactionDetailContent() {
     if (returningToDraft || !data?.transaction) return;
     setReturningToDraft(true);
     setError(null);
+    setActionError(null);
     
     if (!idempotencyKeyRef.current) {
        idempotencyKeyRef.current = 'idre_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
@@ -143,26 +152,57 @@ function TransactionDetailContent() {
       const currentVersion = data.transaction.version;
       const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
       
-      const payload = { intent: 'return_to_draft' };
+      let res;
+      if (isReviewMode && data.transaction.status === 'ready_for_review') {
+        res = await returnToDraft(data.transaction.id, currentVersion, returnReason, returnComment, idempotencyKeyRef.current, reqId);
+      } else {
+        const payload = { intent: 'return_to_draft' };
+        res = await updateDraft(data.transaction.id, currentVersion, payload, idempotencyKeyRef.current, reqId);
+      }
       
-      const res = await updateDraft(data.transaction.id, currentVersion, payload, idempotencyKeyRef.current, reqId);
-      
-      if (res.changed) {
-         idempotencyKeyRef.current = null;
-         setData((prev: any) => ({
-           ...prev,
-           transaction: {
-             ...prev.transaction,
-             status: 'draft',
-             version: res.version
-           }
-         }));
+      idempotencyKeyRef.current = null;
+      setData((prev: any) => ({
+        ...prev,
+        transaction: {
+          ...prev.transaction,
+          status: 'draft',
+          version: res.version || prev.transaction.version + 1
+        }
+      }));
+      if (!isReviewMode) {
          navigate(APP_ROUTES.transactionEdit.replace(':transactionId', data.transaction.id));
+      } else {
+         navigate(APP_ROUTES.financeReview);
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao reabrir movimentação');
+      if (isReviewMode) setActionError(err.message || 'Erro ao reabrir movimentação');
+      else setError(err.message || 'Erro ao reabrir movimentação');
     } finally {
       setReturningToDraft(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (approving || !data?.transaction) return;
+    setApproving(true);
+    setActionError(null);
+    
+    if (!idempotencyKeyRef.current) {
+       idempotencyKeyRef.current = 'idap_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    }
+
+    try {
+      const currentVersion = data.transaction.version;
+      const reqId = 'req_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+      
+      await approveForPosting(data.transaction.id, currentVersion, undefined, idempotencyKeyRef.current, reqId);
+      
+      idempotencyKeyRef.current = null;
+      navigate(APP_ROUTES.financeReview);
+    } catch (err: any) {
+      setActionError(err.message || 'Erro ao aprovar movimentação');
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -403,6 +443,55 @@ function TransactionDetailContent() {
                     </div>
                  </div>
 
+                 {/* Automatic Checklist & Accounting Effect */}
+                 {isReviewMode && data.reviewReadiness && (
+                    <div className="flex flex-col gap-3">
+                       <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">Conferência Automática</h3>
+                       
+                       {/* Accounting Effect */}
+                       <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-2">
+                          <p className="text-xs text-text-muted uppercase tracking-wider font-semibold">Efeito financeiro previsto</p>
+                          <p className="text-sm text-text-primary font-medium">{data.accountingEffect || 'Nenhum efeito contabilizado'}</p>
+                       </div>
+
+                       {/* Checklist Blockers & Warnings */}
+                       {data.reviewReadiness.blockers?.length > 0 && (
+                          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
+                             <div className="flex items-center gap-2 font-medium">
+                                <AlertCircle className="w-5 h-5 shrink-0" />
+                                <span>Pendências impeditivas</span>
+                             </div>
+                             <ul className="list-disc list-inside ml-2">
+                                {data.reviewReadiness.blockers.map((b: any, i: number) => (
+                                   <li key={i}>{b.details}</li>
+                                ))}
+                             </ul>
+                          </div>
+                       )}
+
+                       {data.reviewReadiness.warnings?.length > 0 && (
+                          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-amber-600">
+                             <div className="flex items-center gap-2 font-medium">
+                                <AlertCircle className="w-5 h-5 shrink-0" />
+                                <span>Avisos (Requer atenção)</span>
+                             </div>
+                             <ul className="list-disc list-inside ml-2">
+                                {data.reviewReadiness.warnings.map((w: any, i: number) => (
+                                   <li key={i}>{w.details}</li>
+                                ))}
+                             </ul>
+                          </div>
+                       )}
+                       
+                       {data.reviewReadiness.ready && data.reviewReadiness.warnings?.length === 0 && (
+                          <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 flex gap-3 text-teal-600 items-start">
+                             <ShieldCheck className="w-5 h-5 shrink-0" />
+                             <p className="text-sm font-medium">Tudo certo! Nenhuma pendência encontrada nesta movimentação.</p>
+                          </div>
+                       )}
+                    </div>
+                 )}
+
                  {(tx.createdBy || tx.updatedAt) && (
                     <div className="text-xs text-text-muted text-center mt-4">
                        {tx.createdBy && <span>Registrado por {tx.creatorName || tx.createdByAlias || 'usuário da equipe'}</span>}
@@ -411,7 +500,87 @@ function TransactionDetailContent() {
                     </div>
                  )}
 
-                 {hasEffectiveCapability(accessState, 'finance.create_drafts') && (
+                 {isReviewMode && tx.status === 'ready_for_review' && hasEffectiveCapability(accessState, 'finance.review') && (
+                    <div className="pt-4 border-t border-border-subtle mt-4 flex flex-col gap-3">
+                       {actionError && (
+                          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl flex items-center gap-3 text-sm">
+                             <AlertCircle className="w-5 h-5 shrink-0" />
+                             <p>{actionError}</p>
+                          </div>
+                       )}
+                       
+                       {showReturnForm ? (
+                          <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+                             <h4 className="text-sm font-semibold text-text-primary">Devolver para correção</h4>
+                             <div className="flex flex-col gap-2">
+                                <label className="text-xs font-medium text-text-secondary">Motivo da devolução</label>
+                                <select 
+                                  value={returnReason}
+                                  onChange={e => setReturnReason(e.target.value)}
+                                  className="h-10 px-3 bg-surface-base border border-border-subtle rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                                >
+                                  <option value="missing_attachment">Falta de comprovante</option>
+                                  <option value="invalid_amount">Valor incorreto</option>
+                                  <option value="invalid_category">Categoria/Rateio incorreto</option>
+                                  <option value="invalid_account">Conta bancária/caixa incorreta</option>
+                                  <option value="need_correction">Outra correção necessária</option>
+                                  <option value="other">Outro</option>
+                                </select>
+                             </div>
+                             {(returnReason === 'other' || returnReason === 'need_correction') && (
+                                <div className="flex flex-col gap-2">
+                                   <label className="text-xs font-medium text-text-secondary">Comentário (obrigatório)</label>
+                                   <textarea 
+                                     value={returnComment}
+                                     onChange={e => setReturnComment(e.target.value)}
+                                     placeholder="Detalhe o que precisa ser ajustado..."
+                                     className="p-3 bg-surface-base border border-border-subtle rounded-lg text-sm text-text-primary resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                                   />
+                                </div>
+                             )}
+                             <div className="flex gap-3 pt-2">
+                                <button 
+                                   onClick={() => setShowReturnForm(false)}
+                                   disabled={returningToDraft}
+                                   className="flex-1 h-10 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-lg font-medium transition-colors text-sm disabled:opacity-50"
+                                >
+                                   Cancelar
+                                </button>
+                                <button 
+                                   onClick={handleReturnToDraft}
+                                   disabled={returningToDraft || (returnReason === 'other' && !returnComment.trim())}
+                                   className="flex-1 h-10 flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 text-sm"
+                                >
+                                   {returningToDraft ? 'Devolvendo...' : 'Devolver'}
+                                </button>
+                             </div>
+                          </div>
+                       ) : (
+                          <>
+                             <button 
+                                onClick={handleApprove}
+                                disabled={approving || (data.reviewReadiness && !data.reviewReadiness.ready)}
+                                className="w-full h-14 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
+                             >
+                                {approving ? (
+                                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                   'Aprovar Movimentação'
+                                )}
+                             </button>
+                             <button 
+                                onClick={() => setShowReturnForm(true)}
+                                disabled={approving}
+                                className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors disabled:opacity-50 text-base"
+                             >
+                                Devolver para correção
+                             </button>
+                          </>
+                       )}
+                    </div>
+                 )}
+
+                 {!isReviewMode && hasEffectiveCapability(accessState, 'finance.create_drafts') && (
                     <div className="pt-4 border-t border-border-subtle mt-4 flex flex-col gap-3">
                        {tx.status === 'draft' && (
                           <>

@@ -30,6 +30,8 @@ import transactionsCreateDraft from '../server/vercel-handlers/finance/transacti
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
+import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
+import transactionsApproveForPosting from '../server/vercel-handlers/finance/transactionsApproveForPosting.js';
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
 import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
 
@@ -108,6 +110,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsUpdateDraft(req, res);
     case 'transactions-submit-review':
       return transactionsSubmitForReview(req, res);
+    case 'transactions-return-to-draft':
+      return transactionsReturnToDraft(req, res);
+    case 'transactions-approve-for-posting':
+      return transactionsApproveForPosting(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

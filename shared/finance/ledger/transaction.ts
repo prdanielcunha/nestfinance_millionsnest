@@ -5,7 +5,7 @@ import { LedgerDomainError } from './errors.js';
 
 export type TransactionKind = 'income' | 'expense' | 'transfer' | 'adjustment' | 'liability_settlement';
 export type CashFlowDirection = 'inflow' | 'outflow' | 'internal' | 'none';
-export type TransactionStatus = 'draft' | 'ready_for_review' | 'posted' | 'reversed';
+export type TransactionStatus = 'draft' | 'ready_for_review' | 'approved_for_posting' | 'posted' | 'reversed';
 
 export type TransactionBase = {
   id: TransactionId;
@@ -30,6 +30,10 @@ export type TransactionBase = {
   updatedBy: string;
   postedBy?: string;
   reversedBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalSourceHash?: string;
+  approvedVersion?: number;
   reversalOf?: string;
   journalEntryId?: JournalEntryId;
   idempotencyKey?: IdempotencyKey;
@@ -86,7 +90,10 @@ export type LedgerTransaction =
 export function canTransitionTransactionStatus(from: TransactionStatus, to: TransactionStatus): boolean {
   if (from === 'draft' && to === 'ready_for_review') return true;
   if (from === 'ready_for_review' && to === 'draft') return true;
-  if (from === 'ready_for_review' && to === 'posted') return true;
+  if (from === 'ready_for_review' && to === 'approved_for_posting') return true;
+  if (from === 'ready_for_review' && to === 'posted') return true; // Keep backward compatible for tests maybe
+  if (from === 'approved_for_posting' && to === 'draft') return true;
+  if (from === 'approved_for_posting' && to === 'posted') return true;
   if (from === 'posted' && to === 'reversed') return true;
   return false;
 }

@@ -1,0 +1,137 @@
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { FieldValue } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
+import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
+import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
+import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
+import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
+import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+  }
+
+  try {
+    const { 
+      financeEntityId, transactionId, expectedVersion, idempotencyKey, requestId, reasonCode, comment 
+    } = req.body;
+
+    if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (typeof expectedVersion !== 'number' || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!reasonCode || typeof reasonCode !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (reasonCode === 'other' && (!comment || comment.trim() === '')) {
+      return res.status(400).json({ error: 'FINANCE_MISSING_COMMENT', message: 'Comment required for reason other' });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const token = authHeader.split('Bearer ')[1];
+    const admin = getFirebaseAdmin();
+    const db = admin.firestore;
+    const decodedToken = await admin.auth.verifyIdToken(token);
+    const uid = decodedToken.uid;
+    const organizationId = req.headers['x-organization-id'] as string;
+
+    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
+
+    const sessionList = await resolveEcosystemSession(uid, organizationId);
+    
+    // Check capability: finance.return_to_draft or finance.review
+    const context = await requireFinanceTransactionAccess({
+      db, uid, organizationId, financeEntityId, sessionList,
+      capability: 'finance.review'
+    });
+
+    const payload = { financeEntityId, transactionId, expectedVersion, reasonCode, comment }; 
+    const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'return_to_draft', idempotencyKey);
+    const payloadHash = hashPayload(payload);
+
+    const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
+      const txRef = context.repository.getTransactionsRef().doc(transactionId);
+      const txDoc = await t.get(txRef);
+      if (!txDoc.exists) throw { code: 'NOT_FOUND', message: 'Transaction not found' };
+
+      const txData = txDoc.data() as LedgerTransaction;
+      if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
+      if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
+      
+      if (txData.status !== 'ready_for_review') {
+         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot return transaction not in ready_for_review' };
+      }
+
+      const transactionKind = txData.transactionKind || txData.direction;
+      const newVersion = txData.version + 1;
+      const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'draft', txData.occurredAt);
+      
+      t.update(txRef, sanitizeFirestoreObject({
+        status: 'draft',
+        listQueryKeys,
+        updatedBy: uid,
+        updatedAt: FieldValue.serverTimestamp(),
+        version: newVersion,
+        returnedToDraftReason: reasonCode,
+        returnedToDraftComment: comment || null,
+        returnedToDraftAt: FieldValue.serverTimestamp(),
+        returnedToDraftBy: uid,
+        approvalSourceHash: FieldValue.delete(),
+        approvedVersion: FieldValue.delete(),
+        approvedAt: FieldValue.delete(),
+        approvedBy: FieldValue.delete()
+      }));
+
+      const auditId = generateAuditId();
+      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
+        eventId: auditId,
+        organizationId,
+        financeEntityId,
+        actor: uid,
+        resource: 'transaction',
+        action: 'transaction.returned_to_draft',
+        requestId,
+        idempotencyKey,
+        afterHash: payloadHash,
+        createdAt: FieldValue.serverTimestamp(),
+        details: { reasonCode, comment, previousVersion: txData.version, newVersion }
+      }));
+
+      // internal event for future consumption
+      const eventId = generateAuditId();
+      t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
+        type: 'transaction.returned_to_draft',
+        transactionId,
+        version: newVersion,
+        actor: uid,
+        createdAt: FieldValue.serverTimestamp()
+      }));
+
+      return { transactionId, version: newVersion };
+    });
+
+    return res.status(200).json(result);
+
+  } catch (error: any) {
+    console.error('Return Transaction to Draft Error:', error);
+    if (error.code && error.code.startsWith('FINANCE_')) {
+      return res.status(400).json({ error: error.code, details: error.message });
+    }
+    if (error.message?.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
+      return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
+    }
+    if (error.code === 'NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
+    if (error.code === 'FORBIDDEN') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+      return res.status(403).json({ error: 'FORBIDDEN' });
+    }
+    if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
+      return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+  }
+}

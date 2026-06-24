@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Filter, Plus, ArrowRight, AlertCircle, Bookmark, Landmark, Wallet, Layers, ShieldX } from 'lucide-react';
+import { ArrowLeft, Filter, Plus, ArrowRight, AlertCircle, Bookmark, Landmark, Wallet, Layers, ShieldX, ShieldCheck } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -197,6 +197,15 @@ function TransactionsListContent() {
         
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-3">
+           {hasEffectiveCapability(accessState, 'finance.review') && (
+              <button 
+                onClick={() => navigate(APP_ROUTES.financeReview)}
+                className="h-12 flex items-center px-4 bg-teal-600/10 hover:bg-teal-600/20 border border-teal-500/20 text-sm font-medium rounded-xl text-teal-600 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 w-full sm:w-auto justify-center"
+              >
+                <ShieldCheck className="w-5 h-5 sm:mr-2" />
+                <span className="hidden sm:inline">Central de Revisão</span>
+              </button>
+           )}
            <select 
               value={directionFilter} 
               onChange={e => updateFilter('direction', e.target.value)}

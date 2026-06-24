@@ -173,6 +173,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const canEdit = hasFinanceCapability(sessionList, 'finance.create_drafts') 
                     && (txData.status === 'draft' || txData.status === 'ready_for_review');
 
+    // Review Readiness and Accounting Effect
+    const { evaluateReviewReadiness } = await import('../../../shared/finance/ledger/evaluateReviewReadiness.js');
+    
+    // We need active accounts for readiness
+    const accountsSnapshot = await context.repository.getAccountsRef().where('active', '==', true).get();
+    const activeAccounts = accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    const reviewReadiness = evaluateReviewReadiness({
+       ...txData,
+       allocations: resolvedAllocations
+    } as any, activeAccounts);
+
+    const formatMoneyEffect = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    let accountingEffect = 'Nenhum efeito contabilizado ainda';
+    
+    if (txData.direction === 'income') {
+       accountingEffect = `Entrada de ${formatMoneyEffect(txData.amountCents)} na conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
+    } else if (txData.direction === 'expense') {
+       accountingEffect = `Saída de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
+    } else if (txData.direction === 'transfer') {
+       accountingEffect = `Transferência de ${formatMoneyEffect(txData.amountCents)}.`;
+    } else if (txData.direction === 'liability_settlement') {
+       accountingEffect = `Repasse ou acerto de ${formatMoneyEffect(txData.amountCents)}.`;
+    }
+
     return res.status(200).json({
       transaction: {
         id: txData.id,
@@ -207,6 +232,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         memo: a.memo,
         sequence: a.sequence
       })),
+      reviewReadiness,
+      accountingEffect,
       capabilities: {
         canEdit
       }

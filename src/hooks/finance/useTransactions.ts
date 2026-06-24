@@ -101,6 +101,36 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const returnToDraft = useCallback(async (transactionId: string, expectedVersion: number, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await transactionsService.returnToDraft(organizationId, activeFinanceEntityId, transactionId, expectedVersion, reasonCode, comment, idempotencyKey, requestId);
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
+  const approveForPosting = useCallback(async (transactionId: string, expectedVersion: number, comment: string | undefined, approvalIdempotencyKey: string, requestId: string) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await transactionsService.approveForPosting(organizationId, activeFinanceEntityId, transactionId, expectedVersion, comment, approvalIdempotencyKey, requestId);
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
   return {
     loading,
     error,
@@ -109,6 +139,8 @@ export function useTransactions() {
     createDraft,
     createAndSubmit,
     updateDraft,
-    submitForReview
+    submitForReview,
+    returnToDraft,
+    approveForPosting
   };
 }

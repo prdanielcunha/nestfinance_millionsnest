@@ -11,6 +11,13 @@ export interface TransactionsListResponse {
 export interface TransactionDetailResponse {
   transaction: LedgerTransaction;
   allocations: any[];
+  reviewReadiness?: {
+    ready: boolean;
+    blockers: any[];
+    warnings: any[];
+    confirmations: any[];
+  };
+  accountingEffect?: string;
   capabilities: { canEdit: boolean };
 }
 
@@ -190,6 +197,69 @@ export const transactionsService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.details || err.error || 'Failed to submit transaction');
+    }
+
+    return res.json();
+  },
+
+  async returnToDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-return-to-draft`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        transactionId, 
+        expectedVersion,
+        reasonCode,
+        comment,
+        idempotencyKey, 
+        requestId
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to return transaction to draft');
+    }
+
+    return res.json();
+  },
+
+  async approveForPosting(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, comment: string | undefined, approvalIdempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number, approvalStatus: string, approvedVersion: number, sourceHash: string }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-approve-for-posting`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        financeEntityId, 
+        transactionId, 
+        expectedVersion,
+        comment,
+        approvalIdempotencyKey, 
+        requestId
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.details || err.error || 'Failed to approve transaction for posting');
     }
 
     return res.json();

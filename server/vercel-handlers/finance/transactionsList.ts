@@ -69,10 +69,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       financeEntityId, direction, status, occurredFrom, occurredTo
     );
 
+    const queryOrder = filters?.order === 'oldest' ? 'desc' : 'asc';
+
     let query = context.repository.getTransactionsQuery()
       .where(bounds.field, '>=', bounds.startAt)
       .where(bounds.field, '<', bounds.endBefore)
-      .orderBy(bounds.field, 'asc');
+      .orderBy(bounds.field, queryOrder);
 
     const limit = Math.min(Math.max(pageSize, 1), 100);
     query = query.limit(limit);
