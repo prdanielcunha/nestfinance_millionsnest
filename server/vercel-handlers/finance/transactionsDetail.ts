@@ -233,6 +233,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .doc(financeEntityId)
       .collection('events')
       .where('transactionId', '==', transactionId)
+      .orderBy('createdAt', 'asc')
+      .orderBy('eventId', 'asc')
+      .limit(20)
       .get();
 
     const events = eventsSnapshot.docs

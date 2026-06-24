@@ -799,12 +799,40 @@ function TransactionDetailContent() {
                                     </div>
                                   )}
                                   {evt.sourceHash && (
-                                    <div className="bg-surface-secondary border border-border-subtle rounded-lg p-2.5 flex items-start gap-2.5 text-[11px] font-mono text-text-muted">
-                                      <Lock className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
-                                      <div className="break-all">
-                                        <span className="font-semibold text-text-primary block mb-0.5 uppercase tracking-wider text-[9px]">Selo de Integridade (SourceHash)</span>
-                                        {evt.sourceHash}
+                                    <div className="mt-1">
+                                      <div className="flex items-center gap-1.5 text-xs font-medium text-teal-600 mb-1">
+                                        <ShieldCheck className="w-4 h-4" />
+                                        Integridade da aprovação verificada
                                       </div>
+                                      <details className="text-[11px] group">
+                                        <summary className="cursor-pointer text-text-muted hover:text-text-primary transition-colors inline-flex items-center select-none font-medium">
+                                          Ver detalhes de auditoria
+                                        </summary>
+                                        <div className="mt-2 bg-surface-secondary border border-border-subtle rounded-lg p-3 space-y-2">
+                                          <div className="flex items-center justify-between gap-4">
+                                            <span className="text-text-muted">Versão aprovada:</span>
+                                            <span className="font-medium text-text-primary">{evt.versionAfter}</span>
+                                          </div>
+                                          <div className="flex flex-col gap-1 pt-1 border-t border-border-subtle">
+                                            <span className="text-text-muted">Identificador de integridade:</span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-mono text-text-primary break-all">{evt.sourceHash.substring(0, 8)}...</span>
+                                              {(hasEffectiveCapability(accessState, "system.audit") || hasEffectiveCapability(accessState, "system.diagnostics")) && (
+                                                <button 
+                                                  onClick={() => navigator.clipboard.writeText(evt.sourceHash)}
+                                                  className="shrink-0 text-accent-primary hover:text-accent-secondary"
+                                                  title="Copiar identificador completo"
+                                                >
+                                                  Copiar
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <p className="text-[10px] text-text-muted leading-relaxed pt-1">
+                                            <strong className="font-semibold">Nota de Auditoria:</strong> Este identificador é um digest SHA-256 determinístico do estado material da movimentação no momento da aprovação. Ele permite verificar matematicamente que o conteúdo atual corresponde exatamente ao conteúdo que foi aprovado. Ele não é, isoladamente, uma assinatura digital assimétrica, certificado de infraestrutura, prova criptográfica de identidade humana, nem substitui a auditoria do registro de quem aprovou (actor).
+                                          </p>
+                                        </div>
+                                      </details>
                                     </div>
                                   )}
                                 </div>
@@ -831,12 +859,26 @@ function TransactionDetailContent() {
                                     {evt.comment && <div className="text-red-600 font-normal">"{evt.comment}"</div>}
                                   </div>
                                   {evt.sourceHash && (
-                                    <div className="bg-surface-secondary border border-border-subtle rounded-lg p-2.5 flex items-start gap-2.5 text-[11px] font-mono text-text-muted">
-                                      <ShieldX className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
-                                      <div className="break-all line-through opacity-60">
-                                        <span className="font-semibold text-text-primary block mb-0.5 uppercase tracking-wider text-[9px] line-through">Selo Invalidado</span>
-                                        {evt.sourceHash}
+                                    <div className="mt-1">
+                                      <div className="flex items-center gap-1.5 text-xs font-medium text-red-600 mb-1">
+                                        <ShieldX className="w-4 h-4" />
+                                        Esta aprovação foi invalidada
                                       </div>
+                                      <details className="text-[11px] group">
+                                        <summary className="cursor-pointer text-text-muted hover:text-text-primary transition-colors inline-flex items-center select-none font-medium">
+                                          Ver detalhes da invalidação
+                                        </summary>
+                                        <div className="mt-2 bg-surface-secondary border border-border-subtle rounded-lg p-3 space-y-2 opacity-80">
+                                          <div className="flex items-center justify-between gap-4">
+                                            <span className="text-text-muted">Versão alvo da invalidação:</span>
+                                            <span className="font-medium text-text-primary">{evt.versionBefore}</span>
+                                          </div>
+                                          <div className="flex flex-col gap-1 pt-1 border-t border-border-subtle">
+                                            <span className="text-text-muted">Identificador de integridade invalidado:</span>
+                                            <span className="font-mono text-text-primary break-all">{evt.sourceHash.substring(0, 8)}...</span>
+                                          </div>
+                                        </div>
+                                      </details>
                                     </div>
                                   )}
                                 </div>
@@ -868,6 +910,13 @@ function TransactionDetailContent() {
                             </div>
                           );
                         })}
+                        {data.events.length === 20 && (
+                          <div className="pt-4 border-t border-border-subtle mt-1 text-center">
+                            <button className="text-xs font-medium text-accent-primary hover:text-accent-secondary transition-colors px-3 py-1.5 rounded-lg hover:bg-accent-primary/5">
+                              Ver histórico completo
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
