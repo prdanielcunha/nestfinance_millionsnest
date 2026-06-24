@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionList = await resolveEcosystemSession(uid, organizationId);
     
     const context = await requireFinanceTransactionAccess({
-      db: admin.firestore,
+      db: admin.firestore(),
       uid,
       organizationId,
       financeEntityId,
@@ -160,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let creatorName = 'Usuário da equipe';
     if (txData.createdBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.createdBy).get();
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.createdBy).get();
            if (uDoc.exists) {
                creatorName = uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
            }
@@ -172,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let approverName = undefined;
     if (txData.approvedBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.approvedBy).get();
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.approvedBy).get();
            if (uDoc.exists) {
                approverName = uDoc.data()?.name || uDoc.data()?.displayName || txData.approvedBy;
            } else {
@@ -186,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let returnedByName = undefined;
     if (txData.returnedToDraftBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.returnedToDraftBy).get();
+           const uDoc = await admin.firestore().collection('user_profiles').doc(txData.returnedToDraftBy).get();
            if (uDoc.exists) {
                returnedByName = uDoc.data()?.name || uDoc.data()?.displayName || txData.returnedToDraftBy;
            } else {
@@ -226,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
-    const eventsSnapshot = await admin.firestore
+    const eventsSnapshot = await admin.firestore()
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')

@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const admin = getFirebaseAdmin();
     auth = admin.auth;
-    firestore = admin.firestore;
+    firestore = admin.firestore();
   } catch (err: any) {
     if (err.message === 'MISSING_FIREBASE_CREDENTIALS') {
       console.error(`[HANDOFF_REDEEM_INIT] MISSING_FIREBASE_CREDENTIALS`);

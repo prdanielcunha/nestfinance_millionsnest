@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Will throw if forbidden or not found/active
     const context = await requireFinanceTransactionAccess({
-      db: admin.firestore,
+      db: admin.firestore(),
       uid,
       organizationId,
       financeEntityId,

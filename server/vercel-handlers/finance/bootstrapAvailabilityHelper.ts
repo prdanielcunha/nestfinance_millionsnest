@@ -30,7 +30,7 @@ export async function canManageFinanceBootstrap(uid: string, organizationId: str
     }
 
     const admin = getFirebaseAdmin();
-    const db = admin.firestore;
+    const db = admin.firestore();
     
     let memberData: any = null;
     const memberDoc = await db.collection('organizations').doc(organizationId).collection('users').doc(uid).get();

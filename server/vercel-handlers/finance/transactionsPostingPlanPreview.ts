@@ -113,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const getAccountName = (accId: string) => {
-    if ((transaction as any).accountSnapshot && accId === transaction.accountId) return (transaction as any).accountSnapshot.name;
+    if ((transaction as any).accountSnapshot && accId === (transaction as any).accountId) return (transaction as any).accountSnapshot.name;
     if ((transaction as any).destinationAccountSnapshot && accId === (transaction as any).destinationAccountId) return (transaction as any).destinationAccountSnapshot.name;
     if ((transaction as any).liabilityAccountSnapshot && accId === (transaction as any).liabilityAccountId) return (transaction as any).liabilityAccountSnapshot.name;
     if (accId === (transaction as any).reimbursement?.payableId) return (transaction as any).reimbursement.personName;
