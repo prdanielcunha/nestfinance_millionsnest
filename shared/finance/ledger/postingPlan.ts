@@ -165,35 +165,100 @@ export type PostingPlanInput = {
   allocations: FinanceAllocation[];
   mappings: PostingMappingSnapshot;
   policy: PostingPreviewPolicy;
+  isPreview?: boolean;
 };
 
 export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
-  const { transaction: tx, approval, allocations, mappings, policy } = input;
+  const { transaction: tx, approval, allocations, mappings, policy, isPreview } = input;
   const blockers: PostingPlanIssue[] = [];
   const warnings: PostingPlanIssue[] = [];
 
   const planVersion = '1.0';
 
-  if (tx.status === 'posted') {
-    blockers.push({ code: 'FINANCE_TRANSACTION_ALREADY_POSTED' });
-  }
-
-  if (tx.status !== 'approved_for_posting') {
-    blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
-  }
-
-  if (!approval || !tx.approvedVersion || !tx.approvalSourceHash) {
-    blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
+  if (isPreview) {
+    if (tx.status !== 'ready_for_review' && tx.status !== 'approved_for_posting') {
+      blockers.push({ code: 'TRANSACTION_NOT_READY_FOR_REVIEW' as any });
+    }
+    const isUnsupported = tx.transactionKind === 'transfer' || tx.transactionKind === 'adjustment' || (tx as any).direction === 'transfer' || (tx as any).direction === 'adjustment';
+    if (isUnsupported) {
+      blockers.push({ code: 'POSTING_DIRECTION_NOT_SUPPORTED' as any });
+    }
   } else {
-    if (tx.approvedVersion !== approval.approvedVersion) {
+    if (tx.status === 'posted') {
+      blockers.push({ code: 'FINANCE_TRANSACTION_ALREADY_POSTED' });
+    }
+
+    if (tx.status !== 'approved_for_posting') {
       blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
     }
-    if (tx.approvalSourceHash !== approval.approvalSourceHash) {
+
+    if (!approval || !tx.approvedVersion || !tx.approvalSourceHash) {
       blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
+    } else {
+      if (tx.approvedVersion !== approval.approvedVersion) {
+        blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
+      }
+      if (tx.approvalSourceHash !== approval.approvalSourceHash) {
+        blockers.push({ code: 'FINANCE_APPROVAL_STALE' });
+      }
+      if (approval.status === 'invalidated') {
+        blockers.push({ code: 'FINANCE_APPROVAL_INVALIDATED' });
+      }
     }
-    if (approval.status === 'invalidated') {
-      blockers.push({ code: 'FINANCE_APPROVAL_INVALIDATED' });
+  }
+
+  // Float check for transaction and allocation amounts
+  if (tx.amountCents !== undefined && !Number.isInteger(tx.amountCents)) {
+    blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Transaction amount must be an integer' });
+  }
+
+  // Cross-entity, float, and duplicate checks for allocations
+  const allocIdSet = new Set<string>();
+  let hasDuplicateAllocId = false;
+  const sequenceSet = new Set<number>();
+  let hasDuplicateSequence = false;
+
+  allocations.forEach(a => {
+    if (a.financeEntityId !== tx.financeEntityId || a.organizationId !== tx.organizationId) {
+      blockers.push({ code: 'CROSS_ENTITY_REFERENCE' as any, resourceId: a.id, resourceType: 'allocation' });
     }
+    if (a.amountCents !== undefined && !Number.isInteger(a.amountCents)) {
+      blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Allocation amount must be an integer' });
+    }
+    if (allocIdSet.has(a.id)) {
+      hasDuplicateAllocId = true;
+    }
+    allocIdSet.add(a.id);
+    if (a.sequence !== undefined && sequenceSet.has(a.sequence)) {
+      hasDuplicateSequence = true;
+    }
+    sequenceSet.add(a.sequence);
+  });
+
+  if (hasDuplicateAllocId) {
+    blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Duplicate allocation ID' });
+  }
+  if (hasDuplicateSequence) {
+    blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Duplicate allocation sequence' });
+  }
+
+  // Duplicate/conflicting category mappings check
+  const conflictingCategories = new Set<string>();
+  const categoryMap = new Map<string, string>();
+  if (mappings && mappings.categories) {
+    for (const cat of mappings.categories) {
+      if (categoryMap.has(cat.categoryId) && categoryMap.get(cat.categoryId) !== cat.ledgerAccountId) {
+        conflictingCategories.add(cat.categoryId);
+      }
+      categoryMap.set(cat.categoryId, cat.ledgerAccountId);
+    }
+  }
+  for (const catId of conflictingCategories) {
+    blockers.push({
+      code: 'FINANCE_CATEGORY_LEDGER_MAPPING_MISSING',
+      resourceId: catId,
+      details: 'Conflict in mappings'
+    } as any);
   }
 
   // Basic validation allocations
@@ -490,6 +555,8 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
     financeEntityId: tx.financeEntityId,
     approvedVersion: tx.approvedVersion,
     approvalSourceHash: tx.approvalSourceHash,
+    version: tx.version,
+    occurredAt: tx.occurredAt,
     lines: lines.map(l => ({
       lineKey: l.lineKey,
       ledgerAccountId: l.ledgerAccountId,
@@ -513,8 +580,15 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
     })).sort((a, b) => compareCanonicalId(a.fundId, b.fundId))
   };
 
-  const canonicalString = canonicalStringify(materialSource);
-  const planHash = computePlanHash(canonicalString);
+  let planHash = '';
+  if (blockers.length === 0) {
+    try {
+      const canonicalString = canonicalStringify(materialSource);
+      planHash = computePlanHash(canonicalString);
+    } catch (e) {
+      blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Canonical serialization failed' });
+    }
+  }
 
   return {
     planVersion,

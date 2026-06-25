@@ -77,7 +77,8 @@ export function generatePostingPreview(input: PostingPreviewInput): PostingPrevi
     transaction: input.transaction,
     allocations: input.allocations,
     mappings: input.mappings,
-    policy: input.policy
+    policy: input.policy,
+    isPreview: true
   });
 
   if (plan.blockers.length > 0) {

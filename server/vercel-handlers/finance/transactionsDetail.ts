@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { financeEntityId, transactionId } = req.body;
+    const { financeEntityId, transactionId, requestId } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'financeEntityId is required' });
@@ -205,7 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { evaluateReviewReadiness } = await import('../../../shared/finance/ledger/evaluateReviewReadiness.js');
     
     // We need active accounts for readiness
-    const accountsSnapshot = await context.repository.getAccountsRef().where('active', '==', true).get();
+    const accountsSnapshot = await context.repository.getAccountsQuery().where('active', '==', true).get();
     const activeAccounts = accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     
     const reviewReadiness = evaluateReviewReadiness({
@@ -337,7 +337,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     console.error('Detail Transaction Error:', error);
-    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS' || error.message === 'Session not granted') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
@@ -346,6 +346,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
+
+    const bodyRequestId = req.body?.requestId;
+    const normalizedId = typeof bodyRequestId !== 'undefined' && typeof bodyRequestId === 'string' ? bodyRequestId : `req_${Date.now()}`;
+    const isServiceUnavailable = error.message?.includes('Firestore') || 
+                                 error.message?.includes('timeout') || 
+                                 error.message?.includes('unavailable') || 
+                                 error.message?.includes('Timeout') || 
+                                 error.code === 'unavailable' || 
+                                 error.code === 14;
+
+    if (isServiceUnavailable) {
+      return res.status(503).json({
+        error: 'SERVICE_UNAVAILABLE',
+        details: {
+          code: 'DATABASE_ERROR',
+          requestId: normalizedId,
+          operation: 'transactionsDetail',
+          retryable: true
+        }
+      });
+    }
+
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 }

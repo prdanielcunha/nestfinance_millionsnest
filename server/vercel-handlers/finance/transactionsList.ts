@@ -118,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let ignoredRecordsCount = 0;
 
     // Load accounts of the entity once to run evaluateReviewReadiness
-    const accountsSnapshot = await context.repository.getAccountsRef().get();
+    const accountsSnapshot = await context.repository.getAccountsQuery().get();
     const accounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     // Load allocations for all fetched transactions in a single batch
@@ -260,7 +260,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS' || error.message === 'Session not granted') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') {
@@ -272,7 +272,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Normalize infrastructure errors (e.g. missing indexes)
     // Always use a fallback requestId
-    const normalizedId = typeof requestId !== 'undefined' && typeof requestId === 'string' ? requestId : `req_${Date.now()}`;
+    const bodyRequestId = req.body?.requestId;
+    const normalizedId = typeof bodyRequestId !== 'undefined' && typeof bodyRequestId === 'string' ? bodyRequestId : `req_${Date.now()}`;
+
+    const isServiceUnavailable = error.message?.includes('Firestore') || 
+                                 error.message?.includes('timeout') || 
+                                 error.message?.includes('unavailable') || 
+                                 error.message?.includes('Timeout') || 
+                                 error.code === 'unavailable' || 
+                                 error.code === 14;
+
+    if (isServiceUnavailable) {
+      return res.status(503).json({
+        error: 'SERVICE_UNAVAILABLE',
+        details: {
+          code: 'DATABASE_ERROR',
+          requestId: normalizedId,
+          operation: 'transactionsList',
+          retryable: true
+        }
+      });
+    }
+
     const normalizedError = normalizeFirestoreInfrastructureError(error, {
       requestId: normalizedId,
       operation: 'transactionsList',

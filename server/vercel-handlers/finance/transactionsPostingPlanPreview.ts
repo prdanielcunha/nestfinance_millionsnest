@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { organizationId: bodyOrgId, financeEntityId, transactionId } = req.body;
+    const { financeEntityId, transactionId } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
@@ -28,19 +28,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = admin.firestore;
     const decodedToken = await admin.auth.verifyIdToken(token);
     const uid = decodedToken.uid;
-    const organizationId = (req.headers['x-organization-id'] as string) || bodyOrgId;
+    const organizationId = (req.headers['x-organization-id'] as string) || decodedToken.mn_organization_id;
 
     if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
 
     const sessionList = await resolveEcosystemSession(uid, organizationId);
+    if (!sessionList.granted) {
+      return res.status(403).json({ error: 'FORBIDDEN_FINANCE_ACCESS' });
+    }
 
     const { financeEntity } = await requireFinanceEntityAccess({
       db,
       uid,
       organizationId,
       financeEntityId,
-      requiredPermission: 'finance.view'
-    } as any);
+      requiredPermission: 'finance.view',
+      sessionGranted: sessionList.granted
+    });
 
   const txDoc = await db
     .collection('organizations')
@@ -56,6 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const transaction = { id: txDoc.id, ...txDoc.data() } as unknown as LedgerTransaction;
+
+  let previewMode: 'review_preview' | 'approved_posting_preview';
+  if (transaction.status === 'ready_for_review') {
+    previewMode = 'review_preview';
+  } else if (transaction.status === 'approved_for_posting') {
+    previewMode = 'approved_posting_preview';
+  } else {
+    return res.status(400).json({ 
+      error: 'TRANSACTION_NOT_READY_FOR_REVIEW', 
+      details: `Transaction in status '${transaction.status}' is not eligible for posting plan preview.` 
+    });
+  }
 
   const allocationsSnap = await db
     .collection('organizations')
@@ -87,10 +103,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let sealStatus: 'verified' | 'seal_missing' | 'transaction_stale' | 'references_changed' | 'plan_mismatch' = 'verified';
 
-  if (!approval || !approval.approvedPlanHash) {
+  if (previewMode === 'review_preview') {
     sealStatus = 'seal_missing';
-  } else if (transaction.version !== approval.approvedVersion) {
-    sealStatus = 'transaction_stale';
+  } else {
+    if (!approval || !approval.approvedPlanHash) {
+      sealStatus = 'seal_missing';
+    } else if (transaction.version !== approval.approvedVersion || transaction.approvedVersion !== approval.approvedVersion) {
+      sealStatus = 'transaction_stale';
+    } else if (transaction.approvalSourceHash !== approval.approvalSourceHash) {
+      sealStatus = 'transaction_stale';
+    }
   }
 
   const plan = buildPostingPlan({
@@ -98,7 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     allocations,
     approval,
     mappings,
-    policy
+    policy,
+    isPreview: true
   });
 
   const calculatedPlanHash = plan.planHash;
