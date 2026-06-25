@@ -113,15 +113,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME' });
     }
 
-    const testForbidden = trimmedName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (
-      testForbidden.includes('fundo geral') || 
-      testForbidden.includes('dizimo') || 
-      testForbidden.includes('oferta')
-    ) {
-      return res.status(400).json({ error: 'INVALID_ACCOUNT_NAME_RESERVED_TAXONOMY' });
-    }
-
     const validTypes = [
       'cash', 'checking', 'bank_checking', 'savings', 'bank_savings', 
       'payment_account', 'digital_wallet', 'credit_card', 'petty_cash', 

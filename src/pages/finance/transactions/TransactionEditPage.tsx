@@ -26,6 +26,7 @@ import {
 } from "@/shared/finance/smartLogic";
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from "@/shared/finance/paymentMethods";
 import AccountRepairCard from "@/src/components/finance/AccountRepairCard";
+import ContextHelp from "@/src/components/finance/ContextHelp";
 
 export default function TransactionEditPage() {
   const { accessState } = useAuth();
@@ -1245,10 +1246,11 @@ function TransactionEditContent() {
 
                 {(direction === "income" || direction === "expense") && (
                   <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                    <label className="text-sm font-medium text-text-primary">
+                    <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                       {direction === "income"
                         ? "Forma de recebimento"
                         : "Forma de pagamento"}
+                      <ContextHelp topic="payment_method" />
                     </label>
                     <FinanceSelect
                       value={paymentMethod}
@@ -1276,8 +1278,9 @@ function TransactionEditContent() {
                 {direction === "liability_settlement" && (
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-text-primary">
+                      <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                         Tipo de Liquidação
+                        <ContextHelp topic="liability_settlement" />
                       </label>
                       <FinanceSelect
                         value={settlementType}
@@ -1350,12 +1353,13 @@ function TransactionEditContent() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                    <label className="text-sm font-medium text-text-primary">
+                    <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                       {direction === "transfer"
                         ? "Da conta de origem"
                         : direction === "liability_settlement"
                           ? "Conta de origem (que pagou)"
                           : "Conta"}
+                      <ContextHelp topic="account" />
                     </label>
                     {availableAccounts.length > 0 ? (
                       <>
@@ -1372,6 +1376,12 @@ function TransactionEditContent() {
                           placeholder="Selecione uma conta..."
                           className="h-14 bg-surface-elevated border border-border-subtle rounded-xl text-base cursor-pointer"
                         />
+                        {accounts.find((a) => a.id === accountId)?.type === "cash" && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-medium flex items-center gap-2 mt-2 rounded-xl">
+                            <span>Esta é uma conta de Caixa Físico (Dinheiro vivo)</span>
+                            <ContextHelp topic="cash_account" />
+                          </div>
+                        )}
                         {accounts.find((a) => a.id === accountId) && (
                           <AccountRepairCard
                             account={accounts.find((a) => a.id === accountId)}
@@ -1406,8 +1416,9 @@ function TransactionEditContent() {
 
                   {direction === "transfer" && (
                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                      <label className="text-sm font-medium text-text-primary">
+                      <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                         Para qual conta (destino)
+                        <ContextHelp topic="account" />
                       </label>
                       {accounts.length > 0 ? (
                         <>
@@ -1573,8 +1584,9 @@ function TransactionEditContent() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 cursor-pointer">
                           <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 cursor-pointer">
-                            <label className="text-sm font-medium text-text-primary">
+                            <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                               Categoria
+                              <ContextHelp topic="category" />
                             </label>
                             {compatibleCategories.length > 0 ? (
                               <FinanceSelect
@@ -1597,8 +1609,9 @@ function TransactionEditContent() {
                           </div>
 
                           <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 cursor-pointer">
-                            <label className="text-sm font-medium text-text-primary">
+                            <label className="text-sm font-medium text-text-primary flex items-center gap-1">
                               Fundo (opcional)
+                              <ContextHelp topic="fund" />
                             </label>
                             {funds.length > 0 ? (
                               <FinanceSelect
@@ -1620,6 +1633,11 @@ function TransactionEditContent() {
                               </div>
                             )}
                           </div>
+                        </div>
+                        <div className="mt-2.5 text-xs text-text-muted flex items-center gap-1.5 px-1 bg-surface-secondary/40 py-1.5 rounded-lg border border-border-subtle/30 w-fit">
+                          <span className="font-medium text-text-secondary">Centro de Custo (Automático):</span>
+                          <span>Filial Sede Contábil</span>
+                          <ContextHelp topic="cost_center" />
                         </div>
                       </div>
                     ))}
@@ -1723,6 +1741,18 @@ function TransactionEditContent() {
                       "Salvar alterações"
                     )}
                   </button>
+
+                  <div className="mt-4 p-3.5 bg-surface-base rounded-2xl border border-border-subtle flex flex-col gap-2">
+                    <span className="text-xs text-text-muted font-medium block">Entenda o fluxo do sistema:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <span className="text-xs text-text-secondary flex items-center">
+                        Rascunho <ContextHelp topic="draft" />
+                      </span>
+                      <span className="text-xs text-text-secondary flex items-center">
+                        Revisão <ContextHelp topic="review" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>

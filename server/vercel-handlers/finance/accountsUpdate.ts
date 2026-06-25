@@ -97,15 +97,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_NAME_LENGTH' });
     }
 
-    const testForbidden = trimmedName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (
-      testForbidden.includes('fundo geral') || 
-      testForbidden.includes('dizimo') || 
-      testForbidden.includes('oferta')
-    ) {
-      return res.status(400).json({ error: 'INVALID_ACCOUNT_NAME_RESERVED_TAXONOMY' });
-    }
-
     let normalizedName: string;
     try {
       normalizedName = normalizeFinanceName(trimmedName);
