@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         allocations,
         mappings,
         policy,
-        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved' },
+        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved_for_posting' },
         isPreview: true
       });
 
@@ -132,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const eventId = approvalIdempotencyKey ? `evt_${approvalIdempotencyKey}` : generateAuditId();
 
       const approvalPayload = sanitizeFirestoreObject({
-        status: 'approved',
+        status: 'approved_for_posting',
         approvedBy: uid,
         approvedAt: FieldValue.serverTimestamp(),
         approvedVersion: txData.version,

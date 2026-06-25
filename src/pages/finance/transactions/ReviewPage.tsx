@@ -9,6 +9,8 @@ import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuar
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
+import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
+
 export default function ReviewPage() {
   const { accessState } = useAuth();
   
@@ -179,6 +181,13 @@ function ReviewContent() {
                 Voltar para Finance
               </button>
             </div>
+
+            {errorDetails?.remediation?.type === 'CREATE_FIRESTORE_INDEX' && errorDetails?.remediation?.url && (
+             <FirestoreIndexRemediationCard 
+                indexCreateUrl={errorDetails.remediation.url} 
+                onRetry={() => loadData(undefined, undefined, epochRef.current)} 
+             />
+            )}
 
             {errorDetails?.requestId && (
               <p className="mt-6 text-[10px] font-mono text-text-muted select-all">

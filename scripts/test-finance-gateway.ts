@@ -450,7 +450,7 @@ async function runGatewayTests() {
       allocations,
       mappings,
       policy,
-      approval: { approvedVersion: 1, approvalSourceHash: 'tmp', status: 'approved' },
+      approval: { approvedVersion: 1, approvalSourceHash: 'tmp', status: 'approved_for_posting' },
       isPreview: true
     });
 
@@ -468,7 +468,7 @@ async function runGatewayTests() {
     // Create the latest approval
     await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id)
       .collection('transactions').doc(approvedTxId).collection('approvals').doc('latest').set({
-        status: 'approved',
+        status: 'approved_for_posting',
         approvedVersion: 1,
         approvalSourceHash: sourceHash,
         approvedPlanHash: planHash,

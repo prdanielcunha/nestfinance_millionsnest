@@ -8,6 +8,70 @@
         { "fieldPath": "accountId", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.direction", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.direction", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.directionStatus", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.directionStatus", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.all", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.all", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
