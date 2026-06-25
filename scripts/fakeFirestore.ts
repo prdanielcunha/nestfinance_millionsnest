@@ -26,6 +26,10 @@ class FakeCollection {
     const query = new FakeQuery(this.db, this.path, [{ field, op, value }]);
     return query;
   }
+
+  async get() {
+    return new FakeQuery(this.db, this.path, []).get();
+  }
 }
 
 class FakeDoc {
@@ -98,7 +102,13 @@ class FakeQuery {
         }
       }
     }
-    return { docs: results, empty: results.length === 0 };
+    return { 
+      docs: results, 
+      empty: results.length === 0,
+      forEach(cb: (doc: any) => void) {
+        results.forEach(cb);
+      }
+    };
   }
 }
 

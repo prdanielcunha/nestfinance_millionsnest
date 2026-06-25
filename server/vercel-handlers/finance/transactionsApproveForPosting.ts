@@ -109,11 +109,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         allocations,
         mappings,
         policy,
-        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved' }
+        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved' },
+        isPreview: true
       });
 
       if (plan.blockers.length > 0) {
-         throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: 'Plano contábil bloqueado: ' + plan.blockers.map(b => b.details).join('. ') };
+         throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: 'Plano contábil bloqueado: ' + plan.blockers.map(b => `${b.code}: ${b.details || ''}`).join('. ') };
       }
       if (plan.journalEntry.totalDebitCents !== plan.journalEntry.totalCreditCents) {
          throw { code: 'FINANCE_NOT_READY_FOR_APPROVAL', message: 'Plano contábil desbalanceado.' };

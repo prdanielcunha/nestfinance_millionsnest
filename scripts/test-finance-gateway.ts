@@ -4,6 +4,7 @@ import * as assert from 'assert';
 import { FakeFirestore } from './fakeFirestore.js';
 import admin from 'firebase-admin';
 import { buildTransactionListQueryKeys } from '../shared/finance/ledger/listQueryKeys.js';
+import { createHash } from 'crypto';
 
 // Import our target gateway handler
 import gatewayHandler from '../api/finance-gateway.js';
@@ -55,6 +56,7 @@ async function runGatewayTests() {
   // Org 1 Data
   await fakeDb.collection('organizations').doc(org1Id).set({ name: 'Organization Alpha', ownerId: 'other' });
   await fakeDb.collection('organizations').doc(org1Id).collection('users').doc(mockUid).set({
+    role: 'admin',
     capabilities: ['finance.view', 'finance.review', 'finance.create_drafts']
   });
   await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).set({
@@ -143,6 +145,7 @@ async function runGatewayTests() {
     status: 'ready_for_review',
     amountCents: 1500,
     direction: 'income',
+    transactionKind: 'income',
     occurredAt: mockTimestamp('2026-06-24T18:00:00Z'),
     createdAt: mockTimestamp('2026-06-24T18:00:00Z'),
     version: 1,
@@ -241,6 +244,7 @@ async function runGatewayTests() {
   await runAssertAsync('Capability ausente é rejeitada', async () => {
     // Mock user with zero capabilities in Org 1
     await fakeDb.collection('organizations').doc(org1Id).collection('users').doc(mockUid).set({
+      role: 'admin',
       capabilities: []
     });
 
@@ -262,6 +266,7 @@ async function runGatewayTests() {
 
     // Restore capabilities
     await fakeDb.collection('organizations').doc(org1Id).collection('users').doc(mockUid).set({
+      role: 'admin',
       capabilities: ['finance.view', 'finance.review', 'finance.create_drafts']
     });
   });
@@ -283,7 +288,8 @@ async function runGatewayTests() {
         'x-vercel-id': 'req_error_test_123'
       },
       body: {
-        financeEntityId: entity1Id
+        financeEntityId: entity1Id,
+        requestId: 'req_error_test_123'
       }
     };
     const res = new MockRes();
@@ -334,6 +340,257 @@ async function runGatewayTests() {
     const res = new MockRes();
     await gatewayHandler(req as any, res as any);
     assert.strictEqual(res.statusCode, 404);
+  });
+
+  // 11. Header de Outra Organização Rejeitado (Ataque Cross-Org por Header)
+  await runAssertAsync('Header de outra organização é rejeitado', async () => {
+    const req = {
+      method: 'POST',
+      query: { operation: 'transactions-list' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org2Id // User is NOT a member of Org 2 (org2Id)
+      },
+      body: {
+        financeEntityId: entity2Id
+      }
+    };
+    const res = new MockRes();
+    await gatewayHandler(req as any, res as any);
+    assert.strictEqual(res.statusCode, 403, JSON.stringify(res.body));
+  });
+
+  // 12. Status approved não canônico rejeitado no Preview
+  await runAssertAsync('Status approved não canônico rejeitado no preview', async () => {
+    const invalidTxId = 'tx_invalid_state';
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('transactions').doc(invalidTxId).set({
+      id: invalidTxId,
+      financeEntityId: entity1Id,
+      status: 'approved', // Non-canonical status! Must be 'ready_for_review' or 'approved_for_posting'
+      amountCents: 2000,
+      currency: 'BRL',
+      transactionKind: 'income',
+      occurredAt: '2026-06-24T18:00:00Z',
+      version: 1
+    });
+
+    const req = {
+      method: 'POST',
+      query: { operation: 'transactions-posting-plan-preview' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: invalidTxId
+      }
+    };
+    const res = new MockRes();
+    await gatewayHandler(req as any, res as any);
+    assert.strictEqual(res.statusCode, 400, JSON.stringify(res.body));
+    assert.strictEqual(res.body.error, 'TRANSACTION_NOT_READY_FOR_REVIEW');
+  });
+
+  // 13. approved_for_posting válido aceito no Preview aprovado
+  await runAssertAsync('approved_for_posting válido aceito no preview aprovado', async () => {
+    const approvedTxId = 'tx_approved_posting';
+
+    const { buildPostingPlan } = await import('../shared/finance/ledger/postingPlan.js');
+    const { loadPostingConfiguration } = await import('../server/vercel-handlers/finance/loadPostingConfiguration.js');
+
+    const txData = {
+      id: approvedTxId,
+      financeEntityId: entity1Id,
+      status: 'approved_for_posting',
+      amountCents: 2000,
+      currency: 'BRL',
+      transactionKind: 'income',
+      occurredAt: '2026-06-24T18:00:00Z',
+      version: 2,
+      approvedVersion: 1
+    };
+
+    const allocations: any[] = [];
+    const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(fakeDb as any, org1Id, entity1Id, txData);
+    const plan = buildPostingPlan({
+      transaction: txData,
+      allocations,
+      mappings,
+      policy,
+      approval: { approvedVersion: 1, approvalSourceHash: 'tmp', status: 'approved' },
+      isPreview: true
+    });
+
+    const sourceHash = plan.approvalSourceHash;
+    const planHash = plan.planHash;
+
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('transactions').doc(approvedTxId).set({
+      ...txData,
+      approvalSourceHash: sourceHash,
+      approvedPlanHash: planHash
+    });
+
+    // Create the latest approval
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id)
+      .collection('transactions').doc(approvedTxId).collection('approvals').doc('latest').set({
+        status: 'approved',
+        approvedVersion: 1,
+        approvalSourceHash: sourceHash,
+        approvedPlanHash: planHash,
+        approvedReferenceFingerprintHash: referenceFingerprintHash
+      });
+
+    const req = {
+      method: 'POST',
+      query: { operation: 'transactions-posting-plan-preview' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: approvedTxId
+      }
+    };
+    const res = new MockRes();
+    await gatewayHandler(req as any, res as any);
+    assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+    assert.strictEqual(res.body.sealStatus, 'verified');
+  });
+
+  // 14. Aprovação via Gateway (ready_for_review -> approved_for_posting) e verificação de Zero Posting
+  await runAssertAsync('Aprovação via gateway altera status e garante zero journals/saldos', async () => {
+    // We will use txId which is ready_for_review
+    // Setup capabilities for mockUid in org_alpha so they can approve
+    await fakeDb.collection('organizations').doc(org1Id).collection('users').doc(mockUid).set({
+      role: 'admin',
+      capabilities: ['finance.view', 'finance.review', 'finance.approve_for_posting']
+    });
+
+    // Create accounts snapshot
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('accounts').doc('acc_1').set({
+      id: 'acc_1',
+      name: 'Cash Safe',
+      active: true,
+      systemType: 'cash',
+      accountType: 'asset:current',
+      ledgerMapping: 'la_cash_safe'
+    });
+
+    // Create categories snapshot
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('categories').doc('cat_inc_1').set({
+      id: 'cat_inc_1',
+      name: 'Sales',
+      kind: 'revenue',
+      ledgerMapping: 'la_revenue_sales'
+    });
+
+    const req = {
+      method: 'POST',
+      query: { operation: 'transactions-approve-for-posting' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: txId,
+        expectedVersion: 1,
+        approvalIdempotencyKey: 'idemp-approve-123',
+        requestId: 'req-approve-123',
+        comment: 'Aprovado para lançamento contábil'
+      }
+    };
+    const res = new MockRes();
+    await gatewayHandler(req as any, res as any);
+    assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+    assert.strictEqual(res.body.approvalStatus, 'approved_for_posting');
+
+    // Verify transaction status changed in database
+    const updatedTx = await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(txId).get();
+    assert.strictEqual(updatedTx.data().status, 'approved_for_posting');
+
+    // Guarantee ZERO journals / ZERO saldos alterados
+    // (Aprovação apenas gera selo e atualiza estado, sem gerar diário contábil nesta fase)
+    const journalsCount = await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('journals').get();
+    assert.strictEqual(journalsCount.docs.length, 0, 'Should have created 0 journals');
+
+    const saldos = await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('accounts').get();
+    for (const sDoc of saldos.docs) {
+      const sData = sDoc.data();
+      assert.strictEqual(sData.balanceCents, undefined, 'Should have altered 0 saldos');
+    }
+  });
+
+  // 15. Devolução para Correção via Gateway (ready_for_review -> draft) com motivo obrigatório
+  await runAssertAsync('Devolução via gateway exige motivo, altera status e garante zero journals/saldos', async () => {
+    // Let's create a new transaction in ready_for_review
+    const returnTxId = 'tx_to_return';
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(returnTxId).set({
+      id: returnTxId,
+      financeEntityId: entity1Id,
+      status: 'ready_for_review',
+      amountCents: 3500,
+      currency: 'BRL',
+      transactionKind: 'income',
+      occurredAt: '2026-06-24T18:00:00Z',
+      version: 1,
+      accountId: 'acc_1'
+    });
+
+    // 15a. Motivo vazio rejeitado
+    const badReq = {
+      method: 'POST',
+      query: { operation: 'transactions-return-to-draft' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: returnTxId,
+        expectedVersion: 1,
+        idempotencyKey: 'idemp-return-fail',
+        requestId: 'req-return-fail',
+        reasonCode: '  ', // empty/whitespace
+        comment: ''
+      }
+    };
+    const badRes = new MockRes();
+    await gatewayHandler(badReq as any, badRes as any);
+    assert.strictEqual(badRes.statusCode, 400);
+
+    // 15b. Motivo válido aceito
+    const okReq = {
+      method: 'POST',
+      query: { operation: 'transactions-return-to-draft' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: returnTxId,
+        expectedVersion: 1,
+        idempotencyKey: 'idemp-return-ok',
+        requestId: 'req-return-ok',
+        reasonCode: 'needs_correction',
+        comment: 'Por favor, corrija a conta contábil selecionada.'
+      }
+    };
+    const okRes = new MockRes();
+    await gatewayHandler(okReq as any, okRes as any);
+    assert.strictEqual(okRes.statusCode, 200, JSON.stringify(okRes.body));
+
+    // Verify transaction status changed back to draft (estado canônico P06C1)
+    const updatedTx = await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(returnTxId).get();
+    assert.strictEqual(updatedTx.data().status, 'draft');
+    assert.strictEqual(updatedTx.data().returnedToDraftReason, 'needs_correction');
+
+    // Guarantee ZERO journals / ZERO saldos alterados during return to draft
+    const journalsCount = await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('journals').get();
+    assert.strictEqual(journalsCount.docs.length, 0, 'Should have created 0 journals during return');
   });
 
   // Restore verification hook

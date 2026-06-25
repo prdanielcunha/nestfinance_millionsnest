@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (typeof expectedVersion !== 'number' || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    if (!reasonCode || typeof reasonCode !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!reasonCode || typeof reasonCode !== 'string' || reasonCode.trim() === '') return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'reasonCode is required and cannot be empty' });
     if (reasonCode === 'other' && (!comment || comment.trim() === '')) {
       return res.status(400).json({ error: 'FINANCE_MISSING_COMMENT', message: 'Comment required for reason other' });
     }

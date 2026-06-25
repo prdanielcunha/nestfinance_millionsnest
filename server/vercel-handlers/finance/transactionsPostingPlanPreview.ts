@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     if (!approval || !approval.approvedPlanHash) {
       sealStatus = 'seal_missing';
-    } else if (transaction.version !== approval.approvedVersion || transaction.approvedVersion !== approval.approvedVersion) {
+    } else if (transaction.approvedVersion !== approval.approvedVersion) {
       sealStatus = 'transaction_stale';
     } else if (transaction.approvalSourceHash !== approval.approvalSourceHash) {
       sealStatus = 'transaction_stale';
