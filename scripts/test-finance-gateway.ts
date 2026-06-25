@@ -651,7 +651,9 @@ async function runGatewayTests() {
     assert.strictEqual(res.statusCode, 503);
     assert.strictEqual(res.body.errorCode, 'FINANCE_REVIEW_INDEX_REQUIRED');
     assert.strictEqual(res.body.stage, 'firestore_query');
-    assert.strictEqual(res.body.remediation, undefined, 'URL should not be exposed to the client');
+    assert.ok(res.body.remediation);
+    assert.strictEqual(res.body.remediation.type, 'CREATE_FIRESTORE_INDEX');
+    assert.ok(res.body.remediation.url.includes('https://console.firebase.google.com'));
     
     // Restore
     fakeQueryProto.get = originalGet;
