@@ -284,11 +284,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (isServiceUnavailable) {
       return res.status(503).json({
-        error: 'SERVICE_UNAVAILABLE',
+        ok: false,
+        errorCode: 'FINANCE_REVIEW_INTERNAL_ERROR',
+        requestId: normalizedId,
+        stage: 'firestore_query',
         details: {
           code: 'DATABASE_ERROR',
-          requestId: normalizedId,
-          operation: 'transactionsList',
           retryable: true
         }
       });
@@ -304,34 +305,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (normalizedError) {
        console.log(`[Metrics] transactionsList index error handled (req: ${normalizedId}) - URL exposed: ${!!normalizedError.indexCreateUrl}`);
-       const { indexCreateUrl, code, operation, retryable } = normalizedError;
-       if (indexCreateUrl) {
-         return res.status(503).json({
-           error: 'SERVICE_UNAVAILABLE',
-           details: {
-             code,
-             requestId: normalizedId,
-             operation,
-             retryable,
-             remediation: {
-                type: 'CREATE_FIRESTORE_INDEX',
-                url: indexCreateUrl
-             }
-           }
-         });
-       } else {
-         return res.status(503).json({
-            error: 'SERVICE_UNAVAILABLE',
-            details: {
-              code,
-              requestId: normalizedId,
-              operation,
-              retryable
-            }
-         });
-       }
+       const { indexCreateUrl } = normalizedError;
+       return res.status(503).json({
+         ok: false,
+         errorCode: 'FINANCE_REVIEW_INDEX_REQUIRED',
+         requestId: normalizedId,
+         stage: 'firestore_query',
+         remediation: indexCreateUrl ? {
+            type: 'CREATE_FIRESTORE_INDEX',
+            url: indexCreateUrl
+         } : undefined
+       });
     }
 
-    return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    if (error?.message?.includes('permission')) {
+      return res.status(403).json({
+        ok: false,
+        errorCode: 'FINANCE_REVIEW_FORBIDDEN',
+        requestId: normalizedId,
+        stage: 'access_control'
+      });
+    }
+
+    return res.status(500).json({ 
+      ok: false,
+      errorCode: 'FINANCE_REVIEW_INTERNAL_ERROR',
+      requestId: normalizedId,
+      stage: 'firestore_query'
+    });
   }
 }

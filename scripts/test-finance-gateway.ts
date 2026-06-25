@@ -295,7 +295,9 @@ async function runGatewayTests() {
     // Intercept database call temporarily
     const originalCollection = fakeDb.collection;
     fakeDb.collection = () => {
-      throw new Error('Firestore is down / Timeout');
+      const err: any = new Error('Firestore is down / Timeout');
+      err.code = 14;
+      throw err;
     };
 
     const req = {
@@ -318,8 +320,8 @@ async function runGatewayTests() {
     fakeDb.collection = originalCollection;
 
     assert.strictEqual(res.statusCode, 503);
-    assert.strictEqual(res.body.error, 'SERVICE_UNAVAILABLE');
-    assert.strictEqual(res.body.details.requestId, 'req_error_test_123');
+    assert.strictEqual(res.body.errorCode, 'FINANCE_REVIEW_INTERNAL_ERROR');
+    assert.strictEqual(res.body.requestId, 'req_error_test_123');
   });
 
   // 9. Detalhe Válido Retorna 200
@@ -607,6 +609,54 @@ async function runGatewayTests() {
     // Guarantee ZERO journals / ZERO saldos alterados during return to draft
     const journalsCount = await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('journals').get();
     assert.strictEqual(journalsCount.docs.length, 0, 'Should have created 0 journals during return');
+  });
+
+  // 16. Teste de mapeamento seguro de falha de índice Firestore
+  await runAssertAsync('Falha de índice Firestore é mapeada corretamente para FINANCE_REVIEW_INDEX_REQUIRED com link seguro', async () => {
+    // We will inject a special case into fakeDb.
+    // By intercepting FakeCollection.where or similar, but let's just intercept gatewayHandler
+    // Actually, we can intercept gatewayHandler by mocking the `admin.firestore()` output in `getFirebaseAdmin`?
+    // In test-finance-gateway.ts, admin.firestore = () => fakeDb.
+    // So we can intercept fakeDb.collection.
+    
+    const fakeQueryProto = Object.getPrototypeOf(fakeDb.collection('test').where('a', '==', 'b'));
+    const originalGet = fakeQueryProto.get;
+
+    fakeQueryProto.get = async function() {
+       if (this.filters && this.filters.some((f: any) => f.value && String(f.value).includes('TRIGGER_INDEX_ERROR'))) {
+          const err: any = new Error('The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/test/firestore/indexes?create_composite=123');
+          err.code = 9; // FAILED_PRECONDITION
+          err.details = err.message;
+          throw err;
+       }
+       return originalGet.call(this);
+    };
+
+    const req = {
+      method: 'POST',
+      query: { operation: 'transactions-list' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        filters: { status: 'TRIGGER_INDEX_ERROR' }
+      }
+    };
+    
+    const res = new MockRes();
+    await gatewayHandler(req as any, res as any);
+    
+    assert.strictEqual(res.statusCode, 503);
+    assert.strictEqual(res.body.errorCode, 'FINANCE_REVIEW_INDEX_REQUIRED');
+    assert.strictEqual(res.body.stage, 'firestore_query');
+    assert.ok(res.body.remediation);
+    assert.strictEqual(res.body.remediation.type, 'CREATE_FIRESTORE_INDEX');
+    assert.ok(res.body.remediation.url.includes('https://console.firebase.google.com'));
+    
+    // Restore
+    fakeQueryProto.get = originalGet;
   });
 
   // Restore verification hook

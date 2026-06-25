@@ -152,6 +152,8 @@ function ReviewContent() {
 
   // Dedicated human-friendly error state with action controls
   if (error && items.length === 0) {
+    const hasUrl = errorDetails?.remediation?.type === 'CREATE_FIRESTORE_INDEX' && errorDetails?.remediation?.url;
+
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-surface-base pb-24 md:pb-8">
         <FinanceEntityContextBar />
@@ -166,11 +168,26 @@ function ReviewContent() {
             <p className="text-sm text-text-muted mb-6 leading-relaxed">
               Tivemos uma falha ao buscar as movimentações desta igreja. Tente novamente.
             </p>
+
+            {hasUrl && (
+              <div className="mb-6 bg-surface-base rounded-lg p-4 border border-border-subtle text-left">
+                <p className="text-sm font-medium text-text-primary mb-2">Índice Necessário</p>
+                <p className="text-xs text-text-muted mb-3">Esta igreja possui um volume de dados que exige a criação de um índice no banco para pesquisa.</p>
+                <a
+                  href={errorDetails.remediation.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center px-4 py-2 bg-accent-primary hover:bg-accent-hover text-xs font-medium rounded-lg transition-colors text-white"
+                >
+                  Criar Índice no Firestore
+                </a>
+              </div>
+            )}
             
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <button
                 onClick={() => loadData(undefined, undefined, epochRef.current)}
-                className="w-full sm:w-auto h-11 px-5 rounded-lg bg-accent-primary hover:bg-accent-hover text-white text-sm font-medium shadow-sm transition-colors cursor-pointer flex items-center justify-center min-h-[44px]"
+                className="w-full sm:w-auto h-11 px-5 rounded-lg bg-surface-base border border-border-subtle hover:bg-surface-elevated text-text-primary text-sm font-medium transition-colors cursor-pointer flex items-center justify-center min-h-[44px]"
               >
                 Tentar novamente
               </button>
@@ -182,16 +199,9 @@ function ReviewContent() {
               </button>
             </div>
 
-            {errorDetails?.remediation?.type === 'CREATE_FIRESTORE_INDEX' && errorDetails?.remediation?.url && (
-             <FirestoreIndexRemediationCard 
-                indexCreateUrl={errorDetails.remediation.url} 
-                onRetry={() => loadData(undefined, undefined, epochRef.current)} 
-             />
-            )}
-
             {errorDetails?.requestId && (
               <p className="mt-6 text-[10px] font-mono text-text-muted select-all">
-                ID da transação: {errorDetails.requestId}
+                Código de atendimento: {errorDetails.requestId}
               </p>
             )}
           </div>

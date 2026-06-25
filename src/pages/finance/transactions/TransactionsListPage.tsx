@@ -243,7 +243,7 @@ function TransactionsListContent() {
 
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto flex flex-col gap-3 pb-[env(safe-area-inset-bottom)]">
-          {errorDetails?.code === 'FIRESTORE_INDEX_REQUIRED' ? (
+          {errorDetails?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED' ? (
              <FirestoreIndexRemediationCard 
                 remediation={errorDetails.remediation} 
                 requestId={errorDetails.requestId} 
