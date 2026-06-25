@@ -76,9 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allocationsSnap = await db
     .collection('organizations')
     .doc(organizationId)
-    .collection('financeEntities')
-    .doc(financeEntityId)
-    .collection('allocations')
+    .collection('financeAllocations')
     .where('transactionId', '==', transactionId)
     .get();
 
@@ -106,6 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (previewMode === 'review_preview') {
     sealStatus = 'seal_missing';
   } else {
+    console.log('DEBUG: approval data:', approval);
     if (!approval || !approval.approvedPlanHash) {
       sealStatus = 'seal_missing';
     } else if (transaction.approvedVersion !== approval.approvedVersion) {
@@ -129,8 +128,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (sealStatus === 'verified') {
     if (referenceFingerprintHash !== approval.approvedReferenceFingerprintHash) {
+      console.log('DEBUG plan_mismatch fingerprint:', referenceFingerprintHash, approval.approvedReferenceFingerprintHash);
       sealStatus = 'references_changed';
     } else if (calculatedPlanHash !== approvedPlanHash) {
+      console.log('DEBUG plan_mismatch calculated vs approved:', calculatedPlanHash, approvedPlanHash);
       sealStatus = 'plan_mismatch';
     }
   }

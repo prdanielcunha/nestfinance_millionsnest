@@ -83,7 +83,20 @@ async function runGatewayTests() {
     currency: 'BRL',
     name: 'Cash Safe',
     systemType: 'cash',
-    accountType: 'asset:current'
+    configurationStatus: 'complete',
+    type: 'asset',
+    nature: 'debit',
+    accountType: 'asset:current',
+    ledgerMapping: 'la_cash_safe'
+  });
+
+  // Add category in Org 1
+  await fakeDb.collection('organizations').doc(org1Id).collection('financeCategories').doc('cat_inc_1').set({
+    financeEntityId: entity1Id,
+    id: 'cat_inc_1',
+    name: 'Sales',
+    kind: 'income',
+    ledgerMapping: 'la_revenue_sales'
   });
 
   let passed = 0;
@@ -132,15 +145,18 @@ async function runGatewayTests() {
 
   // 2. Add item with ready_for_review status
   const txId = 'tx_review_1';
-  const mockTimestamp = (iso: string) => ({
-    toDate: () => new Date(iso),
-    isEqual: () => true
-  });
+  const mockTimestamp = (iso: string) => {
+    const obj = { _seconds: new Date(iso).getTime() / 1000, _nanoseconds: 0 };
+    Object.defineProperty(obj, 'toDate', { value: () => new Date(iso), enumerable: false });
+    Object.defineProperty(obj, 'isEqual', { value: () => true, enumerable: false });
+    return obj;
+  };
 
   const listQueryKeys = buildTransactionListQueryKeys(entity1Id, txId, 'income', 'ready_for_review', '2026-06-24T18:00:00Z');
 
   await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(txId).set({
     id: txId,
+    organizationId: org1Id,
     financeEntityId: entity1Id,
     status: 'ready_for_review',
     amountCents: 1500,
@@ -151,12 +167,15 @@ async function runGatewayTests() {
     version: 1,
     accountId,
     accountSnapshot: { name: 'Cash Safe' },
+    allocationIds: ['alloc_1'],
     listQueryKeys
   });
 
   // Add allocation for it
   await fakeDb.collection('organizations').doc(org1Id).collection('financeAllocations').doc('alloc_1').set({
+    id: 'alloc_1',
     transactionId: txId,
+    organizationId: org1Id,
     financeEntityId: entity1Id,
     amountCents: 1500,
     categoryId: 'cat_inc_1',
@@ -401,20 +420,33 @@ async function runGatewayTests() {
 
     const txData = {
       id: approvedTxId,
+      organizationId: org1Id,
       financeEntityId: entity1Id,
       status: 'approved_for_posting',
       amountCents: 2000,
       currency: 'BRL',
+      direction: 'income',
       transactionKind: 'income',
       occurredAt: '2026-06-24T18:00:00Z',
       version: 2,
-      approvedVersion: 1
+      approvedVersion: 1,
+      approvalSourceHash: '',
+      accountId: 'acc_1',
+      allocationIds: ['alloc_app_1']
     };
 
-    const allocations: any[] = [];
-    const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(fakeDb as any, org1Id, entity1Id, txData);
+    const allocations: any[] = [{
+      id: 'alloc_app_1',
+      transactionId: approvedTxId,
+      organizationId: org1Id,
+      financeEntityId: entity1Id,
+      amountCents: 2000,
+      categoryId: 'cat_inc_1',
+      sequence: 1
+    }];
+    const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(fakeDb as any, org1Id, entity1Id, txData as any);
     const plan = buildPostingPlan({
-      transaction: txData,
+      transaction: txData as any,
       allocations,
       mappings,
       policy,
@@ -424,6 +456,8 @@ async function runGatewayTests() {
 
     const sourceHash = plan.approvalSourceHash;
     const planHash = plan.planHash;
+
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeAllocations').doc('alloc_app_1').set(allocations[0]);
 
     await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('transactions').doc(approvedTxId).set({
       ...txData,
@@ -466,24 +500,6 @@ async function runGatewayTests() {
     await fakeDb.collection('organizations').doc(org1Id).collection('users').doc(mockUid).set({
       role: 'admin',
       capabilities: ['finance.view', 'finance.review', 'finance.approve_for_posting']
-    });
-
-    // Create accounts snapshot
-    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('accounts').doc('acc_1').set({
-      id: 'acc_1',
-      name: 'Cash Safe',
-      active: true,
-      systemType: 'cash',
-      accountType: 'asset:current',
-      ledgerMapping: 'la_cash_safe'
-    });
-
-    // Create categories snapshot
-    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('categories').doc('cat_inc_1').set({
-      id: 'cat_inc_1',
-      name: 'Sales',
-      kind: 'revenue',
-      ledgerMapping: 'la_revenue_sales'
     });
 
     const req = {

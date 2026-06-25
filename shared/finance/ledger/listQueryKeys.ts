@@ -32,8 +32,12 @@ export function buildTransactionListQueryKeys(
   let tsMs: number;
   if (typeof occurredAtMs === 'string') {
      tsMs = new Date(occurredAtMs).getTime();
+  } else if (typeof occurredAtMs === 'object' && (occurredAtMs as any).toDate) {
+     tsMs = (occurredAtMs as any).toDate().getTime();
+  } else if (typeof occurredAtMs === 'object' && (occurredAtMs as any)._seconds !== undefined) {
+     tsMs = (occurredAtMs as any)._seconds * 1000;
   } else {
-     tsMs = occurredAtMs;
+     tsMs = occurredAtMs as number;
   }
 
   if (isNaN(tsMs) || tsMs < 0 || tsMs > MAX_TIMESTAMP_MS || !Number.isSafeInteger(tsMs)) {

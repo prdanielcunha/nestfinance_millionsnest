@@ -85,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Load all accounts for readiness check
       const accountsQ = await t.get(context.repository.getAccountsRef());
       const accounts = accountsQ.docs.map(d => ({id: d.id, ...d.data()}));
+      console.log('--- DEBUG accountsApprove:', accounts);
 
       const { evaluateReviewReadiness } = await import('../../../shared/finance/ledger/evaluateReviewReadiness.js');
       const { computeApprovalSourceHash } = await import('../../../shared/finance/ledger/approvalSourceHash.js');

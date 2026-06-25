@@ -7,8 +7,10 @@ export async function loadPostingConfiguration(
   financeEntityId: string,
   transaction: any
 ) {
-  const accountsSnap = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('accounts').get();
-  const categoriesSnap = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('categories').get();
+  const accountsSnap = await db.collection('organizations').doc(organizationId)
+    .collection('financeAccounts').where('financeEntityId', '==', financeEntityId).get();
+  const categoriesSnap = await db.collection('organizations').doc(organizationId)
+    .collection('financeCategories').where('financeEntityId', '==', financeEntityId).get();
   
   const financeAccounts: any[] = [];
   const ledgerAccounts: any[] = [];

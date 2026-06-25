@@ -584,6 +584,7 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
   if (blockers.length === 0) {
     try {
       const canonicalString = canonicalStringify(materialSource);
+      if (isPreview) console.log('DEBUG canonical:', canonicalString);
       planHash = computePlanHash(canonicalString);
     } catch (e) {
       blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Canonical serialization failed' });
