@@ -304,17 +304,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('List Transactions Error:', error);
     
     if (normalizedError) {
-       console.log(`[Metrics] transactionsList index error handled (req: ${normalizedId}) - URL exposed: ${!!normalizedError.indexCreateUrl}`);
-       const { indexCreateUrl } = normalizedError;
+       console.log(`[Metrics] transactionsList index error handled (req: ${normalizedId}) - URL required: ${!!normalizedError.indexCreateUrl}`);
        return res.status(503).json({
          ok: false,
          errorCode: 'FINANCE_REVIEW_INDEX_REQUIRED',
          requestId: normalizedId,
-         stage: 'firestore_query',
-         remediation: indexCreateUrl ? {
-            type: 'CREATE_FIRESTORE_INDEX',
-            url: indexCreateUrl
-         } : undefined
+         stage: 'firestore_query'
        });
     }
 

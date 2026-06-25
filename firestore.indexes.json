@@ -46,6 +46,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financeTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
         { "fieldPath": "listQueryKeys.directionStatus", "order": "ASCENDING" }
       ]
     },

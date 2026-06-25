@@ -243,13 +243,7 @@ function TransactionsListContent() {
 
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto flex flex-col gap-3 pb-[env(safe-area-inset-bottom)]">
-          {errorDetails?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED' ? (
-             <FirestoreIndexRemediationCard 
-                remediation={errorDetails.remediation} 
-                requestId={errorDetails.requestId} 
-                onRetry={() => loadData(undefined, undefined, epochRef.current)} 
-             />
-          ) : error && error !== 'FORBIDDEN' && error !== 'FINANCE_ENTITY_REQUIRED' ? (
+          {error && error !== 'FORBIDDEN' && error !== 'FINANCE_ENTITY_REQUIRED' ? (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col items-center justify-center text-center">
               <AlertCircle className="w-6 h-6 text-red-500 mb-2" />
               <p className="text-sm text-red-500 mb-4">{
@@ -262,6 +256,11 @@ function TransactionsListContent() {
               >
                 Tentar novamente
               </button>
+              {errorDetails?.requestId && (
+                <p className="mt-4 text-[10px] font-mono text-red-500/60 select-all">
+                  Código de atendimento: {errorDetails.requestId}
+                </p>
+              )}
             </div>
           ) : null}
 
