@@ -109,8 +109,8 @@ export function evaluateReviewReadiness(tx: LedgerTransaction, accounts: any[]):
     // Liability settlement sem obrigação handled above by checking liabilityAccountId
   }
 
-  if (!tx.evidenceIds || tx.evidenceIds.length === 0) {
-    warnings.push({ code: 'NO_EVIDENCE', details: 'Sem anexo ou comprovante' });
+  if ((!tx.evidenceIds || tx.evidenceIds.length === 0) && !tx.evidenceJustification) {
+    warnings.push({ code: 'NO_EVIDENCE', details: 'Sem anexo ou justificativa' });
   }
 
   if (!tx.description || tx.description.length < 5) {

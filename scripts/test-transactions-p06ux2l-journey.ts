@@ -1,4 +1,4 @@
-import { createFakeFirestore } from './fakeFirestore.js';
+import { FakeFirestore } from './fakeFirestore.js';
 import * as assert from 'assert';
 
 async function runAssertAsync(name: string, fn: () => Promise<void>) {
@@ -14,7 +14,7 @@ async function runAssertAsync(name: string, fn: () => Promise<void>) {
 async function run() {
   console.log('Running P06UX2L Correction Flow and Workspaces Test...');
 
-  const fakeDb = createFakeFirestore();
+  const fakeDb = new FakeFirestore();
   const orgId = 'org_test';
   const entityId = 'ent_test';
   const txId = 'tx_journey_1';

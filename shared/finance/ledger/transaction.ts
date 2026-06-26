@@ -25,6 +25,7 @@ export type TransactionBase = {
   description?: string;
   counterparty?: string;
   evidenceIds: EvidenceId[];
+  evidenceJustification?: string;
   reconciliationStatus: 'unreconciled' | 'reconciled';
   createdBy: string;
   updatedBy: string;

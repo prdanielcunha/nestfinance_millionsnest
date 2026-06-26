@@ -100,6 +100,9 @@ function TransactionCreateContent() {
   const [destinationAccountId, setDestinationAccountId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [description, setDescription] = useState("");
+  const [counterparty, setCounterparty] = useState("");
+  const [evidenceJustification, setEvidenceJustification] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
   // Single/split
   const [isSplit, setIsSplit] = useState(false);
@@ -108,9 +111,10 @@ function TransactionCreateContent() {
       id: string;
       categoryId: string;
       fundId: string;
+      costCenterId: string;
       amountRaw: string | null;
     }[]
-  >([{ id: "initial", categoryId: "", fundId: "", amountRaw: null }]);
+  >([{ id: "initial", categoryId: "", fundId: "", costCenterId: "", amountRaw: null }]);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -415,6 +419,7 @@ function TransactionCreateContent() {
           finalAllocs.push({
             categoryId: a.categoryId,
             fundId: a.fundId || undefined,
+            costCenterId: a.costCenterId || undefined,
             amountCents: amt,
           });
         }
@@ -423,6 +428,7 @@ function TransactionCreateContent() {
           finalAllocs.push({
             categoryId: allocations[0].categoryId,
             fundId: allocations[0].fundId || undefined,
+            costCenterId: allocations[0].costCenterId || undefined,
             amountCents: totalCents,
           });
         }
@@ -438,6 +444,8 @@ function TransactionCreateContent() {
         direction === "transfer" ? destinationAccountId : undefined,
       paymentMethod: paymentMethod || undefined,
       description: description || undefined,
+      counterparty: counterparty || undefined,
+      evidenceJustification: evidenceJustification || undefined,
       sourceContext: "manual",
       allocations:
         direction === "transfer" || direction === "liability_settlement"
@@ -862,7 +870,7 @@ function TransactionCreateContent() {
   const addAllocation = () => {
     setAllocations((prev) => [
       ...prev,
-      { id: "alloc_" + Date.now(), categoryId: "", fundId: "", amountRaw: "0" },
+      { id: "alloc_" + Date.now(), categoryId: "", fundId: "", costCenterId: "", amountRaw: "0" },
     ]);
   };
 
@@ -1298,6 +1306,42 @@ function TransactionCreateContent() {
                     className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
                   />
                 </div>
+                
+                <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-2">
+                  <button type="button" onClick={() => setShowDetails(!showDetails)} className="text-sm text-accent-primary font-medium flex items-center gap-1 w-fit">
+                     {showDetails ? "Ocultar detalhes" : "Mais detalhes (Favorecido, Evidências)"}
+                  </button>
+                </div>
+                
+                {showDetails && (
+                   <div className="flex flex-col gap-4 mt-2 p-5 bg-surface-secondary/30 rounded-2xl border border-border-subtle/50">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
+                       <label className="text-sm font-medium text-text-primary">
+                         {direction === "income" ? "De quem veio?" : direction === "expense" ? "Quem recebeu ou foi pago?" : "Favorecido/Origem"} (opcional)
+                       </label>
+                       <input
+                         type="text"
+                         value={counterparty}
+                         onChange={(e) => setCounterparty(e.target.value)}
+                         placeholder="Pessoa, fornecedor, ministério..."
+                         maxLength={100}
+                         className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
+                       />
+                     </div>
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-2">
+                       <label className="text-sm font-medium text-text-primary">
+                         Justificativa de ausência de comprovante (opcional)
+                       </label>
+                       <textarea
+                         value={evidenceJustification}
+                         onChange={(e) => setEvidenceJustification(e.target.value)}
+                         placeholder="Explique por que não existe comprovante..."
+                         maxLength={300}
+                         className="w-full min-h-[80px] py-3 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50 resize-y"
+                       />
+                     </div>
+                   </div>
+                )}
               </div>
 
               {direction !== "transfer" && (
@@ -1433,10 +1477,15 @@ function TransactionCreateContent() {
                             )}
                           </div>
                         </div>
-                        <div className="mt-2.5 text-xs text-text-muted flex items-center gap-1.5 px-1 bg-surface-secondary/40 py-1.5 rounded-lg border border-border-subtle/30 w-fit">
-                          <span className="font-medium text-text-secondary">Centro de Custo (Automático):</span>
-                          <span>Filial Sede Contábil</span>
-                          <ContextHelp topic="cost_center" />
+                        <div className="mt-2 text-sm flex items-center gap-2">
+                          <label className="text-text-muted font-medium w-32 shrink-0">Centro de Custo</label>
+                          <input
+                            type="text"
+                            value={alloc.costCenterId || ""}
+                            onChange={(e) => updateAllocation(i, "costCenterId", e.target.value)}
+                            placeholder="Ex: Sede, Filial, Ministério..."
+                            className="flex-1 h-10 bg-surface-base border border-border-subtle rounded-lg px-3 text-text-primary outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-sm placeholder-text-muted/50"
+                          />
                         </div>
                       </div>
                     ))}

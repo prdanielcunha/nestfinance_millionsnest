@@ -209,7 +209,7 @@ function TransactionDetailContent() {
         Date.now().toString(36);
 
       let res;
-      if (isReviewMode && data.transaction.status === "approved_for_posting") {
+      if (data.transaction.status === "approved_for_posting") {
         res = await invalidateApproval(
           data.transaction.id,
           currentVersion,
@@ -219,15 +219,26 @@ function TransactionDetailContent() {
           idempotencyKeyRef.current,
           reqId,
         );
-      } else if (isReviewMode && data.transaction.status === "ready_for_review") {
-        res = await returnToDraft(
-          data.transaction.id,
-          currentVersion,
-          returnReason,
-          returnComment,
-          idempotencyKeyRef.current,
-          reqId,
-        );
+      } else if (data.transaction.status === "ready_for_review") {
+        if (returnReason) {
+           res = await returnToDraft(
+             data.transaction.id,
+             currentVersion,
+             returnReason,
+             returnComment,
+             idempotencyKeyRef.current,
+             reqId,
+           );
+        } else {
+           const payload = { intent: "return_to_draft" };
+           res = await updateDraft(
+             data.transaction.id,
+             currentVersion,
+             payload,
+             idempotencyKeyRef.current,
+             reqId,
+           );
+        }
       } else {
         const payload = { intent: "return_to_draft" };
         res = await updateDraft(
@@ -584,16 +595,38 @@ function TransactionDetailContent() {
 
                   <div className="bg-surface-elevated border border-border-subtle rounded-2xl overflow-hidden mt-2">
                     <div className="p-5 flex flex-col gap-4">
-                      <div>
-                        <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                          Descrição
-                        </p>
-                        <p className="text-sm text-text-primary">
-                          {tx.description || "Sem descrição"}
-                        </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="col-span-full md:col-span-2">
+                          <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
+                            Descrição
+                          </p>
+                          <p className="text-sm text-text-primary">
+                            {tx.description || <span className="text-text-muted italic">Sem descrição</span>}
+                          </p>
+                        </div>
+                        {tx.counterparty && (
+                          <div className="col-span-full md:col-span-1">
+                            <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
+                              Favorecido / Origem
+                            </p>
+                            <p className="text-sm text-text-primary">
+                              {tx.counterparty}
+                            </p>
+                          </div>
+                        )}
+                        {tx.evidenceJustification && (
+                          <div className="col-span-full">
+                            <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
+                              Justificativa de ausência de comprovante
+                            </p>
+                            <p className="text-sm text-text-primary">
+                              {tx.evidenceJustification}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-border-subtle pt-4">
                         {tx.transactionKind === "transfer" ? (
                           <>
                             <div>
@@ -648,7 +681,7 @@ function TransactionDetailContent() {
                           <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Forma</p>
                           <p className="text-sm text-text-primary flex items-center gap-2">
                             <Wallet className="w-4 h-4 text-text-muted" />
-                            {tx.method ? translateMethod(tx.method) : <span className="text-text-muted italic">Não informado</span>}
+                            {tx.paymentMethod ? translateMethod(tx.paymentMethod) : <span className="text-text-muted italic">Não informado</span>}
                           </p>
                         </div>
                         
@@ -1327,7 +1360,7 @@ function TransactionDetailContent() {
                           <>
                             {(!isBalanced ||
                               !tx.accountId ||
-                              !tx.method ||
+                              !tx.paymentMethod ||
                               !tx.amountCents ||
                               allocs.length === 0 ||
                               allocs.some((a: any) => !a.categoryId)) && (
@@ -1341,7 +1374,7 @@ function TransactionDetailContent() {
                                     <li>Informe o valor da movimentação</li>
                                   )}
                                   {!tx.accountId && <li>Escolha uma conta</li>}
-                                  {!tx.method && (
+                                  {!tx.paymentMethod && (
                                     <li>
                                       Informe a forma de pagamento/recebimento
                                     </li>
@@ -1364,7 +1397,7 @@ function TransactionDetailContent() {
 
                             {isBalanced &&
                               tx.accountId &&
-                              tx.method &&
+                              tx.paymentMethod &&
                               tx.amountCents > 0 &&
                               allocs.length > 0 &&
                               !allocs.some((a: any) => !a.categoryId) && (
@@ -1401,6 +1434,23 @@ function TransactionDetailContent() {
                               <div className="w-5 h-5 border-2 border-text-primary/30 border-t-text-primary rounded-full animate-spin" />
                             ) : (
                               "Editar novamente"
+                            )}
+                          </button>
+                        )}
+                        {tx.status === "approved_for_posting" && sealStatus && sealStatus !== 'verified' && (
+                          <button
+                            onClick={() => {
+                               setReturnReason('need_correction');
+                               setReturnComment('Aprovação invalidada pois os dados mudaram. Revisão e correção necessárias.');
+                               handleReturnToDraft();
+                            }}
+                            disabled={returningToDraft}
+                            className="w-full h-14 flex items-center justify-center gap-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                          >
+                            {returningToDraft ? (
+                              <div className="w-5 h-5 border-2 border-rose-700/30 border-t-rose-700 rounded-full animate-spin" />
+                            ) : (
+                              "Corrigir e reenviar"
                             )}
                           </button>
                         )}

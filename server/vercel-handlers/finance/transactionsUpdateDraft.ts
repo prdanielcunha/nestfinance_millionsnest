@@ -227,6 +227,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         occurredAt: mergedPayload.occurredAt,
         accountId: mergedPayload.accountId,
         paymentMethod: mergedPayload.paymentMethod,
+        counterparty: payload.counterparty !== undefined ? payload.counterparty : txData.counterparty,
+        evidenceIds: payload.evidenceIds !== undefined ? payload.evidenceIds : txData.evidenceIds || [],
+        evidenceJustification: payload.evidenceJustification !== undefined ? payload.evidenceJustification : txData.evidenceJustification,
+        description: payload.description !== undefined ? payload.description : txData.description,
         sourceContext: mergedPayload.sourceContext || txData.sourceContext,
         status: newStatus,
         updatedBy: uid,
@@ -264,6 +268,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           else newRecord.description = payload.description;
       } else if (newRecord.description === undefined) {
           delete newRecord.description;
+      }
+      
+      if (payload.counterparty !== undefined) {
+          if (payload.counterparty === '') delete newRecord.counterparty;
+          else newRecord.counterparty = payload.counterparty;
+      } else if (newRecord.counterparty === undefined) {
+          delete newRecord.counterparty;
+      }
+
+      if (payload.evidenceJustification !== undefined) {
+          if (payload.evidenceJustification === '') delete newRecord.evidenceJustification;
+          else newRecord.evidenceJustification = payload.evidenceJustification;
+      } else if (newRecord.evidenceJustification === undefined) {
+          delete newRecord.evidenceJustification;
       }
 
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
@@ -342,6 +360,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (fundData && fundData.name) {
               allocToSet.fundSnapshot = { id: a.fundId, name: fundData.name };
             }
+          }
+          if (a.costCenterId) {
+            allocToSet.costCenterId = a.costCenterId;
           }
           
           validateAllocation(allocToSet, financeEntityId, newRecord.transactionKind as any);

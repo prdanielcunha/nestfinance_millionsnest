@@ -261,6 +261,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               alloc.fundSnapshot = { id: a.fundId, name: fundData.name };
             }
           }
+          if (a.costCenterId) {
+            alloc.costCenterId = a.costCenterId;
+          }
           
           if (transactionKind === 'income' || transactionKind === 'expense') {
             validateAllocation(alloc, financeEntityId, transactionKind as 'income'|'expense');
@@ -295,7 +298,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         paymentMethod: paymentMethod || 'unspecified',
         sourceContext: sourceContext || 'manual',
         reconciliationStatus: 'unreconciled',
-        evidenceIds: [],
+        evidenceIds: payload.evidenceIds || [],
         accountId, // still kept for DB compatibility if needed by queries
         accountSnapshot,
         allocationIds,
@@ -305,6 +308,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         schemaVersion: 1,
         validationIssues
       };
+      if (payload.description) txPayload.description = payload.description;
+      if (payload.counterparty) txPayload.counterparty = payload.counterparty;
+      if (payload.evidenceJustification) txPayload.evidenceJustification = payload.evidenceJustification;
       if (destinationAccountSnapshot) {
         txPayload.sourceAccountId = accountId;
         txPayload.destinationAccountId = destinationAccountId;
