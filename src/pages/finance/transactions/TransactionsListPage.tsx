@@ -293,7 +293,7 @@ function TransactionsListContent() {
                          {item.description || translateDirection(item.direction)}
                       </h4>
                       <p className="text-xs text-text-muted mt-0.5 truncate">
-                         {new Date(item.occurredAt).toLocaleDateString('pt-BR')} • {translateStatus(item.status)}
+                         {new Date(item.occurredAt).toLocaleDateString('pt-BR')} • {item.status === 'draft' && item.returnReasonCode ? 'Devolvida para correção' : translateStatus(item.status)}
                       </p>
                    </div>
                  </div>
@@ -301,13 +301,30 @@ function TransactionsListContent() {
                     <span className={`text-sm font-medium ${item.direction === 'income' ? 'text-teal-500' : 'text-text-primary'}`}>
                       {formatMoney(item.amountCents, item.direction)}
                     </span>
-                    {item.status === 'draft' && (
-                       <span className="mt-1 text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                         Incompleto
+                    {item.status === 'draft' && item.returnReasonCode && (
+                       <span className="mt-1 text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                         Correção pendente
+                       </span>
+                    )}
+                    {item.status === 'draft' && !item.returnReasonCode && (
+                       <span className="mt-1 text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                         Rascunho
+                       </span>
+                    )}
+                    {item.status === 'approved_for_posting' && (
+                       <span className="mt-1 text-[10px] uppercase font-bold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                         Aprovada
                        </span>
                     )}
                  </div>
                </div>
+               
+               {item.status === 'draft' && item.returnReasonText && (
+                  <div className="mt-2 text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-3">
+                     <span className="font-semibold block mb-0.5">Motivo da devolução:</span>
+                     {item.returnReasonText}
+                  </div>
+               )}
             </button>
           ))}
 

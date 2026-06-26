@@ -25,7 +25,9 @@ export default function FinancePage() {
   const [currentEpoch, setCurrentEpoch] = useState(0);
   
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
-  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | string | null>(null);
+  const [draftCount, setDraftCount] = useState<number | string | null>(null);
+  const [returnedCount, setReturnedCount] = useState<number | string | null>(null);
 
   const setupStatus = accessState.financeSetup?.status;
   const returnTo = searchParams.get('returnTo');
@@ -50,6 +52,19 @@ export default function FinancePage() {
         })
         .catch(() => {
           setReviewCount(0);
+        });
+
+      listTransactions({ status: 'draft' })
+        .then((res) => {
+          const drafts = res.items || [];
+          const returned = drafts.filter((d: any) => d.returnReasonCode);
+          const simpleDrafts = drafts.filter((d: any) => !d.returnReasonCode);
+          setReturnedCount(returned.length + (res.hasMore && returned.length > 0 ? '+' : ''));
+          setDraftCount(simpleDrafts.length + (res.hasMore && simpleDrafts.length > 0 ? '+' : ''));
+        })
+        .catch(() => {
+          setDraftCount(0);
+          setReturnedCount(0);
         });
     }
   }, [activeFinanceEntityId, listTransactions]);
@@ -315,17 +330,51 @@ export default function FinancePage() {
               )}
 
               <button
-                onClick={() => navigate(APP_ROUTES.transactions)}
-                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex flex-col justify-center h-auto sm:h-32 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                onClick={() => navigate(APP_ROUTES.transactions + '?status=draft')}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex flex-col justify-center h-auto sm:h-32 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary relative"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    <h3 className="text-base font-medium text-text-primary mb-1">Ver movimentações</h3>
-                    <p className="text-sm text-text-secondary">Entradas, saídas e rascunhos em revisão.</p>
+                    <h3 className="text-base font-medium text-text-primary mb-1">Rascunhos e correções</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      {returnedCount && returnedCount !== 0 && returnedCount !== '0' ? (
+                        <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          {returnedCount} aguardando correção
+                        </span>
+                      ) : null}
+                      {draftCount && draftCount !== 0 && draftCount !== '0' ? (
+                        <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          {draftCount} rascunho(s)
+                        </span>
+                      ) : null}
+                      {(!returnedCount || returnedCount === 0 || returnedCount === '0') && (!draftCount || draftCount === 0 || draftCount === '0') && (
+                        <p className="text-sm text-text-secondary">Continue lançamentos incompletos.</p>
+                      )}
+                    </div>
                   </div>
                   <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0 ml-4" />
                 </div>
               </button>
+            </div>
+
+            <div className="flex flex-col w-full mt-4">
+               <button
+                 onClick={() => navigate(APP_ROUTES.transactions + '?status=posted')}
+                 className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex flex-col justify-center group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+               >
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20 text-teal-600 group-hover:scale-105 transition-transform">
+                       <Clock className="w-6 h-6" />
+                     </div>
+                     <div className="flex flex-col">
+                       <h3 className="text-base font-medium text-text-primary mb-1">Movimentações do mês</h3>
+                       <p className="text-sm text-text-secondary">Dinheiro que realmente entrou, saiu ou foi transferido.</p>
+                     </div>
+                   </div>
+                   <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0 ml-4" />
+                 </div>
+               </button>
             </div>
           </div>
 

@@ -90,6 +90,7 @@ function TransactionDetailContent() {
   const [returnReason, setReturnReason] = useState("need_correction");
   const [returnComment, setReturnComment] = useState("");
   const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnSuccess, setReturnSuccess] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
@@ -245,8 +246,12 @@ function TransactionDetailContent() {
           ...prev.transaction,
           status: "draft",
           version: res.version || prev.transaction.version + 1,
+          returnReasonCode: returnReason,
+          returnReasonText: returnComment,
         },
       }));
+      setShowReturnForm(false);
+      setReturnSuccess(true);
       if (!isReviewMode) {
         navigate(
           APP_ROUTES.transactionEdit.replace(
@@ -254,8 +259,6 @@ function TransactionDetailContent() {
             data.transaction.id,
           ),
         );
-      } else {
-        navigate(APP_ROUTES.financeReview);
       }
     } catch (err: any) {
       if (isReviewMode)
@@ -515,6 +518,40 @@ function TransactionDetailContent() {
             !error &&
             data &&
             (() => {
+              if (returnSuccess) {
+                 return (
+                    <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-center flex flex-col items-center justify-center gap-4">
+                      <div className="w-16 h-16 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-center text-rose-500 mb-2">
+                        <AlertCircle className="w-8 h-8" />
+                      </div>
+                      <h2 className="text-xl font-bold text-text-primary">Movimentação devolvida para correção</h2>
+                      <p className="text-sm text-text-secondary max-w-sm">
+                        Ela está agora em Rascunhos e correções. Nenhum lançamento contábil foi realizado.
+                      </p>
+                      
+                      <div className="bg-surface-secondary border border-border-subtle rounded-xl p-4 mt-2 mb-4 w-full text-left">
+                         <span className="text-xs text-text-muted font-bold uppercase tracking-wider block mb-1">Motivo informado:</span>
+                         <p className="text-sm text-text-primary">{returnComment || 'Nenhum comentário adicional'}</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 w-full">
+                         <button
+                           onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', data.transaction.id))}
+                           className="flex-1 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white rounded-xl font-medium transition-colors text-sm"
+                         >
+                           Abrir para corrigir
+                         </button>
+                         <button
+                           onClick={() => navigate(APP_ROUTES.financeReview)}
+                           className="flex-1 h-12 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors text-sm"
+                         >
+                           Voltar à Central de Revisões
+                         </button>
+                      </div>
+                    </div>
+                 );
+              }
+
               const tx = data.transaction;
               const allocs = data.allocations || [];
               const sumAllocations = allocs.reduce(
@@ -674,7 +711,7 @@ function TransactionDetailContent() {
                               <div>
                                 <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-0.5">Fundo</span>
                                 <span className="text-sm text-text-primary">
-                                  {alloc.fundSnapshot?.name || alloc.fundName || <span className="text-text-muted italic">Geral</span>}
+                                  {alloc.fundSnapshot?.name || alloc.fundName || <span className="text-text-muted italic">Não informado</span>}
                                 </span>
                               </div>
                               <div>
@@ -904,7 +941,7 @@ function TransactionDetailContent() {
                                       return (
                                         <div key={i} className="flex justify-between items-center bg-surface-base border border-border-subtle p-3 rounded-lg">
                                           <div className="flex flex-col">
-                                            <span className="text-text-primary font-medium">{eff.fundId || "Fundo Geral"}</span>
+                                            <span className="text-text-primary font-medium">{eff.fundId || "Não informado"}</span>
                                             {label && <span className="text-[10px] text-text-muted uppercase">{label}</span>}
                                           </div>
                                           <span className="font-medium whitespace-nowrap">

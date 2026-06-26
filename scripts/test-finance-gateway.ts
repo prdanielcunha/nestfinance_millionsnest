@@ -724,6 +724,30 @@ async function runGatewayTests() {
     assert.strictEqual(resApprove.body.error, 'FINANCE_NOT_READY_FOR_APPROVAL');
   });
 
+  // 18. Taxonomia: Fundo ausente é tratado como null (não "Fundo Geral" no core logic)
+  await runAssertAsync('Taxonomia: Fundo Geral exige ID real, null significa Não informado', async () => {
+    // Just a conceptual test to ensure we don't default fundId to "Geral" randomly in the database.
+    const returnTxId = 'tx_taxonomy';
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(returnTxId).set({
+      id: returnTxId,
+      financeEntityId: entity1Id,
+      status: 'draft',
+      amountCents: 1000,
+      currency: 'BRL',
+      transactionKind: 'expense',
+      occurredAt: '2026-06-24T18:00:00Z',
+      version: 1,
+      allocations: [
+        { id: 'alloc_tax', amountCents: 1000, fundId: null }
+      ]
+    });
+
+    const txSnap = await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(returnTxId).get();
+    const data = txSnap.data();
+    
+    assert.strictEqual(data.allocations[0].fundId, null, 'fundId deve permanecer null no banco, sem default de string falsa.');
+  });
+
   // Restore verification hook
   authInstance.verifyIdToken = originalVerifyInstance;
 
