@@ -4,17 +4,28 @@ import { AlertCircle, ExternalLink, RefreshCw } from 'lucide-react';
 export interface FirestoreIndexRemediationProps {
   remediation?: { type: string; url?: string };
   requestId?: string;
+  errorText?: string;
   onRetry: () => void;
 }
 
-export const FirestoreIndexRemediationCard: React.FC<FirestoreIndexRemediationProps> = ({ remediation, requestId, onRetry }) => {
-  const hasUrl = remediation && remediation.type === 'CREATE_FIRESTORE_INDEX' && remediation.url;
+export const FirestoreIndexRemediationCard: React.FC<FirestoreIndexRemediationProps> = ({ remediation, requestId, errorText, onRetry }) => {
+  let url = remediation?.type === 'CREATE_FIRESTORE_INDEX' ? remediation.url : undefined;
+  
+  // Se não tem URL estruturada mas temos o texto do erro, tentamos extrair o link
+  if (!url && errorText) {
+    const match = errorText.match(/(https:\/\/console\.firebase\.google\.com[^\s]+)/);
+    if (match && match[1]) {
+      url = match[1];
+    }
+  }
+
+  const hasUrl = !!url;
 
   return (
     <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto my-12 bg-surface-elevated rounded-xl border border-border-subtle shadow-sm">
       <AlertCircle className="h-10 w-10 text-amber-500 mb-4" />
       
-      {hasUrl && remediation && remediation.url ? (
+      {hasUrl && url ? (
         <>
           <h3 className="text-xl font-medium text-text-primary mb-2">Índice necessário</h3>
           <p className="text-sm text-text-muted mb-6">
@@ -22,7 +33,7 @@ export const FirestoreIndexRemediationCard: React.FC<FirestoreIndexRemediationPr
           </p>
           <div className="flex flex-col gap-3 w-full mb-6">
             <a
-              href={remediation.url}
+              href={url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center px-4 py-3 bg-accent-primary hover:bg-accent-primary/90 text-sm font-medium rounded-xl transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"

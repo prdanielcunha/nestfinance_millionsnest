@@ -46,7 +46,13 @@ export const transactionsService = {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const errText = await res.text().catch(() => '');
+      let err: any = {};
+      try {
+        err = JSON.parse(errText);
+      } catch (e) {
+        err = { message: errText || `HTTP ${res.status}` };
+      }
       const throwErr: any = new Error(err.message || err.error || 'Failed to list transactions');
       throwErr.details = err;
       throw throwErr;

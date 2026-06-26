@@ -648,7 +648,7 @@ async function runGatewayTests() {
     const res = new MockRes();
     await gatewayHandler(req as any, res as any);
     
-    assert.strictEqual(res.statusCode, 503);
+    assert.strictEqual(res.statusCode, 409);
     assert.strictEqual(res.body.errorCode, 'FINANCE_REVIEW_INDEX_REQUIRED');
     assert.strictEqual(res.body.stage, 'firestore_query');
     assert.ok(res.body.remediation);

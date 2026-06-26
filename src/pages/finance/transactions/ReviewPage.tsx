@@ -152,15 +152,18 @@ function ReviewContent() {
 
   // Dedicated human-friendly error state with action controls
   if (error && items.length === 0) {
-    if (errorDetails?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED') {
+    const isIndexError = errorDetails?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED' || errorDetails?.remediation?.type === 'CREATE_FIRESTORE_INDEX' || error?.includes('requires an index');
+    
+    if (isIndexError) {
       return (
         <div className="flex-1 flex flex-col min-h-0 bg-surface-base pb-24 md:pb-8">
           <FinanceEntityContextBar />
           <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 flex items-center justify-center">
              <div className="max-w-md w-full">
                <FirestoreIndexRemediationCard 
-                  remediation={errorDetails.remediation} 
-                  requestId={errorDetails.requestId} 
+                  remediation={errorDetails?.remediation} 
+                  requestId={errorDetails?.requestId} 
+                  errorText={error}
                   onRetry={() => loadData(undefined, undefined, epochRef.current)} 
                />
              </div>

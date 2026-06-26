@@ -306,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (normalizedError) {
        const { indexCreateUrl } = normalizedError;
        console.log(`[Metrics] transactionsList index error handled (req: ${normalizedId}) - URL exposed: ${!!indexCreateUrl}`);
-       return res.status(503).json({
+       return res.status(409).json({
          ok: false,
          errorCode: 'FINANCE_REVIEW_INDEX_REQUIRED',
          requestId: normalizedId,
