@@ -5,6 +5,7 @@ import {
   Landmark,
   Layers,
   AlertCircle,
+  AlertTriangle,
   ShieldX,
   Wallet,
   ShieldCheck,
@@ -555,90 +556,80 @@ function TransactionDetailContent() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {tx.transactionKind === "transfer" ? (
                           <>
                             <div>
-                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                                Conta de Origem
-                              </p>
+                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Conta de Origem</p>
                               <p className="text-sm text-text-primary flex items-center gap-2">
                                 <Landmark className="w-4 h-4 text-text-muted" />
-                                {tx.accountSnapshot?.name ||
-                                  tx.accountName ||
-                                  "Conta de origem desconhecida"}
+                                {tx.accountSnapshot?.name || tx.accountName || <span className="text-text-muted italic">Não informado</span>}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                                Conta de Destino
-                              </p>
+                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Conta de Destino</p>
                               <p className="text-sm text-text-primary flex items-center gap-2">
                                 <Landmark className="w-4 h-4 text-text-muted" />
-                                {tx.destinationAccountSnapshot?.name ||
-                                  "Conta de destino desconhecida"}
+                                {tx.destinationAccountSnapshot?.name || <span className="text-text-muted italic">Não informado</span>}
                               </p>
                             </div>
                           </>
                         ) : tx.transactionKind === "liability_settlement" ? (
                           <>
                             <div>
-                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                                Conta de Origem (Pagamento)
-                              </p>
+                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Conta de Origem</p>
                               <p className="text-sm text-text-primary flex items-center gap-2">
                                 <Landmark className="w-4 h-4 text-text-muted" />
-                                {tx.accountSnapshot?.name ||
-                                  tx.accountName ||
-                                  "Conta desconhecida"}
+                                {tx.accountSnapshot?.name || tx.accountName || <span className="text-text-muted italic">Não informado</span>}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                                Passivo Liquidado
-                              </p>
+                              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Passivo Liquidado</p>
                               <p className="text-sm text-text-primary flex items-center gap-2">
                                 <Layers className="w-4 h-4 text-text-muted" />
-                                {tx.liabilityAccountSnapshot?.name ||
-                                  "Passivo desconhecido"}
+                                {tx.liabilityAccountSnapshot?.name || <span className="text-text-muted italic">Não informado</span>}
                               </p>
                             </div>
                             {tx.settlementType && (
-                              <div className="col-span-1 md:col-span-2">
-                                <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                                  Tipo de Acerto
-                                </p>
-                                <p className="text-sm text-text-primary font-medium">
-                                  {translateSettlementType(tx.settlementType)}
-                                </p>
+                              <div>
+                                <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Tipo de Acerto</p>
+                                <p className="text-sm text-text-primary font-medium">{translateSettlementType(tx.settlementType)}</p>
                               </div>
                             )}
                           </>
                         ) : (
                           <div>
-                            <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                              Conta Principal
-                            </p>
+                            <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Conta</p>
                             <p className="text-sm text-text-primary flex items-center gap-2">
                               <Landmark className="w-4 h-4 text-text-muted" />
-                              {tx.accountSnapshot?.name ||
-                                tx.accountName ||
-                                "Conta desconhecida"}
+                              {tx.accountSnapshot?.name || tx.accountName || <span className="text-text-muted italic">Não informado</span>}
                             </p>
                           </div>
                         )}
 
-                        {tx.method && (
-                          <div>
-                            <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                              Forma de pagamento
-                            </p>
-                            <p className="text-sm text-text-primary flex items-center gap-2">
-                              <Wallet className="w-4 h-4 text-text-muted" />
-                              {translateMethod(tx.method)}
-                            </p>
-                          </div>
-                        )}
+                        <div>
+                          <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Forma</p>
+                          <p className="text-sm text-text-primary flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-text-muted" />
+                            {tx.method ? translateMethod(tx.method) : <span className="text-text-muted italic">Não informado</span>}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Favorecido/Origem</p>
+                          <p className="text-sm text-text-primary flex items-center gap-2">
+                            <User className="w-4 h-4 text-text-muted" />
+                            {tx.counterparty || <span className="text-text-muted italic">Não informado</span>}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">Evidências</p>
+                          <p className="text-sm text-text-primary flex items-center gap-2">
+                            <FileClock className="w-4 h-4 text-text-muted" />
+                            {tx.evidenceIds?.length > 0 ? `${tx.evidenceIds.length} anexo(s)` : <span className="text-text-muted italic">Nenhuma evidência</span>}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -670,24 +661,39 @@ function TransactionDetailContent() {
                       {allocs.map((alloc: any) => (
                         <div
                           key={alloc.id}
-                          className="p-4 flex items-center justify-between gap-4"
+                          className="p-4 flex flex-col gap-3"
                         >
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-medium text-text-primary truncate">
-                              {alloc.categorySnapshot?.name ||
-                                alloc.categoryName ||
-                                "Categoria desconhecida"}
+                          <div className="flex justify-between items-start">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1 pr-4">
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-0.5">Categoria</span>
+                                <span className="text-sm font-medium text-text-primary">
+                                  {alloc.categorySnapshot?.name || alloc.categoryName || <span className="text-text-muted italic font-normal">Não informado</span>}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-0.5">Fundo</span>
+                                <span className="text-sm text-text-primary">
+                                  {alloc.fundSnapshot?.name || alloc.fundName || <span className="text-text-muted italic">Geral</span>}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-0.5">Centro de custo</span>
+                                <span className="text-sm text-text-primary">
+                                  {alloc.costCenterId ? (alloc.costCenterSnapshot?.name || alloc.costCenterName || alloc.costCenterId) : <span className="text-text-muted italic">Não se aplica</span>}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-0.5">Competência</span>
+                                <span className="text-sm text-text-primary">
+                                  {alloc.competenceDate ? new Date(alloc.competenceDate).toLocaleDateString("pt-BR", { month: 'short', year: 'numeric' }) : <span className="text-text-muted italic">Não informada</span>}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium text-text-primary shrink-0">
+                              {formatMoney(alloc.amountCents)}
                             </span>
-                            {(alloc.fundSnapshot?.name || alloc.fundName) && (
-                              <span className="text-xs text-text-muted truncate mt-0.5">
-                                Fundo:{" "}
-                                {alloc.fundSnapshot?.name || alloc.fundName}
-                              </span>
-                            )}
                           </div>
-                          <span className="text-sm font-medium text-text-primary shrink-0">
-                            {formatMoney(alloc.amountCents)}
-                          </span>
                         </div>
                       ))}
                       {allocs.length > 0 && isBalanced && (
@@ -703,63 +709,62 @@ function TransactionDetailContent() {
                   {isReviewMode && data.reviewReadiness && (
                     <div className="flex flex-col gap-3">
                       <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">
-                        Conferência Automática
+                        Resultado da Conferência
                       </h3>
 
                       {/* Accounting Effect */}
                       <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-2">
-                        <p className="text-xs text-text-muted uppercase tracking-wider font-semibold">
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
                           Efeito financeiro previsto
                         </p>
                         <p className="text-sm text-text-primary font-medium">
-                          {data.accountingEffect ||
-                            "Nenhum efeito contabilizado"}
+                          {data.accountingEffect || "Nenhum efeito contabilizado"}
                         </p>
                       </div>
 
-                      {/* Checklist Blockers & Warnings */}
-                      {data.reviewReadiness.blockers?.length > 0 && (
-                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-rose-500">
-                          <div className="flex items-center gap-2 font-medium">
-                            <AlertCircle className="w-5 h-5 shrink-0" />
-                            <span>Pendências impeditivas</span>
-                          </div>
-                          <ul className="list-disc list-inside ml-2">
-                            {data.reviewReadiness.blockers.map(
-                              (b: any, i: number) => (
-                                <li key={i}>{b.details}</li>
-                              ),
-                            )}
-                          </ul>
+                      {data.reviewReadiness && (data.reviewReadiness.blockers?.length > 0 || data.reviewReadiness.warnings?.length > 0) ? (
+                        <div className="flex flex-col gap-2">
+                          {data.reviewReadiness.blockers?.map((b: any, i: number) => (
+                            <div key={`blocker-${i}`} className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex gap-3 items-start">
+                              <div className="bg-rose-100 p-1.5 rounded-lg text-rose-600 mt-0.5 shrink-0">
+                                <AlertCircle className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="text-sm font-bold text-rose-800 uppercase tracking-wide">Bloqueio</h4>
+                                  <span className="text-[10px] font-mono text-rose-600/70 bg-rose-100 px-1.5 py-0.5 rounded truncate">{b.code}</span>
+                                </div>
+                                <p className="text-sm text-rose-700 leading-relaxed font-medium">{b.details}</p>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {data.reviewReadiness.warnings?.map((w: any, i: number) => (
+                            <div key={`warning-${i}`} className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
+                              <div className="bg-amber-100 p-1.5 rounded-lg text-amber-600 mt-0.5 shrink-0">
+                                <AlertTriangle className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="text-sm font-bold text-amber-800 uppercase tracking-wide">Aviso</h4>
+                                  <span className="text-[10px] font-mono text-amber-600/70 bg-amber-100 px-1.5 py-0.5 rounded truncate">{w.code}</span>
+                                </div>
+                                <p className="text-sm text-amber-700 leading-relaxed font-medium">{w.details}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
-
-                      {data.reviewReadiness.warnings?.length > 0 && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex flex-col gap-2 text-sm text-amber-600">
-                          <div className="flex items-center gap-2 font-medium">
-                            <AlertCircle className="w-5 h-5 shrink-0" />
-                            <span>Avisos (Requer atenção)</span>
+                      ) : data.reviewReadiness?.ready ? (
+                        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex gap-3 items-start">
+                          <div className="bg-teal-100 p-1.5 rounded-lg text-teal-600 mt-0.5 shrink-0">
+                            <ShieldCheck className="w-4 h-4" />
                           </div>
-                          <ul className="list-disc list-inside ml-2">
-                            {data.reviewReadiness.warnings.map(
-                              (w: any, i: number) => (
-                                <li key={i}>{w.details}</li>
-                              ),
-                            )}
-                          </ul>
+                          <div>
+                            <h4 className="text-sm font-bold text-teal-800 mb-1">Pronto para aprovação</h4>
+                            <p className="text-sm text-teal-700 leading-relaxed">Nenhuma pendência ou aviso encontrado nesta movimentação.</p>
+                          </div>
                         </div>
-                      )}
-
-                      {data.reviewReadiness.ready &&
-                        data.reviewReadiness.warnings?.length === 0 && (
-                          <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 flex gap-3 text-teal-600 items-start">
-                            <ShieldCheck className="w-5 h-5 shrink-0" />
-                            <p className="text-sm font-medium">
-                              Tudo certo! Nenhuma pendência encontrada nesta
-                              movimentação.
-                            </p>
-                          </div>
-                        )}
+                      ) : null}
                     </div>
                   )}
 
@@ -920,6 +925,8 @@ function TransactionDetailContent() {
                                       <thead>
                                         <tr className="border-b border-border-subtle text-text-muted text-[10px] uppercase tracking-wider">
                                           <th className="p-3 font-medium">Conta Contábil</th>
+                                          <th className="p-3 font-medium">Fundo</th>
+                                          <th className="p-3 font-medium">C. Custo</th>
                                           <th className="p-3 font-medium text-right">Débito</th>
                                           <th className="p-3 font-medium text-right">Crédito</th>
                                         </tr>
@@ -928,16 +935,20 @@ function TransactionDetailContent() {
                                         {postingPlanPreview.journalEntry.lines.map((line: any, idx: number) => (
                                           <tr key={idx} className="border-b border-border-subtle/50 last:border-0">
                                             <td className="p-3 text-text-primary font-mono">{line.ledgerAccountId}</td>
+                                            <td className="p-3 text-text-muted">{line.fundId || '-'}</td>
+                                            <td className="p-3 text-text-muted">{line.costCenterId || '-'}</td>
                                             <td className="p-3 text-right text-text-primary whitespace-nowrap">{line.debitCents > 0 ? formatBRLCents(line.debitCents) : '-'}</td>
                                             <td className="p-3 text-right text-text-primary whitespace-nowrap">{line.creditCents > 0 ? formatBRLCents(line.creditCents) : '-'}</td>
                                           </tr>
                                         ))}
                                         <tr className="bg-surface-elevated font-medium">
-                                          <td className="p-3 text-right text-text-muted flex items-center justify-end gap-2">
-                                            {postingPlanPreview.journalEntry.totalDebitCents === postingPlanPreview.journalEntry.totalCreditCents && (
-                                               <span className="text-[10px] text-teal-600 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 uppercase">Balanceado</span>
-                                            )}
-                                            Total
+                                          <td colSpan={3} className="p-3 text-right text-text-muted">
+                                            <div className="flex items-center justify-end gap-2">
+                                              {postingPlanPreview.journalEntry.totalDebitCents === postingPlanPreview.journalEntry.totalCreditCents && (
+                                                 <span className="text-[10px] text-teal-600 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 uppercase">Balanceado</span>
+                                              )}
+                                              Total
+                                            </div>
                                           </td>
                                           <td className="p-3 text-right text-text-primary whitespace-nowrap">{formatBRLCents(postingPlanPreview.journalEntry.totalDebitCents)}</td>
                                           <td className="p-3 text-right text-text-primary whitespace-nowrap">{formatBRLCents(postingPlanPreview.journalEntry.totalCreditCents)}</td>
@@ -1241,24 +1252,24 @@ function TransactionDetailContent() {
                             {tx.status === "ready_for_review" && (
                               <button
                                 onClick={handleApprove}
-                                disabled={
-                                  approving ||
-                                  (data.reviewReadiness &&
-                                    !data.reviewReadiness.ready)
-                                }
-                                className="w-full h-14 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
+                                disabled={approving || (data.reviewReadiness && !data.reviewReadiness.ready)}
+                                className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
+                                  ${data.reviewReadiness && !data.reviewReadiness.ready ? "bg-surface-elevated text-text-muted cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700 text-white focus-visible:ring-teal-500"}
+                                `}
                               >
                                 {approving ? (
-                                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${data.reviewReadiness && !data.reviewReadiness.ready ? 'border-text-muted' : 'border-white/30 border-t-white'}`} />
                                 ) : (
-                                  "Aprovar Movimentação"
+                                  "Aprovar para lançamento"
                                 )}
                               </button>
                             )}
                             <button
                               onClick={() => setShowReturnForm(true)}
                               disabled={approving}
-                              className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors disabled:opacity-50 text-base"
+                              className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 text-base
+                                ${tx.status === "ready_for_review" && data.reviewReadiness && !data.reviewReadiness.ready ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" : "bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary"}
+                              `}
                             >
                               {tx.status === "approved_for_posting"
                                 ? "Invalidar aprovação e devolver para rascunho"

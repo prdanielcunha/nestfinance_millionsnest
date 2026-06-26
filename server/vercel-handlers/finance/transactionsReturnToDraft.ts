@@ -76,8 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
       
-      if (txData.status !== 'ready_for_review') {
-         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot return transaction not in ready_for_review' };
+      if (txData.status !== 'ready_for_review' && txData.status !== 'approved_for_posting') {
+         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot return transaction not in ready_for_review or approved_for_posting' };
       }
 
       const transactionKind = txData.transactionKind || txData.direction;

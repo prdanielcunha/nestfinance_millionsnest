@@ -659,6 +659,71 @@ async function runGatewayTests() {
     fakeQueryProto.get = originalGet;
   });
 
+  // 17. Cenário universal de bloqueio de aprovação (Saída de R$ 300,00 sem conta ou favorecido)
+  await runAssertAsync('Cenário universal de bloqueio (Saída R$ 300,00 sem evidências e rateios impede aprovação)', async () => {
+    const txIdUniversal = 'tx_universal_1';
+    
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(txIdUniversal).set({
+      id: txIdUniversal,
+      financeEntityId: entity1Id,
+      status: 'ready_for_review',
+      amountCents: 30000,
+      currency: 'BRL',
+      direction: 'expense',
+      transactionKind: 'expense',
+      occurredAt: '2026-06-24T18:00:00Z',
+      version: 1,
+      // Missing accountId -> MISSING_ACCOUNT blocker
+      // Missing allocationIds -> MISSING_CATEGORY blocker
+    });
+    
+    const reqDetail = {
+      method: 'POST',
+      query: { operation: 'transactions-detail' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: txIdUniversal
+      }
+    };
+    
+    const resDetail = new MockRes();
+    await gatewayHandler(reqDetail as any, resDetail as any);
+    
+    assert.strictEqual(resDetail.statusCode, 200);
+    const readiness = resDetail.body.reviewReadiness;
+    
+    assert.strictEqual(readiness.ready, false);
+    assert.ok(readiness.blockers.some((b: any) => b.code === 'MISSING_ACCOUNT'));
+    assert.ok(readiness.blockers.some((b: any) => b.code === 'MISSING_CATEGORY'));
+    assert.ok(readiness.warnings.some((w: any) => w.code === 'NO_EVIDENCE'));
+
+    const reqApprove = {
+      method: 'POST',
+      query: { operation: 'transactions-approve-for-posting' },
+      headers: {
+        authorization: 'Bearer token',
+        'x-organization-id': org1Id
+      },
+      body: {
+        financeEntityId: entity1Id,
+        transactionId: txIdUniversal,
+        expectedVersion: 1,
+        approvalIdempotencyKey: 'idemp-univ',
+        requestId: 'req-univ',
+        comment: 'Aprovação forçada'
+      }
+    };
+    
+    const resApprove = new MockRes();
+    await gatewayHandler(reqApprove as any, resApprove as any);
+    assert.strictEqual(resApprove.statusCode, 400);
+    assert.strictEqual(resApprove.body.error, 'FINANCE_NOT_READY_FOR_APPROVAL');
+  });
+
   // Restore verification hook
   authInstance.verifyIdToken = originalVerifyInstance;
 
