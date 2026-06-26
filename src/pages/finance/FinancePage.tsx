@@ -28,6 +28,7 @@ export default function FinancePage() {
   const [reviewCount, setReviewCount] = useState<number | string | null>(null);
   const [draftCount, setDraftCount] = useState<number | string | null>(null);
   const [returnedCount, setReturnedCount] = useState<number | string | null>(null);
+  const [approvedCount, setApprovedCount] = useState<number | string | null>(null);
 
   const setupStatus = accessState.financeSetup?.status;
   const returnTo = searchParams.get('returnTo');
@@ -52,6 +53,14 @@ export default function FinancePage() {
         })
         .catch(() => {
           setReviewCount(0);
+        });
+
+      listTransactions({ status: 'approved_for_posting' })
+        .then((res) => {
+          setApprovedCount(res.items.length + (res.hasMore ? '+' : ''));
+        })
+        .catch(() => {
+          setApprovedCount(0);
         });
 
       listTransactions({ status: 'draft' })
@@ -311,8 +320,8 @@ export default function FinancePage() {
           <div className="flex flex-col w-full">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-text-primary">Movimentações</h2>
-                <p className="text-sm text-text-secondary">Registros e rascunhos desta igreja.</p>
+                <h2 className="text-lg font-semibold text-text-primary">Em preenchimento</h2>
+                <p className="text-sm text-text-secondary">Rascunhos pendentes e criação de novos lançamentos.</p>
               </div>
             </div>
 
@@ -336,14 +345,14 @@ export default function FinancePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <h3 className="text-base font-medium text-text-primary mb-1">Rascunhos e correções</h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex flex-col gap-1 mt-1">
                       {returnedCount && returnedCount !== 0 && returnedCount !== '0' ? (
-                        <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                        <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 w-fit">
                           {returnedCount} aguardando correção
                         </span>
                       ) : null}
                       {draftCount && draftCount !== 0 && draftCount !== '0' ? (
-                        <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 w-fit">
                           {draftCount} rascunho(s)
                         </span>
                       ) : null}
@@ -368,8 +377,8 @@ export default function FinancePage() {
                        <Clock className="w-6 h-6" />
                      </div>
                      <div className="flex flex-col">
-                       <h3 className="text-base font-medium text-text-primary mb-1">Movimentações do mês</h3>
-                       <p className="text-sm text-text-secondary">Dinheiro que realmente entrou, saiu ou foi transferido.</p>
+                       <h3 className="text-base font-medium text-text-primary mb-1">Ver movimentações lançadas</h3>
+                       <p className="text-sm text-text-secondary">Entradas e saídas concretizadas.</p>
                      </div>
                    </div>
                    <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0 ml-4" />
@@ -386,26 +395,49 @@ export default function FinancePage() {
               </div>
             </div>
             
-            <button
-              onClick={() => navigate(APP_ROUTES.financeReview)}
-              className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex items-center justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-            >
-              <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 text-amber-500 group-hover:scale-105 transition-transform relative">
-                   <ClipboardCheck className="w-6 h-6" />
-                   {reviewCount !== null && reviewCount !== 0 && (
-                     <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full border-2 border-surface-base">
-                       {reviewCount}
-                     </div>
-                   )}
-                 </div>
-                 <div>
-                   <h3 className="text-base font-medium text-text-primary mb-1">Central de Revisões</h3>
-                   <p className="text-sm text-text-secondary">Avaliar lançamentos pendentes de aprovação.</p>
-                 </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate(APP_ROUTES.financeReview)}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex items-center justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              >
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 text-amber-500 group-hover:scale-105 transition-transform relative">
+                     <ClipboardCheck className="w-6 h-6" />
+                     {reviewCount !== null && reviewCount !== 0 && reviewCount !== '0' && (
+                       <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-surface-base">
+                         {reviewCount}
+                       </div>
+                     )}
+                   </div>
+                   <div>
+                     <h3 className="text-base font-medium text-text-primary mb-1">Central de Revisões</h3>
+                     <p className="text-sm text-text-secondary">Avaliar lançamentos pendentes de aprovação.</p>
+                   </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0 hidden md:block" />
+              </button>
+
+              <button
+                onClick={() => navigate(APP_ROUTES.transactions + '?status=approved_for_posting')}
+                className="bg-surface-base hover:bg-surface-elevated border border-border-subtle rounded-2xl p-6 text-left transition-colors flex items-center justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              >
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20 text-teal-600 group-hover:scale-105 transition-transform relative">
+                     <ClipboardCheck className="w-6 h-6" />
+                     {approvedCount !== null && approvedCount !== 0 && approvedCount !== '0' && (
+                       <div className="absolute -top-2 -right-2 bg-teal-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-surface-base">
+                         {approvedCount}
+                       </div>
+                     )}
+                   </div>
+                   <div>
+                     <h3 className="text-base font-medium text-text-primary mb-1">Aprovadas</h3>
+                     <p className="text-sm text-text-secondary">Movimentações já aprovadas, mas que ainda não alteraram o saldo.</p>
+                   </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0 hidden md:block" />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col w-full">

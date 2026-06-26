@@ -136,9 +136,10 @@ function TransactionsListContent() {
   const translateStatus = (st: string) => {
     const dict: Record<string, string> = {
       draft: 'Rascunho',
-      ready_for_review: 'Pronto para revisão',
-      posted: 'Registrado',
-      reversed: 'Revertido'
+      ready_for_review: 'Aguardando revisão',
+      approved_for_posting: 'Aprovada para lançamento',
+      posted: 'Lançada',
+      reversed: 'Revertida'
     };
     return dict[st] || st;
   };
@@ -222,10 +223,11 @@ function TransactionsListContent() {
               className="h-12 outline-none bg-surface-elevated text-sm text-text-primary border border-border-subtle rounded-xl px-4 hover:bg-surface-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-primary min-w-[120px]"
               aria-label="Filtrar por status"
            >
-              <option className="bg-surface-elevated text-text-primary" value="all">Últimas</option>
-              <option className="bg-surface-elevated text-text-primary" value="draft">Rascunhos</option>
-              <option className="bg-surface-elevated text-text-primary" value="ready_for_review">Revisão</option>
-              <option className="bg-surface-elevated text-text-primary" value="posted">Registradas</option>
+              <option className="bg-surface-elevated text-text-primary" value="all">Todas as movimentações</option>
+              <option className="bg-surface-elevated text-text-primary" value="draft">Rascunhos e correções</option>
+              <option className="bg-surface-elevated text-text-primary" value="ready_for_review">Aguardando revisão</option>
+              <option className="bg-surface-elevated text-text-primary" value="approved_for_posting">Aprovadas para lançamento</option>
+              <option className="bg-surface-elevated text-text-primary" value="posted">Lançadas</option>
               <option className="bg-surface-elevated text-text-primary" value="reversed">Revertidas</option>
            </select>
            
@@ -273,7 +275,16 @@ function TransactionsListContent() {
 
           {!loading && !error && !errorDetails && items.length === 0 && (
             <div className="flex flex-col items-center justify-center p-12 text-center text-text-secondary mt-12 mb-12">
-              <span className="text-sm font-medium text-text-muted">Nenhuma movimentação registrada.</span>
+              <span className="text-sm font-medium text-text-primary mb-2">
+                {statusFilter === 'posted' ? 'Nenhuma movimentação lançada neste período' : 
+                 statusFilter === 'approved_for_posting' ? 'Nenhuma movimentação aprovada aguardando lançamento' :
+                 statusFilter === 'draft' ? 'Nenhum rascunho ou correção pendente' :
+                 statusFilter === 'ready_for_review' ? 'Nenhuma movimentação aguardando revisão' :
+                 'Nenhuma movimentação encontrada.'}
+              </span>
+              {statusFilter === 'posted' && (
+                <p className="text-sm text-text-muted">Rascunhos, correções e itens em revisão aparecem nas áreas de trabalho correspondentes.</p>
+              )}
             </div>
           )}
 

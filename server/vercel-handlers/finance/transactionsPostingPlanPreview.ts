@@ -49,9 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const txDoc = await db
     .collection('organizations')
     .doc(organizationId)
-    .collection('financeEntities')
-    .doc(financeEntityId)
-    .collection('transactions')
+    .collection('financeTransactions')
     .doc(transactionId)
     .get();
 
@@ -87,9 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const approvalDoc = await db
     .collection('organizations')
     .doc(organizationId)
-    .collection('financeEntities')
-    .doc(financeEntityId)
-    .collection('transactions')
+    .collection('financeTransactions')
     .doc(transactionId)
     .collection('approvals')
     .doc('latest')

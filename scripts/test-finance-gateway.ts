@@ -384,7 +384,7 @@ async function runGatewayTests() {
   // 12. Status approved não canônico rejeitado no Preview
   await runAssertAsync('Status approved não canônico rejeitado no preview', async () => {
     const invalidTxId = 'tx_invalid_state';
-    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('transactions').doc(invalidTxId).set({
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(invalidTxId).set({
       id: invalidTxId,
       financeEntityId: entity1Id,
       status: 'approved', // Non-canonical status! Must be 'ready_for_review' or 'approved_for_posting'
@@ -434,7 +434,8 @@ async function runGatewayTests() {
       approvedVersion: 1,
       approvalSourceHash: '',
       accountId: 'acc_1',
-      allocationIds: ['alloc_app_1']
+      allocationIds: ['alloc_app_1'],
+      listQueryKeys: buildTransactionListQueryKeys(entity1Id, approvedTxId, 'income', 'approved_for_posting', '2026-06-24T18:00:00Z')
     };
 
     const allocations: any[] = [{
@@ -461,15 +462,14 @@ async function runGatewayTests() {
 
     await fakeDb.collection('organizations').doc(org1Id).collection('financeAllocations').doc('alloc_app_1').set(allocations[0]);
 
-    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id).collection('transactions').doc(approvedTxId).set({
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(approvedTxId).set({
       ...txData,
       approvalSourceHash: sourceHash,
       approvedPlanHash: planHash
     });
 
     // Create the latest approval
-    await fakeDb.collection('organizations').doc(org1Id).collection('financeEntities').doc(entity1Id)
-      .collection('transactions').doc(approvedTxId).collection('approvals').doc('latest').set({
+    await fakeDb.collection('organizations').doc(org1Id).collection('financeTransactions').doc(approvedTxId).collection('approvals').doc('latest').set({
         status: 'approved_for_posting',
         approvedVersion: 1,
         approvalSourceHash: sourceHash,
@@ -746,6 +746,52 @@ async function runGatewayTests() {
     const data = txSnap.data();
     
     assert.strictEqual(data.allocations[0].fundId, null, 'fundId deve permanecer null no banco, sem default de string falsa.');
+  });
+
+  // 19. "Aprovadas para lançamento" and other filters check
+  await runAssertAsync('Filtros server-side: approved_for_posting e Todas', async () => {
+    const listReq = {
+      method: 'POST',
+      query: { operation: 'transactions-list' },
+      headers: { authorization: 'Bearer token', 'x-organization-id': org1Id },
+      body: {
+        financeEntityId: entity1Id,
+        filters: { status: 'approved_for_posting' }
+      }
+    };
+    
+    const listRes = new MockRes();
+    await gatewayHandler(listReq as any, listRes as any);
+    
+    assert.strictEqual(listRes.statusCode, 200);
+    assert.ok(Array.isArray(listRes.body.items));
+    
+    console.log('List Items returned for approved_for_posting:', listRes.body.items.map((i: any) => i.id));
+    
+    const approvedTx = listRes.body.items.find((i: any) => i.id === 'tx_approved_posting');
+    if (!approvedTx) {
+        assert.ok(false, 'Transaction tx_approved_posting missing in approved_for_posting list');
+    }
+    assert.strictEqual(approvedTx.status, 'approved_for_posting');
+
+    const draftReq = {
+      method: 'POST',
+      query: { operation: 'transactions-list' },
+      headers: { authorization: 'Bearer token', 'x-organization-id': org1Id },
+      body: {
+        financeEntityId: entity1Id,
+        filters: { status: 'draft' }
+      }
+    };
+    const draftRes = new MockRes();
+    await gatewayHandler(draftReq as any, draftRes as any);
+    
+    if (draftRes.statusCode !== 200) {
+        console.error('Draft request failed:', draftRes.body);
+    }
+    
+    const hasApprovedInDraft = draftRes.body.items.some((i: any) => i.id === 'tx_approved_posting');
+    assert.strictEqual(hasApprovedInDraft, false);
   });
 
   // Restore verification hook

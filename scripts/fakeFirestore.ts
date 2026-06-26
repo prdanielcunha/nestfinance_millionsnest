@@ -94,7 +94,23 @@ class FakeQuery {
           const data = this.db.data[key];
           let match = true;
           for (const f of this.filters) {
-            if (f.op === '==' && data[f.field] !== f.value) match = false;
+            let val = data;
+            if (f.field.includes('.')) {
+              const parts = f.field.split('.');
+              val = data[parts[0]] ? data[parts[0]][parts[1]] : undefined;
+            } else {
+              val = data[f.field];
+            }
+            if (val === undefined) {
+              match = false;
+            } else {
+              if (f.op === '==' && val !== f.value) match = false;
+              if (f.op === '>=' && val < f.value) match = false;
+              if (f.op === '<=' && val > f.value) match = false;
+              if (f.op === '>' && val <= f.value) match = false;
+              if (f.op === '<' && val >= f.value) match = false;
+              if (f.op === 'in' && Array.isArray(f.value) && !f.value.includes(val)) match = false;
+            }
           }
           if (match) {
             results.push({ id: parts[0], data: () => data, exists: true, ref: new FakeDoc(this.db, key) });
