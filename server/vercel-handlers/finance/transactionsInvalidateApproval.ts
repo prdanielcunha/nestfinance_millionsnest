@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (typeof expectedVersion !== 'number' || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    if (!expectedApprovalSourceHash || typeof expectedApprovalSourceHash !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (expectedApprovalSourceHash !== undefined && expectedApprovalSourceHash !== null && typeof expectedApprovalSourceHash !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!reasonCode || typeof reasonCode !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'date_needs_change',
       'attachment_needs_change',
       'beneficiary_needs_change',
+      'need_correction',
       'other'
     ];
     if (!validReasons.includes(reasonCode)) {
@@ -112,9 +113,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No active approval found to invalidate' };
       }
 
-      // 8. Validar sourceHash atual
-      if (txData.approvalSourceHash !== expectedApprovalSourceHash) {
-         throw { code: 'FINANCE_APPROVAL_HASH_MISMATCH', message: 'Approval source hash mismatch' };
+      // 8. Calcular sealStatus e validar stale/divergencia se for 'need_correction'
+      const { loadPostingConfiguration } = await import('./loadPostingConfiguration.js');
+      const { computeApprovalSourceHash } = await import('../../../shared/finance/ledger/approvalSourceHash.js');
+      const { buildPostingPlan } = await import('../../../shared/finance/ledger/postingPlan.js');
+
+      const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
+      const allocations = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()}) as any);
+
+      const approvalDoc = await t.get(txRef.collection('approvals').doc('latest'));
+      const approval = approvalDoc.exists ? approvalDoc.data() : undefined;
+
+      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+
+      let sealStatus = 'verified';
+      if (!txData.approvedBy || !txData.approvalSourceHash || !approval || !approval.approvedPlanHash) {
+        sealStatus = 'seal_missing';
+      } else if (txData.approvedVersion !== approval.approvedVersion) {
+        sealStatus = 'transaction_stale';
+      } else if (txData.approvalSourceHash !== approval.approvalSourceHash) {
+        sealStatus = 'transaction_stale';
+      } else {
+        const plan = buildPostingPlan({
+          transaction: txData,
+          allocations,
+          approval: approval as any,
+          mappings,
+          policy,
+          isPreview: true
+        });
+        if (referenceFingerprintHash !== approval.approvedReferenceFingerprintHash) {
+          sealStatus = 'references_changed';
+        } else if (plan.planHash !== approval.approvedPlanHash) {
+          sealStatus = 'plan_mismatch';
+        }
+      }
+
+      if (reasonCode === 'need_correction') {
+        if (sealStatus === 'verified') {
+          throw { 
+            code: 'FINANCE_APPROVAL_NOT_STALE', 
+            message: 'A transação está com a aprovação válida e não precisa de correção.' 
+          };
+        }
+      } else {
+        if (expectedApprovalSourceHash && txData.approvalSourceHash !== expectedApprovalSourceHash) {
+          throw { code: 'FINANCE_APPROVAL_HASH_MISMATCH', message: 'Approval source hash mismatch' };
+        }
       }
 
       const transactionKind = txData.transactionKind || txData.direction;
