@@ -191,6 +191,47 @@ function TransactionDetailContent() {
     }
   };
 
+  const [repairing, setRepairing] = useState(false);
+  const handleRepairApproval = async () => {
+    if (repairing || !data?.transaction) return;
+    setRepairing(true);
+    setError(null);
+    setActionError(null);
+
+    const reqId = "req_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const idKey = "idrep_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+
+    try {
+      const res = await fetch('/api/finance/transactions?operation=transactions-repair-approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessState.profile?.token}`,
+          'x-organization-id': accessState.organization?.id || ''
+        },
+        body: JSON.stringify({
+          financeEntityId: accessState.financeEntity?.id,
+          transactionId: data.transaction.id,
+          idempotencyKey: idKey,
+          requestId: reqId
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.details || errorData.error || 'Erro ao reparar selo');
+      }
+
+      alert('Selo reparado sem mudanças materiais');
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      setActionError(err.message || 'Erro de conexão.');
+    } finally {
+      setRepairing(false);
+    }
+  };
+
   const handleReturnToDraft = async () => {
     if (returningToDraft || !data?.transaction) return;
     setReturningToDraft(true);
@@ -660,13 +701,18 @@ function TransactionDetailContent() {
                  }
               } else if (tx.status === "approved_for_posting") {
                  if (sealStatus && sealStatus !== 'verified') {
+                   const isLegacyStale = (sealStatus === 'transaction_stale' || sealStatus === 'plan_mismatch') && (!tx.approvalAlgorithmVersion || tx.approvalAlgorithmVersion < 2);
                    nextStep = {
                      status: 'approval_stale',
-                     title: 'Aprovação inválida',
-                     message: 'Os dados mudaram desde a última aprovação.',
+                     title: isLegacyStale ? 'Selo desatualizado' : 'Aprovação inválida',
+                     message: isLegacyStale ? 'O selo de integridade foi gerado em uma versão antiga do sistema. É necessário atualizá-lo.' : 'Os dados mudaram desde a última aprovação.',
                      affectsBalance: false,
                      pendingFindings: [],
-                     primaryAction: {
+                     primaryAction: isLegacyStale ? {
+                       label: repairing ? 'Reparando...' : 'Atualizar selo',
+                       disabled: repairing,
+                       action: handleRepairApproval
+                     } : {
                        label: 'Corrigir e reenviar',
                        disabled: returningToDraft,
                        action: () => {

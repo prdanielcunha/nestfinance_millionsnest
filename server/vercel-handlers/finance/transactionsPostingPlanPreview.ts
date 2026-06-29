@@ -103,10 +103,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('DEBUG: approval data:', approval);
     if (!approval || !approval.approvedPlanHash) {
       sealStatus = 'seal_missing';
-    } else if (transaction.approvedVersion !== approval.approvedVersion) {
-      sealStatus = 'transaction_stale';
-    } else if (transaction.approvalSourceHash !== approval.approvalSourceHash) {
-      sealStatus = 'transaction_stale';
+    } else {
+      const algoVer = approval.approvalAlgorithmVersion || 1;
+      const currentSourceHash = computeApprovalSourceHash(transaction, allocations, algoVer);
+
+      // Verify that the underlying material source hash is identical
+      if (currentSourceHash !== approval.approvalSourceHash) {
+        sealStatus = 'transaction_stale';
+      }
     }
   }
 

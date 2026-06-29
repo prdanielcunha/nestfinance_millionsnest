@@ -3,9 +3,8 @@ import { LedgerTransaction } from './transaction.js';
 import { FinanceAllocation } from './allocation.js';
 import { canonicalStringify } from './postingPreview.js';
 
-export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: FinanceAllocation[]): string {
-  const materialSource = {
-    version: tx.version,
+export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: FinanceAllocation[], algorithmVersion: number = 2): string {
+  const materialSource: any = {
     organizationId: tx.organizationId,
     financeEntityId: tx.financeEntityId,
     transactionId: tx.id,
@@ -28,6 +27,13 @@ export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: Fi
       costCenterId: a.costCenterId
     })).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   };
+
+  if (algorithmVersion === 1) {
+    materialSource.version = tx.version;
+  } else {
+    materialSource.contentVersion = tx.contentVersion || 1;
+    materialSource.algorithmVersion = 2;
+  }
 
   const canonicalString = canonicalStringify(materialSource);
   const hex = createHash('sha256').update(canonicalString).digest('hex');

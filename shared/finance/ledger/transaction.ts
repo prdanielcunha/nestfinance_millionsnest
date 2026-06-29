@@ -38,6 +38,7 @@ export type TransactionBase = {
   reversalOf?: string;
   journalEntryId?: JournalEntryId;
   idempotencyKey?: IdempotencyKey;
+  contentVersion?: number;
   version: number;
   schemaVersion: number;
 };

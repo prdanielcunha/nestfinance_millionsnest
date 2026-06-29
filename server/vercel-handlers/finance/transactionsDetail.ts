@@ -309,6 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedAt: txData.approvedAt,
         approvedVersion: txData.approvedVersion,
         approvalSourceHash: txData.approvalSourceHash,
+        approvalAlgorithmVersion: (txData as any).approvalAlgorithmVersion || 1,
         approvalComment: txData.approvalComment,
         approvalStatus: txData.approvalStatus || null,
         invalidatedBy: txData.invalidatedBy || null,

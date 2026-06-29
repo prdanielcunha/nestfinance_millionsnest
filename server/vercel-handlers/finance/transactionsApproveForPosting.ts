@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const approvedPlanHash = plan.planHash;
       const approvedReferenceFingerprintHash = referenceFingerprintHash;
-      const sourceHash = computeApprovalSourceHash(txData, allocations);
+      const sourceHash = computeApprovalSourceHash(txData, allocations, 2);
 
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
@@ -139,6 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvalSourceHash: sourceHash,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
+        approvalAlgorithmVersion: 2,
         postingPlanVersion: 1,
         comment: comment || null
       });
@@ -158,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvalSourceHash: sourceHash,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
+        approvalAlgorithmVersion: 2,
         approvalComment: comment || null
       }));
 

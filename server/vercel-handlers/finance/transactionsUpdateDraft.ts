@@ -424,6 +424,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       newRecord.version = txData.version + 1;
+      newRecord.contentVersion = (txData.contentVersion || txData.version) + 1;
       newRecord.updatedAt = FieldValue.serverTimestamp();
 
       const { sanitizeFirestoreObject } = await import('./sanitizeFirestoreObject.js');

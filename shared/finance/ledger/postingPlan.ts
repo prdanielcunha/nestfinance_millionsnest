@@ -549,13 +549,10 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
     blockers.splice(0, blockers.length, ...unique.sort(compareBlockers));
   }
 
-  const materialSource = {
+  const materialSource: any = {
     planVersion,
     transactionId: tx.id,
     financeEntityId: tx.financeEntityId,
-    approvedVersion: tx.approvedVersion,
-    approvalSourceHash: tx.approvalSourceHash,
-    version: tx.version,
     occurredAt: tx.occurredAt,
     lines: lines.map(l => ({
       lineKey: l.lineKey,
@@ -579,6 +576,15 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
       amountCents: e.amountCents
     })).sort((a, b) => compareCanonicalId(a.fundId, b.fundId))
   };
+
+  const algoVer = (approval as any)?.approvalAlgorithmVersion || 1;
+  if (algoVer === 1) {
+    materialSource.approvedVersion = tx.approvedVersion;
+    materialSource.approvalSourceHash = tx.approvalSourceHash;
+    materialSource.version = tx.version;
+  } else {
+    materialSource.contentVersion = tx.contentVersion || 1;
+  }
 
   let planHash = '';
   if (blockers.length === 0) {
@@ -637,12 +643,10 @@ export function buildReversalPlan(originalPlan: PostingPlan): PostingPlan {
     return { ...e, effect: newEffect };
   }) as FundEffectProjection[];
 
-  const materialSource = {
+  const materialSource: any = {
     planVersion: originalPlan.planVersion,
     transactionId: originalPlan.transactionId,
     financeEntityId: originalPlan.financeEntityId,
-    approvedVersion: originalPlan.approvedVersion,
-    approvalSourceHash: originalPlan.approvalSourceHash,
     lines: reversedLines.map(l => ({
       lineKey: l.lineKey,
       ledgerAccountId: l.ledgerAccountId,
@@ -666,6 +670,9 @@ export function buildReversalPlan(originalPlan: PostingPlan): PostingPlan {
     })).sort((a, b) => compareCanonicalId(a.fundId, b.fundId)),
     isReversal: true
   };
+  // For reversals, we might just assume we don't care as much about the version exact match, or we could include contentVersion. Let's include contentVersion from original tx if available. Wait, reversal plan doesn't have approval object. Reversals are posted immediately without approval. We can omit it. But legacy hash used them.
+  materialSource.approvedVersion = originalPlan.approvedVersion;
+  materialSource.approvalSourceHash = originalPlan.approvalSourceHash;
 
   const canonicalString = canonicalStringify(materialSource);
   const planHash = computePlanHash(canonicalString);
