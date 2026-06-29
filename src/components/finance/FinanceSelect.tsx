@@ -36,6 +36,9 @@ export function FinanceSelect({
   
   // Track window width for mobile vs desktop logic
   const [isMobile, setIsMobile] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const triggerId = React.useId();
+  const listboxId = React.useId();
   
   useEffect(() => {
     const handleResize = () => {
@@ -53,6 +56,14 @@ export function FinanceSelect({
     const lowerQuery = searchQuery.toLowerCase();
     return options.filter(o => o.label.toLowerCase().includes(lowerQuery));
   }, [options, searchQuery]);
+
+  const allItems = useMemo(() => {
+    const items = [...filteredOptions];
+    if (allowClear) {
+      items.unshift({ value: '', label: 'Nenhum' });
+    }
+    return items;
+  }, [filteredOptions, allowClear]);
 
   const showSearch = options.length > 8;
 
@@ -108,31 +119,39 @@ export function FinanceSelect({
       if (e.key === 'Escape') {
         setIsOpen(false);
         triggerRef.current?.focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex(prev => (prev < allItems.length - 1 ? prev + 1 : prev));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex(prev => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === 'Enter') {
+        if (focusedIndex >= 0 && focusedIndex < allItems.length) {
+          e.preventDefault();
+          handleSelect(allItems[focusedIndex].value);
+        }
       }
     };
     
-    const handleClickOutside = (e: MouseEvent) => {
-      // Basic check: if it's mobile, we assume the backdrop click handles it.
-      // If desktop, check if click is outside trigger and popover.
-      // For simplicity, we can let backdrop handle both or check DOM.
-    };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, allItems, focusedIndex]);
 
-  // Reset search when opening
+  // Reset search and focus when opening
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
+      const initialIndex = allItems.findIndex(i => i.value === value);
+      setFocusedIndex(initialIndex >= 0 ? initialIndex : 0);
       // Prevent body scroll on mobile
       if (isMobile) {
         document.body.style.overflow = 'hidden';
       }
     } else {
       document.body.style.overflow = '';
+      setFocusedIndex(-1);
     }
     return () => {
       document.body.style.overflow = '';
@@ -146,7 +165,7 @@ export function FinanceSelect({
   };
 
   const renderList = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" role="presentation">
       {showSearch && (
         <div className="p-4 border-b border-border-subtle shrink-0">
           <div className="relative">
@@ -158,40 +177,39 @@ export function FinanceSelect({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus={!isMobile} // autoFocus on desktop, can be tricky on mobile so omit
+              aria-label="Buscar opções"
             />
           </div>
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-2 overscroll-contain">
-        {allowClear && (
-          <button
-            type="button"
-            className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-left transition-colors mb-1
-              ${value === '' ? 'bg-accent-primary/10 text-accent-primary' : 'text-text-primary hover:bg-surface-secondary'}
-            `}
-            onClick={() => handleSelect('')}
-          >
-            <span className="text-base truncate">Nenhum</span>
-            {value === '' && <Check className="w-5 h-5 shrink-0 text-accent-primary" />}
-          </button>
-        )}
-        
-        {filteredOptions.length === 0 ? (
-          <div className="p-4 text-center text-text-muted text-sm">
+      <div 
+        id={listboxId}
+        role="listbox"
+        className="flex-1 overflow-y-auto p-2 overscroll-contain"
+        aria-label={placeholder}
+      >
+        {filteredOptions.length === 0 && (!allowClear || value !== '') ? (
+          <div className="p-4 text-center text-text-muted text-sm" role="option" aria-selected="false">
             {emptyMessage}
           </div>
         ) : (
-          filteredOptions.map((opt) => {
+          allItems.map((opt, idx) => {
             const isSelected = value === opt.value;
+            const isFocused = focusedIndex === idx;
             return (
               <button
                 key={opt.value}
+                id={`${listboxId}-option-${idx}`}
                 type="button"
+                role="option"
+                aria-selected={isSelected}
                 className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-left transition-colors mb-1
                   ${isSelected ? 'bg-accent-primary/10 text-accent-primary font-medium' : 'text-text-primary hover:bg-surface-secondary'}
+                  ${isFocused ? 'ring-2 ring-accent-primary ring-inset' : ''}
                 `}
                 onClick={() => handleSelect(opt.value)}
+                onMouseEnter={() => setFocusedIndex(idx)}
               >
                 <span className="text-base truncate">{opt.label}</span>
                 {isSelected && <Check className="w-5 h-5 shrink-0 text-accent-primary" />}
@@ -252,6 +270,7 @@ export function FinanceSelect({
     <>
       <button
         ref={triggerRef}
+        id={triggerId}
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(true)}
@@ -261,6 +280,9 @@ export function FinanceSelect({
         `}
         role="combobox"
         aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-controls={isOpen ? listboxId : undefined}
+        aria-activedescendant={isOpen && focusedIndex >= 0 ? `${listboxId}-option-${focusedIndex}` : undefined}
       >
         <span className={`block truncate text-base ${!selectedOption && !value ? 'text-text-muted' : 'text-text-primary'}`}>
           {selectedOption ? selectedOption.label : placeholder}

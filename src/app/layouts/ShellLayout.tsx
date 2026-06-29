@@ -3,14 +3,14 @@ import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
 import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Settings, Users, HelpCircle, Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 export type NavigationItem = {
   id: string;
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   route: string;
   order: number;
   group: 'primary' | 'more';
