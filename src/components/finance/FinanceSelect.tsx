@@ -61,12 +61,42 @@ export function FinanceSelect({
   
   useEffect(() => {
     if (isOpen && triggerRef.current && !isMobile) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPopoverStyle({
-        top: rect.bottom + window.scrollY + 4, // 4px gap
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
+      const updatePosition = () => {
+        if (!triggerRef.current) return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const popoverMaxHeight = 320;
+        
+        let style: React.CSSProperties = {
+          left: rect.left,
+          width: rect.width,
+          position: 'fixed',
+        };
+
+        if (spaceBelow < popoverMaxHeight && spaceAbove > spaceBelow) {
+          // Open upwards
+          const maxHeight = Math.min(popoverMaxHeight, spaceAbove - 12);
+          style.bottom = window.innerHeight - rect.top + 4;
+          style.maxHeight = `${maxHeight}px`;
+        } else {
+          // Open downwards
+          const maxHeight = Math.min(popoverMaxHeight, spaceBelow - 12);
+          style.top = rect.bottom + 4;
+          style.maxHeight = `${maxHeight}px`;
+        }
+        
+        setPopoverStyle(style);
+      };
+
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
     }
   }, [isOpen, isMobile]);
 
@@ -183,7 +213,7 @@ export function FinanceSelect({
             className="absolute inset-0 bg-background-base/80 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)}
           />
-          <div className="relative bg-surface-elevated rounded-t-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border-t border-border-subtle pb-4 sm:pb-0">
+          <div className="relative bg-surface-elevated rounded-t-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border-t border-border-subtle pb-[env(safe-area-inset-bottom,16px)]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle shrink-0">
               <h3 className="text-base font-medium text-text-primary">{placeholder}</h3>
               <button 
@@ -209,7 +239,7 @@ export function FinanceSelect({
         />
         <div 
           className="absolute z-50 bg-surface-elevated border border-border-subtle rounded-xl shadow-xl overflow-hidden flex flex-col"
-          style={{ ...popoverStyle, maxHeight: '320px' }}
+          style={popoverStyle}
         >
           {renderList()}
         </div>

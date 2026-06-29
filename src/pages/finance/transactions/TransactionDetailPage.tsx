@@ -24,6 +24,7 @@ import { FinanceContextGuard } from "@/src/components/finance/FinanceContextGuar
 import { FinanceEntityContextBar } from "@/src/components/finance/FinanceEntityContextBar";
 import { hasEffectiveCapability } from "@/src/lib/permissions";
 import { TransactionActionPanel, TransactionNextStep } from "@/src/components/finance/TransactionActionPanel";
+import { validateSubmissionReadiness } from "@/shared/finance/smartLogic";
 
 const formatBRLCents = (cents: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -576,20 +577,36 @@ function TransactionDetailContent() {
               let nextStep: TransactionNextStep | null = null;
               
               if (tx.status === "draft") {
-                const pendingFindings = [];
-                if (!tx.amountCents) pendingFindings.push({ code: 'val', severity: 'blocking', message: 'Informe o valor da movimentação' });
-                if (!tx.accountId) pendingFindings.push({ code: 'acc', severity: 'blocking', message: 'Escolha uma conta' });
-                if (!tx.paymentMethod) pendingFindings.push({ code: 'pay', severity: 'blocking', message: 'Informe a forma de pagamento' });
-                if (allocs.length === 0 || !isBalanced) pendingFindings.push({ code: 'bal', severity: 'blocking', message: 'A divisão ainda não fecha o valor total' });
-                if (allocs.some((a: any) => !a.categoryId)) pendingFindings.push({ code: 'cat', severity: 'blocking', message: 'Escolha uma categoria para todos os rateios' });
+                const draftPayload = {
+                  direction: tx.direction,
+                  amountCents: tx.amountCents,
+                  occurredAt: tx.occurredAt,
+                  accountId: tx.accountId,
+                  destinationAccountId: tx.destinationAccountId,
+                  paymentMethod: tx.paymentMethod,
+                  description: tx.description,
+                  counterparty: tx.counterparty,
+                  evidenceIds: tx.evidenceIds || [],
+                  evidenceJustification: tx.evidenceJustification,
+                  allocations: allocs.map((a: any) => ({
+                    categoryId: a.categoryId,
+                    fundId: a.fundId,
+                    costCenterId: a.costCenterId,
+                    amountCents: a.amountCents,
+                  })),
+                  settlementType: tx.settlementType,
+                  liabilityAccountId: tx.liabilityAccountId,
+                };
                 
-                if (pendingFindings.length > 0) {
+                const readiness = validateSubmissionReadiness(draftPayload);
+                
+                if (!readiness.ready) {
                   nextStep = {
                     status: 'draft_incomplete',
                     title: 'Movimentação salva',
                     message: 'Ela ainda não alterou o saldo. Faltam informações antes de enviar para revisão.',
                     affectsBalance: false,
-                    pendingFindings: pendingFindings as any,
+                    pendingFindings: readiness.findings as any,
                     primaryAction: {
                       label: 'Completar pendências',
                       icon: <PenSquare className="w-4 h-4" />,

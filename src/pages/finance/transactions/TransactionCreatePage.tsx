@@ -26,6 +26,8 @@ import {
 import {
   getCompatibleAccounts,
   getCompatiblePaymentInstruments,
+  validateSubmissionReadiness,
+  getTransactionFieldRequirements,
 } from "@/shared/finance/smartLogic";
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from "@/shared/finance/paymentMethods";
 import AccountRepairCard from "@/src/components/finance/AccountRepairCard";
@@ -335,11 +337,11 @@ function TransactionCreateContent() {
     : totalCents;
   const targetDiff = totalCents - allocatedCents;
 
-  const buildPayloadOrError = () => {
+  const buildPayloadOrError = (skipErrors = false) => {
     // Basic validation
     if (!accountId) {
-      setSaveError("Selecione uma conta");
-      return null;
+      if (!skipErrors) setSaveError("Selecione uma conta");
+      if (!skipErrors) return null;
     }
 
     const originAcc = accounts.find((a) => a.id === accountId);
@@ -349,20 +351,20 @@ function TransactionCreateContent() {
         !originAcc.type ||
         !originAcc.nature)
     ) {
-      setSaveError(
+      if (!skipErrors) setSaveError(
         "A conta selecionada está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
       );
-      return null;
+      if (!skipErrors) return null;
     }
 
     if (direction === "transfer") {
       if (!destinationAccountId) {
-        setSaveError("Selecione a conta de destino para a transferência");
-        return null;
+        if (!skipErrors) setSaveError("Selecione a conta de destino para a transferência");
+        if (!skipErrors) return null;
       }
-      if (accountId === destinationAccountId) {
-        setSaveError("A conta de destino não pode ser a mesma de origem");
-        return null;
+      if (accountId && accountId === destinationAccountId) {
+        if (!skipErrors) setSaveError("A conta de destino não pode ser a mesma de origem");
+        if (!skipErrors) return null;
       }
       const destAcc = accounts.find((a) => a.id === destinationAccountId);
       if (
@@ -371,21 +373,21 @@ function TransactionCreateContent() {
           !destAcc.type ||
           !destAcc.nature)
       ) {
-        setSaveError(
+        if (!skipErrors) setSaveError(
           "A conta de destino está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
         );
-        return null;
+        if (!skipErrors) return null;
       }
     }
 
     if (direction === "liability_settlement") {
       if (!settlementType) {
-        setSaveError("Selecione o tipo de liquidação");
-        return null;
+        if (!skipErrors) setSaveError("Selecione o tipo de liquidação");
+        if (!skipErrors) return null;
       }
       if (!liabilityAccountId) {
-        setSaveError("Selecione o passivo a liquidar");
-        return null;
+        if (!skipErrors) setSaveError("Selecione o passivo a liquidar");
+        if (!skipErrors) return null;
       }
       const liabAcc = accounts.find((a) => a.id === liabilityAccountId);
       if (
@@ -394,14 +396,14 @@ function TransactionCreateContent() {
           !liabAcc.type ||
           !liabAcc.nature)
       ) {
-        setSaveError(
+        if (!skipErrors) setSaveError(
           "O passivo selecionado está incompleto. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
         );
-        return null;
+        if (!skipErrors) return null;
       }
     }
 
-    if (totalCents <= 0) {
+    if (totalCents <= 0 && !skipErrors) {
       setSaveError("O valor da movimentação deve ser maior que zero");
       return null;
     }
@@ -411,12 +413,12 @@ function TransactionCreateContent() {
     if (direction !== "transfer" && direction !== "liability_settlement") {
       if (isSplit) {
         for (const a of allocations) {
-          if (!a.categoryId) {
+          if (!a.categoryId && !skipErrors) {
             setSaveError("Selecione uma categoria para todos os rateios");
             return null;
           }
           const amt = parseAmountToCents(a.amountRaw || "0");
-          if (amt <= 0) {
+          if (amt <= 0 && !skipErrors) {
             setSaveError("O valor de cada rateio deve ser maior que zero");
             return null;
           }
@@ -428,7 +430,7 @@ function TransactionCreateContent() {
           });
         }
       } else {
-        if (allocations[0].categoryId) {
+        if (allocations[0].categoryId || skipErrors) {
           finalAllocs.push({
             categoryId: allocations[0].categoryId,
             fundId: allocations[0].fundId || undefined,
@@ -937,9 +939,31 @@ function TransactionCreateContent() {
     setDescription("");
     setIsSplit(false);
     setAllocations([
-      { id: "initial", categoryId: "", fundId: "", amountRaw: null },
+      { id: "initial", categoryId: "", fundId: "", costCenterId: "", amountRaw: null },
     ]);
     return true;
+  };
+
+  const txForValidation = useMemo(() => {
+     return buildPayloadOrError(true) || {}; // true to skip amount error for checking
+  }, [direction, amountRaw, occurredAt, accountId, paymentMethod, description, counterparty, evidenceIds, evidenceJustification, isSplit, allocations, destinationAccountId, settlementType, liabilityAccountId, totalCents]);
+
+  const readiness = useMemo(() => {
+     return validateSubmissionReadiness(txForValidation);
+  }, [txForValidation]);
+
+  const getReqText = (field: string) => {
+     const req = readiness.requirements.find(r => r.field === field);
+     if (!req) return null;
+     if (req.requirement === 'required') return <span className="text-amber-600 font-normal ml-1">(Obrigatório)</span>;
+     if (req.requirement === 'optional') return <span className="text-text-muted font-normal ml-1">(Opcional)</span>;
+     return null;
+  };
+
+  const getReqTextForEvidence = () => {
+     const reqE = readiness.requirements.find(r => r.field === 'evidence');
+     if (reqE && reqE.requirement === 'required') return <span className="text-amber-600 font-normal ml-1">(Obrigatório ou justificar)</span>;
+     return <span className="text-text-muted font-normal ml-1">(Opcional)</span>;
   };
 
   return (
@@ -1293,8 +1317,8 @@ function TransactionCreateContent() {
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                  <label className="text-sm font-medium text-text-primary">
-                    Descrição (opcional)
+                  <label className="text-sm font-medium text-text-primary flex items-center">
+                    Descrição {getReqText('description')}
                   </label>
                   <input
                     type="text"
@@ -1321,8 +1345,8 @@ function TransactionCreateContent() {
                 {showDetails && (
                    <div className="flex flex-col gap-4 mt-2 p-5 bg-surface-secondary/30 rounded-2xl border border-border-subtle/50">
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10">
-                       <label className="text-sm font-medium text-text-primary">
-                         {direction === "income" ? "De quem veio?" : direction === "expense" ? "Quem recebeu ou foi pago?" : "Favorecido/Origem"} (opcional)
+                       <label className="text-sm font-medium text-text-primary flex items-center">
+                         {direction === "income" ? "De quem veio?" : direction === "expense" ? "Quem recebeu ou foi pago?" : "Favorecido/Origem"} {getReqText('counterparty')}
                        </label>
                        <input
                          type="text"
@@ -1334,8 +1358,8 @@ function TransactionCreateContent() {
                        />
                      </div>
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
-                       <label className="text-sm font-medium text-text-primary">
-                         Comprovantes
+                       <label className="text-sm font-medium text-text-primary flex items-center">
+                         Comprovantes {getReqTextForEvidence()}
                        </label>
                        <TransactionEvidenceUpload 
                          organizationId={accessState.organizationId || ""}
@@ -1346,8 +1370,8 @@ function TransactionCreateContent() {
                      </div>
 
                      <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
-                       <label className="text-sm font-medium text-text-primary">
-                         Justificativa de ausência de comprovante (opcional)
+                       <label className="text-sm font-medium text-text-primary flex items-center">
+                         Justificativa de ausência de comprovante
                        </label>
                        <textarea
                          value={evidenceJustification}
@@ -1597,91 +1621,81 @@ function TransactionCreateContent() {
                     </p>
                   </div>
 
-                  {hasEffectiveCapability(
-                    accessState,
-                    "finance.submit_for_review",
-                  ) ? (
-                    <>
+                  <div className="sticky bottom-0 bg-surface-base/95 backdrop-blur-md border-t border-border-subtle p-4 pb-[calc(1rem+env(safe-area-inset-bottom,16px))] -mx-4 mt-8 sm:-mx-6 lg:-mx-8 md:static md:bg-transparent md:border-t-0 md:p-0 md:backdrop-blur-none md:mt-4 z-20 flex flex-col gap-3">
+                    {hasEffectiveCapability(
+                      accessState,
+                      "finance.submit_for_review",
+                    ) ? (
+                      <>
+                      {!readiness.ready && (
+                        <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-4 flex flex-col gap-3 mb-2 shadow-sm">
+                          <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>Faltam {readiness.findings.length} informações para enviar à revisão</span>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {readiness.findings.map((f, i) => (
+                               <button key={i} onClick={() => {
+                                 setShowDetails(true);
+                                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                               }} className="text-left text-sm text-text-secondary hover:text-text-primary transition-colors flex items-center justify-between group">
+                                 <span>{f.message}</span>
+                                 <span className="text-xs px-2 py-1 bg-surface-base rounded opacity-0 group-hover:opacity-100 transition-opacity">Preencher</span>
+                               </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={handleCreateAndSubmit}
+                        disabled={saving || !readiness.ready}
+                        className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-background-base/30 border-t-background-base rounded-full animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          "Enviar para revisão"
+                        )}
+                      </button>
+                      </>
+                    ) : null}
+
                     <button
-                      onClick={handleCreateAndSubmit}
-                      disabled={
-                        saving ||
-                        !accountId ||
-                        totalCents <= 0 ||
-                        (direction === "transfer" &&
-                          (!destinationAccountId ||
-                            accountId === destinationAccountId)) ||
-                        (direction === "liability_settlement" &&
-                          (!settlementType || !liabilityAccountId)) ||
-                        ((direction === "income" || direction === "expense") &&
-                          !paymentMethod) ||
-                        ((direction === "income" || direction === "expense") &&
-                          ((isSplit &&
-                            (allocations.some(
-                              (a) =>
-                                !a.categoryId ||
-                                parseAmountToCents(a.amountRaw) <= 0,
-                            ) ||
-                              totalCents !==
-                                allocations.reduce(
-                                  (sum, a) =>
-                                    sum +
-                                    parseAmountToCents(a.amountRaw || "0"),
-                                  0,
-                                ))) ||
-                            (!isSplit && !allocations[0].categoryId))) ||
-                        (evidenceIds.length === 0 && !evidenceJustification.trim())
-                      }
-                      className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
+                      onClick={handleSaveDraft}
+                      disabled={saving}
+                      className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-sm ${hasEffectiveCapability(accessState, "finance.submit_for_review") ? "bg-transparent text-text-secondary hover:bg-surface-elevated" : "bg-surface-elevated text-text-primary hover:bg-surface-secondary border border-border-subtle"}`}
                     >
                       {saving ? (
                         <>
-                          <div className="w-5 h-5 border-2 border-background-base/30 border-t-background-base rounded-full animate-spin" />
-                          <span>Registrando...</span>
+                          <div className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" />
+                          <span>Salvando...</span>
                         </>
                       ) : (
-                        "Registrar movimentação"
+                        "Salvar como rascunho"
                       )}
                     </button>
-                    {(evidenceIds.length === 0 && !evidenceJustification.trim()) && (
-                      <p className="text-xs text-amber-600 text-center px-4 mt-2">
-                         Adicione um comprovante ou escreva uma justificativa para poder enviar para revisão.
-                      </p>
-                    )}
-                    </>
-                  ) : null}
-
-                  <button
-                    onClick={handleSaveDraft}
-                    disabled={
-                      saving ||
-                      !accountId ||
-                      totalCents <= 0 ||
-                      (direction === "transfer" &&
-                        (!destinationAccountId ||
-                          accountId === destinationAccountId))
-                    }
-                    className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-sm ${hasEffectiveCapability(accessState, "finance.submit_for_review") ? "bg-transparent text-text-secondary hover:bg-surface-elevated" : "bg-surface-elevated text-text-primary hover:bg-surface-secondary border border-border-subtle"}`}
-                  >
-                    {saving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" />
-                        <span>Salvando...</span>
-                      </>
-                    ) : (
-                      "Salvar como rascunho"
-                    )}
-                  </button>
+                  </div>
 
                   <div className="mt-4 p-3.5 bg-surface-base rounded-2xl border border-border-subtle flex flex-col gap-2">
                     <span className="text-xs text-text-muted font-medium block">Entenda o fluxo do sistema:</span>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
-                      <span className="text-xs text-text-secondary flex items-center">
-                        Rascunho <ContextHelp topic="draft" />
-                      </span>
-                      <span className="text-xs text-text-secondary flex items-center">
-                        Revisão <ContextHelp topic="review" />
-                      </span>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2 items-start">
+                        <div className="mt-0.5"><ContextHelp topic="draft" /></div>
+                        <div className="text-xs text-text-secondary">
+                          <strong className="block text-text-primary mb-0.5">Rascunho</strong>
+                          Você pode salvar e continuar depois. Não altera o saldo.
+                        </div>
+                      </div>
+                      <div className="flex gap-2 items-start">
+                        <div className="mt-0.5"><ContextHelp topic="review" /></div>
+                        <div className="text-xs text-text-secondary">
+                          <strong className="block text-text-primary mb-0.5">Em revisão</strong>
+                          Um responsável confere os dados. Ainda não altera o saldo.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

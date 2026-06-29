@@ -2,27 +2,33 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Building2, Tags, Plus } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Settings, Users, HelpCircle, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 
-const MAIN_NAV = [
-  { to: APP_ROUTES.count, icon: Receipt, label: 'Count' },
-  { to: APP_ROUTES.balance, icon: Wallet, label: 'Balance' },
-  { to: APP_ROUTES.inbox, icon: Inbox, label: 'Inbox' },
-];
+export type NavigationItem = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  route: string;
+  order: number;
+  group: 'primary' | 'more';
+  requiredCapability?: string;
+};
 
-const MOBILE_NAV = [
-  { to: APP_ROUTES.finance, icon: LayoutDashboard, label: 'Finance' },
-  { to: APP_ROUTES.count, icon: Receipt, label: 'Count' },
-  { to: APP_ROUTES.balance, icon: Wallet, label: 'Balance' },
-  { to: APP_ROUTES.inbox, icon: Inbox, label: 'Inbox' },
-];
-
-const DESKTOP_ONLY_NAV = [
-  { to: APP_ROUTES.reports, icon: FileText, label: 'Reports' },
-  { to: APP_ROUTES.audit, icon: ShieldCheck, label: 'Audit' },
+export const CANONICAL_NAVIGATION: NavigationItem[] = [
+  { id: 'finance', label: 'Finance', icon: LayoutDashboard, route: APP_ROUTES.finance, order: 1, group: 'primary' },
+  { id: 'count', label: 'Count', icon: Receipt, route: APP_ROUTES.count, order: 2, group: 'primary' },
+  { id: 'balance', label: 'Balance', icon: Wallet, route: APP_ROUTES.balance, order: 3, group: 'primary' },
+  { id: 'inbox', label: 'Inbox', icon: Inbox, route: APP_ROUTES.inbox, order: 4, group: 'primary' },
+  
+  { id: 'reports', label: 'Reports', icon: FileText, route: APP_ROUTES.reports, order: 5, group: 'more' },
+  { id: 'audit', label: 'Audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 6, group: 'more' },
+  { id: 'settings', label: 'Configurações', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more' },
+  // Optional depending on capabilities in a real scenario
+  // { id: 'users', label: 'Usuários e permissões', icon: Users, route: '/users', order: 8, group: 'more' },
+  // { id: 'help', label: 'Ajuda e suporte', icon: HelpCircle, route: '/help', order: 9, group: 'more' },
 ];
 
 function getInitials(name: string) {
@@ -69,99 +75,46 @@ export function ShellLayout() {
             </div>
             
             <nav className="space-y-1">
-              <div>
-                <button
-                  onClick={() => {
-                    const willExpand = !isFinanceExpanded;
-                    setIsFinanceExpanded(willExpand);
-                    if (willExpand && !isFinanceActive) {
-                      navigate(APP_ROUTES.finance);
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isFinanceActive
-                      ? 'bg-surface-elevated text-text-primary' 
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                  }`}
-                  aria-expanded={isFinanceExpanded}
-                >
-                  <div className="flex items-center gap-3">
-                    <LayoutDashboard className="w-4 h-4" />
-                    Finance
-                  </div>
-                  {isFinanceExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-                
-                {isFinanceExpanded && (
-                  <div className="mt-1 ml-4 pl-3 border-l border-border-subtle space-y-1 animate-in slide-in-from-top-1 fade-in duration-150">
-                    <NavLink
-                      to={APP_ROUTES.finance}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive && location.pathname === APP_ROUTES.finance
-                            ? 'bg-surface-elevated text-text-primary' 
-                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                        }`
-                      }
-                    >
-                      Visão geral
-                    </NavLink>
-                    <NavLink
-                      to={APP_ROUTES.financeSettingsAccounts}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive 
-                            ? 'bg-surface-elevated text-text-primary' 
-                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                        }`
-                      }
-                    >
-                      Contas
-                    </NavLink>
-                    <NavLink
-                      to={APP_ROUTES.financeSettingsFunds}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive 
-                            ? 'bg-surface-elevated text-text-primary' 
-                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                        }`
-                      }
-                    >
-                      Fundos
-                    </NavLink>
-                    <NavLink
-                      to={APP_ROUTES.financeSettingsCategories}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive 
-                            ? 'bg-surface-elevated text-text-primary' 
-                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                        }`
-                      }
-                    >
-                      Categorias
-                    </NavLink>
-                  </div>
-                )}
-              </div>
               
-              {[...MAIN_NAV, ...DESKTOP_ONLY_NAV].map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive 
-                        ? 'bg-surface-elevated text-text-primary' 
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                    }`
-                  }
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </NavLink>
-              ))}
+              <div className="mb-2">
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 px-3">Principal</p>
+                {CANONICAL_NAVIGATION.filter(i => i.group === 'primary').map((item) => (
+                  <NavLink
+                    key={item.id}
+                    to={item.route}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'bg-surface-elevated text-text-primary' 
+                          : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 px-3 mt-4">Mais</p>
+                {CANONICAL_NAVIGATION.filter(i => i.group === 'more').map((item) => (
+                  <NavLink
+                    key={item.id}
+                    to={item.route}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'bg-surface-elevated text-text-primary' 
+                          : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
             </nav>
           </div>
           
@@ -199,7 +152,7 @@ export function ShellLayout() {
         </main>
 
         {/* Global Capture Action (FAB) */}
-        {hasEffectiveCapability(accessState, "finance.create_drafts") && (
+        {hasEffectiveCapability(accessState, "finance.create_drafts") && !location.pathname.includes('/finance/transactions/new') && !location.pathname.includes('/finance/transactions/edit') && !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) && (
           <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 md:bottom-8 md:right-8 z-30 flex flex-col items-end gap-3">
             {fabOpen && (
                <>
@@ -238,10 +191,10 @@ export function ShellLayout() {
 
         {/* Bottom Nav Mobile */}
         <nav className="md:hidden fixed bottom-0 w-full h-[env(safe-area-inset-bottom,0)+3.5rem] bg-surface-elevated border-t border-border-subtle flex items-center justify-around px-2 z-20 pb-[env(safe-area-inset-bottom,0)]">
-          {MOBILE_NAV.map((item) => (
+          {CANONICAL_NAVIGATION.filter(i => i.group === 'primary').map((item) => (
             <NavLink
-              key={item.to}
-              to={item.to}
+              key={item.id}
+              to={item.route}
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${
                   isActive ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'
@@ -249,7 +202,7 @@ export function ShellLayout() {
               }
             >
               <item.icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              <span className="text-[10px] font-medium leading-none truncate w-full text-center px-1">{item.label}</span>
             </NavLink>
           ))}
           <NavLink
@@ -261,7 +214,7 @@ export function ShellLayout() {
             }
           >
             <MoreHorizontal className="w-5 h-5" />
-            <span className="text-[10px] font-medium leading-none">Mais</span>
+            <span className="text-[10px] font-medium leading-none truncate w-full text-center px-1">Mais</span>
           </NavLink>
         </nav>
       </div>

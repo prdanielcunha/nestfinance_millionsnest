@@ -212,52 +212,143 @@ export function validateDraftMinimum(draft: any, financeEntityId: string): { val
   return { valid: errors.length === 0, errors };
 }
 
-export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: string[] } {
+export type TransactionFieldRequirement = {
+  field:
+    | 'description'
+    | 'counterparty'
+    | 'evidence'
+    | 'evidenceJustification'
+    | 'fund'
+    | 'costCenter'
+    | 'competenceDate'
+    | 'paymentMethod'
+    | 'account'
+    | 'category'
+    | 'amount'
+    | 'occurredAt';
+  requirement: 'required' | 'optional' | 'not_applicable';
+  requiredFor: Array<'draft' | 'review' | 'approval'>;
+  reason?: string;
+  alternativeField?: string;
+};
+
+export function getTransactionFieldRequirements(tx: any): TransactionFieldRequirement[] {
+  const direction = tx.transactionKind || tx.direction || 'expense';
+  
+  // Default base requirements
+  const reqs: TransactionFieldRequirement[] = [
+    { field: 'amount', requirement: 'required', requiredFor: ['review', 'approval'] },
+    { field: 'occurredAt', requirement: 'required', requiredFor: ['review', 'approval'] },
+    { field: 'description', requirement: 'required', requiredFor: ['review', 'approval'] },
+    { field: 'competenceDate', requirement: 'optional', requiredFor: [] },
+    { field: 'costCenter', requirement: 'optional', requiredFor: [] },
+  ];
+
+  if (direction === 'expense' || direction === 'income') {
+    reqs.push(
+      { field: 'account', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'paymentMethod', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'category', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'fund', requirement: 'optional', requiredFor: [] },
+      { field: 'evidence', requirement: 'required', requiredFor: ['review', 'approval'], alternativeField: 'evidenceJustification' },
+      { field: 'evidenceJustification', requirement: 'optional', requiredFor: ['review', 'approval'], alternativeField: 'evidence' }
+    );
+    
+    // counterparty is required for expense if person/supplier etc, but we'll enforce it for all expenses by default for safety as requested
+    if (direction === 'expense') {
+      reqs.push({ field: 'counterparty', requirement: 'required', requiredFor: ['review', 'approval'], reason: 'Obrigatório para saídas' });
+    } else {
+      reqs.push({ field: 'counterparty', requirement: 'optional', requiredFor: [] });
+    }
+  } else if (direction === 'transfer') {
+    reqs.push(
+      { field: 'account', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'paymentMethod', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'category', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'fund', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'counterparty', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'evidence', requirement: 'optional', requiredFor: [] },
+      { field: 'evidenceJustification', requirement: 'optional', requiredFor: [] }
+    );
+  } else if (direction === 'liability_settlement') {
+    reqs.push(
+      { field: 'account', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'paymentMethod', requirement: 'required', requiredFor: ['review', 'approval'] },
+      { field: 'category', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'fund', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'counterparty', requirement: 'not_applicable', requiredFor: [] },
+      { field: 'evidence', requirement: 'required', requiredFor: ['review', 'approval'], alternativeField: 'evidenceJustification' },
+      { field: 'evidenceJustification', requirement: 'optional', requiredFor: ['review', 'approval'], alternativeField: 'evidence' }
+    );
+  }
+
+  return reqs;
+}
+
+export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: string[], findings: any[], requirements: TransactionFieldRequirement[] } {
   const errors: string[] = [];
+  const findings: any[] = [];
+  const reqs = getTransactionFieldRequirements(tx);
+
+  const checkReq = (field: string, condition: boolean, msg: string) => {
+    const req = reqs.find(r => r.field === field);
+    if (req && req.requirement === 'required' && req.requiredFor.includes('review')) {
+      if (!condition) {
+        errors.push(msg);
+        findings.push({ code: field, severity: 'blocking', message: msg, field });
+      }
+    }
+  };
 
   const direction = tx.transactionKind || tx.direction;
 
   if (direction === 'expense' || direction === 'income') {
-    if (!tx.accountId) errors.push('Account is required for income/expense');
-    if (!tx.paymentMethod) errors.push('Payment method is required for income/expense');
+    checkReq('account', !!tx.accountId, 'Account is required for income/expense');
+    checkReq('paymentMethod', !!tx.paymentMethod, 'Payment method is required for income/expense');
     
     if (!tx.allocations || tx.allocations.length === 0) {
-      errors.push('At least one allocation (category) is required for income/expense');
+      checkReq('category', false, 'At least one allocation (category) is required for income/expense');
     } else {
       const allHaveCategory = tx.allocations.every((a: any) => !!a.categoryId);
-      if (!allHaveCategory) errors.push('All allocations must have a category');
+      checkReq('category', allHaveCategory, 'All allocations must have a category');
       
       const totalAllocated = tx.allocations.reduce((sum: number, a: any) => sum + (a.amountCents || 0), 0);
-      if (totalAllocated !== tx.amountCents) {
-        errors.push('Sum of allocations must exactly match the total amount');
-      }
+      checkReq('amount', totalAllocated === tx.amountCents, 'Sum of allocations must exactly match the total amount');
     }
   }
 
   if (direction === 'transfer') {
-    if (!tx.sourceAccountId) errors.push('Source account is required for transfer');
-    if (!tx.destinationAccountId) errors.push('Destination account is required for transfer');
-    if (!tx.amountCents || tx.amountCents <= 0) errors.push('Valid amount is required for transfer');
-    if (!tx.occurredAt) errors.push('Date is required for transfer');
+    checkReq('account', !!tx.sourceAccountId, 'Source account is required for transfer');
+    // For transfer, destination account uses liability field in some places or destinationAccountId
+    checkReq('account', !!tx.destinationAccountId || !!tx.liabilityAccountId, 'Destination account is required for transfer');
+    checkReq('amount', !!tx.amountCents && tx.amountCents > 0, 'Valid amount is required for transfer');
+    checkReq('occurredAt', !!tx.occurredAt, 'Date is required for transfer');
   }
 
   if (direction === 'liability_settlement') {
-    if (!tx.sourceAccountId) errors.push('Source account is required for settlement');
-    if (!tx.liabilityAccountId && !tx.destinationAccountId) errors.push('Liability account is required for settlement');
-    if (!tx.amountCents || tx.amountCents <= 0) errors.push('Valid amount is required for settlement');
-    if (!tx.occurredAt) errors.push('Date is required for settlement');
-    if (!tx.settlementType) errors.push('Settlement type is required');
+    checkReq('account', !!tx.sourceAccountId, 'Source account is required for settlement');
+    checkReq('account', !!tx.liabilityAccountId && !tx.destinationAccountId, 'Liability account is required for settlement');
+    checkReq('amount', !!tx.amountCents && tx.amountCents > 0, 'Valid amount is required for settlement');
+    checkReq('occurredAt', !!tx.occurredAt, 'Date is required for settlement');
   }
 
+  // Common required checks
+  checkReq('description', !!tx.description, 'Descrição é obrigatória');
+  checkReq('counterparty', !!tx.counterparty, 'Favorecido / Origem é obrigatório');
+  
   // Evidence validation constraint: either evidenceIds is not empty OR evidenceJustification is provided
   const hasEvidence = Array.isArray(tx.evidenceIds) && tx.evidenceIds.length > 0;
   const hasJustification = typeof tx.evidenceJustification === 'string' && tx.evidenceJustification.trim().length > 0;
   
-  if (!hasEvidence && !hasJustification) {
-    errors.push('Comprovante ou justificativa é obrigatório para enviar para revisão');
+  const evidenceReq = reqs.find(r => r.field === 'evidence');
+  if (evidenceReq && evidenceReq.requirement === 'required' && evidenceReq.requiredFor.includes('review')) {
+     if (!hasEvidence && !hasJustification) {
+       errors.push('Comprovante ou justificativa é obrigatório para enviar para revisão');
+       findings.push({ code: 'evidence', severity: 'blocking', message: 'Comprovante ou justificativa é obrigatório', field: 'evidence' });
+     }
   }
 
-  return { ready: errors.length === 0, errors };
+  return { ready: errors.length === 0, errors, findings, requirements: reqs };
 }
 
 export function validateAccountMetadata(accountData: any): { 
