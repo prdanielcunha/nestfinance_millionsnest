@@ -104,11 +104,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!approval || !approval.approvedPlanHash) {
       sealStatus = 'seal_missing';
     } else {
-      const algoVer = approval.approvalAlgorithmVersion || 1;
+      let algoVer = approval.approvalAlgorithmVersion || 1;
+      let expectedSourceHash = approval.approvalSourceHash;
+
+      if ((transaction as any).approvalVerificationRepair) {
+        const repair = (transaction as any).approvalVerificationRepair;
+        if (repair.originalApprovalSourceHash === approval.approvalSourceHash && 
+            repair.originalApprovedVersion === approval.approvedVersion) {
+          algoVer = repair.verificationAlgorithmVersion;
+          expectedSourceHash = repair.verificationHash;
+        }
+      }
+
       const currentSourceHash = computeApprovalSourceHash(transaction, allocations, algoVer);
 
       // Verify that the underlying material source hash is identical
-      if (currentSourceHash !== approval.approvalSourceHash) {
+      if (currentSourceHash !== expectedSourceHash) {
         sealStatus = 'transaction_stale';
       }
     }
@@ -124,10 +135,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   const calculatedPlanHash = plan.planHash;
-  const approvedPlanHash = approval?.approvedPlanHash;
+  let approvedPlanHash = approval?.approvedPlanHash;
+  let expectedReferenceHash = approval?.approvedReferenceFingerprintHash;
+
+  if (approvalDoc.exists && (transaction as any).approvalVerificationRepair) {
+    const repair = (transaction as any).approvalVerificationRepair;
+    if (repair.originalApprovalSourceHash === approval.approvalSourceHash && 
+        repair.originalApprovedVersion === approval.approvedVersion) {
+       approvedPlanHash = (transaction as any).approvedPlanHash || approvedPlanHash;
+    }
+  }
 
   if (sealStatus === 'verified') {
-    if (referenceFingerprintHash !== approval.approvedReferenceFingerprintHash) {
+    if (expectedReferenceHash && referenceFingerprintHash !== expectedReferenceHash) {
       console.log('DEBUG plan_mismatch fingerprint:', referenceFingerprintHash, approval.approvedReferenceFingerprintHash);
       sealStatus = 'references_changed';
     } else if (calculatedPlanHash !== approvedPlanHash) {
@@ -162,8 +182,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     formatMoney
   });
 
+  let verificationState: any = { status: sealStatus };
+
+  if (sealStatus === 'transaction_stale' || sealStatus === 'plan_mismatch') {
+    const isLegacy = !approval.approvalAlgorithmVersion || approval.approvalAlgorithmVersion < 2;
+    if (isLegacy) {
+      // Check if it's eligible for repair
+      const legacyTxData = { ...transaction, version: approval.approvedVersion };
+      const expectedOldHash = computeApprovalSourceHash(legacyTxData, allocations, 1);
+      if (expectedOldHash === approval.approvalSourceHash) {
+         verificationState = { status: 'legacy_false_stale', repairEligible: true, reasonCode: 'workflow_version_only' };
+      } else {
+         verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };
+      }
+    } else {
+      verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };
+    }
+  } else if (sealStatus === 'verified') {
+    verificationState = { status: 'verified', algorithmVersion: approval.approvalAlgorithmVersion || 1 };
+  } else if (sealStatus === 'seal_missing') {
+    verificationState = { status: 'unverifiable', repairEligible: false, reasonCode: 'seal_missing' };
+  } else {
+    verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };
+  }
+
   return res.status(200).json({
-    sealStatus,
+    sealStatus, // keep for backward compatibility
+    verificationState,
     plan: sealStatus === 'plan_mismatch' ? undefined : plan,
     approvedPlanHash,
     calculatedPlanHash,

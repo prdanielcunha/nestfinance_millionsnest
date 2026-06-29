@@ -202,7 +202,7 @@ function TransactionDetailContent() {
     const idKey = "idrep_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 
     try {
-      const res = await fetch('/api/finance/transactions?operation=transactions-repair-approval', {
+      const res = await fetch('/api/finance-gateway?operation=transactions-repair-approval-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -700,19 +700,73 @@ function TransactionDetailContent() {
                     });
                  }
               } else if (tx.status === "approved_for_posting") {
-                 if (sealStatus && sealStatus !== 'verified') {
-                   const isLegacyStale = (sealStatus === 'transaction_stale' || sealStatus === 'plan_mismatch') && (!tx.approvalAlgorithmVersion || tx.approvalAlgorithmVersion < 2);
+                 if (planRes.verificationState) {
+                   if (planRes.verificationState.status === 'legacy_false_stale') {
+                     nextStep = {
+                       status: 'approval_stale',
+                       title: 'A verificação da aprovação precisa ser atualizada',
+                       message: 'A aprovação continua válida, mas foi criada por uma versão anterior do sistema.',
+                       affectsBalance: false,
+                       pendingFindings: [],
+                       primaryAction: {
+                         label: repairing ? 'Reparando...' : 'Atualizar verificação',
+                         disabled: repairing,
+                         action: handleRepairApproval
+                       },
+                       secondaryActions: [
+                         { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
+                       ]
+                     };
+                   } else if (planRes.verificationState.status === 'stale') {
+                     nextStep = {
+                       status: 'approval_stale',
+                       title: 'A aprovação precisa ser refeita',
+                       message: 'Os dados mudaram desde a última aprovação.',
+                       affectsBalance: false,
+                       pendingFindings: [],
+                       primaryAction: {
+                         label: 'Corrigir e reenviar',
+                         disabled: returningToDraft,
+                         action: () => {
+                           setReturnReason('need_correction');
+                           setReturnComment('Aprovação invalidada pois os dados mudaram. Revisão e correção necessárias.');
+                           handleReturnToDraft();
+                         }
+                       },
+                       secondaryActions: [
+                         { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
+                       ]
+                     };
+                   } else if (planRes.verificationState.status === 'unverifiable') {
+                     nextStep = {
+                       status: 'approval_stale',
+                       title: 'Esta aprovação precisa de nova revisão',
+                       message: 'Não foi possível verificar a integridade da aprovação anterior.',
+                       affectsBalance: false,
+                       pendingFindings: [],
+                       primaryAction: {
+                         label: 'Corrigir e reenviar',
+                         disabled: returningToDraft,
+                         action: () => {
+                           setReturnReason('need_correction');
+                           setReturnComment('Aprovação não verificável. Nova revisão necessária.');
+                           handleReturnToDraft();
+                         }
+                       },
+                       secondaryActions: [
+                         { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
+                       ]
+                     };
+                   }
+                 } else if (sealStatus && sealStatus !== 'verified') {
+                   // Fallback
                    nextStep = {
                      status: 'approval_stale',
-                     title: isLegacyStale ? 'Selo desatualizado' : 'Aprovação inválida',
-                     message: isLegacyStale ? 'O selo de integridade foi gerado em uma versão antiga do sistema. É necessário atualizá-lo.' : 'Os dados mudaram desde a última aprovação.',
+                     title: 'Aprovação inválida',
+                     message: 'Os dados mudaram desde a última aprovação.',
                      affectsBalance: false,
                      pendingFindings: [],
-                     primaryAction: isLegacyStale ? {
-                       label: repairing ? 'Reparando...' : 'Atualizar selo',
-                       disabled: repairing,
-                       action: handleRepairApproval
-                     } : {
+                     primaryAction: {
                        label: 'Corrigir e reenviar',
                        disabled: returningToDraft,
                        action: () => {
@@ -1264,6 +1318,11 @@ function TransactionDetailContent() {
                                 </div>
                               );
                               break;
+                            case 'approval_verification_repaired':
+                              title = "Verificação Técnica Atualizada";
+                              details = `Selo de integridade atualizado. A decisão humana original foi preservada intacta. (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-indigo-400";
+                              break;
                             case 'approved_for_posting':
                               title = "Aprovado para Lançamento";
                               details = `Revisor aprovou a movimentação e gerou selo criptográfico (v${evt.versionBefore} → v${evt.versionAfter})`;
@@ -1306,7 +1365,7 @@ function TransactionDetailContent() {
                                             </div>
                                           </div>
                                           <p className="text-[10px] text-text-muted leading-relaxed pt-1">
-                                            <strong className="font-semibold">Nota de Auditoria:</strong> Este identificador é um digest SHA-256 determinístico do estado material da movimentação no momento da aprovação. Ele permite verificar matematicamente que o conteúdo atual corresponde exatamente ao conteúdo que foi aprovado. Ele não é, isoladamente, uma assinatura digital assimétrica, certificado de infraestrutura, prova criptográfica de identidade humana, nem substitui a auditoria do registro de quem aprovou (actor).
+                                            <strong className="font-semibold">Nota de Auditoria:</strong> Este identificador é um digest SHA-256 do estado material da movimentação no momento da aprovação. Ele confirma que o estado atual gera a mesma assinatura, mas não reconstrói o estado histórico completo de forma independente caso haja perda. Ele não é uma assinatura digital assimétrica, certificado de infraestrutura, prova de identidade humana, nem substitui a auditoria de quem aprovou (actor).
                                           </p>
                                         </div>
                                       </details>

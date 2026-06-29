@@ -3,7 +3,7 @@ import { LedgerTransaction } from './transaction.js';
 import { FinanceAllocation } from './allocation.js';
 import { canonicalStringify } from './postingPreview.js';
 
-export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: FinanceAllocation[], algorithmVersion: number = 2): string {
+export function buildApprovalMaterial(tx: LedgerTransaction, allocations: FinanceAllocation[], algorithmVersion: number = 2): any {
   const materialSource: any = {
     organizationId: tx.organizationId,
     financeEntityId: tx.financeEntityId,
@@ -19,6 +19,10 @@ export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: Fi
     liabilityAccountId: (tx as any).liabilityAccountId || '',
     paymentMethod: tx.paymentMethod || '',
     counterparty: tx.counterparty || '',
+    evidenceIds: tx.evidenceIds || [],
+    evidenceJustification: tx.evidenceJustification || '',
+    description: tx.description || '',
+    sourceContext: (tx as any).sourceContext || '',
     allocations: allocations.map(a => ({
       id: a.id,
       categoryId: a.categoryId,
@@ -34,6 +38,11 @@ export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: Fi
     materialSource.contentVersion = tx.contentVersion || 1;
     materialSource.algorithmVersion = 2;
   }
+  return materialSource;
+}
+
+export function computeApprovalSourceHash(tx: LedgerTransaction, allocations: FinanceAllocation[], algorithmVersion: number = 2): string {
+  const materialSource = buildApprovalMaterial(tx, allocations, algorithmVersion);
 
   const canonicalString = canonicalStringify(materialSource);
   const hex = createHash('sha256').update(canonicalString).digest('hex');

@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const expectedOldHash = computeApprovalSourceHash(legacyTxData, allocations, oldAlgoVer);
 
       if (expectedOldHash !== approvalData.approvalSourceHash) {
-         throw { code: 'FINANCE_APPROVAL_STALE', message: 'Real material changes detected, repair is impossible' };
+         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Real material changes detected, repair is impossible' };
       }
 
       // It hasn't materially changed! Let's generate a new V2 seal.
@@ -108,38 +108,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (plan.blockers.length > 0) {
-        throw { code: 'FINANCE_APPROVAL_STALE', message: 'Plan has blockers after recalculation' };
+        throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan has blockers after recalculation' };
       }
 
       const newPlanHash = plan.planHash;
 
-      // Preserve previous seal in event history
       const repairEventId = generateAuditId();
-      const repairEventPayload = sanitizeFirestoreObject({
-        ...approvalData,
-        status: 'repaired',
-        repairedBy: uid,
-        repairedAt: FieldValue.serverTimestamp(),
-        previousAlgorithmVersion: oldAlgoVer,
-        previousSourceHash: approvalData.approvalSourceHash,
-        previousPlanHash: approvalData.approvedPlanHash,
-      });
 
-      // We overwrite the latest approval with the new hashes but preserve original approver
-      const newApprovalPayload = sanitizeFirestoreObject({
-        ...approvalData,
-        approvalSourceHash: newSourceHash,
-        approvedPlanHash: newPlanHash,
-        approvalAlgorithmVersion: 2,
-        approvedReferenceFingerprintHash: referenceFingerprintHash,
+      const approvalVerificationRepair = {
+        originalApprovedVersion: approvalData.approvedVersion,
+        originalAlgorithmVersion: oldAlgoVer,
+        originalApprovalSourceHash: approvalData.approvalSourceHash,
+        verificationAlgorithmVersion: 2,
+        verificationHash: newSourceHash,
         repairedAt: FieldValue.serverTimestamp(),
-        repairedBy: uid
-      });
-
-      t.set(txRef.collection('approvals').doc(`repair_${repairEventId}`), repairEventPayload);
-      t.set(approvalRef, newApprovalPayload);
+        repairedBy: {
+          type: 'authorized_user',
+          uid: uid
+        },
+        reasonCode: 'false_stale_workflow_version',
+        requestId
+      };
 
       t.update(txRef, sanitizeFirestoreObject({
+        approvalVerificationRepair,
         approvalSourceHash: newSourceHash,
         approvedPlanHash: newPlanHash,
         approvalAlgorithmVersion: 2,
@@ -154,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         financeEntityId,
         actor: uid,
         resource: 'transaction',
-        action: 'transaction.approval_repaired',
+        action: 'transaction.approval_verification_repaired',
         requestId,
         idempotencyKey,
         createdAt: FieldValue.serverTimestamp()
@@ -166,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         organizationId,
         financeEntityId,
         transactionId,
-        eventType: 'approval_repaired',
+        eventType: 'approval_verification_repaired',
         actorUid: uid,
         versionBefore: txData.version,
         versionAfter: txData.version + 1,
