@@ -249,6 +249,14 @@ export function validateSubmissionReadiness(tx: any): { ready: boolean; errors: 
     if (!tx.settlementType) errors.push('Settlement type is required');
   }
 
+  // Evidence validation constraint: either evidenceIds is not empty OR evidenceJustification is provided
+  const hasEvidence = Array.isArray(tx.evidenceIds) && tx.evidenceIds.length > 0;
+  const hasJustification = typeof tx.evidenceJustification === 'string' && tx.evidenceJustification.trim().length > 0;
+  
+  if (!hasEvidence && !hasJustification) {
+    errors.push('Comprovante ou justificativa é obrigatório para enviar para revisão');
+  }
+
   return { ready: errors.length === 0, errors };
 }
 

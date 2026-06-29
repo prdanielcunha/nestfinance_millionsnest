@@ -14,6 +14,7 @@ import {
   User,
   RefreshCw,
   CheckCircle2,
+  PenSquare,
 } from "lucide-react";
 import { APP_ROUTES } from "@/src/app/router/routes";
 import { useAuth } from "@/src/hooks/useAuth";
@@ -22,6 +23,7 @@ import { useTransactions } from "@/src/hooks/finance/useTransactions";
 import { FinanceContextGuard } from "@/src/components/finance/FinanceContextGuard";
 import { FinanceEntityContextBar } from "@/src/components/finance/FinanceEntityContextBar";
 import { hasEffectiveCapability } from "@/src/lib/permissions";
+import { TransactionActionPanel, TransactionNextStep } from "@/src/components/finance/TransactionActionPanel";
 
 const formatBRLCents = (cents: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -571,8 +573,114 @@ function TransactionDetailContent() {
               );
               const isBalanced = sumAllocations === tx.amountCents;
 
+              let nextStep: TransactionNextStep | null = null;
+              
+              if (tx.status === "draft") {
+                const pendingFindings = [];
+                if (!tx.amountCents) pendingFindings.push({ code: 'val', severity: 'blocking', message: 'Informe o valor da movimentação' });
+                if (!tx.accountId) pendingFindings.push({ code: 'acc', severity: 'blocking', message: 'Escolha uma conta' });
+                if (!tx.paymentMethod) pendingFindings.push({ code: 'pay', severity: 'blocking', message: 'Informe a forma de pagamento' });
+                if (allocs.length === 0 || !isBalanced) pendingFindings.push({ code: 'bal', severity: 'blocking', message: 'A divisão ainda não fecha o valor total' });
+                if (allocs.some((a: any) => !a.categoryId)) pendingFindings.push({ code: 'cat', severity: 'blocking', message: 'Escolha uma categoria para todos os rateios' });
+                
+                if (pendingFindings.length > 0) {
+                  nextStep = {
+                    status: 'draft_incomplete',
+                    title: 'Movimentação salva',
+                    message: 'Ela ainda não alterou o saldo. Faltam informações antes de enviar para revisão.',
+                    affectsBalance: false,
+                    pendingFindings: pendingFindings as any,
+                    primaryAction: {
+                      label: 'Completar pendências',
+                      icon: <PenSquare className="w-4 h-4" />,
+                      action: () => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id)),
+                    },
+                    secondaryActions: [
+                      { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) },
+                      { label: 'Registrar outra', action: () => navigate(APP_ROUTES.transactionCreate) }
+                    ]
+                  };
+                } else {
+                  nextStep = {
+                    status: 'draft_complete',
+                    title: 'Movimentação salva',
+                    message: 'Ela ainda não alterou o saldo e está pronta para ser enviada para revisão.',
+                    affectsBalance: false,
+                    pendingFindings: [],
+                    primaryAction: {
+                      label: 'Enviar para revisão',
+                      action: () => setSubmitModalOpen(true),
+                    },
+                    secondaryActions: [
+                      { label: 'Editar rascunho', action: () => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id)), primary: true },
+                      { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
+                    ]
+                  };
+                }
+              } else if (tx.status === "ready_for_review") {
+                 nextStep = {
+                   status: 'ready_for_review',
+                   title: 'Enviada para revisão',
+                   message: 'Ela ainda não alterou o saldo.',
+                   affectsBalance: false,
+                   pendingFindings: [],
+                   primaryAction: hasEffectiveCapability(accessState, "finance.review") ? {
+                     label: approving ? 'Aprovando...' : 'Aprovar para lançamento',
+                     disabled: approving || (data.reviewReadiness && !data.reviewReadiness.ready),
+                     action: handleApprove
+                   } : undefined,
+                   secondaryActions: [
+                     { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) },
+                     { label: 'Registrar outra', action: () => navigate(APP_ROUTES.transactionCreate) }
+                   ]
+                 };
+                 if (isReviewMode && hasEffectiveCapability(accessState, "finance.review")) {
+                    nextStep.secondaryActions.unshift({
+                       label: 'Devolver para correção',
+                       action: () => setShowReturnForm(true),
+                       primary: true
+                    });
+                 }
+              } else if (tx.status === "approved_for_posting") {
+                 if (sealStatus && sealStatus !== 'verified') {
+                   nextStep = {
+                     status: 'approval_stale',
+                     title: 'Aprovação inválida',
+                     message: 'Os dados mudaram desde a última aprovação.',
+                     affectsBalance: false,
+                     pendingFindings: [],
+                     primaryAction: {
+                       label: 'Corrigir e reenviar',
+                       disabled: returningToDraft,
+                       action: () => {
+                         setReturnReason('need_correction');
+                         setReturnComment('Aprovação invalidada pois os dados mudaram. Revisão e correção necessárias.');
+                         handleReturnToDraft();
+                       }
+                     },
+                     secondaryActions: [
+                       { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
+                     ]
+                   };
+                 } else {
+                   nextStep = {
+                     status: 'approved_for_posting',
+                     title: 'Aprovada para lançamento',
+                     message: 'Ela ainda não foi lançada e não alterou o saldo.',
+                     affectsBalance: false,
+                     pendingFindings: [],
+                     secondaryActions: [
+                       { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) },
+                       { label: 'Registrar outra', action: () => navigate(APP_ROUTES.transactionCreate) }
+                     ]
+                   };
+                 }
+              }
+
               return (
                 <>
+                  {nextStep && <TransactionActionPanel nextStep={nextStep} />}
+
                   <div className="text-center flex flex-col items-center gap-2">
                     <span className="text-sm font-medium text-text-secondary">
                       {translateDirection(tx.direction)} •{" "}
@@ -1239,7 +1347,7 @@ function TransactionDetailContent() {
                           </div>
                         )}
 
-                        {showReturnForm ? (
+                        {showReturnForm && (
                           <div className="bg-surface-elevated border border-border-subtle rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
                             <h4 className="text-sm font-semibold text-text-primary">
                               {tx.status === "approved_for_posting"
@@ -1317,35 +1425,6 @@ function TransactionDetailContent() {
                               </button>
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            {tx.status === "ready_for_review" && (
-                              <button
-                                onClick={handleApprove}
-                                disabled={approving || (data.reviewReadiness && !data.reviewReadiness.ready)}
-                                className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
-                                  ${data.reviewReadiness && !data.reviewReadiness.ready ? "bg-surface-elevated text-text-muted cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700 text-white focus-visible:ring-teal-500"}
-                                `}
-                              >
-                                {approving ? (
-                                  <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${data.reviewReadiness && !data.reviewReadiness.ready ? 'border-text-muted' : 'border-white/30 border-t-white'}`} />
-                                ) : (
-                                  "Aprovar para lançamento"
-                                )}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setShowReturnForm(true)}
-                              disabled={approving}
-                              className={`w-full h-14 flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors disabled:opacity-50 text-base
-                                ${tx.status === "ready_for_review" && data.reviewReadiness && !data.reviewReadiness.ready ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" : "bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary"}
-                              `}
-                            >
-                              {tx.status === "approved_for_posting"
-                                ? "Invalidar aprovação e devolver para rascunho"
-                                : "Devolver para correção"}
-                            </button>
-                          </>
                         )}
                       </div>
                     )}
@@ -1356,104 +1435,7 @@ function TransactionDetailContent() {
                       "finance.create_drafts",
                     ) && (
                       <div className="pt-4 border-t border-border-subtle mt-4 flex flex-col gap-3">
-                        {tx.status === "draft" && (
-                          <>
-                            {(!isBalanced ||
-                              !tx.accountId ||
-                              !tx.paymentMethod ||
-                              !tx.amountCents ||
-                              allocs.length === 0 ||
-                              allocs.some((a: any) => !a.categoryId)) && (
-                              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-xl flex flex-col gap-2 text-sm">
-                                <div className="flex items-center gap-2 font-medium">
-                                  <AlertCircle className="w-4 h-4 shrink-0" />
-                                  <span>Ainda falta revisar</span>
-                                </div>
-                                <ul className="list-disc list-inside ml-2">
-                                  {!tx.amountCents && (
-                                    <li>Informe o valor da movimentação</li>
-                                  )}
-                                  {!tx.accountId && <li>Escolha uma conta</li>}
-                                  {!tx.paymentMethod && (
-                                    <li>
-                                      Informe a forma de pagamento/recebimento
-                                    </li>
-                                  )}
-                                  {(allocs.length === 0 || !isBalanced) && (
-                                    <li>
-                                      A divisão ainda não fecha o valor total.
-                                    </li>
-                                  )}
-                                  {allocs.length > 0 &&
-                                    allocs.some((a: any) => !a.categoryId) && (
-                                      <li>
-                                        Escolha uma categoria para todos os
-                                        rateios
-                                      </li>
-                                    )}
-                                </ul>
-                              </div>
-                            )}
-
-                            {isBalanced &&
-                              tx.accountId &&
-                              tx.paymentMethod &&
-                              tx.amountCents > 0 &&
-                              allocs.length > 0 &&
-                              !allocs.some((a: any) => !a.categoryId) && (
-                                <button
-                                  onClick={() => setSubmitModalOpen(true)}
-                                  className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl font-medium transition-colors text-base"
-                                >
-                                  Concluir movimentação
-                                </button>
-                              )}
-
-                            <button
-                              onClick={() =>
-                                navigate(
-                                  APP_ROUTES.transactionEdit.replace(
-                                    ":transactionId",
-                                    tx.id,
-                                  ),
-                                )
-                              }
-                              className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors text-base"
-                            >
-                              Editar rascunho
-                            </button>
-                          </>
-                        )}
-                        {tx.status === "ready_for_review" && (
-                          <button
-                            onClick={() => handleReturnToDraft()}
-                            disabled={returningToDraft}
-                            className="w-full h-14 flex items-center justify-center gap-2 bg-surface-elevated border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                          >
-                            {returningToDraft ? (
-                              <div className="w-5 h-5 border-2 border-text-primary/30 border-t-text-primary rounded-full animate-spin" />
-                            ) : (
-                              "Editar novamente"
-                            )}
-                          </button>
-                        )}
-                        {tx.status === "approved_for_posting" && sealStatus && sealStatus !== 'verified' && (
-                          <button
-                            onClick={() => {
-                               setReturnReason('need_correction');
-                               setReturnComment('Aprovação invalidada pois os dados mudaram. Revisão e correção necessárias.');
-                               handleReturnToDraft();
-                            }}
-                            disabled={returningToDraft}
-                            className="w-full h-14 flex items-center justify-center gap-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                          >
-                            {returningToDraft ? (
-                              <div className="w-5 h-5 border-2 border-rose-700/30 border-t-rose-700 rounded-full animate-spin" />
-                            ) : (
-                              "Corrigir e reenviar"
-                            )}
-                          </button>
-                        )}
+                        {/* the Next Step panel handles draft completion buttons now */}
                       </div>
                     )}
 

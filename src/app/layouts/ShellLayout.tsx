@@ -2,9 +2,10 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Building2, Tags } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, ChevronDown, ChevronRight, Building2, Tags, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 
 const MAIN_NAV = [
   { to: APP_ROUTES.count, icon: Receipt, label: 'Count' },
@@ -44,6 +45,7 @@ export function ShellLayout() {
   
   const isFinanceActive = location.pathname.startsWith('/finance/settings') || location.pathname === '/finance' || location.pathname === '/finance/setup';
   const [isFinanceExpanded, setIsFinanceExpanded] = useState(isFinanceActive);
+  const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
     if (isFinanceActive) {
@@ -195,6 +197,44 @@ export function ShellLayout() {
             </FinanceEntityProvider>
           </div>
         </main>
+
+        {/* Global Capture Action (FAB) */}
+        {hasEffectiveCapability(accessState, "finance.create_drafts") && (
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 md:bottom-8 md:right-8 z-30 flex flex-col items-end gap-3">
+            {fabOpen && (
+               <>
+                 <div className="fixed inset-0 bg-transparent z-40" onClick={() => setFabOpen(false)}></div>
+                 <div className="flex flex-col gap-2 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
+                    <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=income'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
+                       <span>Nova Entrada</span>
+                       <div className="w-8 h-8 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center">
+                          <Plus className="w-4 h-4" />
+                       </div>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=expense'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
+                       <span>Nova Saída</span>
+                       <div className="w-8 h-8 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                          <Plus className="w-4 h-4" />
+                       </div>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=transfer'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
+                       <span>Transferência</span>
+                       <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                          <Plus className="w-4 h-4" />
+                       </div>
+                    </button>
+                 </div>
+               </>
+            )}
+            <button
+              onClick={() => setFabOpen(!fabOpen)}
+              className="h-14 w-14 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 z-50"
+              aria-label="Registrar Movimentação"
+            >
+              <Plus className={`w-6 h-6 transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`} />
+            </button>
+          </div>
+        )}
 
         {/* Bottom Nav Mobile */}
         <nav className="md:hidden fixed bottom-0 w-full h-[env(safe-area-inset-bottom,0)+3.5rem] bg-surface-elevated border-t border-border-subtle flex items-center justify-around px-2 z-20 pb-[env(safe-area-inset-bottom,0)]">

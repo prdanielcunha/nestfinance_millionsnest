@@ -27,6 +27,7 @@ import {
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from "@/shared/finance/paymentMethods";
 import AccountRepairCard from "@/src/components/finance/AccountRepairCard";
 import ContextHelp from "@/src/components/finance/ContextHelp";
+import { TransactionEvidenceUpload } from "@/src/components/finance/TransactionEvidenceUpload";
 
 export default function TransactionEditPage() {
   const { accessState } = useAuth();
@@ -106,6 +107,7 @@ function TransactionEditContent() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [description, setDescription] = useState("");
   const [counterparty, setCounterparty] = useState("");
+  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
   const [evidenceJustification, setEvidenceJustification] = useState("");
   const [showDetails, setShowDetails] = useState(false);
 
@@ -275,6 +277,7 @@ function TransactionEditContent() {
       setPaymentMethod(txData.paymentMethod || "");
       setDescription(txData.description || "");
       setCounterparty(txData.counterparty || "");
+      setEvidenceIds(txData.evidenceIds || []);
       setEvidenceJustification(txData.evidenceJustification || "");
       
       if (txData.counterparty || txData.evidenceJustification || txData.evidenceIds?.length > 0 || txData.description) {
@@ -556,6 +559,7 @@ function TransactionEditContent() {
       paymentMethod: paymentMethod || undefined,
       description: description || undefined,
       counterparty: counterparty || undefined,
+      evidenceIds: evidenceIds.length > 0 ? evidenceIds : [],
       evidenceJustification: evidenceJustification || undefined,
       sourceContext: "manual",
       allocations:
@@ -1534,7 +1538,22 @@ function TransactionEditContent() {
                          className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
                        />
                      </div>
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-2">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
+                       <label className="text-sm font-medium text-text-primary">
+                         Comprovantes
+                       </label>
+                       <TransactionEvidenceUpload 
+                         organizationId={accessState.organizationId || ""}
+                         financeEntityId={activeFinanceEntityId || ""}
+                         evidenceIds={evidenceIds}
+                         onChange={(ids) => {
+                           setEvidenceIds(ids);
+                           setSaveSuccess(null);
+                         }}
+                       />
+                     </div>
+
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
                        <label className="text-sm font-medium text-text-primary">
                          Justificativa de ausência de comprovante (opcional)
                        </label>
@@ -1731,6 +1750,7 @@ function TransactionEditContent() {
                     accessState,
                     "finance.submit_for_review",
                   ) ? (
+                    <>
                     <button
                       onClick={handleSaveAndSubmit}
                       disabled={
@@ -1759,7 +1779,8 @@ function TransactionEditContent() {
                                     parseAmountToCents(a.amountRaw || "0"),
                                   0,
                                 ))) ||
-                            (!isSplit && !allocations[0].categoryId)))
+                            (!isSplit && !allocations[0].categoryId))) ||
+                        (evidenceIds.length === 0 && !evidenceJustification.trim())
                       }
                       className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
                     >
@@ -1772,6 +1793,12 @@ function TransactionEditContent() {
                         "Concluir movimentação"
                       )}
                     </button>
+                    {(evidenceIds.length === 0 && !evidenceJustification.trim()) && (
+                      <p className="text-xs text-amber-600 text-center px-4 mt-2">
+                         Adicione um comprovante ou escreva uma justificativa para poder enviar para revisão.
+                      </p>
+                    )}
+                    </>
                   ) : null}
 
                   <button

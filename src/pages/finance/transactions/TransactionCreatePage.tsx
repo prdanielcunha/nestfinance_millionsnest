@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Landmark,
@@ -30,6 +30,7 @@ import {
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from "@/shared/finance/paymentMethods";
 import AccountRepairCard from "@/src/components/finance/AccountRepairCard";
 import ContextHelp from "@/src/components/finance/ContextHelp";
+import { TransactionEvidenceUpload } from "@/src/components/finance/TransactionEvidenceUpload";
 
 export default function TransactionCreatePage() {
   const { accessState } = useAuth();
@@ -72,6 +73,7 @@ function TransactionCreateContent() {
   };
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { accessState } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { createDraft, createAndSubmit } = useTransactions();
@@ -84,9 +86,10 @@ function TransactionCreateContent() {
   const [funds, setFunds] = useState<any[]>([]);
 
   // Form State
+  const initialDirection = (searchParams.get('direction') as any) || "expense";
   const [direction, setDirection] = useState<
     "income" | "expense" | "transfer" | "liability_settlement"
-  >("expense");
+  >(initialDirection);
 
   const [settlementType, setSettlementType] = useState<
     "credit_card_bill" | "reimbursement" | ""
@@ -101,6 +104,7 @@ function TransactionCreateContent() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [description, setDescription] = useState("");
   const [counterparty, setCounterparty] = useState("");
+  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
   const [evidenceJustification, setEvidenceJustification] = useState("");
   const [showDetails, setShowDetails] = useState(false);
 
@@ -445,6 +449,7 @@ function TransactionCreateContent() {
       paymentMethod: paymentMethod || undefined,
       description: description || undefined,
       counterparty: counterparty || undefined,
+      evidenceIds: evidenceIds.length > 0 ? evidenceIds : undefined,
       evidenceJustification: evidenceJustification || undefined,
       sourceContext: "manual",
       allocations:
@@ -1328,7 +1333,19 @@ function TransactionCreateContent() {
                          className="w-full h-14 bg-surface-elevated border border-border-subtle text-text-primary rounded-xl px-4 outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors text-base placeholder-text-muted/50"
                        />
                      </div>
-                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-2">
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
+                       <label className="text-sm font-medium text-text-primary">
+                         Comprovantes
+                       </label>
+                       <TransactionEvidenceUpload 
+                         organizationId={accessState.organizationId || ""}
+                         financeEntityId={activeFinanceEntityId || ""}
+                         evidenceIds={evidenceIds}
+                         onChange={setEvidenceIds}
+                       />
+                     </div>
+
+                     <div className="flex flex-col gap-1.5 focus-within:relative focus-within:z-10 mt-4">
                        <label className="text-sm font-medium text-text-primary">
                          Justificativa de ausência de comprovante (opcional)
                        </label>
@@ -1584,6 +1601,7 @@ function TransactionCreateContent() {
                     accessState,
                     "finance.submit_for_review",
                   ) ? (
+                    <>
                     <button
                       onClick={handleCreateAndSubmit}
                       disabled={
@@ -1611,7 +1629,8 @@ function TransactionCreateContent() {
                                     parseAmountToCents(a.amountRaw || "0"),
                                   0,
                                 ))) ||
-                            (!isSplit && !allocations[0].categoryId)))
+                            (!isSplit && !allocations[0].categoryId))) ||
+                        (evidenceIds.length === 0 && !evidenceJustification.trim())
                       }
                       className="w-full h-14 flex items-center justify-center gap-2 bg-text-primary text-surface-base rounded-2xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base text-base mt-2"
                     >
@@ -1624,6 +1643,12 @@ function TransactionCreateContent() {
                         "Registrar movimentação"
                       )}
                     </button>
+                    {(evidenceIds.length === 0 && !evidenceJustification.trim()) && (
+                      <p className="text-xs text-amber-600 text-center px-4 mt-2">
+                         Adicione um comprovante ou escreva uma justificativa para poder enviar para revisão.
+                      </p>
+                    )}
+                    </>
                   ) : null}
 
                   <button
