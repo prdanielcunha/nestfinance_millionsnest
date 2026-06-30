@@ -123,7 +123,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (legacyPlan.blockers.length > 0) {
-        console.log('Legacy Plan Blockers:', legacyPlan.blockers);
         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan has blockers after recalculation' };
       }
 

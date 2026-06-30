@@ -170,6 +170,7 @@ export type PostingPlanInput = {
 
 export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
   const { transaction: tx, approval, allocations, mappings, policy, isPreview } = input;
+  
   const blockers: PostingPlanIssue[] = [];
   const warnings: PostingPlanIssue[] = [];
 

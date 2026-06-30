@@ -1,0 +1,70 @@
+Running Approval Verification Repair tests...
+[Test 1] V1 Verificável: PASS
+[Test 2] V1 Sem Snapshot: PASS
+[Test 3] V1 Material Alterado: PASS
+[Test 4] V2 Verified: PASS
+PLAN FAKE MAPPINGS: {
+  financeAccounts: [
+    {
+      accountId: 'mock-account',
+      ledgerAccountId: 'la_default_asset_mock-account',
+      type: 'asset'
+    }
+  ],
+  categories: [
+    {
+      categoryId: 'cat-1',
+      ledgerAccountId: 'la_default_expense_cat-1',
+      kind: 'expense'
+    }
+  ]
+}
+TX ACCOUNT ID: mock-account
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:0e0e00c84c9279a71f066df734376becf99b29c9297094e04262ec7745486df4","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-idempotency","version":1}
+PLAN FAKE HASH: sha256:d1fa122ac3b0a6d6fa46ec05c0480a5fe9aae7ad931e80f89e9a5883d5297f30
+PLAN FAKE BLOCKERS: []
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:0e0e00c84c9279a71f066df734376becf99b29c9297094e04262ec7745486df4","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-idempotency","version":1}
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"contentVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-idempotency"}
+req1 status: 200 body: { repaired: true, transactionId: 'tx-idempotency', version: 2 }
+req2 status: 200 body: { repaired: true, transactionId: 'tx-idempotency', version: 2 }
+req3 status: 200 body: {
+  repaired: false,
+  reason: 'Already uses current algorithm version',
+  transactionId: 'tx-idempotency',
+  version: 2
+}
+[Test 5] Idempotência (Mesma e Diferente Chave): PASS (true, true, true)
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:479c3359d155603cfb14a5fdafad1a78e8132fea03a453d584941670f7904e71","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-concurrency","version":1}
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:479c3359d155603cfb14a5fdafad1a78e8132fea03a453d584941670f7904e71","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-concurrency","version":1}
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"contentVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-concurrency"}
+[Test 6] Concorrência: PASS (success=1, alreadyRepaired=1, eventsAdded=1)
+[Test 7] Entrypoints Canônicos: PASS (Found: auth-gateway.ts, finance-gateway.ts, system-gateway.ts)
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:5727abc5addefc657aed2e5370ec98b1e58dbad36929fbd4acc118ef431b2257","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-blocker","version":1}
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+Legacy Plan Blockers: [
+  {
+    code: 'FINANCE_ACCOUNT_LEDGER_MAPPING_MISSING',
+    resourceId: 'mock-account'
+  },
+  {
+    code: 'FINANCE_POSTING_PLAN_UNBALANCED',
+    details: 'Totals mismatch'
+  }
+]
+[Test 8] Blockers Impedem Reparo: PASS (repaired: false, writes: 0)
+DEBUG buildPostingPlan input mappings: {"financeAccounts":[{"accountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","type":"asset"}],"categories":[{"categoryId":"cat-1","ledgerAccountId":"la_default_expense_cat-1","kind":"expense"}]}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"mock-account","reason":"expense_paid"}],"approvalSourceHash":"sha256:0e0e00c84c9279a71f066df734376becf99b29c9297094e04262ec7745486df4","approvedVersion":1,"financeEntityId":"ent-idempotency","fundEffects":[],"lines":[{"allocationId":"alloc-1","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_alloc-1"},{"creditCents":1000,"debitCents":0,"financeAccountId":"mock-account","ledgerAccountId":"la_default_asset_mock-account","lineKey":"asset_mock-account"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-auth-success","version":1}
+DEBUG plan hash mismatch: sha256:0be5104e1fd6aec3cf5201372f846226706d94c15658fb04f3274846787c441e vs sha256:cf3fee3026f3683277650fc384741f2d1b77d4fc02a2423768111ad808011933
+[Test 9] Autoridade e Cross-Org: PASS (Checks: true, true, true, true, true, true)
+
+scripts/test-approval-verification-repair.ts
+9 total
+9 passed
+0 failed

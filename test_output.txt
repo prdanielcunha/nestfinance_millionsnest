@@ -1,0 +1,218 @@
+SUÍTE	ARQUIVO	TOTAL	PASS	FAIL
+Mutation PASS: amountCents
+Mutation PASS: occurredAt
+Mutation PASS: competenceDate
+Mutation PASS: accountId
+Mutation PASS: destinationAccountId
+Mutation PASS: paymentMethod
+Mutation PASS: description
+Mutation PASS: counterparty
+Mutation PASS: evidenceIds
+Mutation PASS: evidenceJustification
+Mutation PASS: categoryId
+Mutation PASS: fundId
+Mutation PASS: costCenterId
+Mutation PASS: allocations
+Mutation PASS: sourceContext
+DEBUG preview loaded approval: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG: approval data: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"acc-1","reason":"expense_paid"}],"approvalSourceHash":"sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78","approvedVersion":1,"financeEntityId":"ent-tests","fundEffects":[],"lines":[{"allocationId":"a-stab","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_a-stab"},{"creditCents":1000,"debitCents":0,"financeAccountId":"acc-1","ledgerAccountId":"la_default_asset_acc-1","lineKey":"asset_acc-1"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-stab","version":1}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"acc-1","reason":"expense_paid"}],"contentVersion":1,"financeEntityId":"ent-tests","fundEffects":[],"lines":[{"allocationId":"a-stab","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_a-stab"},{"creditCents":1000,"debitCents":0,"financeAccountId":"acc-1","ledgerAccountId":"la_default_asset_acc-1","lineKey":"asset_acc-1"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-stab"}
+DEBUG preview loaded approval: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG: approval data: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"acc-1","reason":"expense_paid"}],"contentVersion":1,"financeEntityId":"ent-tests","fundEffects":[],"lines":[{"allocationId":"a-stab","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_a-stab"},{"creditCents":1000,"debitCents":0,"financeAccountId":"acc-1","ledgerAccountId":"la_default_asset_acc-1","lineKey":"asset_acc-1"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-stab"}
+DEBUG preview loaded approval: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG: approval data: {
+  approvedVersion: 1,
+  approvalAlgorithmVersion: 1,
+  approvalSourceHash: 'sha256:0c87580523059d079f20c76c6f9f0a9c7d765e4a3896349d1906e3c11094bd78',
+  materialSnapshot: {
+    organizationId: 'org-tests',
+    financeEntityId: 'ent-tests',
+    transactionId: 'tx-stab',
+    direction: 'expense',
+    amountCents: 1000,
+    currency: 'BRL',
+    occurredAt: '2023-01-01',
+    competenceDate: '',
+    accountId: 'acc-1',
+    sourceAccountId: '',
+    destinationAccountId: '',
+    liabilityAccountId: '',
+    paymentMethod: '',
+    counterparty: '',
+    evidenceIds: [],
+    evidenceJustification: '',
+    description: 'stab test',
+    sourceContext: '',
+    allocations: [ [Object] ],
+    version: 1
+  },
+  approvedPlanHash: 'sha256:8494e84dbf551edf64bef8e8a92a4fb68f0fdf417573772e883a0c433327797d',
+  status: 'approved',
+  approvalId: 'app-stab',
+  approvedBy: 'user-integration',
+  approvedAt: '2023-01-01T10:00:00Z'
+}
+DEBUG canonical: {"accountEffects":[{"amountCents":1000,"effect":"decrease","financeAccountId":"acc-1","reason":"expense_paid"}],"contentVersion":1,"financeEntityId":"ent-tests","fundEffects":[],"lines":[{"allocationId":"a-stab","categoryId":"cat-1","creditCents":0,"debitCents":1000,"ledgerAccountId":"la_default_expense_cat-1","lineKey":"expense_a-stab"},{"creditCents":1000,"debitCents":0,"financeAccountId":"acc-1","ledgerAccountId":"la_default_asset_acc-1","lineKey":"asset_acc-1"}],"occurredAt":"2023-01-01","planVersion":"1.0","transactionId":"tx-stab"}
+[Test 16] Complete Stability Test After Repair: PASS
+[Test 17] P06B - Regressões Mínimas (Create Draft): PASS
+
+============================
+material mutations	test-material-mutations-and-stability.ts	15	15	0
+stability	test-material-mutations-and-stability.ts	1	1	0

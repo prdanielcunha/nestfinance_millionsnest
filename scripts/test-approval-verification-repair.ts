@@ -187,27 +187,31 @@ async function runTests() {
     approvalId: 'app-1',
     status: 'approved_for_posting',
     version: 1,
-    contentVersion: 1
+    contentVersion: 1,
+    approvedVersion: 1,
+    approvalSourceHash: v1HashFake
   };
   await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).set(fakeTx);
   
   const fullMockAlloc = [{ ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txId }];
   
+  console.log('PLAN FAKE MAPPINGS:', {
+    financeAccounts: [{ accountId: 'mock-account', ledgerAccountId: 'la_default_asset_mock-account', type: 'asset' }],
+    categories: [{ categoryId: 'cat-1', ledgerAccountId: 'la_default_expense_cat-1', kind: 'expense' }]
+  });
+  console.log('TX ACCOUNT ID:', fakeTx.accountId);
   const planFake = buildPostingPlan({
     transaction: fakeTx as any,
     allocations: fullMockAlloc as any,
-    approval: { approvedVersion: 1, approvalAlgorithmVersion: 2, approvalSourceHash: v1HashFake } as any,
+    approval: { approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: v1HashFake } as any,
     mappings: {
-      financeAccountMappings: [{ accountId: 'mock-account', postingType: 'default', logicalAccount: 'cash', active: true }],
-      categories: [{ id: 'cat-1', active: true, kind: 'expense', name: 'Cat 1' }],
-      financeCategoryMappings: [{ categoryId: 'cat-1', postingType: 'expense', logicalAccount: 'expense', active: true }],
-      financeAccounts: [{ id: 'mock-account', active: true, currency: 'BRL', name: 'Mock' }],
-      financeFunds: [],
-      financeCostCenters: []
+      financeAccounts: [{ accountId: 'mock-account', ledgerAccountId: 'la_default_asset_mock-account', type: 'asset' }],
+      categories: [{ categoryId: 'cat-1', ledgerAccountId: 'la_default_expense_cat-1', kind: 'expense' }]
     } as any,
-    policy: { allowEmptyAllocations: false } as any,
+    policy: { allowEmptyAllocations: false, ledgerAccounts: [{ id: 'la_default_asset_mock-account', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }, { id: 'la_default_expense_cat-1', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }] } as any,
     isPreview: true
   });
+  console.log('PLAN FAKE HASH:', planFake.planHash);
   console.log('PLAN FAKE BLOCKERS:', planFake.blockers);
   
   const appRef = db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).collection('approvals').doc('latest');
@@ -216,7 +220,7 @@ async function runTests() {
     approvalAlgorithmVersion: 1,
     approvalSourceHash: v1HashFake,
     materialSnapshot: materialSnapshotFake,
-    approvedPlanHash: 'sha256:cf3fee3026f3683277650fc384741f2d1b77d4fc02a2423768111ad808011933',
+    approvedPlanHash: planFake.planHash,
     status: 'approved'
   });
   
@@ -288,6 +292,7 @@ async function runTests() {
     // Concurrency test
     total++;
     const txIdConc = 'tx-concurrency';
+    const v1HashFakeConc = computeApprovalSourceHash({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdConc, accountId: 'mock-account' } as any, mockAllocations as any, 1);
     const fakeTxConc = {
       ...mockTxData,
       accountId: 'mock-account',
@@ -297,20 +302,34 @@ async function runTests() {
       approvalId: 'app-conc',
       status: 'approved_for_posting',
       version: 1,
-      contentVersion: 1
+      contentVersion: 1,
+      approvedVersion: 1,
+      approvalSourceHash: v1HashFakeConc
     };
     await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdConc).set(fakeTxConc);
     
     const v1HashConc = computeApprovalSourceHash({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdConc, accountId: 'mock-account' } as any, mockAllocations as any, 1);
     const materialSnapshotConc = buildApprovalMaterial({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdConc, accountId: 'mock-account' } as any, mockAllocations as any, 1);
     
+    const planFakeConc = buildPostingPlan({
+      transaction: { ...fakeTxConc, version: 1 } as any,
+      allocations: [{ ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txIdConc }] as any,
+      approval: { approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: v1HashConc } as any,
+      mappings: {
+        financeAccounts: [{ accountId: 'mock-account', ledgerAccountId: 'la_default_asset_mock-account', type: 'asset' }],
+        categories: [{ categoryId: 'cat-1', ledgerAccountId: 'la_default_expense_cat-1', kind: 'expense' }]
+      } as any,
+      policy: { allowEmptyAllocations: false, ledgerAccounts: [{ id: 'la_default_asset_mock-account', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }, { id: 'la_default_expense_cat-1', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }] } as any,
+      isPreview: true
+    });
+
     const appRefConc = db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdConc).collection('approvals').doc('latest');
     await appRefConc.set({
       approvedVersion: 1,
       approvalAlgorithmVersion: 1,
       approvalSourceHash: v1HashConc,
       materialSnapshot: materialSnapshotConc,
-      approvedPlanHash: 'sha256:70b7405dcfbc95681c91284361a0ee7ce1ab3fedd365e78ba6b436a459ec98f1',
+      approvedPlanHash: planFakeConc.planHash,
       status: 'approved'
     });
     
@@ -375,24 +394,37 @@ async function runTests() {
   try {
     total++;
     const txIdBlocker = 'tx-blocker';
-    const fakeTxBlocker = {
-      ...mockTxData, accountId: 'mock-account', organizationId: orgId, financeEntityId: entId, id: txIdBlocker,
-      approvalId: 'app-blocker', status: 'approved_for_posting', version: 1, contentVersion: 1
-    };
-    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdBlocker).set(fakeTxBlocker);
     const v1HashBlocker = computeApprovalSourceHash({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdBlocker, accountId: 'mock-account' } as any, mockAllocations as any, 1);
     const materialSnapshotBlocker = buildApprovalMaterial({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdBlocker, accountId: 'mock-account' } as any, mockAllocations as any, 1);
+    const fakeTxBlocker = {
+      ...mockTxData, accountId: 'mock-account', organizationId: orgId, financeEntityId: entId, id: txIdBlocker,
+      approvalId: 'app-blocker', status: 'approved_for_posting', version: 1, contentVersion: 1,
+      approvedVersion: 1, approvalSourceHash: v1HashBlocker
+    };
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdBlocker).set(fakeTxBlocker);
     
+    const planFakeBlocker = buildPostingPlan({
+      transaction: { ...fakeTxBlocker, version: 1 } as any,
+      allocations: [{ ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txIdBlocker }] as any,
+      approval: { approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: v1HashBlocker } as any,
+      mappings: {
+        financeAccounts: [{ accountId: 'mock-account', ledgerAccountId: 'la_default_asset_mock-account', type: 'asset' }],
+        categories: [{ categoryId: 'cat-1', ledgerAccountId: 'la_default_expense_cat-1', kind: 'expense' }]
+      } as any,
+      policy: { allowEmptyAllocations: false, ledgerAccounts: [{ id: 'la_default_asset_mock-account', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }, { id: 'la_default_expense_cat-1', organizationId: orgId, financeEntityId: entId, active: true, postingAllowed: true }] } as any,
+      isPreview: true
+    });
+
     await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdBlocker).collection('approvals').doc('latest').set({
       approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: v1HashBlocker,
-      materialSnapshot: materialSnapshotBlocker, approvedPlanHash: 'mock-plan-hash', status: 'approved'
+      materialSnapshot: materialSnapshotBlocker, approvedPlanHash: planFakeBlocker.planHash, status: 'approved'
     });
     await db.collection('organizations').doc(orgId).collection('financeAllocations').doc('alloc-blocker').set({
       ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txIdBlocker
     });
-    // Create a blocker: remove the account mapping for this test
-    const previousMap = await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').get();
-    await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').delete();
+    // Create a blocker: remove the account for this test
+    const previousMap = await db.collection('organizations').doc(orgId).collection('financeAccounts').doc('mock-account').get();
+    await db.collection('organizations').doc(orgId).collection('financeAccounts').doc('mock-account').delete();
     
     const startLogCount2 = Object.keys((db as any).data).filter(k => k.includes('financeAuditLogs')).length;
     const startTxCount = Object.keys((db as any).data).filter(k => k.includes('financeTransactions')).length;
@@ -409,7 +441,7 @@ async function runTests() {
     const endTxCount = Object.keys((db as any).data).filter(k => k.includes('financeTransactions')).length;
     
     // restore map
-    await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').set(previousMap.data());
+    await db.collection('organizations').doc(orgId).collection('financeAccounts').doc('mock-account').set(previousMap.data());
     
     let isBlockerHandled = false;
     if (resBlocker.statusCode === 200 && resBlocker.body.repaired === false && resBlocker.body.repairEligible === false) {
