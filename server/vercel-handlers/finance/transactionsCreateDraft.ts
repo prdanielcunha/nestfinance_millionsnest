@@ -305,6 +305,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdBy: uid,
         updatedBy: uid,
         version: 1,
+        contentVersion: 1,
         schemaVersion: 1,
         validationIssues
       };

@@ -7,7 +7,7 @@ import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
-import { computeApprovalSourceHash } from '../../../shared/finance/ledger/approvalSourceHash.js';
+import { computeApprovalSourceHash, buildApprovalMaterial } from '../../../shared/finance/ledger/approvalSourceHash.js';
 import { buildPostingPlan } from '../../../shared/finance/ledger/postingPlan.js';
 import { loadPostingConfiguration } from './loadPostingConfiguration.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
@@ -73,12 +73,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No approval record found' };
       }
       const approvalData = approvalDoc.data()!;
+      
+      if (!approvalData.materialSnapshot) {
+         throw { code: 'FINANCE_APPROVAL_REPAIR_UNVERIFIABLE', message: 'Missing material snapshot in original approval' };
+      }
 
       const allocationsSnap = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const allocations = allocationsSnap.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
 
       // Re-verify the OLD hash. If the old hash doesn't match the one stored, it means the transaction WAS materially changed, so we cannot repair it.
       const oldAlgoVer = approvalData.approvalAlgorithmVersion || 1;
+      
+      if (oldAlgoVer >= 2) {
+         throw { code: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', message: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
+      }
       
       const legacyTxData = { ...txData };
       if (oldAlgoVer === 1) {
@@ -91,6 +99,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (expectedOldHash !== approvalData.approvalSourceHash) {
          throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Real material changes detected, repair is impossible' };
+      }
+      
+      // Also verify that the current material exactly matches the snapshot
+      const currentMaterial = buildApprovalMaterial(txData, allocations, 2);
+      if (JSON.stringify(currentMaterial) !== JSON.stringify(approvalData.materialSnapshot)) {
+         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Current material differs from approved material snapshot' };
       }
 
       // It hasn't materially changed! Let's generate a new V2 seal.
@@ -112,10 +126,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const newPlanHash = plan.planHash;
+      if (newPlanHash !== approvalData.approvedPlanHash) {
+         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan hash differs after recalculation' };
+      }
 
       const repairEventId = generateAuditId();
 
       const approvalVerificationRepair = {
+        originalApprovalId: approvalDoc.id,
         originalApprovedVersion: approvalData.approvedVersion,
         originalAlgorithmVersion: oldAlgoVer,
         originalApprovalSourceHash: approvalData.approvalSourceHash,

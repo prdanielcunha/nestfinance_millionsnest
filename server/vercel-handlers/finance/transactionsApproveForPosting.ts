@@ -9,7 +9,7 @@ import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
-import { computeApprovalSourceHash } from '../../../shared/finance/ledger/approvalSourceHash.js';
+import { computeApprovalSourceHash, buildApprovalMaterial } from '../../../shared/finance/ledger/approvalSourceHash.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -124,6 +124,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const approvedPlanHash = plan.planHash;
       const approvedReferenceFingerprintHash = referenceFingerprintHash;
       const sourceHash = computeApprovalSourceHash(txData, allocations, 2);
+      const materialSnapshot = buildApprovalMaterial(txData, allocations, 2);
+      const approvedContentVersion = txData.contentVersion || 1;
 
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
@@ -136,7 +138,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedBy: uid,
         approvedAt: FieldValue.serverTimestamp(),
         approvedVersion: txData.version,
+        approvedContentVersion,
         approvalSourceHash: sourceHash,
+        materialSnapshot,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
         approvalAlgorithmVersion: 2,
@@ -156,6 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedBy: uid,
         approvedAt: FieldValue.serverTimestamp(),
         approvedVersion: txData.version,
+        approvedContentVersion,
         approvalSourceHash: sourceHash,
         approvedPlanHash,
         approvedReferenceFingerprintHash,

@@ -187,13 +187,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (sealStatus === 'transaction_stale' || sealStatus === 'plan_mismatch') {
     const isLegacy = !approval.approvalAlgorithmVersion || approval.approvalAlgorithmVersion < 2;
     if (isLegacy) {
-      // Check if it's eligible for repair
-      const legacyTxData = { ...transaction, version: approval.approvedVersion };
-      const expectedOldHash = computeApprovalSourceHash(legacyTxData, allocations, 1);
-      if (expectedOldHash === approval.approvalSourceHash) {
-         verificationState = { status: 'legacy_false_stale', repairEligible: true, reasonCode: 'workflow_version_only' };
+      if (!approval.materialSnapshot) {
+         verificationState = { status: 'unverifiable', repairEligible: false, reasonCode: 'snapshot_missing' };
       } else {
-         verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };
+        // Check if it's eligible for repair
+        const legacyTxData = { ...transaction, version: approval.approvedVersion };
+        const expectedOldHash = computeApprovalSourceHash(legacyTxData, allocations, 1);
+        if (expectedOldHash === approval.approvalSourceHash) {
+           verificationState = { status: 'legacy_false_stale', repairEligible: true, reasonCode: 'workflow_version_only' };
+        } else {
+           verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };
+        }
       }
     } else {
       verificationState = { status: 'stale', repairEligible: false, materialChanges: [] };

@@ -700,8 +700,8 @@ function TransactionDetailContent() {
                     });
                  }
               } else if (tx.status === "approved_for_posting") {
-                 if (planRes.verificationState) {
-                   if (planRes.verificationState.status === 'legacy_false_stale') {
+                 if (postingPlanPreview?.verificationState) {
+                   if (postingPlanPreview.verificationState.status === 'legacy_false_stale') {
                      nextStep = {
                        status: 'approval_stale',
                        title: 'A verificação da aprovação precisa ser atualizada',
@@ -717,7 +717,7 @@ function TransactionDetailContent() {
                          { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
                        ]
                      };
-                   } else if (planRes.verificationState.status === 'stale') {
+                   } else if (postingPlanPreview.verificationState.status === 'stale') {
                      nextStep = {
                        status: 'approval_stale',
                        title: 'A aprovação precisa ser refeita',
@@ -737,7 +737,7 @@ function TransactionDetailContent() {
                          { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) }
                        ]
                      };
-                   } else if (planRes.verificationState.status === 'unverifiable') {
+                   } else if (postingPlanPreview.verificationState.status === 'unverifiable') {
                      nextStep = {
                        status: 'approval_stale',
                        title: 'Esta aprovação precisa de nova revisão',
