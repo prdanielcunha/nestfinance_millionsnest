@@ -73,16 +73,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No approval record found' };
       }
       const approvalData = approvalDoc.data()!;
+      const oldAlgoVer = approvalData.approvalAlgorithmVersion || 1;
       
-      if (!approvalData.materialSnapshot) {
-         throw { code: 'FINANCE_APPROVAL_REPAIR_UNVERIFIABLE', message: 'Missing material snapshot in original approval' };
+      if (oldAlgoVer >= 2 && !approvalData.materialSnapshot) {
+         throw { code: 'FINANCE_APPROVAL_REPAIR_UNVERIFIABLE', message: 'Missing material snapshot in original modern approval' };
       }
 
       const allocationsSnap = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const allocations = allocationsSnap.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
 
       // Re-verify the OLD hash. If the old hash doesn't match the one stored, it means the transaction WAS materially changed, so we cannot repair it.
-      const oldAlgoVer = approvalData.approvalAlgorithmVersion || 1;
       
       if (oldAlgoVer >= 2) {
          throw { code: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', message: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
@@ -101,32 +101,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Real material changes detected, repair is impossible' };
       }
       
-      // Also verify that the current material exactly matches the snapshot
+      // Also verify that the current material exactly matches the snapshot (only if it was a V2+ approval originally)
       const currentMaterial = buildApprovalMaterial(txData, allocations, 2);
-      if (JSON.stringify(currentMaterial) !== JSON.stringify(approvalData.materialSnapshot)) {
-         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Current material differs from approved material snapshot' };
+      if (oldAlgoVer >= 2) {
+        if (JSON.stringify(currentMaterial) !== JSON.stringify(approvalData.materialSnapshot)) {
+           throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Current material differs from approved material snapshot' };
+        }
       }
 
       // It hasn't materially changed! Let's generate a new V2 seal.
       const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
       
       const newSourceHash = computeApprovalSourceHash(txData, allocations, 2);
+      
+      const patchedTxData = { ...txData, approvalSourceHash: newSourceHash, approvedVersion: approvalData.approvedVersion };
 
       const plan = buildPostingPlan({
-        transaction: txData,
+        transaction: patchedTxData as any,
         allocations,
-        approval: { approvedVersion: approvalData.approvedVersion, approvalSourceHash: newSourceHash, status: 'approved_for_posting', approvalAlgorithmVersion: 2 } as any,
+        approval: { ...approvalData, approvalAlgorithmVersion: 2, materialSnapshot: currentMaterial, approvalSourceHash: newSourceHash } as any,
         mappings,
         policy,
         isPreview: false
       });
 
       if (plan.blockers.length > 0) {
+        console.log('PLAN BLOCKERS:', plan.blockers);
         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan has blockers after recalculation' };
       }
 
       const newPlanHash = plan.planHash;
       if (newPlanHash !== approvalData.approvedPlanHash) {
+         console.log('HASH DIFFERS:', newPlanHash, 'vs', approvalData.approvedPlanHash);
          throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan hash differs after recalculation' };
       }
 

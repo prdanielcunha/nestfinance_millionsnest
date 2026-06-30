@@ -369,6 +369,8 @@ async function runP06BConsolidatedTests() {
           occurredAt: '2026-06-22T00:00:00Z',
           accountId: canonAccountId,
           paymentMethod: 'pix',
+          description: 'Test payload',
+          evidenceIds: ['mock-doc'],
           allocations: [
             { categoryId: csCatId, amountCents: 7500 }
           ]
@@ -514,6 +516,8 @@ async function runP06BConsolidatedTests() {
     accountSnapshot: { id: canonAccountId, name: 'Canon Legacy Bank', type: 'asset:bank', nature: 'asset', configurationStatus: 'complete' },
     allocationIds: ['alloc_complete_1'],
     paymentMethod: 'pix',
+    description: 'Test payload',
+    evidenceIds: ['mock-doc'],
     version: 1
   });
   await orgRef.collection('financeAllocations').doc('alloc_complete_1').set({

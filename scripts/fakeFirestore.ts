@@ -6,10 +6,19 @@ export class FakeFirestore {
     return new FakeCollection(this, path);
   }
 
-  runTransaction(updateFunction: (transaction: any) => Promise<any>) {
-    // simplified mock transaction
-    const t = new FakeTransaction(this);
-    return updateFunction(t);
+  private txPromise: Promise<any> = Promise.resolve();
+
+  async runTransaction(updateFunction: (transaction: any) => Promise<any>) {
+    const prev = this.txPromise;
+    let resolveTx: () => void;
+    this.txPromise = new Promise(r => resolveTx = r as any);
+    await prev;
+    try {
+      const t = new FakeTransaction(this);
+      return await updateFunction(t);
+    } finally {
+      resolveTx!();
+    }
   }
 }
 
