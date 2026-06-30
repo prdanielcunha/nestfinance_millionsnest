@@ -152,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     approval: patchedApproval,
     mappings,
     policy,
-    isPreview: false
+    isPreview: true
   });
 
   const calculatedPlanHash = plan.planHash;

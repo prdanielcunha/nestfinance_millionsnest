@@ -119,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approval: approvalData as any,
         mappings,
         policy,
-        isPreview: false
+        isPreview: true
       });
 
       if (legacyPlan.blockers.length > 0) {
@@ -140,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approval: { ...approvalData, approvalAlgorithmVersion: 2, materialSnapshot: currentMaterial, approvalSourceHash: newSourceHash } as any,
         mappings,
         policy,
-        isPreview: false
+        isPreview: true
       });
 
       if (plan.blockers.length > 0) {
