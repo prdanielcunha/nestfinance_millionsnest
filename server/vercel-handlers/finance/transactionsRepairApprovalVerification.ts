@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Re-verify the OLD hash. If the old hash doesn't match the one stored, it means the transaction WAS materially changed, so we cannot repair it.
       
       if (oldAlgoVer >= 2) {
-         throw { code: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', message: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
+         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
       }
       
       const legacyTxData = { ...txData };
@@ -126,14 +126,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (plan.blockers.length > 0) {
-        console.log('PLAN BLOCKERS:', plan.blockers);
-        throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan has blockers after recalculation' };
+        return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan has blockers after recalculation' };
       }
 
       const newPlanHash = plan.planHash;
       if (newPlanHash !== approvalData.approvedPlanHash) {
-         console.log('HASH DIFFERS:', newPlanHash, 'vs', approvalData.approvedPlanHash);
-         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Plan hash differs after recalculation' };
+         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan hash differs after recalculation' };
       }
 
       const repairEventId = generateAuditId();

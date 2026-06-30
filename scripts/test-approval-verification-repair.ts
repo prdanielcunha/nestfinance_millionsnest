@@ -81,7 +81,7 @@ async function runTests() {
     };
     
     let unverifiable = false;
-    if (!mockApproval.materialSnapshot) {
+    if (!(mockApproval as any).materialSnapshot) {
        unverifiable = true;
     }
     
@@ -357,6 +357,151 @@ async function runTests() {
     else failed++;
     console.log(`[Test ${total}] Concorrência: ${isConcurrencySafe ? 'PASS' : 'FAIL'} (success=${successCount}, alreadyRepaired=${alreadyRepairedCount}, eventsAdded=${numLogsAdded})`);
   } catch(e) { failed++; console.log(`[Test ${total}] Idempotência: FAIL`, e); }
+
+  // Test 7: Entrypoints
+  try {
+    total++;
+    const fs = await import('fs');
+    const path = await import('path');
+    const apiFiles = fs.readdirSync(path.join(process.cwd(), 'api')).filter(f => f.endsWith('.ts'));
+    const expected = ['auth-gateway.ts', 'finance-gateway.ts', 'system-gateway.ts'];
+    const exactMatch = apiFiles.length === expected.length && expected.every(e => apiFiles.includes(e));
+    if (exactMatch) passed++;
+    else failed++;
+    console.log(`[Test ${total}] Entrypoints Canônicos: ${exactMatch ? 'PASS' : 'FAIL'} (Found: ${apiFiles.join(', ')})`);
+  } catch(e) { failed++; console.log(`[Test ${total}] Entrypoints: FAIL`, e); }
+
+  // Test 8: Blockers prevent repair
+  try {
+    total++;
+    const txIdBlocker = 'tx-blocker';
+    const fakeTxBlocker = {
+      ...mockTxData, accountId: 'mock-account', organizationId: orgId, financeEntityId: entId, id: txIdBlocker,
+      approvalId: 'app-blocker', status: 'approved_for_posting', version: 1, contentVersion: 1
+    };
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdBlocker).set(fakeTxBlocker);
+    const v1HashBlocker = computeApprovalSourceHash({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdBlocker, accountId: 'mock-account' } as any, mockAllocations as any, 1);
+    const materialSnapshotBlocker = buildApprovalMaterial({ ...mockTxData, organizationId: orgId, financeEntityId: entId, id: txIdBlocker, accountId: 'mock-account' } as any, mockAllocations as any, 1);
+    
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdBlocker).collection('approvals').doc('latest').set({
+      approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: v1HashBlocker,
+      materialSnapshot: materialSnapshotBlocker, approvedPlanHash: 'mock-plan-hash', status: 'approved'
+    });
+    await db.collection('organizations').doc(orgId).collection('financeAllocations').doc('alloc-blocker').set({
+      ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txIdBlocker
+    });
+    // Create a blocker: remove the account mapping for this test
+    const previousMap = await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').get();
+    await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').delete();
+    
+    const startLogCount2 = Object.keys((db as any).data).filter(k => k.includes('financeAuditLogs')).length;
+    const startTxCount = Object.keys((db as any).data).filter(k => k.includes('financeTransactions')).length;
+
+    const reqBlocker = {
+      method: 'POST',
+      headers: { authorization: 'Bearer integration_token', 'x-organization-id': orgId },
+      body: { operation: 'transactions-repair-approval-verification', organizationId: orgId, financeEntityId: entId, transactionId: txIdBlocker, idempotencyKey: 'idem-blocker', requestId: 'req-blocker' }
+    };
+    const resBlocker = new MockRes();
+    await transactionsRepairApprovalVerification(reqBlocker as any, resBlocker as any);
+    
+    const endLogCount2 = Object.keys((db as any).data).filter(k => k.includes('financeAuditLogs')).length;
+    const endTxCount = Object.keys((db as any).data).filter(k => k.includes('financeTransactions')).length;
+    
+    // restore map
+    await db.collection('organizations').doc(orgId).collection('financeAccountMappings').doc('map-acc').set(previousMap.data());
+    
+    let isBlockerHandled = false;
+    if (resBlocker.statusCode === 200 && resBlocker.body.repaired === false && resBlocker.body.repairEligible === false) {
+      if (resBlocker.body.errorCode === 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE') {
+         if (startLogCount2 === endLogCount2 && startTxCount === endTxCount) {
+             isBlockerHandled = true;
+         }
+      }
+    }
+    if (isBlockerHandled) passed++;
+    else failed++;
+    console.log(`[Test ${total}] Blockers Impedem Reparo: ${isBlockerHandled ? 'PASS' : 'FAIL'} (repaired: ${resBlocker.body.repaired}, writes: ${endTxCount - startTxCount})`);
+  } catch(e) { failed++; console.log(`[Test ${total}] Blockers Impedem Reparo: FAIL`, e); }
+
+  // Test 9: Authority and Cross-Org
+  try {
+    total++;
+    const orgIdOther = 'org-other';
+    const entIdOther = 'ent-other';
+    const txIdOther = 'tx-other';
+    const reqAuth = {
+      method: 'POST',
+      headers: { authorization: 'Bearer integration_token', 'x-organization-id': orgId },
+      body: { operation: 'transactions-repair-approval-verification', organizationId: orgId, financeEntityId: entId, transactionId: txId, idempotencyKey: 'idem-auth', requestId: 'req-auth' }
+    };
+    
+    // Header de outra organização
+    const reqAuth1 = { ...reqAuth, headers: { ...reqAuth.headers, 'x-organization-id': orgIdOther } };
+    const resAuth1 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth1 as any, resAuth1 as any);
+    
+    // financeEntityId de outra organização
+    const reqAuth2 = { ...reqAuth, body: { ...reqAuth.body, financeEntityId: entIdOther } };
+    const resAuth2 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth2 as any, resAuth2 as any);
+    
+    // transactionId de outra organização (mocking transaction from another org, which would throw FORBIDDEN if it exists but orgId doesn't match)
+    // we already test it inside the logic: txData.financeEntityId !== financeEntityId throws FORBIDDEN
+    const txIdOtherOrg = 'tx-other-org';
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdOtherOrg).set({
+       ...fakeTx, financeEntityId: entIdOther
+    });
+    const reqAuth3 = { ...reqAuth, body: { ...reqAuth.body, transactionId: txIdOtherOrg } };
+    const resAuth3 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth3 as any, resAuth3 as any);
+
+    // membership ausente
+    const admin2 = getFirebaseAdmin();
+    admin2.auth.verifyIdToken = async () => ({ uid: 'user-no-membership' }) as any;
+    const resAuth4 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth as any, resAuth4 as any);
+    
+    // capability ausente
+    await db.collection('users').doc('user-no-cap').set({ displayName: 'No Cap User' });
+    await db.collection('organizations').doc(orgId).collection('users').doc('user-no-cap').set({
+      capabilities: ['finance.view'] // missing approve_for_posting
+    });
+    admin2.auth.verifyIdToken = async () => ({ uid: 'user-no-cap' }) as any;
+    const resAuth5 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth as any, resAuth5 as any);
+
+    // autorizado
+    admin2.auth.verifyIdToken = async () => ({ uid: userId }) as any;
+    const txIdAuthSuccess = 'tx-auth-success';
+    const txSuccess = { ...fakeTx, id: txIdAuthSuccess };
+    const successHash = computeApprovalSourceHash(txSuccess as any, mockAllocations as any, 1);
+    const successMaterial = buildApprovalMaterial(txSuccess as any, mockAllocations as any, 1);
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdAuthSuccess).set(txSuccess);
+    await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdAuthSuccess).collection('approvals').doc('latest').set({
+      approvedVersion: 1, approvalAlgorithmVersion: 1, approvalSourceHash: successHash,
+      materialSnapshot: successMaterial, approvedPlanHash: 'sha256:cf3fee3026f3683277650fc384741f2d1b77d4fc02a2423768111ad808011933', status: 'approved'
+    });
+    await db.collection('organizations').doc(orgId).collection('financeAllocations').doc('alloc-auth-success').set({
+      ...mockAllocations[0], organizationId: orgId, financeEntityId: entId, transactionId: txIdAuthSuccess
+    });
+    const reqAuth6 = { ...reqAuth, body: { ...reqAuth.body, transactionId: txIdAuthSuccess } };
+    const resAuth6 = new MockRes();
+    await transactionsRepairApprovalVerification(reqAuth6 as any, resAuth6 as any);
+
+    const checks = [
+       resAuth1.statusCode !== 200,
+       resAuth2.statusCode !== 200,
+       resAuth3.statusCode !== 200,
+       resAuth4.statusCode !== 200,
+       resAuth5.statusCode !== 200,
+       resAuth6.statusCode === 200
+    ];
+    const isAuthSafe = checks.every(c => c);
+    if (isAuthSafe) passed++;
+    else failed++;
+    console.log(`[Test ${total}] Autoridade e Cross-Org: ${isAuthSafe ? 'PASS' : 'FAIL'} (Checks: ${checks.join(', ')})`);
+  } catch(e) { failed++; console.log(`[Test ${total}] Autoridade e Cross-Org: FAIL`, e); }
 
   console.log(`\nscripts/test-approval-verification-repair.ts`);
   console.log(`${total} total`);
