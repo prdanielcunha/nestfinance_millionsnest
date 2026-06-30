@@ -8,6 +8,7 @@ import { generateAllocationId, generateAuditId, isValidIdempotencyKey, isValidRe
 import { validateAllocation, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
+import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -73,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Update only draft. If it's ready_for_review, it can be updated but only to return to draft!
       if (txData.status !== 'draft') {
-         if (txData.status === 'ready_for_review' && payload.intent === 'return_to_draft') {
+         if ((txData.status === 'ready_for_review' || txData.status === 'approved_for_posting') && payload.intent === 'return_to_draft') {
             // allow transition
          } else {
             throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot edit transaction in current state' };
@@ -225,6 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         cashFlowDirection,
         amountCents: mergedPayload.amountCents,
         occurredAt: mergedPayload.occurredAt,
+        competenceDate: payload.competenceDate !== undefined ? payload.competenceDate : txData.competenceDate,
         accountId: mergedPayload.accountId,
         paymentMethod: mergedPayload.paymentMethod,
         counterparty: payload.counterparty !== undefined ? payload.counterparty : txData.counterparty,
@@ -268,6 +270,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           else newRecord.description = payload.description;
       } else if (newRecord.description === undefined) {
           delete newRecord.description;
+      }
+
+      if (payload.competenceDate !== undefined) {
+          if (payload.competenceDate === '') delete newRecord.competenceDate;
+          else newRecord.competenceDate = payload.competenceDate;
+      } else if (newRecord.competenceDate === undefined) {
+          delete newRecord.competenceDate;
       }
       
       if (payload.counterparty !== undefined) {
@@ -427,7 +436,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       newRecord.contentVersion = (txData.contentVersion || txData.version) + 1;
       newRecord.updatedAt = FieldValue.serverTimestamp();
 
-      const { sanitizeFirestoreObject } = await import('./sanitizeFirestoreObject.js');
+      if (txData.status === 'approved_for_posting') {
+         newRecord.approvalSourceHash = FieldValue.delete() as any;
+         newRecord.approvedVersion = FieldValue.delete() as any;
+         newRecord.approvedAt = FieldValue.delete() as any;
+         newRecord.approvedBy = FieldValue.delete() as any;
+         
+         const approvalUpdate = sanitizeFirestoreObject({
+             status: 'invalidated',
+             invalidatedAt: FieldValue.serverTimestamp(),
+             invalidatedBy: uid,
+             reasonCode: 'material_mutation_during_draft'
+         });
+         t.update(txRef.collection('approvals').doc('latest'), approvalUpdate);
+      }
+
       const sanitizedRecord = sanitizeFirestoreObject(newRecord);
 
       t.update(txRef, sanitizedRecord);

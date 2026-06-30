@@ -112,6 +112,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // It hasn't materially changed! Let's generate a new V2 seal.
       const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
       
+      // Verify legacy plan hash matches
+      const legacyPlan = buildPostingPlan({
+        transaction: { ...txData, version: approvalData.approvedVersion } as any,
+        allocations,
+        approval: approvalData as any,
+        mappings,
+        policy,
+        isPreview: false
+      });
+
+      if (legacyPlan.blockers.length > 0) {
+        console.log('Legacy Plan Blockers:', legacyPlan.blockers);
+        return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan has blockers after recalculation' };
+      }
+
+      if (legacyPlan.planHash !== approvalData.approvedPlanHash) {
+         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan hash differs after recalculation' };
+      }
+
       const newSourceHash = computeApprovalSourceHash(txData, allocations, 2);
       
       const patchedTxData = { ...txData, approvalSourceHash: newSourceHash, approvedVersion: approvalData.approvedVersion };
@@ -130,9 +149,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const newPlanHash = plan.planHash;
-      if (newPlanHash !== approvalData.approvedPlanHash) {
-         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan hash differs after recalculation' };
-      }
 
       const repairEventId = generateAuditId();
 
@@ -161,6 +177,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updatedAt: FieldValue.serverTimestamp(),
         version: txData.version + 1
       }));
+
+      // Update the approvals/latest document
+      const approvalUpdate = sanitizeFirestoreObject({
+        approvalSourceHash: newSourceHash,
+        approvedPlanHash: newPlanHash,
+        approvalAlgorithmVersion: 2,
+        repairedAt: FieldValue.serverTimestamp(),
+        repairedBy: uid
+      });
+      t.update(txRef.collection('approvals').doc('latest'), approvalUpdate);
+      if (approvalData.approvalId) {
+        t.update(txRef.collection('approvals').doc(approvalData.approvalId), approvalUpdate);
+      }
 
       t.set(context.repository.getAuditRef().doc(repairEventId), sanitizeFirestoreObject({
         eventId: repairEventId,
