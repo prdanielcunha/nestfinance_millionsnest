@@ -72,13 +72,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
       
-      // Update only draft. If it's ready_for_review, it can be updated but only to return to draft!
+      // Update only draft.
       if (txData.status !== 'draft') {
-         if ((txData.status === 'ready_for_review' || txData.status === 'approved_for_posting') && payload.intent === 'return_to_draft') {
-            // allow transition
-         } else {
-            throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot edit transaction in current state' };
-         }
+          throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Cannot edit transaction in current state' };
       }
 
       const existingKind = txData.transactionKind || txData.direction;
@@ -95,12 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };
       }
       
-      let newStatus = txData.status;
-      if (payload.intent === 'return_to_draft') {
-          newStatus = 'draft';
-      }
-
-      if (payload.status !== undefined && payload.status !== newStatus) {
+      if (payload.status !== undefined && payload.status !== txData.status) {
          throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Arbitrary status change not allowed' };
       }
 
@@ -234,7 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         evidenceJustification: payload.evidenceJustification !== undefined ? payload.evidenceJustification : txData.evidenceJustification,
         description: payload.description !== undefined ? payload.description : txData.description,
         sourceContext: mergedPayload.sourceContext || txData.sourceContext,
-        status: newStatus,
+        status: txData.status,
         updatedBy: uid,
         accountSnapshot,
         validationIssues
@@ -436,21 +427,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       newRecord.contentVersion = (txData.contentVersion || txData.version) + 1;
       newRecord.updatedAt = FieldValue.serverTimestamp();
 
-      if (txData.status === 'approved_for_posting') {
-         newRecord.approvalSourceHash = FieldValue.delete() as any;
-         newRecord.approvedVersion = FieldValue.delete() as any;
-         newRecord.approvedAt = FieldValue.delete() as any;
-         newRecord.approvedBy = FieldValue.delete() as any;
-         
-         const approvalUpdate = sanitizeFirestoreObject({
-             status: 'invalidated',
-             invalidatedAt: FieldValue.serverTimestamp(),
-             invalidatedBy: uid,
-             reasonCode: 'material_mutation_during_draft'
-         });
-         t.update(txRef.collection('approvals').doc('latest'), approvalUpdate);
-      }
-
       const sanitizedRecord = sanitizeFirestoreObject(newRecord);
 
       t.update(txRef, sanitizedRecord);
@@ -468,10 +444,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const auditId = generateAuditId();
       let action = 'transaction.updated';
       let eventType = 'draft_updated';
-      if (txData.status === 'ready_for_review' && newStatus === 'draft') {
-          action = 'transaction.returned_to_draft';
-          eventType = 'returned_to_draft';
-      }
 
       t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
         eventId: auditId,

@@ -84,6 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newVersion = txData.version + 1;
       const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'draft', txData.occurredAt);
       
+      if (txData.status === 'approved_for_posting') {
+         const approvalUpdate = sanitizeFirestoreObject({
+             status: 'invalidated',
+             invalidatedAt: FieldValue.serverTimestamp(),
+             invalidatedBy: uid,
+             reasonCode: reasonCode === 'other' ? 'approval_invalidated_for_correction' : reasonCode,
+             comment: comment || null
+         });
+         t.update(txRef.collection('approvals').doc('latest'), approvalUpdate);
+      }
+
       t.update(txRef, sanitizeFirestoreObject({
         status: 'draft',
         listQueryKeys,

@@ -62,8 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Transaction is not in approved state' };
       }
 
-      // Check if it already has algorithmVersion >= 2
-      if ((txData as any).approvalAlgorithmVersion && (txData as any).approvalAlgorithmVersion >= 2) {
+      // Check if it already has been repaired
+      if ((txData as any).approvalVerificationRepair) {
          return { repaired: false, reason: 'Already uses current algorithm version', transactionId, version: txData.version };
       }
 
@@ -133,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const newSourceHash = computeApprovalSourceHash(txData, allocations, 2);
       
-      const patchedTxData = { ...txData, approvalSourceHash: newSourceHash, approvedVersion: approvalData.approvedVersion };
+      const patchedTxData = { ...txData, approvalSourceHash: newSourceHash, approvedVersion: approvalData.approvedVersion, version: approvalData.approvedVersion };
 
       const plan = buildPostingPlan({
         transaction: patchedTxData as any,
@@ -159,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         originalApprovalSourceHash: approvalData.approvalSourceHash,
         verificationAlgorithmVersion: 2,
         verificationHash: newSourceHash,
+        verificationPlanHash: newPlanHash,
         repairedAt: FieldValue.serverTimestamp(),
         repairedBy: {
           type: 'authorized_user',
@@ -170,26 +171,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       t.update(txRef, sanitizeFirestoreObject({
         approvalVerificationRepair,
-        approvalSourceHash: newSourceHash,
-        approvedPlanHash: newPlanHash,
-        approvalAlgorithmVersion: 2,
         updatedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
         version: txData.version + 1
       }));
-
-      // Update the approvals/latest document
-      const approvalUpdate = sanitizeFirestoreObject({
-        approvalSourceHash: newSourceHash,
-        approvedPlanHash: newPlanHash,
-        approvalAlgorithmVersion: 2,
-        repairedAt: FieldValue.serverTimestamp(),
-        repairedBy: uid
-      });
-      t.update(txRef.collection('approvals').doc('latest'), approvalUpdate);
-      if (approvalData.approvalId) {
-        t.update(txRef.collection('approvals').doc(approvalData.approvalId), approvalUpdate);
-      }
 
       t.set(context.repository.getAuditRef().doc(repairEventId), sanitizeFirestoreObject({
         eventId: repairEventId,

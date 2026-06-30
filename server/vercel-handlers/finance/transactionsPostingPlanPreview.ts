@@ -125,10 +125,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  const patchedTxForPlan = { ...transaction } as any;
+  const patchedApproval = approval ? { ...approval } : undefined;
+
+  if (approvalDoc.exists && (transaction as any).approvalVerificationRepair) {
+    const repair = (transaction as any).approvalVerificationRepair;
+    if (repair.originalApprovalSourceHash === approval.approvalSourceHash && 
+        repair.originalApprovedVersion === approval.approvedVersion) {
+       patchedTxForPlan.approvalSourceHash = repair.verificationHash;
+       patchedTxForPlan.approvedVersion = approval.approvedVersion;
+       patchedTxForPlan.version = approval.approvedVersion;
+       if (patchedApproval) {
+           patchedApproval.approvalSourceHash = repair.verificationHash;
+           patchedApproval.approvalAlgorithmVersion = repair.verificationAlgorithmVersion;
+       }
+    }
+  } else if (approvalDoc.exists) {
+       patchedTxForPlan.approvalSourceHash = approval.approvalSourceHash;
+       patchedTxForPlan.approvedVersion = approval.approvedVersion;
+       patchedTxForPlan.version = approval.approvedVersion;
+  }
+
   const plan = buildPostingPlan({
-    transaction,
+    transaction: patchedTxForPlan,
     allocations,
-    approval,
+    approval: patchedApproval,
     mappings,
     policy,
     isPreview: true
@@ -142,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const repair = (transaction as any).approvalVerificationRepair;
     if (repair.originalApprovalSourceHash === approval.approvalSourceHash && 
         repair.originalApprovedVersion === approval.approvedVersion) {
-       approvedPlanHash = (transaction as any).approvedPlanHash || approvedPlanHash;
+       approvedPlanHash = repair.verificationPlanHash || approvedPlanHash;
     }
   }
 

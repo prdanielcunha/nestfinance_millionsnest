@@ -143,12 +143,24 @@ async function runTests() {
         materialSnapshot: matV1, status: 'approved'
       });
 
+      // Return to draft
+      const resReturn = new MockRes();
+      const { default: transactionsReturnToDraft } = await import('../server/vercel-handlers/finance/transactionsReturnToDraft.js');
+      await transactionsReturnToDraft({
+        ...baseReq, body: { operation: 'transactions-return-to-draft', organizationId: orgId, financeEntityId: entId, transactionId: txId, expectedVersion: 1, reasonCode: 'other', comment: 'test', idempotencyKey: `idem-ret-${txId}`, requestId: `req-ret-${txId}` }
+      } as any, resReturn as any);
+
+      if (resReturn.statusCode !== 200) {
+        throw new Error('Return to draft failed: ' + JSON.stringify(resReturn.body));
+      }
+
+      // Update draft
       const resMut = new MockRes();
-      const payloadBase = isTransfer ? { expectedVersion: 1, transactionKind: 'transfer', accountId: 'acc-1', destinationAccountId: 'acc-1', amountCents: 1000, occurredAt: '2023-01-01', allocations: [] }
-                                   : { expectedVersion: 1, transactionKind: 'expense', accountId: 'acc-1', amountCents: 1000, occurredAt: '2023-01-01', allocations: [{categoryId: 'cat-1', amountCents: 1000}] };
+      const payloadBase = isTransfer ? { expectedVersion: 2, transactionKind: 'transfer', accountId: 'acc-1', destinationAccountId: 'acc-1', amountCents: 1000, occurredAt: '2023-01-01', allocations: [] }
+                                   : { expectedVersion: 2, transactionKind: 'expense', accountId: 'acc-1', amountCents: 1000, occurredAt: '2023-01-01', allocations: [{categoryId: 'cat-1', amountCents: 1000}] };
                                    
       await transactionsUpdateDraft({
-        ...baseReq, body: { operation: 'transactions-update-draft', organizationId: orgId, financeEntityId: entId, transactionId: txId, expectedVersion: 1, idempotencyKey: `idem-${txId}`, requestId: `req-${txId}`, payload: { intent: 'return_to_draft', ...payloadBase, ...mut.payload } }
+        ...baseReq, body: { operation: 'transactions-update-draft', organizationId: orgId, financeEntityId: entId, transactionId: txId, expectedVersion: 2, idempotencyKey: `idem-${txId}`, requestId: `req-${txId}`, payload: { ...payloadBase, ...mut.payload } }
       } as any, resMut as any);
       
       const updatedTx = (await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get()).data();
@@ -157,6 +169,7 @@ async function runTests() {
       let passMut = true;
       if (updatedTx.contentVersion <= 1) passMut = false; // did not increment
       if (updatedApp.status !== 'invalidated') passMut = false; // did not invalidate
+
       
       const resPrev = new MockRes();
       await transactionsPostingPlanPreview({
@@ -242,10 +255,15 @@ async function runTests() {
       
       // Compare approval
       const newApproval = (await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdStab).collection('approvals').doc('latest').get()).data();
-      if (newApproval.approvalSourceHash === originalApproval.approvalSourceHash) { stabPass = false; console.log('Stab Fail Hash not updated'); }
-      if (newApproval.approvalAlgorithmVersion !== 2) { stabPass = false; console.log('Stab Fail Algo ver not 2'); }
+      const newTxData = (await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(txIdStab).get()).data();
+      
+      if (newApproval.approvalSourceHash !== originalApproval.approvalSourceHash) { stabPass = false; console.log('Stab Fail Hash was incorrectly modified on approval doc'); }
+      if (newApproval.approvalAlgorithmVersion !== originalApproval.approvalAlgorithmVersion) { stabPass = false; console.log('Stab Fail Algo ver was incorrectly modified on approval doc'); }
       if (newApproval.approvedVersion !== originalApproval.approvedVersion) { stabPass = false; console.log('Stab Fail approvedVersion changed'); }
       if (newApproval.approvedBy !== originalApproval.approvedBy) { stabPass = false; console.log('Stab Fail approvedBy changed'); }
+      
+      if (!newTxData.approvalVerificationRepair) { stabPass = false; console.log('Stab Fail: approvalVerificationRepair not added to txData'); }
+      if (newTxData.approvalVerificationRepair?.verificationAlgorithmVersion !== 2) { stabPass = false; console.log('Stab Fail: wrong verificationAlgoVer in txData'); }
       
       // Step 3: Preview again
       const resPrev2 = new MockRes();
