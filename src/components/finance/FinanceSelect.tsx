@@ -165,7 +165,7 @@ export function FinanceSelect({
   };
 
   const renderList = () => (
-    <div className="flex flex-col h-full" role="presentation">
+    <>
       {showSearch && (
         <div className="p-4 border-b border-border-subtle shrink-0">
           <div className="relative">
@@ -186,7 +186,7 @@ export function FinanceSelect({
       <div 
         id={listboxId}
         role="listbox"
-        className="flex-1 overflow-y-auto p-2 overscroll-contain"
+        className="flex-1 overflow-y-auto p-2 min-h-0 overscroll-contain"
         aria-label={placeholder}
       >
         {filteredOptions.length === 0 && (!allowClear || value !== '') ? (
@@ -218,7 +218,7 @@ export function FinanceSelect({
           })
         )}
       </div>
-    </div>
+    </>
   );
 
   const renderDropdown = () => {
