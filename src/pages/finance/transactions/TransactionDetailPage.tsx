@@ -654,6 +654,7 @@ function TransactionDetailContent() {
                       action: () => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', tx.id)),
                     },
                     secondaryActions: [
+                      { label: 'Enviar para revisão mesmo assim', action: () => setSubmitModalOpen(true) },
                       { label: 'Voltar para Finance', action: () => navigate(APP_ROUTES.finance) },
                       { label: 'Registrar outra', action: () => navigate(APP_ROUTES.transactionCreate) }
                     ]

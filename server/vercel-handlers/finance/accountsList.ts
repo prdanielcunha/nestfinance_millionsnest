@@ -79,11 +79,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         id: doc.id,
         name: data.name,
         type: data.type,
+        nature: data.nature,
         institutionName: data.institutionName,
         accountLast4: data.accountLast4,
         currency: data.currency,
         financeEntityId: data.financeEntityId,
-        active: data.active
+        active: data.active,
+        configurationStatus: data.configurationStatus,
+        templateKey: data.templateKey,
+        supportedPaymentInstruments: data.supportedPaymentInstruments,
+        paymentInstruments: data.paymentInstruments,
+        accountRole: data.accountRole || data.role,
+        liabilityType: data.liabilityType,
+        openingBalanceCents: data.openingBalanceCents,
+        normalizedName: data.normalizedName
       });
     }
 

@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceEntityAccess } from './accessHelpers.js';
+import { requireFinanceEntityAccess, resolveFinanceRequestContext } from './accessHelpers.js';
 import { FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildPostingPlan, describePostingPlan } from '../../../shared/finance/ledger/postingPlan.js';
@@ -20,33 +20,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.view');
 
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = (req.headers['x-organization-id'] as string) || decodedToken.mn_organization_id;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    if (!sessionList.granted) {
-      return res.status(403).json({ error: 'FORBIDDEN_FINANCE_ACCESS' });
-    }
-
-    const { financeEntity } = await requireFinanceEntityAccess({
-      db,
-      uid,
-      organizationId,
-      financeEntityId,
-      requiredPermission: 'finance.view',
-      sessionGranted: sessionList.granted
-    });
-
-  const txDoc = await db
+    const txDoc = await db
     .collection('organizations')
     .doc(organizationId)
     .collection('financeTransactions')
@@ -100,7 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (previewMode === 'review_preview') {
     sealStatus = 'seal_missing';
   } else {
-    console.log('DEBUG: approval data:', approval);
     if (!approval || !approval.approvedPlanHash) {
       sealStatus = 'seal_missing';
     } else {
@@ -169,10 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (sealStatus === 'verified') {
     if (expectedReferenceHash && referenceFingerprintHash !== expectedReferenceHash) {
-      console.log('DEBUG plan_mismatch fingerprint:', referenceFingerprintHash, approval.approvedReferenceFingerprintHash);
       sealStatus = 'references_changed';
     } else if (calculatedPlanHash !== approvedPlanHash) {
-      console.log('DEBUG plan_mismatch calculated vs approved:', calculatedPlanHash, approvedPlanHash);
       sealStatus = 'plan_mismatch';
     }
   }

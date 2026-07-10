@@ -78,7 +78,7 @@ export function FinanceSelect({
         
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
-        const popoverMaxHeight = 320;
+        const minRequiredSpace = 200; // Require at least 200px to open in a direction if possible
         
         let style: React.CSSProperties = {
           left: rect.left,
@@ -86,14 +86,14 @@ export function FinanceSelect({
           position: 'fixed',
         };
 
-        if (spaceBelow < popoverMaxHeight && spaceAbove > spaceBelow) {
+        if (spaceBelow < minRequiredSpace && spaceAbove > spaceBelow) {
           // Open upwards
-          const maxHeight = Math.min(popoverMaxHeight, spaceAbove - 12);
+          const maxHeight = spaceAbove - 16;
           style.bottom = window.innerHeight - rect.top + 4;
           style.maxHeight = `${maxHeight}px`;
         } else {
           // Open downwards
-          const maxHeight = Math.min(popoverMaxHeight, spaceBelow - 12);
+          const maxHeight = spaceBelow - 16;
           style.top = rect.bottom + 4;
           style.maxHeight = `${maxHeight}px`;
         }
@@ -145,10 +145,8 @@ export function FinanceSelect({
       setSearchQuery('');
       const initialIndex = allItems.findIndex(i => i.value === value);
       setFocusedIndex(initialIndex >= 0 ? initialIndex : 0);
-      // Prevent body scroll on mobile
-      if (isMobile) {
-        document.body.style.overflow = 'hidden';
-      }
+      // Prevent body scroll
+      document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
       setFocusedIndex(-1);
@@ -156,7 +154,7 @@ export function FinanceSelect({
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen, isMobile]);
+  }, [isOpen, allItems, value]);
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -186,7 +184,7 @@ export function FinanceSelect({
       <div 
         id={listboxId}
         role="listbox"
-        className="flex-1 overflow-y-auto p-2 min-h-0 overscroll-contain"
+        className="flex-1 overflow-y-auto p-2 min-h-0"
         aria-label={placeholder}
       >
         {filteredOptions.length === 0 && (!allowClear || value !== '') ? (

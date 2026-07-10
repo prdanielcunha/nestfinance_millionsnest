@@ -1,6 +1,56 @@
 import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
+import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
+import { VercelRequest } from '@vercel/node';
+
+export async function resolveFinanceRequestContext(req: VercelRequest, requiredCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft') {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw { status: 401, error: 'UNAUTHORIZED' };
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  const admin = getFirebaseAdmin();
+  const db = admin.firestore;
+  const decodedToken = await admin.auth.verifyIdToken(token);
+  const uid = decodedToken.uid;
+  
+  // Use header for compatibility, but token mn_organization_id takes precedence or validates it
+  const headerOrgId = req.headers['x-organization-id'] as string;
+  const tokenOrgId = decodedToken.mn_organization_id as string;
+  
+  const organizationId = tokenOrgId || headerOrgId;
+
+  if (!organizationId) {
+    throw { status: 400, error: 'MISSING_ORGANIZATION_ID' };
+  }
+
+  const sessionList = await resolveEcosystemSession(uid, organizationId);
+
+  // Validate if header diverges from token and user is not global admin
+  if (tokenOrgId && headerOrgId && tokenOrgId !== headerOrgId && !sessionList.isGlobalAccess) {
+    console.error(`[CRITICAL] Multi-tenant violation attempt: User ${uid} with tokenOrg ${tokenOrgId} attempted to access headerOrg ${headerOrgId}`);
+    throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
+  }
+
+  const financeEntityId = req.body?.financeEntityId || req.query?.financeEntityId;
+  if (!financeEntityId || typeof financeEntityId !== 'string') {
+    throw { status: 400, error: 'INVALID_PARAMETERS', details: 'Missing financeEntityId' };
+  }
+
+  const context = await requireFinanceTransactionAccess({
+    db,
+    uid,
+    organizationId,
+    financeEntityId,
+    sessionList,
+    capability: requiredCapability
+  });
+
+  return { admin, db, uid, organizationId, financeEntityId, sessionList, context };
+}
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList.isGlobalAccess) return true;

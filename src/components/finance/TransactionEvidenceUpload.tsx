@@ -2,8 +2,14 @@ import React, { useState, useRef, useEffect } from "react";
 import { Upload, X, File, Image as ImageIcon, CheckCircle2, Loader2, Camera, Link as LinkIcon, AlertCircle } from "lucide-react";
 import { firebaseStorage, firebaseAuth } from "@/src/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/src/hooks/useAuth";
+
+function generateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 9);
+}
 
 export type EvidenceItem = {
   id: string; // The canonical ID (can be storage path or UUID)
@@ -64,7 +70,7 @@ export function TransactionEvidenceUpload({
 
   const handleUpload = async (files: File[]) => {
     for (const file of files) {
-      const evidenceId = `organizations/${organizationId}/financeEntities/${financeEntityId}/evidence/${uuidv4()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const evidenceId = `organizations/${organizationId}/financeEntities/${financeEntityId}/evidence/${generateId()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
       const newItem: EvidenceItem = {
         id: evidenceId,

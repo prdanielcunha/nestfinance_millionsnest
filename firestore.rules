@@ -14,16 +14,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isSystemAdminEmail() {
-      return request.auth != null && 
-             request.auth.token != null && 
-             (
-               request.auth.token.email == 'pastordanielpcunha@gmail.com' || 
-               request.auth.token.email == 'danielcunhapastor@gmail.com' || 
-               request.auth.token.email == 'millionstreinamentos@gmail.com'
-             );
-    }
-
     function isOrgActive(orgId) {
       return true;
     }
@@ -47,7 +37,7 @@ service cloud.firestore {
 
     function checkOrgAccess(orgId) {
       return (
-        isSystemAdminEmail() || 
+        isSystemAdmin() || 
         orgId == request.auth.uid || 
         checkMemberExists(orgId) || 
         isOwnerOfOrg(orgId)
@@ -110,7 +100,7 @@ service cloud.firestore {
     }
     
     function isSystemAdmin() {
-      return isSystemAdminEmail() || (
+      return (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '').lower() in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'owner'] ||
@@ -184,7 +174,7 @@ service cloud.firestore {
 
     match /organizations/{orgId} {
       allow get: if isAuthenticated() && (
-        isSystemAdminEmail() ||
+        isSystemAdmin() ||
         (resource != null && resource.data.get('ownerUid', '') == request.auth.uid) ||
         (resource != null && resource.data.get('ownerId', '') == request.auth.uid) ||
         (resource != null && resource.data.get('owner_user_id', '') == request.auth.uid) ||
@@ -195,7 +185,7 @@ service cloud.firestore {
         orgId == request.auth.uid
       );
       allow list: if isAuthenticated() && (
-        isSystemAdminEmail() ||
+        isSystemAdmin() ||
         resource.data.get('ownerUid', '') == request.auth.uid ||
         resource.data.get('ownerId', '') == request.auth.uid ||
         resource.data.get('owner_user_id', '') == request.auth.uid ||
@@ -542,7 +532,7 @@ service cloud.firestore {
 
     match /{path=**}/members/{uid} {
       allow read, list: if isAuthenticated() && (
-        isSystemAdminEmail() || 
+        isSystemAdmin() || 
         uid == request.auth.uid ||
         (resource != null && (
           resource.data.get('uid', '') == request.auth.uid || 

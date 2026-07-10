@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { requireFinanceTransactionAccess, resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateTransactionId, generateAllocationId, generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
@@ -51,33 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'Invalid transactionKind' });
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'UNAUTHORIZED' });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) {
-      return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-    }
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    // We require submit capability
-    const context = await requireFinanceTransactionAccess({
-      db,
-      uid,
-      organizationId,
-      financeEntityId,
-      sessionList,
-      capability: 'finance.submit_for_review'
-    });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.submit_for_review');
 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'create_and_submit', idempotencyKey);
     const payloadHash = hashPayload(payload);

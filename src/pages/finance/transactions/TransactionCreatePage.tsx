@@ -68,10 +68,15 @@ export default function TransactionCreatePage() {
 }
 
 function TransactionCreateContent() {
+  const isAccountIncomplete = (acc: any) => {
+    if (acc.active === false) return true;
+    if (acc.configurationStatus && acc.configurationStatus !== "complete") return true;
+    if (!acc.type || !acc.nature) return true;
+    return false;
+  };
+
   const getAccountLabel = (acc: any) => {
-    const isIncomplete =
-      acc.configurationStatus !== "complete" || !acc.type || !acc.nature;
-    return isIncomplete ? `${acc.name} (Pendente de Configuração)` : acc.name;
+    return isAccountIncomplete(acc) ? `${acc.name} (Pendente de Configuração)` : acc.name;
   };
 
   const navigate = useNavigate();
@@ -345,12 +350,7 @@ function TransactionCreateContent() {
     }
 
     const originAcc = accounts.find((a) => a.id === accountId);
-    if (
-      originAcc &&
-      (originAcc.configurationStatus !== "complete" ||
-        !originAcc.type ||
-        !originAcc.nature)
-    ) {
+    if (originAcc && isAccountIncomplete(originAcc)) {
       if (!skipErrors) setSaveError(
         "A conta selecionada está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
       );
@@ -367,12 +367,7 @@ function TransactionCreateContent() {
         if (!skipErrors) return null;
       }
       const destAcc = accounts.find((a) => a.id === destinationAccountId);
-      if (
-        destAcc &&
-        (destAcc.configurationStatus !== "complete" ||
-          !destAcc.type ||
-          !destAcc.nature)
-      ) {
+      if (destAcc && isAccountIncomplete(destAcc)) {
         if (!skipErrors) setSaveError(
           "A conta de destino está incompleta. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
         );
@@ -390,12 +385,7 @@ function TransactionCreateContent() {
         if (!skipErrors) return null;
       }
       const liabAcc = accounts.find((a) => a.id === liabilityAccountId);
-      if (
-        liabAcc &&
-        (liabAcc.configurationStatus !== "complete" ||
-          !liabAcc.type ||
-          !liabAcc.nature)
-      ) {
+      if (liabAcc && isAccountIncomplete(liabAcc)) {
         if (!skipErrors) setSaveError(
           "O passivo selecionado está incompleto. Por favor, conclua a configuração no painel de correção inline acima antes de salvar.",
         );
@@ -547,36 +537,18 @@ function TransactionCreateContent() {
     // 1. Identify all selected accounts that need repair and are repairable canonically
     const accountsToRepair: any[] = [];
     const mainAcc = accounts.find((a) => a.id === accountId);
-    if (
-      mainAcc &&
-      (mainAcc.configurationStatus !== "complete" ||
-        !mainAcc.type ||
-        !mainAcc.nature) &&
-      mainAcc.templateKey
-    ) {
+    if (mainAcc && isAccountIncomplete(mainAcc) && mainAcc.templateKey) {
       accountsToRepair.push(mainAcc);
     }
     if (direction === "transfer" && destinationAccountId) {
       const destAcc = accounts.find((a) => a.id === destinationAccountId);
-      if (
-        destAcc &&
-        (destAcc.configurationStatus !== "complete" ||
-          !destAcc.type ||
-          !destAcc.nature) &&
-        destAcc.templateKey
-      ) {
+      if (destAcc && isAccountIncomplete(destAcc) && destAcc.templateKey) {
         accountsToRepair.push(destAcc);
       }
     }
     if (direction === "liability_settlement" && liabilityAccountId) {
       const liabAcc = accounts.find((a) => a.id === liabilityAccountId);
-      if (
-        liabAcc &&
-        (liabAcc.configurationStatus !== "complete" ||
-          !liabAcc.type ||
-          !liabAcc.nature) &&
-        liabAcc.templateKey
-      ) {
+      if (liabAcc && isAccountIncomplete(liabAcc) && liabAcc.templateKey) {
         accountsToRepair.push(liabAcc);
       }
     }
@@ -669,36 +641,18 @@ function TransactionCreateContent() {
 
     // Check if there are incomplete custom accounts that can't be canonically repaired
     let hasCustomIncomplete = false;
-    if (
-      mainAcc &&
-      (mainAcc.configurationStatus !== "complete" ||
-        !mainAcc.type ||
-        !mainAcc.nature) &&
-      !mainAcc.templateKey
-    ) {
+    if (mainAcc && isAccountIncomplete(mainAcc) && !mainAcc.templateKey) {
       hasCustomIncomplete = true;
     }
     if (direction === "transfer" && destinationAccountId) {
       const destAcc = accounts.find((a) => a.id === destinationAccountId);
-      if (
-        destAcc &&
-        (destAcc.configurationStatus !== "complete" ||
-          !destAcc.type ||
-          !destAcc.nature) &&
-        !destAcc.templateKey
-      ) {
+      if (destAcc && isAccountIncomplete(destAcc) && !destAcc.templateKey) {
         hasCustomIncomplete = true;
       }
     }
     if (direction === "liability_settlement" && liabilityAccountId) {
       const liabAcc = accounts.find((a) => a.id === liabilityAccountId);
-      if (
-        liabAcc &&
-        (liabAcc.configurationStatus !== "complete" ||
-          !liabAcc.type ||
-          !liabAcc.nature) &&
-        !liabAcc.templateKey
-      ) {
+      if (liabAcc && isAccountIncomplete(liabAcc) && !liabAcc.templateKey) {
         hasCustomIncomplete = true;
       }
     }

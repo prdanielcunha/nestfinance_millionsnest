@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { requireFinanceTransactionAccess, resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { assertAllocationsTotal, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
@@ -37,24 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    const context = await requireFinanceTransactionAccess({
-      db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.create_drafts'
-    });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
 
     const payload = { financeEntityId, transactionId, expectedVersion }; // simplified payload for hash
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'submit_review', idempotencyKey);
@@ -81,13 +64,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
       const existingAllocs = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
 
-      const payloadForReadiness = { ...txData, allocations: existingAllocs };
-
-      const { validateSubmissionReadiness } = await import('../../../shared/finance/smartLogic.js');
-      const readiness = validateSubmissionReadiness(payloadForReadiness);
-      if (!readiness.ready) {
-        throw { code: 'FINANCE_NOT_READY_FOR_SUBMISSION', message: readiness.errors.join('. ') };
-      }
 
       const transactionKind = txData.transactionKind || txData.direction;
 
