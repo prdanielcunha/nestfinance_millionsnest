@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "concept": "Nest Flow Signature",
+  "generatedFrom": "NestFinance_Nest_Flow_Signature_Kit_Completo_v1",
+  "assets": [
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-horizontal-transparent-dark-ui.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "dark",
+      "intendedUse": "Main horizontal wordmark with tagline for dark surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-horizontal-transparent-light-ui.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "light",
+      "intendedUse": "Main horizontal wordmark with tagline for light surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-horizontal-no-tagline-dark.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "dark",
+      "intendedUse": "Compact horizontal wordmark for dark surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-horizontal-no-tagline-light.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "light",
+      "intendedUse": "Compact horizontal wordmark for light surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-vertical-dark.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "dark",
+      "intendedUse": "Vertical lockup for dark surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/logos/nestfinance-logo-vertical-light.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "light",
+      "intendedUse": "Vertical lockup for light surfaces"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/symbols/nestfinance-symbol-vector-gradient.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "any",
+      "intendedUse": "Main isolated symbol"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/icons/favicon.svg",
+      "width": "auto",
+      "height": "auto",
+      "format": "svg",
+      "transparent": true,
+      "intendedSurface": "any",
+      "intendedUse": "Favicon"
+    },
+    {
+      "path": "/brand/nestfinance/nest-flow-signature/v1/social/nestfinance-og-1200x630.jpg",
+      "width": 1200,
+      "height": 630,
+      "format": "jpg",
+      "transparent": false,
+      "intendedSurface": "any",
+      "intendedUse": "Open Graph sharing image"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+module.exports={theme:{extend:{colors:{nestfinance:{black:'#0A0F14',slate:'#11161D',ivory:'#F6F5F2',gold:'#D4AF7A',cyan:'#00D6EF'}}}}};
