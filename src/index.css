@@ -16,6 +16,7 @@
   --color-border-strong: var(--nf-border-strong);
 
   --color-accent-primary: var(--nf-accent-primary);
+  --color-brand-gold: var(--nf-brand-gold);
   --color-semantic-success: var(--nf-semantic-success);
   --color-semantic-warning: var(--nf-semantic-warning);
   --color-semantic-danger: var(--nf-semantic-danger);
@@ -24,21 +25,22 @@
 }
 
 :root {
-  --nf-background-base: #070A0F;
-  --nf-background-deep: #07101D;
-  --nf-surface-default: #0F1724;
-  --nf-surface-secondary: #111E2F;
-  --nf-surface-elevated: #17263A;
-  --nf-glass-surface: rgba(17, 30, 47, 0.72);
+  --nf-background-base: #06090E;
+  --nf-background-deep: #0A0F14;
+  --nf-surface-default: #0E1621;
+  --nf-surface-secondary: #101925;
+  --nf-surface-elevated: #142130;
+  --nf-glass-surface: rgba(14, 22, 33, 0.72);
   --nf-border-subtle: rgba(255, 255, 255, 0.08);
   --nf-border-strong: rgba(255, 255, 255, 0.14);
 
-  --nf-text-primary: #F7FAFC;
-  --nf-text-secondary: #AEB9C7;
+  --nf-text-primary: #F6F5F2;
+  --nf-text-secondary: #AAB6C3;
   --nf-text-muted: #6B7B8F;
 
-  --nf-accent-primary: #19D3B0;
-  --nf-semantic-success: #32D583;
+  --nf-brand-gold: #D4AF7A;
+  --nf-accent-primary: #00D6EF;
+  --nf-semantic-success: #32D59A;
   --nf-semantic-warning: #F5B942;
   --nf-semantic-danger: #FF667A;
 
