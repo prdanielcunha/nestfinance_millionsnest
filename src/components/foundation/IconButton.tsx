@@ -3,7 +3,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 export type IconButtonVariant = 'default' | 'ghost' | 'accent' | 'danger';
 export type IconButtonSize = 'md' | 'lg';
 
-export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> {
   label: string;
   icon: ReactNode;
   variant?: IconButtonVariant;
@@ -31,6 +31,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     className = '',
     type = 'button',
     disabled,
+    title,
     ...props
   },
   ref,
@@ -38,12 +39,12 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   return (
     <button
       ref={ref}
+      {...props}
       type={type}
       aria-label={label}
-      title={props.title ?? label}
+      title={title ?? label}
       disabled={disabled}
       className={`nf-interactive press-fx inline-flex shrink-0 items-center justify-center border select-none disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
-      {...props}
     >
       <span aria-hidden="true">{icon}</span>
     </button>
