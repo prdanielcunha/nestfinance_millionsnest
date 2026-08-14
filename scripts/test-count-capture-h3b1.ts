@@ -60,7 +60,7 @@ assert.ok(start.includes('transaction.get(canonical.sessionRef)'), 'capture star
 assert.ok(finalize.includes('transaction.get(canonical.sessionRef)'), 'finalize re-checks Count stage transactionally');
 assert.ok(review.includes('transaction.get(canonical.sessionRef)'), 'review save re-checks blind state transactionally');
 assert.ok(detail.includes('isCountCaptureMaterialHidden'));
-assert.ok(detail.includes('originalUrl = null') && detail.includes('normalizedUrl = null'));
+assert.ok(detail.includes('let originalUrl: string | null = null') && detail.includes('let normalizedUrl: string | null = null'));
 assert.ok(review.includes('candidateValueCents') && review.includes('materialRedacted: true'));
 assert.ok(routes.includes("countCapture: '/finance/count/capture'") && routes.includes("countCaptureReview: '/finance/count/captures/:captureId'"));
 assert.ok(copy.includes('PT:') && copy.includes('EN:') && copy.includes('ES:'));
