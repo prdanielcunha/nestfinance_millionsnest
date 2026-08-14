@@ -46,7 +46,7 @@ verify(
 );
 verify('Count exposes denomination and direct total modes', session.includes("'denominations'") && session.includes("'total'"));
 verify('Count controls meet 48px touch target', session.includes('h-12 w-12'));
-verify('Count review explicitly explains second count safety', session.includes('secondCountSafety') && session.includes('secondCountPending'));
+verify('Count review explicitly explains second count safety', session.includes('firstCountSavedBody') && session.includes('secondCountSafety'));
 verify('Count UI explicitly explains no posting/balance change', home.includes('noPosting') && session.includes('noPosting'));
 verify('Count has no close/finalize/posting action', !/finalizeCount|closeCount|approveForPosting|getPostingPlanPreview|posting-real|ledger-post/.test(`${home}\n${session}\n${service}`));
 verify('Count has no journal/aggregate/balance mutation reference', !/financeJournalEntries|financeJournalLines|financeAggregates/.test(`${home}\n${session}\n${service}`));
