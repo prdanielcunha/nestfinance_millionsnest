@@ -38,7 +38,15 @@ verify('guided edit preserves entity epoch stale-response protection', page.incl
 verify('guided edit uses complete material fingerprint helper', page.includes('buildTransactionCreateMaterialFingerprint'));
 verify('draft retry keeps an idempotency attempt ref', page.includes('draftAttemptRef.current') && page.includes('draftAttemptRef.current.key'));
 verify('submit retry keeps saved version/material/key together', page.includes('pendingSubmitRef.current') && page.includes('fingerprint') && page.includes('version') && page.includes('attempt.key'));
-verify('submit key is cleared only after confirmed success path', page.includes('pendingSubmitRef.current = null;') && page.indexOf('pendingSubmitRef.current = null;') > page.indexOf('await submitForReview'));
+const submitCallIndex = page.indexOf('await submitForReview');
+const confirmedSubmitClearIndex = page.indexOf(
+  'pendingSubmitRef.current = null;',
+  submitCallIndex,
+);
+verify(
+  'submit key is cleared only after confirmed success path',
+  submitCallIndex >= 0 && confirmedSubmitClearIndex > submitCallIndex,
+);
 verify('page never assigns arbitrary backend text directly to saveError', !/setSaveError\((?:error|err)(?:\?|\.|\))/i.test(page));
 verify('page uses controlled finance error mapping', page.includes('FINANCE_VERSION_CONFLICT') && page.includes('FINANCE_ACCOUNT_MISMATCH') && page.includes('FINANCE_IDEMPOTENCY_CONFLICT'));
 verify('page does not hardcode pt-BR amount formatting', !page.includes('pt-BR'));
