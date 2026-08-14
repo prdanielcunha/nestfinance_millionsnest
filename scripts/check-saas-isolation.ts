@@ -76,12 +76,12 @@ export function analyzeFinanceHandler(file: string, code: string): string[] {
   }
 
   const financeAlternation = FINANCE_COLLECTIONS.map(escapeRegex).join('|');
-  const rootFinanceCollection = new RegExp(`(?:db|firestore)\\.collection\\((['"\\`])(?:${financeAlternation})\\1\\)`);
+  const rootFinanceCollection = new RegExp(`(?:db|firestore)\\.collection\\((['"])(?:${financeAlternation})\\1\\)`);
   if (rootFinanceCollection.test(code)) {
     violations.push(`${file}: Uses a root finance collection without organization scope`);
   }
 
-  const directOrgFinanceCollection = new RegExp(`\\.collection\\((['"\\`])(?:${financeAlternation})\\1\\)`);
+  const directOrgFinanceCollection = new RegExp(`\\.collection\\((['"])(?:${financeAlternation})\\1\\)`);
   if (directOrgFinanceCollection.test(code)) {
     const hasAuthorizationBoundary = AUTHORIZATION_MARKERS.some((marker) => code.includes(marker));
     if (!hasAuthorizationBoundary) {
@@ -90,7 +90,7 @@ export function analyzeFinanceHandler(file: string, code: string): string[] {
   }
 
   const sensitiveAlternation = ENTITY_SENSITIVE_COLLECTIONS.map(escapeRegex).join('|');
-  const directSensitiveCollection = new RegExp(`\\.collection\\((['"\\`])(?:${sensitiveAlternation})\\1\\)`);
+  const directSensitiveCollection = new RegExp(`\\.collection\\((['"])(?:${sensitiveAlternation})\\1\\)`);
   if (directSensitiveCollection.test(code)) {
     const hasEntityScope = ENTITY_SCOPE_MARKERS.some((marker) => code.includes(marker));
     if (!hasEntityScope) {
