@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "scripts/test-human-safe-infra-errors.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -15,6 +16,7 @@ on:
       - main
     paths:
       - "src/**"
+      - "scripts/test-human-safe-infra-errors.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -42,6 +44,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify human-safe infrastructure errors
+        run: npx tsx scripts/test-human-safe-infra-errors.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets
