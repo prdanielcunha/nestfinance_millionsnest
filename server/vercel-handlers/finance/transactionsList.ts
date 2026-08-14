@@ -6,6 +6,19 @@ import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/li
 import { normalizeFirestoreInfrastructureError } from '../../shared/firestore/indexRemediation.js';
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 
+function toOptionalIso(value: any): string | null {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') {
+    try {
+      return value.toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'string') return value;
+  return null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const startTime = Date.now();
@@ -198,7 +211,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           submittedByDisplayName: data.submittedByDisplayName || data.createdBy || 'Sistema',
           blockerCount: readiness.blockers.length,
           warningCount: readiness.warnings.length,
-          isReady: readiness.ready
+          isReady: readiness.ready,
+          returnedToDraftAt: toOptionalIso(data.returnedToDraftAt),
+          returnedToDraftReason: data.returnedToDraftReason || null,
+          returnedToDraftComment: data.returnedToDraftComment || null
         };
 
         // Filter by readiness status on server-side
