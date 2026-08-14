@@ -20,6 +20,7 @@ export const APP_ROUTES = {
   transactionEdit: '/finance/transactions/:transactionId/edit',
   review: '/finance/review',
   financeReview: '/finance/review',
+  transactionReviewDetail: '/finance/review/:transactionId',
   accessDenied: '/access-denied',
   unavailable: '/unavailable',
   preview: '/__preview/foundation',
