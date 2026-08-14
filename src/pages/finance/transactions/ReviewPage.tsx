@@ -197,11 +197,9 @@ function ReviewContent() {
   };
 
   const openReview = (transactionId: string) => {
-    const route = APP_ROUTES.transactionDetail.replace(
-      ':transactionId',
-      transactionId,
+    navigate(
+      APP_ROUTES.transactionReviewDetail.replace(':transactionId', transactionId),
     );
-    navigate(`${route}?reviewMode=true`);
   };
 
   const transactionType = (transactionKind: string) => {

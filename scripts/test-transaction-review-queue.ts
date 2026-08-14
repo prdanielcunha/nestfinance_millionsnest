@@ -41,7 +41,8 @@ verify('queue keeps finance.review capability gate', page.includes("'finance.rev
 verify('queue requests only ready_for_review items', page.includes("status: 'ready_for_review'"));
 verify('queue preserves 25 item page size', page.includes('listTransactions(filters, cursor, 25)'));
 verify('queue preserves entity epoch stale-response protection', page.includes('currentEpoch !== epochRef.current'));
-verify('queue preserves review-mode navigation contract', page.includes('?reviewMode=true'));
+verify('queue opens dedicated review-detail route', page.includes('APP_ROUTES.transactionReviewDetail'));
+verify('queue no longer depends on reviewMode query contract', !page.includes('?reviewMode=true'));
 verify('queue preserves direction query parameter', page.includes("next.set('direction', value)"));
 verify('queue preserves order query parameter', page.includes("next.set('order', value)"));
 verify('queue uses locale-aware money and date formatters', page.includes('formatReviewMoney') && page.includes('formatReviewDate'));
