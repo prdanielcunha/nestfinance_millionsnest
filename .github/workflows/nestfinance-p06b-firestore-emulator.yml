@@ -8,8 +8,13 @@ on:
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
       - "scripts/test-firestore-rules-emulator.ts"
+      - "scripts/test-ecosystem-session-resolver.ts"
+      - "scripts/test-finance-request-context.ts"
+      - "scripts/test-posting-plan-entity-isolation.ts"
+      - "scripts/test-authorization.ts"
       - "firebase.json"
       - "firestore.rules"
       - "firestore.indexes.json"
@@ -94,6 +99,9 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
           FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
         run: |
+          npx tsx scripts/test-ecosystem-session-resolver.ts
+          npx tsx scripts/test-finance-request-context.ts
+          npx tsx scripts/test-posting-plan-entity-isolation.ts
           npx tsx scripts/test-transactions-p06b-journey.ts
           npx tsx scripts/test-transactions-integration.ts
           npx tsx scripts/test-firestore-seam.ts

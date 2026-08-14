@@ -1,8 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
@@ -18,8 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { 
-      financeEntityId, transactionId, idempotencyKey, requestId 
+    const {
+      financeEntityId, transactionId, idempotencyKey, requestId
     } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
@@ -27,25 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = (req.headers['x-organization-id'] as string) || decodedToken.mn_organization_id;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    // We need permission to approve/post to repair an approval
-    const context = await requireFinanceTransactionAccess({
-      db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.approve_for_posting'
-    });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.approve_for_posting');
 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'repair_approval', idempotencyKey);
     const payloadHash = hashPayload({ transactionId });
@@ -62,9 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Transaction is not in approved state' };
       }
 
-      // Check if it already has been repaired
       if ((txData as any).approvalVerificationRepair) {
-         return { repaired: false, reason: 'Already uses current algorithm version', transactionId, version: txData.version };
+        return { repaired: false, reason: 'Already uses current algorithm version', transactionId, version: txData.version };
       }
 
       const approvalRef = txRef.collection('approvals').doc('latest');
@@ -74,45 +53,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const approvalData = approvalDoc.data()!;
       const oldAlgoVer = approvalData.approvalAlgorithmVersion || 1;
-      
+
       if (oldAlgoVer >= 2 && !approvalData.materialSnapshot) {
-         throw { code: 'FINANCE_APPROVAL_REPAIR_UNVERIFIABLE', message: 'Missing material snapshot in original modern approval' };
+        throw { code: 'FINANCE_APPROVAL_REPAIR_UNVERIFIABLE', message: 'Missing material snapshot in original modern approval' };
       }
 
       const allocationsSnap = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
-      const allocations = allocationsSnap.docs.map(d => ({id: d.id, ...d.data()} as FinanceAllocation));
+      const allocations = allocationsSnap.docs.map(d => ({ id: d.id, ...d.data() } as FinanceAllocation));
 
-      // Re-verify the OLD hash. If the old hash doesn't match the one stored, it means the transaction WAS materially changed, so we cannot repair it.
-      
       if (oldAlgoVer >= 2) {
-         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
+        return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Approval is already using a modern algorithm version and cannot be a legacy false stale' };
       }
-      
+
       const legacyTxData = { ...txData };
       if (oldAlgoVer === 1) {
-        // The legacy algorithm used `version` which was incremented AFTER approval.
-        // The approval itself was sealed using the pre-increment version (approvedVersion).
         legacyTxData.version = approvalData.approvedVersion;
       }
-      
+
       const expectedOldHash = computeApprovalSourceHash(legacyTxData, allocations, oldAlgoVer);
 
       if (expectedOldHash !== approvalData.approvalSourceHash) {
-         throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Real material changes detected, repair is impossible' };
+        throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Real material changes detected, repair is impossible' };
       }
-      
-      // Also verify that the current material exactly matches the snapshot (only if it was a V2+ approval originally)
+
       const currentMaterial = buildApprovalMaterial(txData, allocations, 2);
       if (oldAlgoVer >= 2) {
         if (JSON.stringify(currentMaterial) !== JSON.stringify(approvalData.materialSnapshot)) {
-           throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Current material differs from approved material snapshot' };
+          throw { code: 'FINANCE_APPROVAL_MATERIAL_CHANGED', message: 'Current material differs from approved material snapshot' };
         }
       }
 
-      // It hasn't materially changed! Let's generate a new V2 seal.
-      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
-      
-      // Verify legacy plan hash matches
+      const { mappings, policy } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+
       const legacyPlan = buildPostingPlan({
         transaction: { ...txData, version: approvalData.approvedVersion } as any,
         allocations,
@@ -127,11 +99,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (legacyPlan.planHash !== approvalData.approvedPlanHash) {
-         return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan hash differs after recalculation' };
+        return { repaired: false, repairEligible: false, errorCode: 'FINANCE_APPROVAL_REPAIR_NOT_ELIGIBLE', reason: 'Plan hash differs after recalculation' };
       }
 
       const newSourceHash = computeApprovalSourceHash(txData, allocations, 2);
-      
+
       const patchedTxData = { ...txData, approvalSourceHash: newSourceHash, approvedVersion: approvalData.approvedVersion, version: approvalData.approvedVersion };
 
       const plan = buildPostingPlan({
@@ -148,7 +120,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const newPlanHash = plan.planHash;
-
       const repairEventId = generateAuditId();
 
       const approvalVerificationRepair = {
@@ -162,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         repairedAt: FieldValue.serverTimestamp(),
         repairedBy: {
           type: 'authorized_user',
-          uid: uid
+          uid
         },
         reasonCode: 'false_stale_workflow_version',
         requestId
@@ -187,7 +158,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: FieldValue.serverTimestamp()
       }));
 
-      // Internal Event
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(repairEventId), sanitizeFirestoreObject({
         eventId: repairEventId,
         organizationId,
@@ -205,15 +175,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     return res.status(200).json(result);
-
   } catch (error: any) {
     console.error('Repair Approval Error:', error);
+    if (error.status === 401 || error.status === 403) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     if (error.code && error.code.startsWith('FINANCE_')) {
       return res.status(400).json({ error: error.code, details: error.message });
     }
     if (error.code === 'NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
     if (error.code === 'FORBIDDEN') return res.status(403).json({ error: 'FORBIDDEN' });
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
+    if (error.code === 'auth/id-token-revoked' || error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
