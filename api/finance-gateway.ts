@@ -46,6 +46,8 @@ import countSessionsStartSecondCount from '../server/vercel-handlers/finance/cou
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
+import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
+import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -150,6 +152,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return countSessionsStartRecount(req, res);
     case 'count-sessions-submit-recount':
       return countSessionsSubmitRecount(req, res);
+    case 'count-paper-forms-generate':
+      return countPaperFormsGenerate(req, res);
+    case 'count-paper-forms-detail':
+      return countPaperFormsDetail(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

@@ -6,6 +6,7 @@ on:
     paths:
       - "src/**"
       - "shared/finance/count.ts"
+      - "shared/finance/countPaper.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -15,6 +16,7 @@ on:
       - "scripts/test-transaction-detail-overview.ts"
       - "scripts/test-transaction-edit-guided.ts"
       - "scripts/test-count-pilot.ts"
+      - "scripts/test-count-paper-h3a.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -26,6 +28,7 @@ on:
     paths:
       - "src/**"
       - "shared/finance/count.ts"
+      - "shared/finance/countPaper.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -35,6 +38,7 @@ on:
       - "scripts/test-transaction-detail-overview.ts"
       - "scripts/test-transaction-edit-guided.ts"
       - "scripts/test-count-pilot.ts"
+      - "scripts/test-count-paper-h3a.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -87,8 +91,11 @@ jobs:
       - name: Verify Transaction Edit 2.0 guided flow
         run: npx tsx scripts/test-transaction-edit-guided.ts
 
-      - name: Verify Count 2.0 H1 pilot
+      - name: Verify Count 2.0 H1/H2
         run: npx tsx scripts/test-count-pilot.ts
+
+      - name: Verify Count Paper H3A
+        run: npx tsx scripts/test-count-paper-h3a.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets

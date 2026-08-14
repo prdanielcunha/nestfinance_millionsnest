@@ -57,6 +57,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-submit-second-count', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-start-recount', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-submit-recount', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-paper-forms-generate', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-paper-forms-detail', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
@@ -112,9 +114,7 @@ export function validateGatewayInventory({ contracts, gatewaySources, rewrites }
       continue;
     }
     const expectedDestination = `${contract.gateway}?operation=${contract.operation}`;
-    if (rewrite.destination !== expectedDestination) {
-      errors.push(`Mismatch for ${contract.url}. Expected ${expectedDestination}, got ${rewrite.destination}`);
-    }
+    if (rewrite.destination !== expectedDestination) errors.push(`Mismatch for ${contract.url}. Expected ${expectedDestination}, got ${rewrite.destination}`);
   }
 
   for (const rewrite of rewrites) {

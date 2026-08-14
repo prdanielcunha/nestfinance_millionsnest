@@ -10,6 +10,8 @@ export const APP_ROUTES = {
   financeSettingsCategories: '/finance/settings/categories',
   count: '/finance/count',
   countSession: '/finance/count/:sessionId',
+  countPaperForms: '/finance/count/forms',
+  countPaperForm: '/finance/count/forms/:formId',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
   reports: '/finance/reports',

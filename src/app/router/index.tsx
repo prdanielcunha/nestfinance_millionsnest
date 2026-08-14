@@ -15,8 +15,10 @@ const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/Fina
 const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/FinanceEntitiesPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
-const CountPage = lazy(() => import('@/src/pages/finance/CountPage'));
+const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
 const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
+const CountPaperFormsPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormsPage'));
+const CountPaperFormPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormPage'));
 const BalancePage = lazy(() => import('@/src/pages/finance/BalancePage'));
 const InboxPage = lazy(() => import('@/src/pages/finance/InboxPage'));
 const ReportsPage = lazy(() => import('@/src/pages/finance/ReportsPage'));
@@ -80,6 +82,8 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.financeSettingsCategories, element: <Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense> },
           { path: APP_ROUTES.count, element: <Suspense fallback={<PageFallback />}><CountPage /></Suspense> },
           { path: APP_ROUTES.countSession, element: <Suspense fallback={<PageFallback />}><CountSessionPage /></Suspense> },
+          { path: APP_ROUTES.countPaperForms, element: <Suspense fallback={<PageFallback />}><CountPaperFormsPage /></Suspense> },
+          { path: APP_ROUTES.countPaperForm, element: <Suspense fallback={<PageFallback />}><CountPaperFormPage /></Suspense> },
           { path: APP_ROUTES.balance, element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense> },
           { path: APP_ROUTES.inbox, element: <Suspense fallback={<PageFallback />}><InboxPage /></Suspense> },
           { path: APP_ROUTES.reports, element: <Suspense fallback={<PageFallback />}><ReportsPage /></Suspense> },
