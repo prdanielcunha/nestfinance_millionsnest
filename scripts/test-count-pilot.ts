@@ -3,6 +3,7 @@ import * as path from 'path';
 import { COUNT_COPY } from '../src/pages/finance/count/countCopy';
 import {
   COUNT_DENOMINATIONS_CENTS,
+  COUNT_ENTRY_TYPES,
   buildCountMaterialFingerprint,
   calculateDenominationTotalCents,
   normalizeCountEntries,
@@ -38,7 +39,11 @@ verify('Count session edit keeps finance.create_drafts gate', session.includes("
 verify('Count has dedicated session route', routes.includes("countSession: '/finance/count/:sessionId'"));
 verify('router lazy-loads Count session page', router.includes('CountSessionPage') && router.includes('APP_ROUTES.countSession'));
 verify('Count service uses four certified gateway operations', ['count-sessions-list', 'count-sessions-create', 'count-sessions-detail', 'count-sessions-save-first-count'].every((operation) => service.includes(operation) && gateway.includes(`case '${operation}'`)));
-verify('Count supports all four H1 entry types', ['tithe', 'offering', 'other', 'pix'].every((type) => session.includes(type)));
+verify(
+  'Count supports all four H1 entry types',
+  COUNT_ENTRY_TYPES.length === 4 &&
+    ['tithe', 'offering', 'other', 'pix'].every((type) => COUNT_ENTRY_TYPES.includes(type as any)),
+);
 verify('Count exposes denomination and direct total modes', session.includes("'denominations'") && session.includes("'total'"));
 verify('Count controls meet 48px touch target', session.includes('h-12 w-12'));
 verify('Count review explicitly explains second count safety', session.includes('secondCountSafety') && session.includes('secondCountPending'));
