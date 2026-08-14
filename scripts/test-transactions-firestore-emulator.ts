@@ -1,7 +1,6 @@
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import * as crypto from 'crypto';
 
-// Reusing vercel-handlers for realism
 import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
@@ -11,7 +10,7 @@ import transactionsReturnToDraft from '../server/vercel-handlers/finance/transac
 import { buildIdempotencyKeyHash } from '../server/vercel-handlers/finance/idempotencyHelper.js';
 
 export class MockRes {
-  statusCode: number = 200;
+  statusCode = 200;
   body: any = null;
 
   status(code: number) {
@@ -26,327 +25,312 @@ export class MockRes {
 }
 
 async function runEmulatorTests() {
-   process.env.FIREBASE_PROJECT_ID = 'nestfinance-p06b-emulator';
+  process.env.FIREBASE_PROJECT_ID = 'nestfinance-p06b-emulator';
 
-   if (!process.env.FIRESTORE_EMULATOR_HOST) {
-      console.error('❌ Emulator tests must run with FIRESTORE_EMULATOR_HOST defined');
-      process.exit(1);
-   }
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    console.error('❌ Emulator tests must run with FIRESTORE_EMULATOR_HOST defined');
+    process.exit(1);
+  }
 
-   console.log('Running Emulator Verified Suite against:', process.env.FIRESTORE_EMULATOR_HOST);
-   
-   let passed = 0;
-   let failed = 0;
+  console.log('Running Emulator Verified Suite against:', process.env.FIRESTORE_EMULATOR_HOST);
 
-   const assert = (condition: boolean, msg: string) => {
-      if (condition) {
-         console.log(`✅ ${msg}`);
-         passed++;
-      } else {
-         console.error(`❌ ${msg}`);
-         failed++;
-         throw new Error(`Assertion failed: ${msg}`);
-      }
-   };
-   
-   resetFirebaseAdminForTests();
-   const admin = getFirebaseAdmin();
-   const firestore = admin.firestore;
-   
-   const orgId = 'org_' + crypto.randomBytes(4).toString('hex');
-   const entId = 'ent_' + crypto.randomBytes(4).toString('hex');
-   const uid = 'usr_' + crypto.randomBytes(4).toString('hex');
-   
-   console.log('Org:', orgId, 'Entity:', entId, 'UID:', uid);
-   
-   const accountId = 'acc_' + crypto.randomBytes(4).toString('hex');
-   const category1Id = 'cat_' + crypto.randomBytes(4).toString('hex');
-   const category2Id = 'cat_' + crypto.randomBytes(4).toString('hex');
-   
-   // Create basic permissions in the emulator
-   await firestore.collection('organizations').doc(orgId).set({ name: 'Emul Org' });
-   await firestore.collection('users').doc(uid).set({ displayName: 'Emulator User' });
-   await firestore.collection('organizations').doc(orgId).collection('users').doc(uid).set({
-      capabilities: ['finance.create_drafts', 'finance.view', 'finance.manage']
-   });
-   
-   await firestore.collection('organizations').doc(orgId).collection('financeEntities').doc(entId).set({
-      name: 'Entidade Emulada',
-      active: true
-   });
+  let passed = 0;
+  let failed = 0;
 
-   await firestore.collection('organizations').doc(orgId).collection('financeAccounts').doc(accountId).set({
-      financeEntityId: entId,
-      name: 'Conta Teste',
-      active: true,
-      kind: 'asset:current'
-   });
-   
-   await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category1Id).set({
-      financeEntityId: entId,
-      name: 'Dízimos',
-      kind: 'income',
-      active: true,
-   });
-   
-   await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category2Id).set({
-      financeEntityId: entId,
-      name: 'Ofertas',
-      kind: 'income',
-      active: true,
-   });
-
-   // Hook verifyIdToken for tests
-   const originalVerify = admin.auth.verifyIdToken;
-   admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com` }) as any;
-
-   async function testCall(handler: any, reqData: any, headers: any = {}) {
-     const req = {
-       method: reqData.method || 'POST',
-       headers: {
-         authorization: 'Bearer integration_token',
-         'x-organization-id': orgId,
-         ...headers
-       },
-       body: reqData.body
-     };
-     const res = new MockRes();
-     await handler(req as any, res as any);
-     return res;
-   }
-
-   try {
-      // 1. listar entidade vazia
-      const listRes = await testCall(transactionsList, {
-         body: { financeEntityId: entId, status: 'draft' }
-      });
-      assert(listRes.statusCode === 200 && listRes.body.items.length === 0, 'listar entidade vazia');
-      
-      // 2. criar uma transação de Entrada de 9500 centavos
-      const createKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const createReqId = 'req_' + crypto.randomBytes(4).toString('hex');
-      
-      const createRes = await testCall(transactionsCreateDraft, {
-         body: {
-            financeEntityId: entId,
-            idempotencyKey: createKey,
-            requestId: createReqId,
-            payload: {
-               direction: 'income',
-               amountCents: 9500,
-               occurredAt: new Date().toISOString(),
-               description: 'Oferta teste',
-               accountId,
-               allocations: [
-                  { amountCents: 6500, categoryId: category1Id, description: 'Dízimos' },
-                  { amountCents: 3000, categoryId: category2Id, description: 'Ofertas' }
-               ]
-            }
-         }
-      });
-      
-      assert(createRes.statusCode === 200 && createRes.body.transactionId !== undefined, 'cria uma transação de Entrada de 9500 centavos');
-      const txId = createRes.body.transactionId;
-      
-      // 4. ler diretamente os documentos persistidos
-      const txDoc = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
-      const allocsQuery = await firestore.collection('organizations').doc(orgId).collection('financeAllocations').where('transactionId', '==', txId).get();
-      
-      assert(txDoc.exists && txDoc.data()?.amountCents === 9500, 'transação persistida corretamente');
-      assert(allocsQuery.docs.length === 2, 'allocations persistidas (6500 e 3000)');
-      
-      // 5. abrir detail
-      const detailRes = await testCall(transactionsDetail, {
-         body: { financeEntityId: entId, transactionId: txId }
-      });
-      
-      // 6. confirmar status draft
-      assert(detailRes.body.transaction.status === 'draft', 'confirma status draft');
-      
-      // 7. confirmar version inicial exata
-      let currentVersion = detailRes.body.transaction.version;
-      assert(currentVersion === 1, 'confirma version inicial exata (1)');
-      
-      // Wait to ensure updatedAt will be strictly greater (for our simple tests)
-      await new Promise(r => setTimeout(r, 10));
-
-      const initialAllocId = detailRes.body.allocations[0].id;
-
-      // 8. atualizar descrição
-      const updateKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const updateReqId = 'req_' + crypto.randomBytes(4).toString('hex');
-      
-      const updateRes = await testCall(transactionsUpdateDraft, {
-         body: {
-            financeEntityId: entId,
-            transactionId: txId,
-            expectedVersion: currentVersion,
-            idempotencyKey: updateKey,
-            requestId: updateReqId,
-            payload: {
-               description: 'Atualizado',
-               allocations: [
-                  { id: initialAllocId, amountCents: 6500, categoryId: category1Id, description: 'Dízimos Editado' },
-                  { amountCents: 3000, categoryId: category2Id, description: 'Ofertas' }
-               ]
-            }
-         }
-      });
-      
-      // 9. confirmar version incrementada exatamente uma vez
-      assert(updateRes.statusCode === 200 && updateRes.body.changed === true && updateRes.body.version === 2, 'confirma version incrementada exatamente uma vez');
-      currentVersion = updateRes.body.version;
-
-      const updatedDetailRes = await testCall(transactionsDetail, {
-         body: { financeEntityId: entId, transactionId: txId }
-      });
-      const allocationsForNoOp = updatedDetailRes.body.allocations;
-      assert(Array.isArray(allocationsForNoOp) && allocationsForNoOp.length === 2, 'detail retorna allocations atualizadas');
-      
-      // 10. repetir o mesmo update como no-op
-      const updateReqId2 = 'req_' + crypto.randomBytes(4).toString('hex');
-      const updateNoOpRes = await testCall(transactionsUpdateDraft, {
-         body: {
-            financeEntityId: entId,
-            transactionId: txId,
-            expectedVersion: currentVersion,
-            idempotencyKey: 'idsm_' + crypto.randomBytes(4).toString('hex'), // diff key
-            requestId: updateReqId2,
-            payload: {
-               description: 'Atualizado', // same as before
-               allocations: allocationsForNoOp.map((allocation: any) => ({
-                  id: allocation.id,
-                  amountCents: allocation.amountCents,
-                  categoryId: allocation.categoryId,
-                  fundId: allocation.fundId,
-                  costCenterId: allocation.costCenterId,
-               }))
-            }
-         }
-      });
-      
-      // 11. confirmar changed:false
-      assert(updateNoOpRes.statusCode === 200 && updateNoOpRes.body.changed === false, 'confirma changed:false');
-      
-      // 13. enviar para revisão
-      const submitKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const submitReqId = 'req_' + crypto.randomBytes(4).toString('hex');
-      const submitRes = await testCall(transactionsSubmitForReview, {
-         body: {
-            financeEntityId: entId,
-            transactionId: txId,
-            expectedVersion: currentVersion,
-            idempotencyKey: submitKey,
-            requestId: submitReqId
-         }
-      });
-      
-      // 14. confirmar ready_for_review
-      assert(submitRes.statusCode === 200 && submitRes.body.version === 3, 'confirma version após submit');
-      currentVersion = submitRes.body.version;
-      const txDoc3 = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
-      assert(txDoc3.data()?.status === 'ready_for_review', 'confirma ready_for_review');
-      
-      // 16. retornar para draft usando o endpoint dedicado
-      const returnKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const returnReqId = 'req_' + crypto.randomBytes(4).toString('hex');
-      const returnRes = await testCall(transactionsReturnToDraft, {
-         body: {
-            financeEntityId: entId,
-            transactionId: txId,
-            expectedVersion: currentVersion,
-            idempotencyKey: returnKey,
-            requestId: returnReqId,
-            reasonCode: 'correction_requested',
-            comment: 'Correção solicitada pelo teste do Emulator'
-         }
-      });
-      
-      // 17. confirmar version exata do retorno
-      assert(returnRes.statusCode === 200 && returnRes.body.version === 4, 'confirma version exata após retornar');
-      currentVersion = returnRes.body.version;
-      const txDoc4 = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
-      assert(txDoc4.data()?.status === 'draft', 'confirma status draft após retorno');
-
-      // 25. verificar zero efeito contábil
-      const journalQ = await firestore.collection('organizations').doc(orgId).collection('financeJournalEntries').get();
-      const aggQ = await firestore.collection('organizations').doc(orgId).collection('financeAggregates').get();
-      assert(journalQ.docs.length === 0, 'zero financeJournalEntries');
-      assert(aggQ.docs.length === 0, 'zero financeAggregates');
-
-      console.log('--- Idempotencia Real no Emulator ---');
-      
-      const submitAgainKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      await testCall(transactionsSubmitForReview, {
-         body: {
-            financeEntityId: entId, transactionId: txId, expectedVersion: currentVersion, idempotencyKey: submitAgainKey, requestId: 'req_' + crypto.randomBytes(4).toString('hex')
-         }
-      });
-      currentVersion = 5;
-
-      const submitRepeatRes = await testCall(transactionsSubmitForReview, {
-         body: {
-            financeEntityId: entId, transactionId: txId, expectedVersion: 4, idempotencyKey: submitAgainKey, requestId: 'req_' + crypto.randomBytes(4).toString('hex')
-         }
-      });
-      
-      assert(submitRepeatRes.statusCode === 200 && submitRepeatRes.body.version === 5, 'mesma chave + mesmo payload retorna o resultado anterior');
-
-      const submitIdempotencyHash = buildIdempotencyKeyHash(orgId, entId, uid, 'submit_review', submitAgainKey);
-      const idempotencyDoc = await firestore.collection('organizations').doc(orgId).collection('financeIdempotency').doc(submitIdempotencyHash).get();
-      assert(idempotencyDoc.exists, 'registro de idempotência criado');
-
-      console.log('--- Concorrencia Real no Emulator ---');
-      const concUpdateKey1 = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const concUpdateKey2 = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      
-      const returnKey2 = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      const returnRes2 = await testCall(transactionsReturnToDraft, {
-         body: {
-            financeEntityId: entId,
-            transactionId: txId,
-            expectedVersion: currentVersion,
-            idempotencyKey: returnKey2,
-            requestId: 'req_' + crypto.randomBytes(4).toString('hex'),
-            reasonCode: 'correction_requested',
-            comment: 'Preparar cenário de concorrência'
-         }
-      });
-      assert(returnRes2.statusCode === 200 && returnRes2.body.version === 6, 'retorna para draft antes do cenário concorrente');
-      currentVersion = 6;
-      
-      const p1 = testCall(transactionsUpdateDraft, {
-         body: {
-            financeEntityId: entId, transactionId: txId, expectedVersion: currentVersion,
-            payload: { description: 'P1 Vence' },
-            idempotencyKey: concUpdateKey1, requestId: 'req_' + crypto.randomBytes(4).toString('hex')
-         }
-      });
-      
-      const p2 = testCall(transactionsUpdateDraft, {
-         body: {
-            financeEntityId: entId, transactionId: txId, expectedVersion: currentVersion,
-            payload: { description: 'P2 Vence' },
-            idempotencyKey: concUpdateKey2, requestId: 'req_' + crypto.randomBytes(4).toString('hex')
-         }
-      });
-      
-      const settled = await Promise.allSettled([p1, p2]);
-      const succeeded = settled.filter((r: any) => r.status === 'fulfilled' && r.value.statusCode === 200);
-      const errs = settled.filter((r: any) => r.status === 'fulfilled' && r.value.statusCode === 400 && r.value.body.error === 'FINANCE_VERSION_CONFLICT');
-      
-      assert(succeeded.length === 1, 'exatamente um update vence (length=' + succeeded.length + ')');
-      assert(errs.length === 1, 'concorrente perde com FINANCE_VERSION_CONFLICT');
-      
-      console.log(`\nEmulator Totals: ${passed} Passed, ${failed} Failed\n`);
-
-   } catch (error) {
-      console.error(error);
+  const verify = (condition: boolean, message: string) => {
+    if (!condition) {
       failed++;
-   } finally {
-      admin.auth.verifyIdToken = originalVerify;
-      if (failed > 0) process.exit(1);
-   }
+      console.error(`❌ ${message}`);
+      throw new Error(`Assertion failed: ${message}`);
+    }
+    passed++;
+    console.log(`✅ ${message}`);
+  };
+
+  resetFirebaseAdminForTests();
+  const admin = getFirebaseAdmin();
+  const firestore = admin.firestore;
+
+  const orgId = 'org_' + crypto.randomBytes(4).toString('hex');
+  const entId = 'ent_' + crypto.randomBytes(4).toString('hex');
+  const uid = 'usr_' + crypto.randomBytes(4).toString('hex');
+  const accountId = 'acc_' + crypto.randomBytes(4).toString('hex');
+  const category1Id = 'cat_' + crypto.randomBytes(4).toString('hex');
+  const category2Id = 'cat_' + crypto.randomBytes(4).toString('hex');
+
+  console.log('Org:', orgId, 'Entity:', entId, 'UID:', uid);
+
+  await firestore.collection('organizations').doc(orgId).set({ name: 'Emul Org' });
+  // Canonical current Hub development contract: NestFinance access is granted through systemRole.
+  // No legacy organizations/{org}/users membership is seeded, so this journey would fail if the
+  // NestFinance backend accidentally depended on the superseded membership path.
+  await firestore.collection('users').doc(uid).set({
+    displayName: 'Emulator User',
+    systemRole: 'ceo'
+  });
+
+  await firestore.collection('organizations').doc(orgId).collection('financeEntities').doc(entId).set({
+    name: 'Entidade Emulada',
+    active: true
+  });
+
+  await firestore.collection('organizations').doc(orgId).collection('financeAccounts').doc(accountId).set({
+    financeEntityId: entId,
+    name: 'Conta Teste',
+    active: true,
+    kind: 'asset:current'
+  });
+
+  await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category1Id).set({
+    financeEntityId: entId,
+    name: 'Dízimos',
+    kind: 'income',
+    active: true
+  });
+
+  await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category2Id).set({
+    financeEntityId: entId,
+    name: 'Ofertas',
+    kind: 'income',
+    active: true
+  });
+
+  const originalVerify = admin.auth.verifyIdToken;
+  admin.auth.verifyIdToken = async () => ({
+    uid,
+    email: `${uid}@test.com`,
+    mn_organization_id: orgId
+  }) as any;
+
+  async function testCall(handler: any, reqData: any, headers: any = {}) {
+    const req = {
+      method: reqData.method || 'POST',
+      headers: {
+        authorization: 'Bearer integration_token',
+        'x-organization-id': orgId,
+        ...headers
+      },
+      body: reqData.body,
+      query: reqData.query || {}
+    };
+    const res = new MockRes();
+    await handler(req as any, res as any);
+    return res;
+  }
+
+  const randomKey = () => 'idsm_' + crypto.randomBytes(8).toString('hex');
+  const randomRequestId = () => 'req_' + crypto.randomBytes(8).toString('hex');
+
+  try {
+    const listRes = await testCall(transactionsList, {
+      body: { financeEntityId: entId, status: 'draft' }
+    });
+    verify(listRes.statusCode === 200 && listRes.body.items.length === 0, 'listar entidade vazia');
+
+    const createKey = randomKey();
+    const createRes = await testCall(transactionsCreateDraft, {
+      body: {
+        financeEntityId: entId,
+        idempotencyKey: createKey,
+        requestId: randomRequestId(),
+        payload: {
+          direction: 'income',
+          amountCents: 9500,
+          occurredAt: new Date().toISOString(),
+          description: 'Oferta teste',
+          accountId,
+          allocations: [
+            { amountCents: 6500, categoryId: category1Id, description: 'Dízimos' },
+            { amountCents: 3000, categoryId: category2Id, description: 'Ofertas' }
+          ]
+        }
+      }
+    });
+
+    verify(createRes.statusCode === 200 && Boolean(createRes.body.transactionId), 'cria uma transação de Entrada de 9500 centavos');
+    const txId = createRes.body.transactionId;
+
+    const txDoc = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
+    const allocationQuery = await firestore.collection('organizations').doc(orgId).collection('financeAllocations').where('transactionId', '==', txId).get();
+    verify(txDoc.exists && txDoc.data()?.amountCents === 9500, 'transação persistida corretamente');
+    verify(allocationQuery.docs.length === 2, 'allocations persistidas (6500 e 3000)');
+
+    const detailRes = await testCall(transactionsDetail, {
+      body: { financeEntityId: entId, transactionId: txId }
+    });
+    verify(detailRes.body.transaction.status === 'draft', 'confirma status draft');
+
+    let currentVersion = detailRes.body.transaction.version;
+    verify(currentVersion === 1, 'confirma version inicial exata (1)');
+
+    const initialAllocId = detailRes.body.allocations[0].id;
+    const updateRes = await testCall(transactionsUpdateDraft, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: randomKey(),
+        requestId: randomRequestId(),
+        payload: {
+          description: 'Atualizado',
+          allocations: [
+            { id: initialAllocId, amountCents: 6500, categoryId: category1Id, description: 'Dízimos Editado' },
+            { amountCents: 3000, categoryId: category2Id, description: 'Ofertas' }
+          ]
+        }
+      }
+    });
+    verify(updateRes.statusCode === 200 && updateRes.body.changed === true && updateRes.body.version === 2, 'confirma version incrementada exatamente uma vez');
+    currentVersion = updateRes.body.version;
+
+    const updatedDetailRes = await testCall(transactionsDetail, {
+      body: { financeEntityId: entId, transactionId: txId }
+    });
+    const allocationsForNoOp = updatedDetailRes.body.allocations;
+    verify(Array.isArray(allocationsForNoOp) && allocationsForNoOp.length === 2, 'detail retorna allocations atualizadas');
+
+    const noOpRes = await testCall(transactionsUpdateDraft, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: randomKey(),
+        requestId: randomRequestId(),
+        payload: {
+          description: 'Atualizado',
+          allocations: allocationsForNoOp.map((allocation: any) => ({
+            id: allocation.id,
+            amountCents: allocation.amountCents,
+            categoryId: allocation.categoryId,
+            fundId: allocation.fundId,
+            costCenterId: allocation.costCenterId
+          }))
+        }
+      }
+    });
+    verify(noOpRes.statusCode === 200 && noOpRes.body.changed === false, 'confirma changed:false');
+
+    const submitRes = await testCall(transactionsSubmitForReview, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: randomKey(),
+        requestId: randomRequestId()
+      }
+    });
+    verify(submitRes.statusCode === 200 && submitRes.body.version === 3, 'confirma version após submit');
+    currentVersion = submitRes.body.version;
+
+    const afterSubmit = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
+    verify(afterSubmit.data()?.status === 'ready_for_review', 'confirma ready_for_review');
+
+    const returnRes = await testCall(transactionsReturnToDraft, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: randomKey(),
+        requestId: randomRequestId(),
+        reasonCode: 'correction_requested',
+        comment: 'Correção solicitada pelo teste do Emulator'
+      }
+    });
+    verify(returnRes.statusCode === 200 && returnRes.body.version === 4, 'confirma version exata após retornar');
+    currentVersion = returnRes.body.version;
+
+    const afterReturn = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
+    verify(afterReturn.data()?.status === 'draft', 'confirma status draft após retorno');
+
+    const journalQuery = await firestore.collection('organizations').doc(orgId).collection('financeJournalEntries').get();
+    const aggregatesQuery = await firestore.collection('organizations').doc(orgId).collection('financeAggregates').get();
+    verify(journalQuery.docs.length === 0, 'zero financeJournalEntries');
+    verify(aggregatesQuery.docs.length === 0, 'zero financeAggregates');
+
+    console.log('--- Idempotencia Real no Emulator ---');
+    const repeatKey = randomKey();
+    const firstRepeat = await testCall(transactionsSubmitForReview, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: repeatKey,
+        requestId: randomRequestId()
+      }
+    });
+    verify(firstRepeat.statusCode === 200 && firstRepeat.body.version === 5, 'primeira chamada idempotente avança para version 5');
+    currentVersion = 5;
+
+    const repeatRes = await testCall(transactionsSubmitForReview, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: 4,
+        idempotencyKey: repeatKey,
+        requestId: randomRequestId()
+      }
+    });
+    verify(repeatRes.statusCode === 200 && repeatRes.body.version === 5, 'mesma chave + mesmo payload retorna o resultado anterior');
+
+    const keyHash = buildIdempotencyKeyHash(orgId, entId, uid, 'submit_review', repeatKey);
+    const idempotencyDoc = await firestore.collection('organizations').doc(orgId).collection('financeIdempotency').doc(keyHash).get();
+    verify(idempotencyDoc.exists, 'registro de idempotência criado');
+
+    console.log('--- Concorrencia Real no Emulator ---');
+    const returnForConcurrency = await testCall(transactionsReturnToDraft, {
+      body: {
+        financeEntityId: entId,
+        transactionId: txId,
+        expectedVersion: currentVersion,
+        idempotencyKey: randomKey(),
+        requestId: randomRequestId(),
+        reasonCode: 'correction_requested',
+        comment: 'Preparar cenário de concorrência'
+      }
+    });
+    verify(returnForConcurrency.statusCode === 200 && returnForConcurrency.body.version === 6, 'retorna para draft antes do cenário concorrente');
+    currentVersion = 6;
+
+    const [p1, p2] = await Promise.all([
+      testCall(transactionsUpdateDraft, {
+        body: {
+          financeEntityId: entId,
+          transactionId: txId,
+          expectedVersion: currentVersion,
+          payload: { description: 'P1 Vence' },
+          idempotencyKey: randomKey(),
+          requestId: randomRequestId()
+        }
+      }),
+      testCall(transactionsUpdateDraft, {
+        body: {
+          financeEntityId: entId,
+          transactionId: txId,
+          expectedVersion: currentVersion,
+          payload: { description: 'P2 Vence' },
+          idempotencyKey: randomKey(),
+          requestId: randomRequestId()
+        }
+      })
+    ]);
+
+    const concurrentResults = [p1, p2];
+    const succeeded = concurrentResults.filter((result) => result.statusCode === 200);
+    const conflicts = concurrentResults.filter((result) => result.statusCode === 400 && result.body?.error === 'FINANCE_VERSION_CONFLICT');
+    verify(succeeded.length === 1, `exatamente um update vence (length=${succeeded.length})`);
+    verify(conflicts.length === 1, 'concorrente perde com FINANCE_VERSION_CONFLICT');
+  } catch (error: any) {
+    console.error('Emulator Test Error:', error);
+    if (failed === 0) failed++;
+  } finally {
+    admin.auth.verifyIdToken = originalVerify;
+  }
+
+  console.log(`\nEmulator Totals: ${passed} Passed, ${failed} Failed`);
+  process.exit(failed > 0 ? 1 : 0);
 }
 
-runEmulatorTests();
+runEmulatorTests().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
