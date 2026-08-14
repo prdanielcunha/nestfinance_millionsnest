@@ -1,8 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
-import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
@@ -27,8 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { 
-      financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment, requestId, idempotencyKey 
+    const {
+      financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment, requestId, idempotencyKey
     } = req.body;
 
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
@@ -38,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!reasonCode || typeof reasonCode !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    
+
     const validReasons = [
       'amount_needs_change',
       'account_needs_change',
@@ -57,27 +55,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'FINANCE_MISSING_COMMENT', message: 'Comment required for reason other' });
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.invalidate_approval');
 
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    // Check capability: finance.invalidate_approval (or finance.review as fallback)
-    const context = await requireFinanceTransactionAccess({
-      db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.invalidate_approval'
-    });
-
-    const payload = { financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment }; 
+    const payload = { financeEntityId, transactionId, expectedVersion, expectedApprovalSourceHash, reasonCode, comment };
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'invalidate_approval', idempotencyKey);
     const payloadHash = hashPayload(payload);
 
@@ -91,35 +71,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const txData = txDoc.data() as LedgerTransaction;
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
 
-      // 9. Confirmar que não existe Posting
       const hasPostingEvidence = txData.status === 'posted' || (txData as any).postingId || (txData as any).journalEntryId || (txData as any).postedAt;
       if (hasPostingEvidence) {
-        throw { 
-          code: 'FINANCE_APPROVAL_CANNOT_BE_INVALIDATED_AFTER_POSTING', 
-          message: 'Esta movimentação já foi lançada e não pode voltar para rascunho. Será necessário fazer uma reversão.' 
+        throw {
+          code: 'FINANCE_APPROVAL_CANNOT_BE_INVALIDATED_AFTER_POSTING',
+          message: 'Esta movimentação já foi lançada e não pode voltar para rascunho. Será necessário fazer uma reversão.'
         };
       }
 
-      // 5. Exigir status === approved_for_posting
       if (txData.status !== 'approved_for_posting') {
-         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Only transactions approved for posting can have their approval invalidated' };
+        throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'Only transactions approved for posting can have their approval invalidated' };
       }
 
-      // 6. Validar expectedVersion
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
-      
-      // 7. Validar aprovação existente
+
       if (!txData.approvedBy || !txData.approvalSourceHash) {
-         throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No active approval found to invalidate' };
+        throw { code: 'FINANCE_INVALID_STATE_TRANSITION', message: 'No active approval found to invalidate' };
       }
 
-      // 8. Calcular sealStatus e validar stale/divergencia se for 'need_correction'
       const { loadPostingConfiguration } = await import('./loadPostingConfiguration.js');
-      const { computeApprovalSourceHash } = await import('../../../shared/finance/ledger/approvalSourceHash.js');
       const { buildPostingPlan } = await import('../../../shared/finance/ledger/postingPlan.js');
 
       const existingAllocsQ = await t.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId));
-      const allocations = existingAllocsQ.docs.map(d => ({id: d.id, ...d.data()}) as any);
+      const allocations = existingAllocsQ.docs.map(d => ({ id: d.id, ...d.data() }) as any);
 
       const approvalDoc = await t.get(txRef.collection('approvals').doc('latest'));
       const approval = approvalDoc.exists ? approvalDoc.data() : undefined;
@@ -151,22 +125,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (reasonCode === 'need_correction') {
         if (sealStatus === 'verified') {
-          throw { 
-            code: 'FINANCE_APPROVAL_NOT_STALE', 
-            message: 'A transação está com a aprovação válida e não precisa de correção.' 
+          throw {
+            code: 'FINANCE_APPROVAL_NOT_STALE',
+            message: 'A transação está com a aprovação válida e não precisa de correção.'
           };
         }
-      } else {
-        if (expectedApprovalSourceHash && txData.approvalSourceHash !== expectedApprovalSourceHash) {
-          throw { code: 'FINANCE_APPROVAL_HASH_MISMATCH', message: 'Approval source hash mismatch' };
-        }
+      } else if (expectedApprovalSourceHash && txData.approvalSourceHash !== expectedApprovalSourceHash) {
+        throw { code: 'FINANCE_APPROVAL_HASH_MISMATCH', message: 'Approval source hash mismatch' };
       }
 
       const transactionKind = txData.transactionKind || txData.direction;
       const newVersion = txData.version + 1;
       const listQueryKeys = buildTransactionListQueryKeys(financeEntityId, transactionId, transactionKind, 'draft', txData.occurredAt);
-      
-      // Update transaction - preserving approval but setting status to draft and invalidation info
+
       t.update(txRef, sanitizeFirestoreObject({
         status: 'draft',
         listQueryKeys,
@@ -195,7 +166,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         details: { reasonCode, comment, previousVersion: txData.version, newVersion, sourceHash: txData.approvalSourceHash }
       }));
 
-      // Internal event
       const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
         eventId,
@@ -218,9 +188,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     return res.status(200).json(result);
-
   } catch (error: any) {
     console.error('Invalidate Approval Error:', error);
+    if (error.status === 401 || error.status === 403) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     if (error.code && error.code.startsWith('FINANCE_')) {
       return res.status(400).json({ error: error.code, details: error.message });
     }
@@ -232,7 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
+    if (error.code === 'auth/id-token-revoked' || error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
