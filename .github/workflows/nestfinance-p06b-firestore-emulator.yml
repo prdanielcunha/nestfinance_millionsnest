@@ -7,6 +7,9 @@ on:
       - "api/**"
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/check-saas-isolation.ts"
+      - "scripts/test-certification-checkers.ts"
       - "scripts/test-transactions-firestore-emulator.ts"
       - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
@@ -15,6 +18,9 @@ on:
       - "scripts/test-finance-request-context.ts"
       - "scripts/test-posting-plan-entity-isolation.ts"
       - "scripts/test-authorization.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "vercel.json"
       - "firebase.json"
       - "firestore.rules"
       - "firestore.indexes.json"
@@ -107,6 +113,7 @@ jobs:
           npx tsx scripts/test-firestore-seam.ts
           npx tsx scripts/test-ledger.ts
           npx tsx scripts/test-authorization.ts
+          npm run test:certification-gates
           npm run lint
           npm run build
           npm run check:api-contracts
