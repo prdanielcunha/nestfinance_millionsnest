@@ -1,6 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
-import type { CountCaptureNormalization, CountCaptureReviewInputField } from '../../shared/finance/countCapture.js';
+import type { CountCaptureNormalization, CountCaptureRegion, CountCaptureReviewInputField } from '../../shared/finance/countCapture.js';
 
 async function makeHeaders(organizationId: string) {
   const headers = new Headers();
@@ -28,9 +28,11 @@ export type CountCaptureDetail = {
   formId: string;
   countSessionId: string;
   stage: 'count_a' | 'count_b';
+  templateVersion?: number;
   materialHidden: boolean;
   duplicateOfCaptureId?: string | null;
-  candidates: Array<{ key: string; state: string; valueCents: number | null; confidence: number | null }> | null;
+  normalization?: CountCaptureNormalization | null;
+  candidates: Array<{ key: string; state: string; valueCents: number | null; confidence: number | null; region?: CountCaptureRegion | null }> | null;
   review: { fields?: Array<{ key: string; decision: string; valueCents: number | null }> } | null;
   originalUrl: string | null;
   normalizedUrl: string | null;

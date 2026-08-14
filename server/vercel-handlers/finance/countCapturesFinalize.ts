@@ -74,8 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!hashDoc.exists) transaction.create(hashRef, { originalSha256: original.sha256, captureId, organizationId, financeEntityId, createdAt: FieldValue.serverTimestamp() });
-      transaction.update(captureRef, { status: 'captured', original: verifiedOriginal, normalized: verifiedNormalized, normalization: normalizedGeometry, candidates: buildUnresolvedCountCaptureCandidates(), duplicateOfCaptureId: null, version: 2, updatedByUid: uid, updatedAt: FieldValue.serverTimestamp() });
-      transaction.set(context.repository.getAuditRef().doc(auditId), { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'count_capture', resourceId: captureId, action: 'count.capture_finalized', requestId, idempotencyKey, afterHash: payloadHash, metadata: { originalSha256: original.sha256, normalizedSha256: normalized.sha256, candidateState: 'unresolved', materialRedacted: true }, createdAt: FieldValue.serverTimestamp() });
+      const candidates = buildUnresolvedCountCaptureCandidates(canonical.form.templateVersion).map((field) => normalizedGeometry.geometry.mode === 'full_frame' ? { ...field, region: null } : field);
+      transaction.update(captureRef, { status: 'captured', original: verifiedOriginal, normalized: verifiedNormalized, normalization: normalizedGeometry, candidates, duplicateOfCaptureId: null, version: 2, updatedByUid: uid, updatedAt: FieldValue.serverTimestamp() });
+      transaction.set(context.repository.getAuditRef().doc(auditId), { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'count_capture', resourceId: captureId, action: 'count.capture_finalized', requestId, idempotencyKey, afterHash: payloadHash, metadata: { originalSha256: original.sha256, normalizedSha256: normalized.sha256, candidateState: 'unresolved', geometryMode: normalizedGeometry.geometry.mode, perspectiveApplied: normalizedGeometry.perspectiveApplied, evidenceRegionsBound: normalizedGeometry.geometry.mode !== 'full_frame', templateVersion: canonical.form.templateVersion, materialRedacted: true }, createdAt: FieldValue.serverTimestamp() });
       return { captureId, canonicalCaptureId: captureId, version: 2, status: 'captured' as const, duplicate: false };
     });
     return res.status(200).json({ ...result, requestId });

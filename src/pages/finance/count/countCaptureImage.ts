@@ -1,4 +1,11 @@
-import { parseCountPaperIdentityPayload, type CountCaptureNormalization } from '@/shared/finance/countCapture';
+import { parseCountPaperIdentityPayload, type CountCaptureNormalization, type CountCaptureNormalizedQuad } from '@/shared/finance/countCapture';
+import {
+  COUNT_CAPTURE_AUTO_GEOMETRY_THRESHOLD,
+  COUNT_CAPTURE_DEFAULT_MANUAL_CORNERS,
+  cloneCountCaptureQuad,
+  detectCountCapturePageQuad,
+  warpCountCapturePage,
+} from './countCaptureGeometryClient';
 
 export type PreparedCountCaptureImage = {
   original: File;
@@ -9,6 +16,9 @@ export type PreparedCountCaptureImage = {
   normalizedPreviewUrl: string;
   normalization: CountCaptureNormalization;
   qrPayload: string | null;
+  suggestedCorners: CountCaptureNormalizedQuad;
+  geometryConfidence: number;
+  geometryNeedsReview: boolean;
 };
 
 type DecodedImage = {
@@ -72,6 +82,52 @@ async function decodeImage(file: File): Promise<DecodedImage> {
   }
 }
 
+function renderOrientedCanvas(decoded: DecodedImage, rotationDegrees: 0 | 90 | 180 | 270) {
+  const rotatedWidth = rotationDegrees === 90 || rotationDegrees === 270 ? decoded.height : decoded.width;
+  const rotatedHeight = rotationDegrees === 90 || rotationDegrees === 270 ? decoded.width : decoded.height;
+  const longest = Math.max(rotatedWidth, rotatedHeight);
+  const scale = Math.min(1, 2400 / longest);
+  const targetWidth = Math.max(1, Math.round(rotatedWidth * scale));
+  const targetHeight = Math.max(1, Math.round(rotatedHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) throw new Error('COUNT_CAPTURE_NORMALIZE_FAILED');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, targetWidth, targetHeight);
+  context.save();
+  context.scale(scale, scale);
+  if (rotationDegrees === 90) {
+    context.translate(decoded.height, 0);
+    context.rotate(Math.PI / 2);
+  } else if (rotationDegrees === 180) {
+    context.translate(decoded.width, decoded.height);
+    context.rotate(Math.PI);
+  } else if (rotationDegrees === 270) {
+    context.translate(0, decoded.width);
+    context.rotate(-Math.PI / 2);
+  }
+  context.drawImage(decoded.source, 0, 0, decoded.width, decoded.height);
+  context.restore();
+  return { canvas, orientedWidth: rotatedWidth, orientedHeight: rotatedHeight };
+}
+
+function downscaleFullFrame(source: HTMLCanvasElement) {
+  const longest = Math.max(source.width, source.height);
+  const scale = longest > 2400 ? 2400 / longest : 1;
+  if (scale === 1) return source;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) throw new Error('COUNT_CAPTURE_NORMALIZE_FAILED');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
 async function detectQr(canvas: HTMLCanvasElement): Promise<string | null> {
   const Detector = (globalThis as any).BarcodeDetector;
   if (typeof Detector !== 'function') return null;
@@ -96,49 +152,75 @@ async function detectQr(canvas: HTMLCanvasElement): Promise<string | null> {
   return null;
 }
 
-export async function prepareCountCaptureImage(file: File): Promise<PreparedCountCaptureImage> {
+export async function prepareCountCaptureImage(
+  file: File,
+  options: {
+    rotationDegrees?: 0 | 90 | 180 | 270;
+    manualCorners?: CountCaptureNormalizedQuad | null;
+    forceFullFrame?: boolean;
+  } = {},
+): Promise<PreparedCountCaptureImage> {
+  const rotationDegrees = options.rotationDegrees ?? 0;
   const decoded = await decodeImage(file);
   try {
-    const longest = Math.max(decoded.width, decoded.height);
-    const scale = longest > 2400 ? 2400 / longest : 1;
-    const width = Math.max(1, Math.round(decoded.width * scale));
-    const height = Math.max(1, Math.round(decoded.height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d', { alpha: false });
-    if (!context) throw new Error('COUNT_CAPTURE_NORMALIZE_FAILED');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
-    context.drawImage(decoded.source, 0, 0, width, height);
-
-    const normalized = await canvasToBlob(canvas, 'image/jpeg', 0.88);
+    const oriented = renderOrientedCanvas(decoded, rotationDegrees);
+    const detected = options.manualCorners || options.forceFullFrame
+      ? { corners: null, confidence: 0 }
+      : detectCountCapturePageQuad(oriented.canvas);
+    const manualCorners = options.manualCorners ? cloneCountCaptureQuad(options.manualCorners) : null;
+    const autoCorners = detected.corners && detected.confidence >= COUNT_CAPTURE_AUTO_GEOMETRY_THRESHOLD
+      ? cloneCountCaptureQuad(detected.corners)
+      : null;
+    const appliedCorners = manualCorners || autoCorners;
+    const normalizedCanvas = appliedCorners
+      ? warpCountCapturePage(oriented.canvas, appliedCorners)
+      : downscaleFullFrame(oriented.canvas);
+    const previewBlob = await canvasToBlob(oriented.canvas, 'image/jpeg', 0.86);
+    const normalized = await canvasToBlob(normalizedCanvas, 'image/jpeg', 0.9);
     const [qrPayload, originalSha256, normalizedSha256] = await Promise.all([
-      detectQr(canvas),
+      detectQr(normalizedCanvas),
       sha256Hex(file),
       sha256Hex(normalized),
     ]);
+
+    const geometryMode = manualCorners ? 'manual' : autoCorners ? 'auto' : 'full_frame';
+    const normalization: CountCaptureNormalization = {
+      sourceWidth: oriented.orientedWidth,
+      sourceHeight: oriented.orientedHeight,
+      normalizedWidth: normalizedCanvas.width,
+      normalizedHeight: normalizedCanvas.height,
+      rotationDegrees,
+      perspectiveApplied: geometryMode !== 'full_frame',
+      geometry: geometryMode === 'full_frame'
+        ? { mode: 'full_frame', confidence: null, corners: null }
+        : {
+            mode: geometryMode,
+            confidence: geometryMode === 'auto' ? detected.confidence : null,
+            corners: appliedCorners,
+          },
+    };
 
     return {
       original: file,
       normalized,
       originalSha256,
       normalizedSha256,
-      previewUrl: URL.createObjectURL(file),
+      previewUrl: URL.createObjectURL(previewBlob),
       normalizedPreviewUrl: URL.createObjectURL(normalized),
-      normalization: {
-        sourceWidth: decoded.width,
-        sourceHeight: decoded.height,
-        normalizedWidth: width,
-        normalizedHeight: height,
-        rotationDegrees: 0,
-        perspectiveApplied: false,
-      },
+      normalization,
       qrPayload,
+      suggestedCorners: cloneCountCaptureQuad(detected.corners || manualCorners || COUNT_CAPTURE_DEFAULT_MANUAL_CORNERS),
+      geometryConfidence: detected.confidence,
+      geometryNeedsReview: geometryMode === 'full_frame' && !options.forceFullFrame,
     };
   } finally {
     decoded.dispose();
   }
+}
+
+export function nextCountCaptureRotation(rotation: 0 | 90 | 180 | 270, direction: 'left' | 'right'): 0 | 90 | 180 | 270 {
+  const delta = direction === 'right' ? 90 : 270;
+  return ((rotation + delta) % 360) as 0 | 90 | 180 | 270;
 }
 
 export function disposePreparedCountCaptureImage(image: PreparedCountCaptureImage | null) {
