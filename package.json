@@ -11,6 +11,7 @@
     "check:vercel-entrypoints": "node scripts/check-vercel-entrypoints.mjs",
     "check:saas-isolation": "tsx scripts/check-saas-isolation.ts",
     "check:brand-assets": "node scripts/check-brand-assets.mjs",
+    "test:certification-gates": "tsx scripts/test-certification-checkers.ts",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
