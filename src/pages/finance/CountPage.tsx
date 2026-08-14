@@ -267,46 +267,55 @@ function CountHomeContent() {
               </Surface>
             ) : (
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', item.id))}
-                    className="group rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                  >
-                    <Surface variant="elevated" radius="lg" className="h-full p-5 transition-colors group-hover:bg-surface-secondary/70">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-semibold text-text-primary">{item.serviceLabel}</p>
-                          <p className="mt-1 text-sm text-text-muted">
-                            {formatReviewDate(`${item.serviceDate}T12:00:00.000Z`, language)}
-                          </p>
+                {items.map((item) => {
+                  const blind = item.materialHidden;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', item.id))}
+                      className="group rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                    >
+                      <Surface variant="elevated" radius="lg" className="h-full p-5 transition-colors group-hover:bg-surface-secondary/70">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-semibold text-text-primary">{item.serviceLabel}</p>
+                            <p className="mt-1 text-sm text-text-muted">
+                              {formatReviewDate(`${item.serviceDate}T12:00:00.000Z`, language)}
+                            </p>
+                          </div>
+                          <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                         </div>
-                        <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                      </div>
-                      <div className="mt-5 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-border-subtle bg-surface-secondary px-3 py-1 text-xs font-semibold text-text-secondary">
-                          {copy.firstCount}
-                        </span>
-                        {item.firstCountEntryTypes.length > 0 ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-3 py-1 text-xs font-semibold text-semantic-success">
-                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            {copy.savedFirstCount}
+                        <div className="mt-5 flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${item.status === 'matched' ? 'border-semantic-success/20 bg-semantic-success/10 text-semantic-success' : item.status === 'divergent' ? 'border-semantic-warning/20 bg-semantic-warning/10 text-semantic-warning' : 'border-border-subtle bg-surface-secondary text-text-secondary'}`}>
+                            {copy.statusLabels[item.status]}
                           </span>
-                        ) : null}
-                        <span className="rounded-full border border-semantic-warning/20 bg-semantic-warning/10 px-3 py-1 text-xs font-semibold text-semantic-warning">
-                          {copy.secondCountPending}
-                        </span>
-                      </div>
-                      <div className="mt-4 flex items-end justify-between gap-4 border-t border-border-subtle pt-4">
-                        <p className="text-lg font-semibold tabular-nums text-text-primary">
-                          {formatReviewMoney(item.firstCountTotalCents, language, 'BRL')}
-                        </p>
-                        <span className="text-sm font-semibold text-accent-primary">{copy.continueSession}</span>
-                      </div>
-                    </Surface>
-                  </button>
-                ))}
+                          {item.status === 'counting_a' && item.firstCountEntryTypes.length > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-3 py-1 text-xs font-semibold text-semantic-success">
+                              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              {copy.savedFirstCount}
+                            </span>
+                          ) : null}
+                          {blind ? (
+                            <span className="rounded-full border border-accent-primary/20 bg-accent-primary/10 px-3 py-1 text-xs font-semibold text-accent-primary">
+                              {copy.blindProtected}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 flex items-end justify-between gap-4 border-t border-border-subtle pt-4">
+                          {blind || item.firstCountTotalCents === null ? (
+                            <p className="max-w-[70%] text-sm font-medium text-text-muted">{copy.hiddenAmount}</p>
+                          ) : (
+                            <p className="text-lg font-semibold tabular-nums text-text-primary">
+                              {formatReviewMoney(item.firstCountTotalCents, language, 'BRL')}
+                            </p>
+                          )}
+                          <span className="text-sm font-semibold text-accent-primary">{copy.continueSession}</span>
+                        </div>
+                      </Surface>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

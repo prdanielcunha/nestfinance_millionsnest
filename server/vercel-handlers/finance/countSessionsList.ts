@@ -18,16 +18,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const items = snapshot.docs
       .map((doc: any) => {
         const data = doc.data() || {};
+        const materialHidden = data.status === 'counting_b' || data.status === 'recounting';
         return {
           id: doc.id,
           serviceLabel: data.serviceLabel,
           serviceDate: data.serviceDate,
           status: data.status,
           version: data.version,
-          firstCountTotalCents: data.countA?.totalCents || 0,
-          firstCountEntryTypes: Array.isArray(data.countA?.entries)
-            ? data.countA.entries.map((entry: any) => entry.type)
-            : [],
+          materialHidden,
+          firstCountTotalCents: materialHidden ? null : Number(data.countA?.totalCents || 0),
+          firstCountEntryTypes: materialHidden
+            ? []
+            : Array.isArray(data.countA?.entries)
+              ? data.countA.entries.map((entry: any) => entry.type)
+              : [],
+          comparisonMatched: materialHidden ? null : data.comparison?.matched === true,
+          recountAttemptCount: Array.isArray(data.recountAttempts) ? data.recountAttempts.length : 0,
           doubleCountRequired: data.policySnapshot?.doubleCountRequired === true,
           updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null,
         };

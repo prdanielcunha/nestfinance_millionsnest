@@ -34,6 +34,7 @@ import {
   type NormalizedCountEntry,
 } from '@/shared/finance/count';
 import { COUNT_COPY } from './countCopy';
+import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
 
 type Step = 'choose' | 'count' | 'review';
@@ -114,12 +115,14 @@ function CountSessionContent() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [startingSecond, setStartingSecond] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
 
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
+  const secondStartAttemptRef = useRef<SaveAttempt | null>(null);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
     if (!organizationId || !activeFinanceEntityId || !sessionId) return;
@@ -136,8 +139,9 @@ function CountSessionContent() {
       );
       if (currentEpoch !== epochRef.current) return;
       setSession(response.session);
-      setEntries(response.session.countA.entries || []);
+      setEntries(response.session.status === 'counting_a' ? response.session.countA?.entries || [] : []);
       saveAttemptRef.current = null;
+      secondStartAttemptRef.current = null;
     } catch (error: any) {
       if (currentEpoch !== epochRef.current) return;
       setSupportCode(error?.details?.requestId || null);
@@ -153,6 +157,7 @@ function CountSessionContent() {
     setEntries([]);
     setStep('choose');
     saveAttemptRef.current = null;
+    secondStartAttemptRef.current = null;
     if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
     // Canonical Count scope is organization + finance entity + session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,7 +220,7 @@ function CountSessionContent() {
   };
 
   const saveCurrentEntry = async () => {
-    if (!canEdit || !session || saving) return;
+    if (!canEdit || !session || saving || session.status !== 'counting_a') return;
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -259,19 +264,19 @@ function CountSessionContent() {
       saveAttemptRef.current = null;
       setSupportCode(null);
       setEntries(response.entries);
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              version: response.version,
-              countA: {
-                ...current.countA,
-                entries: response.entries,
-                totalCents: response.totalCents,
-              },
-            }
-          : current,
-      );
+      setSession((current) => {
+        if (!current) return current;
+        const currentCountA = current.countA || { entries: [], totalCents: 0 };
+        return {
+          ...current,
+          version: response.version,
+          countA: {
+            ...currentCountA,
+            entries: response.entries,
+            totalCents: response.totalCents,
+          },
+        };
+      });
       setStep('choose');
     } catch (error: any) {
       if (actionEpoch !== epochRef.current) return;
@@ -284,6 +289,39 @@ function CountSessionContent() {
       setSupportCode(error?.details?.requestId || requestId);
     } finally {
       if (actionEpoch === epochRef.current) setSaving(false);
+    }
+  };
+
+  const startSecondCount = async () => {
+    if (!canEdit || !session || startingSecond || session.status !== 'counting_a' || entries.length === 0) return;
+    setSaveError(false);
+    setConflict(false);
+    const identity = `${session.id}|${session.version}|start-second`;
+    if (!secondStartAttemptRef.current || secondStartAttemptRef.current.identity !== identity) {
+      secondStartAttemptRef.current = { identity, key: makeToken('idcount_second_start') };
+    }
+    const requestId = makeToken('req');
+    setSupportCode(requestId);
+    setStartingSecond(true);
+    try {
+      await countService.startSecondCount(organizationId, activeFinanceEntityId || '', {
+        countSessionId: session.id,
+        expectedVersion: session.version,
+        idempotencyKey: secondStartAttemptRef.current.key,
+        requestId,
+      });
+      secondStartAttemptRef.current = null;
+      setStartingSecond(false);
+      setSupportCode(null);
+      await loadSession();
+    } catch (error: any) {
+      if (error?.code === 'COUNT_VERSION_CONFLICT') {
+        setConflict(true);
+      } else {
+        setSaveError(true);
+      }
+      setSupportCode(error?.details?.requestId || requestId);
+      setStartingSecond(false);
     }
   };
 
@@ -321,6 +359,30 @@ function CountSessionContent() {
           </Surface>
         </div>
       </div>
+    );
+  }
+
+  if (session.status === 'counting_b' || session.status === 'recounting') {
+    return (
+      <CountBlindWorkspace
+        session={session}
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId || ''}
+        canEdit={canEdit}
+        onReload={() => loadSession()}
+      />
+    );
+  }
+
+  if (session.status === 'matched' || session.status === 'divergent') {
+    return (
+      <CountResultPanel
+        session={session}
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId || ''}
+        canEdit={canEdit}
+        onReload={() => loadSession()}
+      />
     );
   }
 
@@ -607,9 +669,14 @@ function CountSessionContent() {
                 </div>
               </Surface>
 
-              <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
-                {copy.returnToCount}
-              </Button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)} disabled={startingSecond}>
+                  {copy.returnToCount}
+                </Button>
+                <Button size="lg" fullWidth onClick={() => void startSecondCount()} disabled={startingSecond || !canEdit || entries.length === 0}>
+                  {startingSecond ? copy.startingSecond : copy.startSecond}
+                </Button>
+              </div>
             </>
           ) : null}
         </div>
