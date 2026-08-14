@@ -43,8 +43,10 @@ jobs:
             echo "Security Error: Production credentials detected"
             exit 1
           fi
-          
-          if grep -q "firebase deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml || grep -q "vercel deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
+
+          firebase_cli="firebase"
+          vercel_cli="vercel"
+          if grep -Eq "${firebase_cli}[[:space:]]+deploy|${vercel_cli}[[:space:]]+deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
             echo "Security Error: Deploy commands detected in workflow"
             exit 1
           fi
@@ -58,7 +60,7 @@ jobs:
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
-          
+
           echo "Preflight complete."
 
       - name: Install dependencies
@@ -82,7 +84,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
           npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
-          
+
       - name: Run Additional Checks
         env:
           NODE_ENV: test
