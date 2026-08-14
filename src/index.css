@@ -25,24 +25,44 @@
 }
 
 :root {
-  --nf-background-base: #06090E;
-  --nf-background-deep: #0A0F14;
-  --nf-surface-default: #0E1621;
+  --nf-background-base: #06090e;
+  --nf-background-deep: #0a0f14;
+  --nf-surface-default: #0e1621;
   --nf-surface-secondary: #101925;
   --nf-surface-elevated: #142130;
-  --nf-glass-surface: rgba(14, 22, 33, 0.72);
+  --nf-glass-surface: rgba(14, 22, 33, 0.76);
+  --nf-glass-surface-strong: rgba(14, 22, 33, 0.9);
   --nf-border-subtle: rgba(255, 255, 255, 0.08);
   --nf-border-strong: rgba(255, 255, 255, 0.14);
 
-  --nf-text-primary: #F6F5F2;
-  --nf-text-secondary: #AAB6C3;
-  --nf-text-muted: #6B7B8F;
+  --nf-text-primary: #f6f5f2;
+  --nf-text-secondary: #aab6c3;
+  --nf-text-muted: #6b7b8f;
 
-  --nf-brand-gold: #D4AF7A;
-  --nf-accent-primary: #00D6EF;
-  --nf-semantic-success: #32D59A;
-  --nf-semantic-warning: #F5B942;
-  --nf-semantic-danger: #FF667A;
+  --nf-brand-gold: #d4af7a;
+  --nf-accent-primary: #00d6ef;
+  --nf-accent-primary-soft: rgba(0, 214, 239, 0.12);
+  --nf-semantic-success: #32d59a;
+  --nf-semantic-warning: #f5b942;
+  --nf-semantic-danger: #ff667a;
+
+  --nf-radius-sm: 0.625rem;
+  --nf-radius-md: 0.875rem;
+  --nf-radius-lg: 1.125rem;
+  --nf-radius-xl: 1.5rem;
+
+  --nf-shadow-elevated: 0 18px 50px rgba(0, 0, 0, 0.32), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --nf-shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+
+  --nf-motion-fast: 150ms;
+  --nf-motion-standard: 200ms;
+  --nf-motion-slow: 250ms;
+  --nf-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --nf-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --nf-touch-min: 2.75rem;
+  --nf-touch-comfortable: 3rem;
+  --nf-focus-ring: 0 0 0 3px rgba(0, 214, 239, 0.24);
 
   color-scheme: dark;
 }
@@ -51,7 +71,15 @@
   box-sizing: border-box;
 }
 
-html, body {
+html {
+  background-color: var(--nf-background-base);
+  color: var(--nf-text-primary);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
   background-color: var(--nf-background-base);
   color: var(--nf-text-primary);
   font-family: var(--font-sans);
@@ -63,37 +91,104 @@ html, body {
   overflow-x: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 ::selection {
-  background-color: rgba(25, 211, 176, 0.3);
+  background-color: rgba(0, 214, 239, 0.24);
   color: var(--nf-text-primary);
 }
 
-a, button {
+a,
+button,
+[role="button"] {
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--nf-accent-primary);
+  outline-offset: 2px;
+  box-shadow: var(--nf-focus-ring);
+}
+
+.nf-touch-target {
+  min-width: var(--nf-touch-min);
+  min-height: var(--nf-touch-min);
+}
+
+.nf-financial-number {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.015em;
+}
+
+.nf-surface {
+  background: var(--nf-surface-default);
+  border: 1px solid var(--nf-border-subtle);
+  border-radius: var(--nf-radius-lg);
+}
+
+.nf-surface-elevated {
+  background: var(--nf-surface-elevated);
+  border: 1px solid var(--nf-border-subtle);
+  border-radius: var(--nf-radius-lg);
+  box-shadow: var(--nf-shadow-elevated);
+}
+
+.nf-glass {
+  background: var(--nf-glass-surface);
+  border: 1px solid var(--nf-border-subtle);
+  box-shadow: var(--nf-shadow-elevated);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+
+.nf-interactive {
+  transition:
+    background-color var(--nf-motion-standard) var(--nf-ease-standard),
+    border-color var(--nf-motion-standard) var(--nf-ease-standard),
+    color var(--nf-motion-standard) var(--nf-ease-standard),
+    opacity var(--nf-motion-standard) var(--nf-ease-standard),
+    transform var(--nf-motion-fast) var(--nf-ease-standard),
+    box-shadow var(--nf-motion-standard) var(--nf-ease-standard);
 }
 
 .press-fx {
-  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--nf-motion-fast) var(--nf-ease-standard);
 }
+
 .press-fx:active {
   transform: scale(0.985);
 }
 
 .hover-fx {
-  transition: background-color 160ms cubic-bezier(0.4, 0, 0.2, 1), opacity 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background-color var(--nf-motion-standard) var(--nf-ease-standard),
+    opacity var(--nf-motion-standard) var(--nf-ease-standard);
 }
 
 .fade-in {
-  animation: fadeIn 200ms ease-out;
+  animation: fadeIn var(--nf-motion-standard) var(--nf-ease-standard);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
+  *,
+  ::before,
+  ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
