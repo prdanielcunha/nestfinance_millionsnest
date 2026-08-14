@@ -15,6 +15,7 @@ import transactionsDetail from '../server/vercel-handlers/finance/transactionsDe
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
+import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
 
 // We will simulate the Vercel req/res
 export class MockRes {
@@ -57,7 +58,7 @@ async function runTransactionsIntegrationTests() {
   
   await orgRef.set({ name: 'Integration Org', ownerId: 'other' });
   await orgRef.collection('users').doc(uid).set({
-    capabilities: ['finance.create_drafts', 'finance.view']
+    capabilities: ['finance.create_drafts', 'finance.view', 'finance.return_to_draft']
   });
   await db.collection('users').doc(uid).set({
     displayName: 'Integration User'
@@ -293,23 +294,22 @@ async function runTransactionsIntegrationTests() {
       passed++;
     }
 
-    // Return to draft
+    // Return to draft through the dedicated state-transition handler
     {
-       const res = await testCall(transactionsUpdateDraft, {
+       const res = await testCall(transactionsReturnToDraft, {
         body: {
           financeEntityId: finEntityId,
           transactionId: tx1Id,
           expectedVersion: version1,
           idempotencyKey: 'idem_' + generateId() + generateId(),
           requestId: 'req_' + generateId(),
-          payload: {
-            intent: 'return_to_draft'
-          }
+          reasonCode: 'correction_requested',
+          comment: 'Integration test correction'
         }
       });
       assert.strictEqual(res.statusCode, 200); // Should succeed state transition
       version1 = res.body.version;
-      console.log('✅ ' + formatTest(42, 'intenção explícita retorna ready_for_review para draft'));
+      console.log('✅ ' + formatTest(42, 'endpoint dedicado retorna ready_for_review para draft'));
       passed++;
     }
 
