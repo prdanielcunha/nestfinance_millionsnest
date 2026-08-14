@@ -25,7 +25,8 @@ const TransactionsListPage = lazy(() => import('@/src/pages/finance/transactions
 const TransactionCreatePage = lazy(() => import('@/src/pages/finance/transactions/TransactionCreatePage'));
 const TransactionDetailOverviewPage = lazy(() => import('@/src/pages/finance/transactions/TransactionDetailOverviewPage'));
 const TransactionAdvancedDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionAdvancedDetailPage'));
-const TransactionEditPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditPage'));
+const TransactionEditGuidedPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditGuidedPage'));
+const TransactionEditLegacyPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditPage'));
 const ReviewPage = lazy(() => import('@/src/pages/finance/transactions/ReviewPage'));
 const TransactionReviewDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionReviewDetailPage'));
 
@@ -76,7 +77,11 @@ const routes: RouteObject[] = [
           },
           {
             path: APP_ROUTES.transactionEdit,
-            element: <Suspense fallback={<PageFallback />}><TransactionEditPage /></Suspense>,
+            element: <Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense>,
+          },
+          {
+            path: APP_ROUTES.transactionEditLegacy,
+            element: <Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense>,
           },
           {
             path: APP_ROUTES.financeReview,

@@ -12,6 +12,7 @@ on:
       - "scripts/test-transaction-review-queue.ts"
       - "scripts/test-transaction-review-detail.ts"
       - "scripts/test-transaction-detail-overview.ts"
+      - "scripts/test-transaction-edit-guided.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -29,6 +30,7 @@ on:
       - "scripts/test-transaction-review-queue.ts"
       - "scripts/test-transaction-review-detail.ts"
       - "scripts/test-transaction-detail-overview.ts"
+      - "scripts/test-transaction-edit-guided.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -77,6 +79,9 @@ jobs:
 
       - name: Verify Transaction Detail 2.0 overview
         run: npx tsx scripts/test-transaction-detail-overview.ts
+
+      - name: Verify Transaction Edit 2.0 guided flow
+        run: npx tsx scripts/test-transaction-edit-guided.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets
