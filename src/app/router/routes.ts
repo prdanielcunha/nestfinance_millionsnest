@@ -12,6 +12,8 @@ export const APP_ROUTES = {
   countSession: '/finance/count/:sessionId',
   countPaperForms: '/finance/count/forms',
   countPaperForm: '/finance/count/forms/:formId',
+  countCapture: '/finance/count/capture',
+  countCaptureReview: '/finance/count/captures/:captureId',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
   reports: '/finance/reports',

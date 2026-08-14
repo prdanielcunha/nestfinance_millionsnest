@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, FileText, ShieldX } from 'lucide-react';
+import { ArrowLeft, Camera, FileText, ShieldX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -15,6 +15,8 @@ import type { CountPaperStage } from '@/shared/finance/countPaper';
 import { COUNT_PAPER_COPY } from './countPaperCopy';
 import { COUNT_COPY } from './countCopy';
 import { formatReviewDate } from '../transactions/transactionReviewModel';
+
+const CAPTURE_LABEL = { PT: 'Capturar preenchida', EN: 'Capture completed', ES: 'Capturar completada' } as const;
 
 function makeToken(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -119,17 +121,25 @@ function CountPaperFormsContent() {
       <FinanceEntityContextBar areaName={copy.hubTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-          <header className="flex items-start gap-3">
-            <Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.count)}>
-              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            </Button>
-            <div className="pt-1">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-accent-primary" aria-hidden="true" />
-                <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{copy.hubTitle}</h1>
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.count)}>
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <div className="pt-1">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-accent-primary" aria-hidden="true" />
+                  <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{copy.hubTitle}</h1>
+                </div>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">{copy.hubSubtitle}</p>
               </div>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">{copy.hubSubtitle}</p>
             </div>
+            {canCreate ? (
+              <Button size="lg" variant="secondary" onClick={() => navigate(APP_ROUTES.countCapture)}>
+                <Camera className="h-4 w-4" aria-hidden="true" />
+                {CAPTURE_LABEL[language]}
+              </Button>
+            ) : null}
           </header>
 
           {generateError ? (
@@ -174,19 +184,10 @@ function CountPaperFormsContent() {
                       <p className="mt-5 text-sm leading-relaxed text-text-muted">{copy.alreadyAdvanced}</p>
                     ) : (
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        <Button
-                          variant="secondary"
-                          fullWidth
-                          disabled={!canCreate || !canIssueA || Boolean(generatingKey)}
-                          onClick={() => void generate(item, 'count_a')}
-                        >
+                        <Button variant="secondary" fullWidth disabled={!canCreate || !canIssueA || Boolean(generatingKey)} onClick={() => void generate(item, 'count_a')}>
                           {generatingKey === `${item.id}:count_a` ? copy.generating : copy.generateA}
                         </Button>
-                        <Button
-                          fullWidth
-                          disabled={!canCreate || !canIssueB || Boolean(generatingKey)}
-                          onClick={() => void generate(item, 'count_b')}
-                        >
+                        <Button fullWidth disabled={!canCreate || !canIssueB || Boolean(generatingKey)} onClick={() => void generate(item, 'count_b')}>
                           {generatingKey === `${item.id}:count_b` ? copy.generating : copy.generateB}
                         </Button>
                       </div>

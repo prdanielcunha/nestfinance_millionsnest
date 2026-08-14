@@ -48,6 +48,10 @@ import countSessionsStartRecount from '../server/vercel-handlers/finance/countSe
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
 import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
 import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
+import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
+import countCapturesFinalize from '../server/vercel-handlers/finance/countCapturesFinalize.js';
+import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
+import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -156,6 +160,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return countPaperFormsGenerate(req, res);
     case 'count-paper-forms-detail':
       return countPaperFormsDetail(req, res);
+    case 'count-captures-start':
+      return countCapturesStart(req, res);
+    case 'count-captures-finalize':
+      return countCapturesFinalize(req, res);
+    case 'count-captures-detail':
+      return countCapturesDetail(req, res);
+    case 'count-captures-save-review':
+      return countCapturesSaveReview(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

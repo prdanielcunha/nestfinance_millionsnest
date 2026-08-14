@@ -12,6 +12,7 @@ on:
       - "src/pages/finance/CountPage.tsx"
       - "src/services/countService.ts"
       - "src/services/countPaperService.ts"
+      - "src/services/countCaptureService.ts"
       - "src/components/finance/AccountRepairCard.tsx"
       - "src/components/finance/TransactionEvidenceUpload.tsx"
       - "scripts/check-api-contracts.mjs"
@@ -20,9 +21,12 @@ on:
       - "scripts/test-transactions-firestore-emulator.ts"
       - "scripts/test-count-firestore-emulator.ts"
       - "scripts/test-count-paper-firestore-emulator.ts"
+      - "scripts/test-count-capture-firestore-emulator.ts"
       - "scripts/test-count-firestore-rules.ts"
       - "scripts/test-count-paper-firestore-rules.ts"
+      - "scripts/test-count-capture-firestore-rules.ts"
       - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
       - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
       - "scripts/test-firestore-rules-emulator.ts"
@@ -75,12 +79,12 @@ jobs:
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
@@ -101,7 +105,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
@@ -109,7 +113,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
           set -o pipefail
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts && npx tsx scripts/test-count-paper-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts && npx tsx scripts/test-count-paper-firestore-rules.ts && npx tsx scripts/test-count-capture-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Additional Checks
         env:
@@ -127,6 +131,7 @@ jobs:
           npx tsx scripts/test-authorization.ts
           npx tsx scripts/test-count-pilot.ts
           npx tsx scripts/test-count-paper-h3a.ts
+          npx tsx scripts/test-count-capture-h3b1.ts
           npm run test:certification-gates
           npm run lint
           npm run build
