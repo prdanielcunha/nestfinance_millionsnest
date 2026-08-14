@@ -8,6 +8,8 @@ on:
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-transactions-integration.ts"
+      - "scripts/test-firestore-rules-emulator.ts"
       - "firebase.json"
       - "firestore.rules"
       - "firestore.indexes.json"
@@ -42,8 +44,10 @@ jobs:
             echo "Security Error: Production credentials detected"
             exit 1
           fi
-          
-          if grep -q "firebase deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml || grep -q "vercel deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
+
+          firebase_cli="firebase"
+          vercel_cli="vercel"
+          if grep -Eq "${firebase_cli}[[:space:]]+deploy|${vercel_cli}[[:space:]]+deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
             echo "Security Error: Deploy commands detected in workflow"
             exit 1
           fi
@@ -57,14 +61,14 @@ jobs:
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
-          
+
           echo "Preflight complete."
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install tools
-        run: npm install firebase-tools@latest tsx@latest --no-save
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
 
       - name: Run P06B Firestore Emulator tests
         env:
@@ -72,6 +76,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
           GCLOUD_PROJECT: nestfinance-p06b-emulator
         run: |
+          set -o pipefail
           mkdir -p artifacts
           npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
@@ -80,11 +85,14 @@ jobs:
           NODE_ENV: test
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
+          set -o pipefail
           npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
-          
+
       - name: Run Additional Checks
         env:
           NODE_ENV: test
+          FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
         run: |
           npx tsx scripts/test-transactions-p06b-journey.ts
           npx tsx scripts/test-transactions-integration.ts
