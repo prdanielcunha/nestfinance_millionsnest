@@ -20,8 +20,18 @@ function verify(name: string, condition: boolean) {
   }
 }
 
-const pagePath = path.resolve('src/pages/finance/transactions/TransactionCreatePage.tsx');
-const page = fs.readFileSync(pagePath, 'utf8');
+const page = fs.readFileSync(
+  path.resolve('src/pages/finance/transactions/TransactionCreatePage.tsx'),
+  'utf8',
+);
+const evidenceUpload = fs.readFileSync(
+  path.resolve('src/components/finance/TransactionEvidenceUpload.tsx'),
+  'utf8',
+);
+const accountRepair = fs.readFileSync(
+  path.resolve('src/components/finance/AccountRepairCard.tsx'),
+  'utf8',
+);
 
 console.log('Running Transaction Create 2.0 guided-flow checks...');
 
@@ -61,6 +71,11 @@ verify('page can reveal blocking fields without rendering backend finding messag
 verify('page uses locale-aware BRL presentation', page.includes('formatTransactionCurrency') && page.includes('formatTransactionInputAmount'));
 verify('page does not call posting endpoints', !/post(?:ing)?[-_/ ]?real|journal[-_/ ]?(?:post|write)|financeJournalEntries|financeAggregates/.test(page));
 verify('page does not write financial data to localStorage', !page.includes('localStorage'));
+verify('evidence upload binds to active language', evidenceUpload.includes('useLanguage') && evidenceUpload.includes('UI_COPY[language]'));
+verify('evidence upload uses accessible localized camera/remove actions', evidenceUpload.includes('aria-label={copy.camera}') && evidenceUpload.includes('aria-label={copy.remove}'));
+verify('account repair binds to active language', accountRepair.includes('useLanguage') && accountRepair.includes('UI_COPY[language]'));
+verify('account repair dialog has accessible semantics', accountRepair.includes('role="dialog"') && accountRepair.includes('aria-modal="true"') && accountRepair.includes('aria-labelledby={dialogTitleId}'));
+verify('account repair does not render backend error payloads', !accountRepair.includes('errData.message') && !accountRepair.includes('errData.error'));
 
 for (const language of ['PT', 'EN', 'ES'] as const) {
   const copy = TRANSACTION_CREATE_COPY[language];
