@@ -8,6 +8,7 @@ on:
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-firestore-rules-emulator.ts"
       - "firebase.json"
       - "firestore.rules"
       - "firestore.indexes.json"
