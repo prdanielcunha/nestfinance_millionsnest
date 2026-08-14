@@ -9,6 +9,7 @@ export const APP_ROUTES = {
   financeSettingsFunds: '/finance/settings/funds',
   financeSettingsCategories: '/finance/settings/categories',
   count: '/finance/count',
+  countSession: '/finance/count/:sessionId',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
   reports: '/finance/reports',

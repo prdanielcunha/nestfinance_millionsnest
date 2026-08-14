@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "shared/finance/count.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -13,6 +14,7 @@ on:
       - "scripts/test-transaction-review-detail.ts"
       - "scripts/test-transaction-detail-overview.ts"
       - "scripts/test-transaction-edit-guided.ts"
+      - "scripts/test-count-pilot.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -23,6 +25,7 @@ on:
       - main
     paths:
       - "src/**"
+      - "shared/finance/count.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -31,6 +34,7 @@ on:
       - "scripts/test-transaction-review-detail.ts"
       - "scripts/test-transaction-detail-overview.ts"
       - "scripts/test-transaction-edit-guided.ts"
+      - "scripts/test-count-pilot.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -82,6 +86,9 @@ jobs:
 
       - name: Verify Transaction Edit 2.0 guided flow
         run: npx tsx scripts/test-transaction-edit-guided.ts
+
+      - name: Verify Count 2.0 H1 pilot
+        run: npx tsx scripts/test-count-pilot.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets

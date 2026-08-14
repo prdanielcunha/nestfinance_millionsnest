@@ -8,12 +8,17 @@ on:
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
       - "src/pages/finance/transactions/**"
+      - "src/pages/finance/count/**"
+      - "src/pages/finance/CountPage.tsx"
+      - "src/services/countService.ts"
       - "src/components/finance/AccountRepairCard.tsx"
       - "src/components/finance/TransactionEvidenceUpload.tsx"
       - "scripts/check-api-contracts.mjs"
       - "scripts/check-saas-isolation.ts"
       - "scripts/test-certification-checkers.ts"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-count-firestore-emulator.ts"
+      - "scripts/test-count-firestore-rules.ts"
       - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
       - "scripts/test-firestore-rules-emulator.ts"
@@ -66,12 +71,12 @@ jobs:
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
@@ -84,7 +89,7 @@ jobs:
       - name: Install tools
         run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
 
-      - name: Run P06B Firestore Emulator tests
+      - name: Run Firestore Emulator operation tests
         env:
           NODE_ENV: test
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
@@ -92,7 +97,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
@@ -100,7 +105,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
           set -o pipefail
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Additional Checks
         env:
@@ -116,6 +121,7 @@ jobs:
           npx tsx scripts/test-firestore-seam.ts
           npx tsx scripts/test-ledger.ts
           npx tsx scripts/test-authorization.ts
+          npx tsx scripts/test-count-pilot.ts
           npm run test:certification-gates
           npm run lint
           npm run build

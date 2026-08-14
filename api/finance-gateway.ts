@@ -38,6 +38,10 @@ import transactionsPostingPlanPreview from '../server/vercel-handlers/finance/tr
 import transactionsRepairApprovalVerification from '../server/vercel-handlers/finance/transactionsRepairApprovalVerification.js';
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
 import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
+import countSessionsList from '../server/vercel-handlers/finance/countSessionsList.js';
+import countSessionsCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
+import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
+import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -126,6 +130,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsRepairApprovalVerification(req, res);
     case 'transactions-posting-plan-preview':
       return transactionsPostingPlanPreview(req, res);
+    case 'count-sessions-list':
+      return countSessionsList(req, res);
+    case 'count-sessions-create':
+      return countSessionsCreate(req, res);
+    case 'count-sessions-detail':
+      return countSessionsDetail(req, res);
+    case 'count-sessions-save-first-count':
+      return countSessionsSaveFirstCount(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

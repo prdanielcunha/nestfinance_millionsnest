@@ -16,6 +16,7 @@ const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/Fina
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
 const CountPage = lazy(() => import('@/src/pages/finance/CountPage'));
+const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
 const BalancePage = lazy(() => import('@/src/pages/finance/BalancePage'));
 const InboxPage = lazy(() => import('@/src/pages/finance/InboxPage'));
 const ReportsPage = lazy(() => import('@/src/pages/finance/ReportsPage'));
@@ -44,8 +45,6 @@ const routes: RouteObject[] = [
     children: [
       {
         index: true,
-        // Ao carregar a raiz, o AuthBoundary irá detectar se está deslogado e mostrar a tela dele.
-        // Mas se estiver autenticado, na ShellLayout o EcosystemAccessBoundary vai bloquear o acesso por enquanto.
         element: <Navigate to={APP_ROUTES.finance} replace />,
       },
       {
@@ -55,54 +54,18 @@ const routes: RouteObject[] = [
       {
         element: <ShellLayout />,
         children: [
-          {
-            path: APP_ROUTES.finance,
-            element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactions,
-            element: <Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionCreate,
-            element: <Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionDetail,
-            element: <Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionDetailLegacy,
-            element: <Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionEdit,
-            element: <Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionEditLegacy,
-            element: <Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeReview,
-            element: <Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionReviewDetail,
-            element: <Suspense fallback={<PageFallback />}><TransactionReviewDetailPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSetup,
-            element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettings,
-            element: <Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettingsAccounts,
-            element: <Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense>,
-          },
+          { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
+          { path: APP_ROUTES.transactions, element: <Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense> },
+          { path: APP_ROUTES.transactionCreate, element: <Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense> },
+          { path: APP_ROUTES.transactionDetail, element: <Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense> },
+          { path: APP_ROUTES.transactionDetailLegacy, element: <Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense> },
+          { path: APP_ROUTES.transactionEdit, element: <Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense> },
+          { path: APP_ROUTES.transactionEditLegacy, element: <Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense> },
+          { path: APP_ROUTES.financeReview, element: <Suspense fallback={<PageFallback />}><ReviewPage /></Suspense> },
+          { path: APP_ROUTES.transactionReviewDetail, element: <Suspense fallback={<PageFallback />}><TransactionReviewDetailPage /></Suspense> },
+          { path: APP_ROUTES.financeSetup, element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense> },
+          { path: APP_ROUTES.financeSettings, element: <Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense> },
+          { path: APP_ROUTES.financeSettingsAccounts, element: <Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense> },
           {
             path: APP_ROUTES.financeSettingsEntities,
             element: (
@@ -113,56 +76,31 @@ const routes: RouteObject[] = [
               </Suspense>
             ),
           },
-          {
-            path: APP_ROUTES.financeSettingsFunds,
-            element: <Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettingsCategories,
-            element: <Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.count,
-            element: <Suspense fallback={<PageFallback />}><CountPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.balance,
-            element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.inbox,
-            element: <Suspense fallback={<PageFallback />}><InboxPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.reports,
-            element: <Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.audit,
-            element: <Suspense fallback={<PageFallback />}><AuditPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.more,
-            element: <Suspense fallback={<PageFallback />}><MorePage /></Suspense>,
-          },
-        ]
-      }
-    ]
-  }
+          { path: APP_ROUTES.financeSettingsFunds, element: <Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense> },
+          { path: APP_ROUTES.financeSettingsCategories, element: <Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense> },
+          { path: APP_ROUTES.count, element: <Suspense fallback={<PageFallback />}><CountPage /></Suspense> },
+          { path: APP_ROUTES.countSession, element: <Suspense fallback={<PageFallback />}><CountSessionPage /></Suspense> },
+          { path: APP_ROUTES.balance, element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense> },
+          { path: APP_ROUTES.inbox, element: <Suspense fallback={<PageFallback />}><InboxPage /></Suspense> },
+          { path: APP_ROUTES.reports, element: <Suspense fallback={<PageFallback />}><ReportsPage /></Suspense> },
+          { path: APP_ROUTES.audit, element: <Suspense fallback={<PageFallback />}><AuditPage /></Suspense> },
+          { path: APP_ROUTES.more, element: <Suspense fallback={<PageFallback />}><MorePage /></Suspense> },
+        ],
+      },
+    ],
+  },
 ];
 
 if (import.meta.env.DEV) {
-  // Apenas dinamicamente injetado em DEV garantindo que não vaza pra prd
   const FoundationPreviewPage = lazy(() => import('@/src/pages/dev/FoundationPreviewPage'));
-  
   routes[0]?.children?.push({
     element: <ShellLayout />,
     children: [
       {
         path: APP_ROUTES.preview,
         element: <Suspense fallback={<PageFallback />}><FoundationPreviewPage /></Suspense>,
-      }
-    ]
+      },
+    ],
   });
 }
 
