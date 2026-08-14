@@ -194,6 +194,12 @@ async function runEmulatorTests() {
       // 9. confirmar version incrementada exatamente uma vez
       assert(updateRes.statusCode === 200 && updateRes.body.changed === true && updateRes.body.version === 2, 'confirma version incrementada exatamente uma vez');
       currentVersion = updateRes.body.version;
+
+      const updatedDetailRes = await testCall(transactionsDetail, {
+         body: { financeEntityId: entId, transactionId: txId }
+      });
+      const allocationsForNoOp = updatedDetailRes.body.allocations;
+      assert(Array.isArray(allocationsForNoOp) && allocationsForNoOp.length === 2, 'detail retorna allocations atualizadas');
       
       // 10. repetir o mesmo update como no-op
       const updateReqId2 = 'req_' + crypto.randomBytes(4).toString('hex');
@@ -206,9 +212,13 @@ async function runEmulatorTests() {
             requestId: updateReqId2,
             payload: {
                description: 'Atualizado', // same as before
-               allocations: [
-                  ...updateRes.body.allocations // provide exact allocations back to skip creation
-               ]
+               allocations: allocationsForNoOp.map((allocation: any) => ({
+                  id: allocation.id,
+                  amountCents: allocation.amountCents,
+                  categoryId: allocation.categoryId,
+                  fundId: allocation.fundId,
+                  costCenterId: allocation.costCenterId,
+               }))
             }
          }
       });
