@@ -54,7 +54,7 @@ verify('Count supports all four entry types', COUNT_ENTRY_TYPES.length === 4 && 
 verify('Count H2 exposes explicit safe statuses', ['counting_a', 'counting_b', 'matched', 'divergent', 'recounting'].every((status) => COUNT_SESSION_STATUSES.includes(status as any)));
 verify('Count exposes denomination and direct total modes', session.includes("'denominations'") && session.includes("'total'") && h2Panels.includes("'denominations'") && h2Panels.includes("'total'"));
 verify('Count controls meet 48px touch target', session.includes('h-12 w-12') && h2Panels.includes('h-12 w-12'));
-verify('Count review explicitly explains second-count safety', session.includes('secondCountSafety') && session.includes('secondCountPending'));
+verify('Count review explicitly explains second-count safety', session.includes('secondCountSafety') && session.includes('startSecond'));
 verify('Count UI explicitly explains no posting/balance change', home.includes('noPosting') && session.includes('noPosting') && h2Panels.includes('noPosting'));
 verify('Count has no close/finalize/posting action', !/finalizeCount|closeCount|approveForPosting|getPostingPlanPreview|posting-real|ledger-post/.test(`${home}\n${session}\n${h2Panels}\n${service}`));
 verify('Count H2 backend has no journal/aggregate/transaction collection mutation reference', !/financeTransactions|financeJournalEntries|financeJournalLines|financeAggregates/.test(h2Backend));
