@@ -6,6 +6,7 @@ on:
     paths:
       - "src/**"
       - "scripts/test-human-safe-infra-errors.ts"
+      - "scripts/test-finance-context-bar-i18n.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -17,6 +18,7 @@ on:
     paths:
       - "src/**"
       - "scripts/test-human-safe-infra-errors.ts"
+      - "scripts/test-finance-context-bar-i18n.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -47,6 +49,9 @@ jobs:
 
       - name: Verify human-safe infrastructure errors
         run: npx tsx scripts/test-human-safe-infra-errors.ts
+
+      - name: Verify finance context localization
+        run: npx tsx scripts/test-finance-context-bar-i18n.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets
