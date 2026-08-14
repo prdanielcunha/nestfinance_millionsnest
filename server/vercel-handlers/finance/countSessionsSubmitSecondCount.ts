@@ -5,6 +5,7 @@ import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
   calculateCountEntriesTotalCents,
+  compareCountEntries,
   isValidCountSessionId,
   normalizeCountEntries,
 } from '../../../shared/finance/count.js';
@@ -27,14 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const normalizedEntries = normalizeCountEntries(entries);
+    if (normalizedEntries.length === 0) return res.status(400).json({ error: 'COUNT_EMPTY_SECOND_COUNT' });
     const totalCents = calculateCountEntriesTotalCents(normalizedEntries);
     const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
-    const sessionsRef = db
+    const sessionRef = db
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')
       .doc(financeEntityId)
-      .collection('countSessions');
+      .collection('countSessions')
+      .doc(countSessionId);
 
     const material = { countSessionId, expectedVersion, entries: normalizedEntries, totalCents };
     const payloadHash = hashPayload(material);
@@ -42,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       organizationId,
       financeEntityId,
       uid,
-      'count_first_count_save',
+      'count_second_count_submit',
       idempotencyKey,
     );
 
@@ -52,24 +55,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       keyHash,
       payloadHash,
       async (transaction) => {
-        const sessionRef = sessionsRef.doc(countSessionId);
-        const sessionDoc = await transaction.get(sessionRef);
-        if (!sessionDoc.exists) throw new Error('COUNT_SESSION_NOT_FOUND');
-        const session = sessionDoc.data() || {};
+        const snapshot = await transaction.get(sessionRef);
+        if (!snapshot.exists) throw new Error('COUNT_SESSION_NOT_FOUND');
+        const session = snapshot.data() || {};
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
-        if (session.status !== 'counting_a') throw new Error('COUNT_INVALID_STATE');
+        if (session.status !== 'counting_b') throw new Error('COUNT_INVALID_STATE');
         if (Number(session.version) !== expectedVersion) throw new Error('COUNT_VERSION_CONFLICT');
+        if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {
+          throw new Error('COUNT_FIRST_COUNT_REQUIRED');
+        }
 
+        const comparison = compareCountEntries(session.countA.entries, normalizedEntries);
+        const nextStatus = comparison.matched ? 'matched' : 'divergent';
         const nextVersion = expectedVersion + 1;
+
         transaction.update(sessionRef, {
-          countA: {
+          status: nextStatus,
+          countB: {
             entries: normalizedEntries,
             totalCents,
             countedByUid: uid,
             enteredByUid: uid,
-            savedAt: FieldValue.serverTimestamp(),
+            sealedAt: FieldValue.serverTimestamp(),
+          },
+          comparison: {
+            ...comparison,
+            resolvedBy: comparison.matched ? 'direct_match' : null,
+            sealedAt: FieldValue.serverTimestamp(),
           },
           updatedByUid: uid,
           version: nextVersion,
@@ -84,33 +98,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           actor: uid,
           resource: 'count_session',
           resourceId: countSessionId,
-          action: 'count.first_count_saved',
+          action: 'count.second_count_sealed',
           requestId,
           idempotencyKey,
           afterHash: payloadHash,
           metadata: {
             versionBefore: expectedVersion,
             versionAfter: nextVersion,
-            entryTypes: normalizedEntries.map((entry) => entry.type),
-            status: 'counting_a',
+            status: nextStatus,
+            matched: comparison.matched,
             materialRedacted: true,
           },
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        // Keep the idempotency cache intentionally material-free. A replay of
-        // this key while Count B/recount is blind must never recover Count A.
+        // Material stays only on the Count session. The idempotency result is
+        // deliberately redacted so a retry cannot reveal A/B values during a
+        // later blind recount.
         return {
           countSessionId,
           version: nextVersion,
-          status: 'counting_a',
+          status: nextStatus,
+          matched: comparison.matched,
         };
       },
     );
 
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
-    console.error('Count First Count Save Error:', error);
+    console.error('Count Second Count Submit Error:', error);
     const message = String(error?.message || '');
     if (message.startsWith('COUNT_')) {
       const status = message === 'COUNT_VERSION_CONFLICT' ? 409 : message === 'COUNT_SESSION_NOT_FOUND' ? 404 : 400;

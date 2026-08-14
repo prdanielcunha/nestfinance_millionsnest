@@ -4,6 +4,15 @@ export type CountEntryType = (typeof COUNT_ENTRY_TYPES)[number];
 export const COUNT_CASH_ENTRY_TYPES = ['tithe', 'offering', 'other'] as const;
 export type CountCashEntryType = (typeof COUNT_CASH_ENTRY_TYPES)[number];
 
+export const COUNT_SESSION_STATUSES = [
+  'counting_a',
+  'counting_b',
+  'matched',
+  'divergent',
+  'recounting',
+] as const;
+export type CountSessionStatus = (typeof COUNT_SESSION_STATUSES)[number];
+
 export type CountEntryMethod = 'denominations' | 'total';
 
 export const COUNT_DENOMINATIONS_CENTS = [
@@ -39,8 +48,27 @@ export type NormalizedCountEntry = {
   denominations: CountDenominationQuantities;
 };
 
+export type CountComparisonDifference = {
+  type: CountEntryType;
+  countATotalCents: number;
+  countBTotalCents: number;
+  deltaCents: number;
+};
+
+export type CountComparison = {
+  matched: boolean;
+  countATotalCents: number;
+  countBTotalCents: number;
+  totalDeltaCents: number;
+  differences: CountComparisonDifference[];
+};
+
 export function isCountEntryType(value: unknown): value is CountEntryType {
   return typeof value === 'string' && COUNT_ENTRY_TYPES.includes(value as CountEntryType);
+}
+
+export function isCountSessionStatus(value: unknown): value is CountSessionStatus {
+  return typeof value === 'string' && COUNT_SESSION_STATUSES.includes(value as CountSessionStatus);
 }
 
 export function isCashCountEntryType(value: CountEntryType): value is CountCashEntryType {
@@ -148,6 +176,37 @@ export function calculateCountEntriesTotalCents(entries: NormalizedCountEntry[])
     }
     return next;
   }, 0);
+}
+
+export function compareCountEntries(
+  countAEntries: CountEntryDraft[] | NormalizedCountEntry[] | null | undefined,
+  countBEntries: CountEntryDraft[] | NormalizedCountEntry[] | null | undefined,
+): CountComparison {
+  const countA = normalizeCountEntries((countAEntries || []) as CountEntryDraft[]);
+  const countB = normalizeCountEntries((countBEntries || []) as CountEntryDraft[]);
+  const countAMap = new Map(countA.map((entry) => [entry.type, entry.totalCents]));
+  const countBMap = new Map(countB.map((entry) => [entry.type, entry.totalCents]));
+
+  const differences = COUNT_ENTRY_TYPES.flatMap((type) => {
+    const countATotalCents = countAMap.get(type) || 0;
+    const countBTotalCents = countBMap.get(type) || 0;
+    const deltaCents = countBTotalCents - countATotalCents;
+    return deltaCents === 0
+      ? []
+      : [{ type, countATotalCents, countBTotalCents, deltaCents }];
+  });
+
+  const countATotalCents = calculateCountEntriesTotalCents(countA);
+  const countBTotalCents = calculateCountEntriesTotalCents(countB);
+  const totalDeltaCents = countBTotalCents - countATotalCents;
+
+  return {
+    matched: differences.length === 0 && totalDeltaCents === 0,
+    countATotalCents,
+    countBTotalCents,
+    totalDeltaCents,
+    differences,
+  };
 }
 
 export function buildCountMaterialFingerprint(input: {

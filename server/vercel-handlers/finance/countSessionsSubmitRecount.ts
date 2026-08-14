@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
   calculateCountEntriesTotalCents,
+  compareCountEntries,
   isValidCountSessionId,
   normalizeCountEntries,
 } from '../../../shared/finance/count.js';
@@ -27,14 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const normalizedEntries = normalizeCountEntries(entries);
+    if (normalizedEntries.length === 0) return res.status(400).json({ error: 'COUNT_EMPTY_RECOUNT' });
     const totalCents = calculateCountEntriesTotalCents(normalizedEntries);
     const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
-    const sessionsRef = db
+    const sessionRef = db
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')
       .doc(financeEntityId)
-      .collection('countSessions');
+      .collection('countSessions')
+      .doc(countSessionId);
 
     const material = { countSessionId, expectedVersion, entries: normalizedEntries, totalCents };
     const payloadHash = hashPayload(material);
@@ -42,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       organizationId,
       financeEntityId,
       uid,
-      'count_first_count_save',
+      'count_recount_submit',
       idempotencyKey,
     );
 
@@ -52,24 +55,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       keyHash,
       payloadHash,
       async (transaction) => {
-        const sessionRef = sessionsRef.doc(countSessionId);
-        const sessionDoc = await transaction.get(sessionRef);
-        if (!sessionDoc.exists) throw new Error('COUNT_SESSION_NOT_FOUND');
-        const session = sessionDoc.data() || {};
+        const snapshot = await transaction.get(sessionRef);
+        if (!snapshot.exists) throw new Error('COUNT_SESSION_NOT_FOUND');
+        const session = snapshot.data() || {};
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
-        if (session.status !== 'counting_a') throw new Error('COUNT_INVALID_STATE');
+        if (session.status !== 'recounting') throw new Error('COUNT_INVALID_STATE');
         if (Number(session.version) !== expectedVersion) throw new Error('COUNT_VERSION_CONFLICT');
+        if (!Array.isArray(session.countA?.entries) || !Array.isArray(session.countB?.entries)) {
+          throw new Error('COUNT_RECOUNT_REQUIRES_BOTH_COUNTS');
+        }
+        const attemptNumber = Number(session.activeRecount?.attemptNumber || 0);
+        if (!Number.isInteger(attemptNumber) || attemptNumber < 1) throw new Error('COUNT_RECOUNT_NOT_STARTED');
 
+        const compareToA = compareCountEntries(session.countA.entries, normalizedEntries);
+        const compareToB = compareCountEntries(session.countB.entries, normalizedEntries);
+        const matchesA = compareToA.matched;
+        const matchesB = compareToB.matched;
+        const matched = matchesA || matchesB;
+        const resolvedBy = matchesA && matchesB
+          ? 'recount_matches_both'
+          : matchesA
+            ? 'recount_matches_a'
+            : matchesB
+              ? 'recount_matches_b'
+              : null;
+        const nextStatus = matched ? 'matched' : 'divergent';
         const nextVersion = expectedVersion + 1;
+        const previousAttempts = Array.isArray(session.recountAttempts) ? session.recountAttempts : [];
+        const sealedAttempt = {
+          attemptNumber,
+          entries: normalizedEntries,
+          totalCents,
+          countedByUid: uid,
+          enteredByUid: uid,
+          sealedAt: Timestamp.now(),
+          matchesA,
+          matchesB,
+          compareToA,
+          compareToB,
+        };
+
         transaction.update(sessionRef, {
-          countA: {
-            entries: normalizedEntries,
-            totalCents,
-            countedByUid: uid,
-            enteredByUid: uid,
-            savedAt: FieldValue.serverTimestamp(),
+          status: nextStatus,
+          recountAttempts: [...previousAttempts, sealedAttempt],
+          activeRecount: FieldValue.delete(),
+          resolution: {
+            matched,
+            resolvedBy,
+            recountAttemptNumber: attemptNumber,
+            resolvedAt: FieldValue.serverTimestamp(),
           },
           updatedByUid: uid,
           version: nextVersion,
@@ -84,33 +120,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           actor: uid,
           resource: 'count_session',
           resourceId: countSessionId,
-          action: 'count.first_count_saved',
+          action: 'count.recount_sealed',
           requestId,
           idempotencyKey,
           afterHash: payloadHash,
           metadata: {
             versionBefore: expectedVersion,
             versionAfter: nextVersion,
-            entryTypes: normalizedEntries.map((entry) => entry.type),
-            status: 'counting_a',
-            materialRedacted: true,
+            status: nextStatus,
+            attemptNumber,
+            matched,
+            resolvedBy,
           },
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        // Keep the idempotency cache intentionally material-free. A replay of
-        // this key while Count B/recount is blind must never recover Count A.
         return {
           countSessionId,
           version: nextVersion,
-          status: 'counting_a',
+          status: nextStatus,
+          attemptNumber,
+          matched,
+          resolvedBy,
         };
       },
     );
 
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
-    console.error('Count First Count Save Error:', error);
+    console.error('Count Recount Submit Error:', error);
     const message = String(error?.message || '');
     if (message.startsWith('COUNT_')) {
       const status = message === 'COUNT_VERSION_CONFLICT' ? 409 : message === 'COUNT_SESSION_NOT_FOUND' ? 404 : 400;
