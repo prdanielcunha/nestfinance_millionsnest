@@ -1,5 +1,3 @@
-import { createHash, randomBytes } from 'crypto';
-
 export const COUNT_ENTRY_TYPES = ['tithe', 'offering', 'other', 'pix'] as const;
 export type CountEntryType = (typeof COUNT_ENTRY_TYPES)[number];
 
@@ -162,11 +160,18 @@ export function buildCountMaterialFingerprint(input: {
     serviceDate: String(input.serviceDate || ''),
     entries: normalizeCountEntries(input.entries || []),
   };
-  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+
+  // This value is only an in-memory material identity for retry reuse. Returning
+  // the canonical JSON itself avoids hash collisions and keeps this shared
+  // domain module browser-safe. Server idempotency still uses SHA-256.
+  return JSON.stringify(normalized);
 }
 
 export function generateCountSessionId(): string {
-  return `cnt_${randomBytes(12).toString('hex')}`;
+  if (typeof globalThis.crypto?.randomUUID !== 'function') {
+    throw new Error('COUNT_SECURE_RANDOM_UNAVAILABLE');
+  }
+  return `cnt_${globalThis.crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
 }
 
 export function isValidCountSessionId(value: unknown): value is string {
