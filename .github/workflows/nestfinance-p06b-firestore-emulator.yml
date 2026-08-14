@@ -67,7 +67,7 @@ jobs:
         run: npm ci
 
       - name: Install tools
-        run: npm install firebase-tools@latest tsx@latest --no-save
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
 
       - name: Run P06B Firestore Emulator tests
         env:
@@ -75,6 +75,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
           GCLOUD_PROJECT: nestfinance-p06b-emulator
         run: |
+          set -o pipefail
           mkdir -p artifacts
           npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
@@ -83,11 +84,14 @@ jobs:
           NODE_ENV: test
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
+          set -o pipefail
           npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Additional Checks
         env:
           NODE_ENV: test
+          FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
         run: |
           npx tsx scripts/test-transactions-p06b-journey.ts
           npx tsx scripts/test-transactions-integration.ts
