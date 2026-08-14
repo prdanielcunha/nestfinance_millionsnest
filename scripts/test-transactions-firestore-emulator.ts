@@ -63,6 +63,7 @@ async function runEmulatorTests() {
    
    // Create basic permissions in the emulator
    await firestore.collection('organizations').doc(orgId).set({ name: 'Emul Org' });
+   await firestore.collection('users').doc(uid).set({ displayName: 'Emulator User' });
    await firestore.collection('organizations').doc(orgId).collection('users').doc(uid).set({
       capabilities: ['finance.create_drafts', 'finance.view', 'finance.manage']
    });
