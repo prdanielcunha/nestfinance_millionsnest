@@ -1,35 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import { Building2, ArrowRight, RefreshCw, X } from 'lucide-react';
-import { listFinanceEntities } from '@/src/services/financeEntitiesService';
-import { firebaseAuth } from '@/src/lib/firebase';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useId, useState } from 'react';
+import { Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
+import { firebaseAuth } from '@/src/lib/firebase';
+import { listFinanceEntities } from '@/src/services/financeEntitiesService';
 
 interface FinanceEntityContextBarProps {
   areaName?: string;
   returnTo?: string;
   allowSwitch?: boolean;
-  onBeforeSwitch?: () => boolean | Promise<boolean>; // return true to allow, false to cancel
+  onBeforeSwitch?: () => boolean | Promise<boolean>;
 }
 
-export function FinanceEntityContextBar({ 
-  areaName, 
-  returnTo, 
+const SWITCH_ARIA_LABEL: Record<Language, (entityName: string) => string> = {
+  PT: (entityName) => `Trocar igreja atual, ${entityName}`,
+  EN: (entityName) => `Switch current church, ${entityName}`,
+  ES: (entityName) => `Cambiar iglesia actual, ${entityName}`,
+};
+
+export function FinanceEntityContextBar({
+  areaName,
+  returnTo,
   allowSwitch = true,
-  onBeforeSwitch 
+  onBeforeSwitch,
 }: FinanceEntityContextBarProps) {
   const { activeFinanceEntityId, activeFinanceEntityName, setActiveFinanceEntityId } = useFinanceEntity();
+  const { language, t } = useLanguage();
   const navigate = useNavigate();
-  const location = useLocation();
+  const selectorTitleId = useId();
 
   const [readyEntities, setReadyEntities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
-  
+
   useEffect(() => {
-    // Only fetch if we allow switch. But actually, we only need to fetch when the user clicks or if we want to know if there's > 1 entity to show "Trocar".
-    // Let's fetch silently to know the count.
     if (allowSwitch && activeFinanceEntityId) {
       fetchEntities();
     }
@@ -40,29 +45,35 @@ export function FinanceEntityContextBar({
       const user = firebaseAuth.currentUser;
       if (!user) return;
       const token = await user.getIdToken();
-      
+
       const res = await listFinanceEntities();
       const allEntities = res.entities || [];
-      
-      // We also need bootstrap statuses to know which are ready
+
       const statuses: Record<string, any> = {};
-      await Promise.all(allEntities.map(async (e: any) => {
+      await Promise.all(
+        allEntities.map(async (entity: any) => {
           try {
-              const bRes = await fetch('/api/finance/entities/bootstrap/status', {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ financeEntityId: e.id })
-              });
-              if (bRes.ok) {
-                  statuses[e.id] = await bRes.json();
-              }
-          } catch (err) {}
-      }));
-      
-      const readyList = allEntities.filter((e: any) => statuses[e.id]?.status === 'ready');
+            const bootstrapResponse = await fetch('/api/finance/entities/bootstrap/status', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ financeEntityId: entity.id }),
+            });
+            if (bootstrapResponse.ok) {
+              statuses[entity.id] = await bootstrapResponse.json();
+            }
+          } catch {
+            // Background readiness lookup is intentionally non-blocking.
+          }
+        }),
+      );
+
+      const readyList = allEntities.filter((entity: any) => statuses[entity.id]?.status === 'ready');
       setReadyEntities(readyList);
-    } catch (e) {
-      // ignore silently for background fetch
+    } catch {
+      // Keep the current context usable if the background switch lookup fails.
     }
   };
 
@@ -73,10 +84,9 @@ export function FinanceEntityContextBar({
     }
 
     if (readyEntities.length === 2) {
-      const other = readyEntities.find(e => e.id !== activeFinanceEntityId);
+      const other = readyEntities.find((entity) => entity.id !== activeFinanceEntityId);
       if (other) {
         setActiveFinanceEntityId(other.id, other.displayName);
-        // If we shouldn't stay on the current route
         if (returnTo) {
           navigate(returnTo);
         }
@@ -84,7 +94,6 @@ export function FinanceEntityContextBar({
     } else if (readyEntities.length > 2) {
       setSelectorOpen(true);
     } else if (readyEntities.length <= 1) {
-      // Just clear and go to main selector
       setActiveFinanceEntityId(null);
       navigate(APP_ROUTES.finance);
     }
@@ -102,84 +111,97 @@ export function FinanceEntityContextBar({
 
   const canSwitch = allowSwitch && readyEntities.length > 1;
 
-  // Mobile layout vs Desktop layout requirements
-  // Mobile: 2 lines
-  // Desktop: compact breadcrumb
-
   return (
     <>
       <div className="shrink-0 bg-surface-base">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex flex-col md:flex-row md:items-center min-w-0">
-            {/* Desktop breadcrumb style */}
-            <div className="hidden md:flex items-center text-sm">
-              <span className="font-medium text-text-primary truncate max-w-[200px]">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+          <div className="flex min-w-0 flex-col md:flex-row md:items-center">
+            <div className="hidden items-center text-sm md:flex">
+              <span className="max-w-[200px] truncate font-medium text-text-primary">
                 {activeFinanceEntityName}
               </span>
-              {areaName && (
+              {areaName ? (
                 <>
                   <span className="mx-2 text-text-muted">/</span>
-                  <span className="text-text-muted truncate">{areaName}</span>
+                  <span className="truncate text-text-muted">{areaName}</span>
                 </>
-              )}
+              ) : null}
             </div>
 
-            {/* Mobile style */}
-            <div className="flex md:hidden flex-col min-w-0">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted mb-0.5">Igreja atual</span>
+            <div className="flex min-w-0 flex-col md:hidden">
+              <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                {t('select_entity_current_church')}
+              </span>
               <div className="flex items-center">
-                <span className="font-medium text-text-primary text-sm truncate">
+                <span className="truncate text-sm font-medium text-text-primary">
                   {activeFinanceEntityName}
                 </span>
-                {areaName && (
+                {areaName ? (
                   <>
-                    <span className="mx-1.5 text-text-muted text-sm">·</span>
-                    <span className="text-text-muted text-sm truncate">{areaName}</span>
+                    <span className="mx-1.5 text-sm text-text-muted">·</span>
+                    <span className="truncate text-sm text-text-muted">{areaName}</span>
                   </>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {canSwitch && (
+          {canSwitch ? (
             <button
+              type="button"
               onClick={handleSwitchClick}
-              aria-label={`Trocar igreja atual, ${activeFinanceEntityName}`}
-              className="ml-4 shrink-0 h-12 px-4 inline-flex items-center justify-center rounded-lg hover:bg-surface-elevated text-xs font-medium text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              aria-label={SWITCH_ARIA_LABEL[language](activeFinanceEntityName)}
+              className="ml-4 inline-flex h-12 shrink-0 items-center justify-center rounded-lg px-4 text-xs font-medium text-text-primary transition-colors hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
             >
-              Trocar
+              {t('select_entity_switch_btn')}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {selectorOpen && (
-        <div className="fixed inset-0 bg-surface-base/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-           <div className="bg-surface-elevated w-full max-w-sm rounded-[24px] border border-border-subtle shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-              <div className="p-6 flex flex-col gap-4">
-                 <h3 className="text-xl font-semibold text-text-primary">Selecionar igreja</h3>
-                 <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
-                    {readyEntities.map(e => (
-                       <button
-                          key={e.id}
-                          onClick={() => handleSelectEntity(e.id, e.displayName)}
-                          className={`flex items-center p-4 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${e.id === activeFinanceEntityId ? 'border-accent-primary bg-accent-primary/10' : 'border-border-subtle hover:bg-surface-secondary'}`}
-                       >
-                          <Building2 className={`w-5 h-5 mr-3 ${e.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-muted'}`} />
-                          <span className={`font-medium ${e.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-primary'}`}>{e.displayName}</span>
-                       </button>
-                    ))}
-                 </div>
-                 <button 
-                    onClick={() => setSelectorOpen(false)}
-                    className="w-full h-12 flex items-center justify-center bg-surface-base border border-border-subtle hover:bg-surface-secondary text-text-primary rounded-xl font-medium transition-colors text-sm mt-2"
-                 >
-                    Cancelar
-                 </button>
+      {selectorOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-surface-base/80 p-4 backdrop-blur-sm sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={selectorTitleId}
+            className="w-full max-w-sm overflow-hidden rounded-[24px] border border-border-subtle bg-surface-elevated shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-300"
+          >
+            <div className="flex flex-col gap-4 p-6">
+              <h3 id={selectorTitleId} className="text-xl font-semibold text-text-primary">
+                {t('select_entity_modal_title')}
+              </h3>
+
+              <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
+                {readyEntities.map((entity) => (
+                  <button
+                    type="button"
+                    key={entity.id}
+                    onClick={() => handleSelectEntity(entity.id, entity.displayName)}
+                    className={`flex items-center rounded-xl border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${entity.id === activeFinanceEntityId ? 'border-accent-primary bg-accent-primary/10' : 'border-border-subtle hover:bg-surface-secondary'}`}
+                  >
+                    <Building2
+                      className={`mr-3 h-5 w-5 ${entity.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-muted'}`}
+                      aria-hidden="true"
+                    />
+                    <span className={`font-medium ${entity.id === activeFinanceEntityId ? 'text-accent-primary' : 'text-text-primary'}`}>
+                      {entity.displayName}
+                    </span>
+                  </button>
+                ))}
               </div>
-           </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectorOpen(false)}
+                className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-border-subtle bg-surface-base text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              >
+                {t('select_entity_cancel')}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
