@@ -5,7 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
@@ -59,6 +59,8 @@ async function seed(testEnv: RulesTestEnvironment) {
     await setDoc(doc(db, 'users/common'), { displayName: 'Common user' });
     await setDoc(doc(db, 'users/org-owner'), { displayName: 'Org owner', systemRole: 'owner' });
     await setDoc(doc(db, 'users/system-admin'), { systemRole: 'admin' });
+    await setDoc(doc(db, 'users/app-role-only'), { appRole: 'global_admin' });
+    await setDoc(doc(db, 'users/role-only'), { role: 'ceo' });
     await setDoc(doc(db, 'users/ceo'), { systemRole: 'ceo' });
     await setDoc(doc(db, 'users/global-admin'), { systemRole: 'global_admin' });
     await setDoc(doc(db, 'users/ecosystem-owner'), { systemRole: 'ecosystem_owner' });
@@ -82,9 +84,12 @@ async function run() {
     const commonDb = testEnv.authenticatedContext('common').firestore();
     const ownerDb = testEnv.authenticatedContext('org-owner').firestore();
     const systemAdminDb = testEnv.authenticatedContext('system-admin').firestore();
+    const appRoleOnlyDb = testEnv.authenticatedContext('app-role-only').firestore();
+    const roleOnlyDb = testEnv.authenticatedContext('role-only').firestore();
+    const globalAdminDb = testEnv.authenticatedContext('global-admin').firestore();
     const globalRoleDbs = [
       ['ceo', testEnv.authenticatedContext('ceo').firestore()],
-      ['global-admin', testEnv.authenticatedContext('global-admin').firestore()],
+      ['global-admin', globalAdminDb],
       ['ecosystem-owner', testEnv.authenticatedContext('ecosystem-owner').firestore()],
       ['founder', testEnv.authenticatedContext('founder').firestore()],
     ] as const;
@@ -111,8 +116,20 @@ async function run() {
       capabilities: ['organization.manage'],
     }));
 
+    await assertFails(setDoc(doc(commonDb, 'organizations/org-b/members/common'), {
+      uid: 'common',
+      role: 'member',
+      status: 'active',
+    }));
+    await assertFails(getDoc(doc(commonDb, 'organizations/org-b')));
+
+    await assertFails(getDocs(collection(commonDb, 'organization_members')));
+    await assertSucceeds(getDocs(collection(globalAdminDb, 'organization_members')));
+
     await assertFails(setDoc(doc(ownerDb, 'system_settings/org-owner-denied'), { enabled: true }));
     await assertFails(setDoc(doc(systemAdminDb, 'system_settings/admin-denied'), { enabled: true }));
+    await assertFails(setDoc(doc(appRoleOnlyDb, 'system_settings/app-role-only-denied'), { enabled: true }));
+    await assertFails(setDoc(doc(roleOnlyDb, 'system_settings/role-only-denied'), { enabled: true }));
     for (const [roleId, roleDb] of globalRoleDbs) {
       await assertSucceeds(setDoc(doc(roleDb, `system_settings/${roleId}-allowed`), { enabled: true }));
     }
