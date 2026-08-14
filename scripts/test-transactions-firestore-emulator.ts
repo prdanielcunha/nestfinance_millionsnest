@@ -242,6 +242,15 @@ async function runEmulatorTests() {
     const afterReturn = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
     verify(afterReturn.data()?.status === 'draft', 'confirma status draft após retorno');
 
+    const returnedListRes = await testCall(transactionsList, {
+      body: { financeEntityId: entId, filters: { status: 'draft' } }
+    });
+    const returnedListItem = returnedListRes.body.items.find((item: any) => item.id === txId);
+    verify(returnedListRes.statusCode === 200 && Boolean(returnedListItem), 'lista encontra transação devolvida');
+    verify(Boolean(returnedListItem?.returnedToDraftAt), 'DTO de lista expõe returnedToDraftAt');
+    verify(returnedListItem?.returnedToDraftReason === 'correction_requested', 'DTO de lista expõe returnedToDraftReason');
+    verify(returnedListItem?.returnedToDraftComment === 'Correção solicitada pelo teste do Emulator', 'DTO de lista expõe returnedToDraftComment');
+
     const journalQuery = await firestore.collection('organizations').doc(orgId).collection('financeJournalEntries').get();
     const aggregatesQuery = await firestore.collection('organizations').doc(orgId).collection('financeAggregates').get();
     verify(journalQuery.docs.length === 0, 'zero financeJournalEntries');
