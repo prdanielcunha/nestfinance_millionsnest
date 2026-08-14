@@ -7,6 +7,8 @@ import transactionsDetail from '../server/vercel-handlers/finance/transactionsDe
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
+import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
+import { buildIdempotencyKeyHash } from '../server/vercel-handlers/finance/idempotencyHelper.js';
 
 export class MockRes {
   statusCode: number = 200;
@@ -245,19 +247,18 @@ async function runEmulatorTests() {
       const txDoc3 = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
       assert(txDoc3.data()?.status === 'ready_for_review', 'confirma ready_for_review');
       
-      // 16. retornar para draft
+      // 16. retornar para draft usando o endpoint dedicado
       const returnKey = 'idsm_' + crypto.randomBytes(4).toString('hex');
       const returnReqId = 'req_' + crypto.randomBytes(4).toString('hex');
-      const returnRes = await testCall(transactionsUpdateDraft, {
+      const returnRes = await testCall(transactionsReturnToDraft, {
          body: {
             financeEntityId: entId,
             transactionId: txId,
             expectedVersion: currentVersion,
             idempotencyKey: returnKey,
             requestId: returnReqId,
-            payload: {
-               intent: 'return_to_draft'
-            }
+            reasonCode: 'correction_requested',
+            comment: 'Correção solicitada pelo teste do Emulator'
          }
       });
       
@@ -290,8 +291,9 @@ async function runEmulatorTests() {
       });
       
       assert(submitRepeatRes.statusCode === 200 && submitRepeatRes.body.version === 5, 'mesma chave + mesmo payload retorna o resultado anterior');
-      
-      const idempotencyDoc = await firestore.collection('financeIdempotency').doc(orgId + '_' + submitAgainKey).get();
+
+      const submitIdempotencyHash = buildIdempotencyKeyHash(orgId, entId, uid, 'submit_review', submitAgainKey);
+      const idempotencyDoc = await firestore.collection('organizations').doc(orgId).collection('financeIdempotency').doc(submitIdempotencyHash).get();
       assert(idempotencyDoc.exists, 'registro de idempotência criado');
 
       console.log('--- Concorrencia Real no Emulator ---');
@@ -299,12 +301,18 @@ async function runEmulatorTests() {
       const concUpdateKey2 = 'idsm_' + crypto.randomBytes(4).toString('hex');
       
       const returnKey2 = 'idsm_' + crypto.randomBytes(4).toString('hex');
-      await testCall(transactionsUpdateDraft, {
+      const returnRes2 = await testCall(transactionsReturnToDraft, {
          body: {
-            financeEntityId: entId, transactionId: txId, expectedVersion: currentVersion, idempotencyKey: returnKey2, requestId: 'req_' + crypto.randomBytes(4).toString('hex'),
-            payload: { intent: 'return_to_draft' }
+            financeEntityId: entId,
+            transactionId: txId,
+            expectedVersion: currentVersion,
+            idempotencyKey: returnKey2,
+            requestId: 'req_' + crypto.randomBytes(4).toString('hex'),
+            reasonCode: 'correction_requested',
+            comment: 'Preparar cenário de concorrência'
          }
       });
+      assert(returnRes2.statusCode === 200 && returnRes2.body.version === 6, 'retorna para draft antes do cenário concorrente');
       currentVersion = 6;
       
       const p1 = testCall(transactionsUpdateDraft, {
@@ -325,10 +333,10 @@ async function runEmulatorTests() {
       
       const settled = await Promise.allSettled([p1, p2]);
       const succeeded = settled.filter((r: any) => r.status === 'fulfilled' && r.value.statusCode === 200);
-      const errs = settled.filter((r: any) => r.status === 'fulfilled' && r.value.statusCode === 409); // Version Conflict
+      const errs = settled.filter((r: any) => r.status === 'fulfilled' && r.value.statusCode === 400 && r.value.body.error === 'FINANCE_VERSION_CONFLICT');
       
       assert(succeeded.length === 1, 'exatamente um update vence (length=' + succeeded.length + ')');
-      assert(errs.length === 1 && (errs[0] as any).value.body.error === 'VERSION_CONFLICT', 'concorrente perde com versão diferente');
+      assert(errs.length === 1, 'concorrente perde com FINANCE_VERSION_CONFLICT');
       
       console.log(`\nEmulator Totals: ${passed} Passed, ${failed} Failed\n`);
 
