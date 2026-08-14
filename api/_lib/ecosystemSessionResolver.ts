@@ -16,6 +16,55 @@ export const ECOSYSTEM_SESSION_DENIAL_REASONS = {
   NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED: 'NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED',
 } as const;
 
+export interface EcosystemOrganizationSummary {
+  id: string;
+  name: string;
+  slug: string;
+  logoPath: string | null;
+}
+
+export interface EcosystemProfileSummary {
+  displayName: string;
+  photoURL: string | null;
+}
+
+export interface EcosystemFinanceSetupSummary {
+  status: string;
+}
+
+interface EcosystemSessionBase {
+  granted: boolean;
+  organizationId: string;
+  isGlobalAccess: boolean;
+  accessSource: string;
+  systemRole?: string;
+  organizationRole?: string;
+  roles: string[];
+  permissions: string[];
+  capabilities: string[];
+  scopes: Record<string, string[]>;
+}
+
+export interface GrantedEcosystemSession extends EcosystemSessionBase {
+  granted: true;
+  organization: EcosystemOrganizationSummary;
+  profile: EcosystemProfileSummary;
+  financeSetup: EcosystemFinanceSetupSummary;
+  denialReason?: never;
+}
+
+export interface DeniedEcosystemSession extends EcosystemSessionBase {
+  granted: false;
+  accessSource: 'denied';
+  isGlobalAccess: false;
+  denialReason: string;
+  organization?: never;
+  profile?: never;
+  financeSetup?: never;
+}
+
+export type EcosystemSessionResolution = GrantedEcosystemSession | DeniedEcosystemSession;
+
 export function isValidIanaTimeZone(tz: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
@@ -47,7 +96,12 @@ function asScopes(value: unknown): Record<string, string[]> {
   return result;
 }
 
-function denied(orgId: string, denialReason: string, systemRole?: string, organizationRole?: string) {
+function denied(
+  orgId: string,
+  denialReason: string,
+  systemRole?: string,
+  organizationRole?: string
+): DeniedEcosystemSession {
   return {
     granted: false,
     organizationId: orgId,
@@ -55,15 +109,15 @@ function denied(orgId: string, denialReason: string, systemRole?: string, organi
     accessSource: 'denied',
     systemRole,
     organizationRole,
-    roles: [] as string[],
-    permissions: [] as string[],
-    capabilities: [] as string[],
-    scopes: {} as Record<string, string[]>,
+    roles: [],
+    permissions: [],
+    capabilities: [],
+    scopes: {},
     denialReason,
   };
 }
 
-async function resolveFinanceSetupStatus(db: any, orgId: string) {
+async function resolveFinanceSetupStatus(db: any, orgId: string): Promise<string> {
   let status = 'not_started';
   try {
     const configDoc = await db.collection('organizations').doc(orgId).collection('financeSettings').doc('config').get();
@@ -74,7 +128,7 @@ async function resolveFinanceSetupStatus(db: any, orgId: string) {
   return status;
 }
 
-export async function resolveEcosystemSession(uid: string, orgId: string) {
+export async function resolveEcosystemSession(uid: string, orgId: string): Promise<EcosystemSessionResolution> {
   const admin = getFirebaseAdmin();
   const db = admin.firestore;
 
@@ -144,6 +198,7 @@ export async function resolveEcosystemSession(uid: string, orgId: string) {
       isGlobalAccess: true,
       accessSource: 'global_system_role',
       systemRole,
+      organizationRole: undefined,
       roles: systemRole ? [systemRole] : [],
       permissions: ['*'],
       capabilities: ['*'],
