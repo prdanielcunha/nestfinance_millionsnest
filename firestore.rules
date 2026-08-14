@@ -125,12 +125,9 @@ service cloud.firestore {
     
     function isSystemAdmin() {
       return (
-        isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '').lower() in ['ceo', 'global_admin', 'ecosystem_owner', 'founder'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('appRole', '').lower() in ['ceo', 'global_admin', 'ecosystem_owner', 'founder'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').lower() in ['ceo', 'global_admin', 'ecosystem_owner', 'founder']
-        )
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'global_admin', 'ecosystem_owner', 'founder']
       );
     }
 
@@ -235,7 +232,7 @@ service cloud.firestore {
         );
         allow list: if isAuthenticated() && (checkOrgAccess(orgId) || isSystemAdmin());
         allow create: if isAuthenticated() && (
-          uid == request.auth.uid || isOrgAdmin(orgId) || isSystemAdmin()
+          isOrgAdmin(orgId) || isSystemAdmin()
         );
         allow update, delete: if isAuthenticated() && (
           isOrgAdmin(orgId) || isSystemAdmin()
@@ -328,7 +325,7 @@ service cloud.firestore {
         checkOrgAccess(resource.data.get('organizationId', '')) ||
         checkOrgAccess(resource.data.get('organization_id', ''))
       );
-      allow list: if isAuthenticated();
+      allow list: if isSystemAdmin();
       allow create: if isAuthenticated() && (
         isSystemAdmin() || isOrgAdmin(request.resource.data.get('organizationId', ''))
       );
