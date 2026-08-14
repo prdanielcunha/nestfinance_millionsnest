@@ -7,6 +7,7 @@ on:
       - "src/**"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
+      - "shared/finance/countCapture.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -17,6 +18,7 @@ on:
       - "scripts/test-transaction-edit-guided.ts"
       - "scripts/test-count-pilot.ts"
       - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -29,6 +31,7 @@ on:
       - "src/**"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
+      - "shared/finance/countCapture.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -39,6 +42,7 @@ on:
       - "scripts/test-transaction-edit-guided.ts"
       - "scripts/test-count-pilot.ts"
       - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -96,6 +100,9 @@ jobs:
 
       - name: Verify Count Paper H3A
         run: npx tsx scripts/test-count-paper-h3a.ts
+
+      - name: Verify Count Capture H3B1
+        run: npx tsx scripts/test-count-capture-h3b1.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets
