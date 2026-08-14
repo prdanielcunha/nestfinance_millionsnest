@@ -1,4 +1,11 @@
 import {
+  getCountCaptureEvidenceRegion,
+  validateCountCaptureGeometry,
+  type CountCaptureGeometry,
+  type CountCaptureNormalizedPoint,
+  type CountCaptureNormalizedQuad,
+} from './countCaptureGeometry.js';
+import {
   COUNT_PAPER_TEMPLATE_VERSION,
   isValidCountPaperChecksum,
   isValidCountPaperFormId,
@@ -38,7 +45,10 @@ export type CountCaptureNormalization = {
   normalizedHeight: number;
   rotationDegrees: 0 | 90 | 180 | 270;
   perspectiveApplied: boolean;
+  geometry: CountCaptureGeometry;
 };
+
+export type { CountCaptureGeometry, CountCaptureNormalizedPoint, CountCaptureNormalizedQuad };
 
 export function isValidCountCaptureId(value: unknown): value is string {
   return typeof value === 'string' && /^cpc_[a-f0-9]{24}$/.test(value);
@@ -71,8 +81,15 @@ export function parseCountPaperIdentityPayload(raw: unknown): CountPaperIdentity
   return { formId: record.formId, templateVersion: record.templateVersion, checksum: record.checksum };
 }
 
-export function buildUnresolvedCountCaptureCandidates(): CountCaptureCandidateField[] {
-  return COUNT_CAPTURE_FIELD_KEYS.map((key) => ({ key, state: 'unresolved', valueCents: null, confidence: null, source: 'none', region: null }));
+export function buildUnresolvedCountCaptureCandidates(templateVersion = COUNT_PAPER_TEMPLATE_VERSION): CountCaptureCandidateField[] {
+  return COUNT_CAPTURE_FIELD_KEYS.map((key) => ({
+    key,
+    state: 'unresolved',
+    valueCents: null,
+    confidence: null,
+    source: 'none',
+    region: getCountCaptureEvidenceRegion(templateVersion, key),
+  }));
 }
 
 export function isCountCaptureMaterialHidden(stage: CountPaperStage, status: CountSessionStatus): boolean {
@@ -92,7 +109,22 @@ export function validateCountCaptureNormalization(value: unknown): CountCaptureN
   const rotation = input.rotationDegrees;
   if (![0, 90, 180, 270].includes(rotation as number)) throw new Error('COUNT_CAPTURE_INVALID_NORMALIZATION');
   if (typeof input.perspectiveApplied !== 'boolean') throw new Error('COUNT_CAPTURE_INVALID_NORMALIZATION');
-  return { sourceWidth: integer('sourceWidth'), sourceHeight: integer('sourceHeight'), normalizedWidth: integer('normalizedWidth'), normalizedHeight: integer('normalizedHeight'), rotationDegrees: rotation as 0 | 90 | 180 | 270, perspectiveApplied: input.perspectiveApplied };
+
+  // H3B1 captures created before geometry metadata remain valid as full-frame evidence.
+  const geometry = input.geometry === undefined
+    ? { mode: 'full_frame' as const, confidence: null, corners: null }
+    : validateCountCaptureGeometry(input.geometry);
+  if (input.perspectiveApplied !== (geometry.mode !== 'full_frame')) throw new Error('COUNT_CAPTURE_INVALID_NORMALIZATION');
+
+  return {
+    sourceWidth: integer('sourceWidth'),
+    sourceHeight: integer('sourceHeight'),
+    normalizedWidth: integer('normalizedWidth'),
+    normalizedHeight: integer('normalizedHeight'),
+    rotationDegrees: rotation as 0 | 90 | 180 | 270,
+    perspectiveApplied: input.perspectiveApplied,
+    geometry,
+  };
 }
 
 export function validateCountCaptureReviewFields(value: unknown): CountCaptureReviewInputField[] {

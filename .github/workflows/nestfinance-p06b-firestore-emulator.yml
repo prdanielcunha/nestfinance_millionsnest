@@ -27,6 +27,7 @@ on:
       - "scripts/test-count-capture-firestore-rules.ts"
       - "scripts/test-count-paper-h3a.ts"
       - "scripts/test-count-capture-h3b1.ts"
+      - "scripts/test-count-capture-h3b2.ts"
       - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
       - "scripts/test-firestore-rules-emulator.ts"
@@ -132,6 +133,7 @@ jobs:
           npx tsx scripts/test-count-pilot.ts
           npx tsx scripts/test-count-paper-h3a.ts
           npx tsx scripts/test-count-capture-h3b1.ts
+          npx tsx scripts/test-count-capture-h3b2.ts
           npm run test:certification-gates
           npm run lint
           npm run build
