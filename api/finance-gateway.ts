@@ -25,6 +25,7 @@ import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entities
 import entitiesBootstrapApply from '../server/vercel-handlers/finance/entitiesBootstrapApply.js';
 import entitiesBootstrapVerify from '../server/vercel-handlers/finance/entitiesBootstrapVerify.js';
 import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
+import transactionsSummary from '../server/vercel-handlers/finance/transactionsSummary.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
@@ -99,6 +100,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesBootstrapVerify(req, res);
     case 'transactions-list':
       return transactionsList(req, res);
+    case 'transactions-summary':
+      return transactionsSummary(req, res);
     case 'transactions-detail':
       return transactionsDetail(req, res);
     case 'transactions-create-draft':
@@ -127,4 +130,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
-
