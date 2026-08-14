@@ -97,18 +97,22 @@ export function validateCountCaptureGeometry(value: unknown): CountCaptureGeomet
   const mode = input.mode;
   if (!['full_frame', 'auto', 'manual'].includes(String(mode))) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
   const confidence = input.confidence;
-  if (confidence !== null && (!finite(confidence) || confidence < 0 || confidence > 1)) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
+  let normalizedConfidence: number | null = null;
+  if (confidence !== null) {
+    if (!finite(confidence) || confidence < 0 || confidence > 1) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
+    normalizedConfidence = confidence;
+  }
 
   if (mode === 'full_frame') {
-    if (input.corners !== null || confidence !== null) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
+    if (input.corners !== null || normalizedConfidence !== null) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
     return { mode: 'full_frame', confidence: null, corners: null };
   }
 
   const corners = validateCountCaptureNormalizedQuad(input.corners);
-  if (mode === 'auto' && confidence === null) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
+  if (mode === 'auto' && normalizedConfidence === null) throw new Error('COUNT_CAPTURE_INVALID_GEOMETRY');
   return {
     mode: mode as 'auto' | 'manual',
-    confidence: confidence === null ? null : confidence,
+    confidence: normalizedConfidence,
     corners,
   };
 }
