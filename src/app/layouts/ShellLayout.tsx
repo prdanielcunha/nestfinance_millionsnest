@@ -4,10 +4,11 @@ import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
 import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Globe } from 'lucide-react';
-import { useState, useEffect, ElementType } from 'react';
+import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
-import { useLanguage } from '@/src/contexts/LanguageContext';
+import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
+import { Button } from '@/src/components/foundation';
 
 export type NavigationItem = {
   id: string;
@@ -24,10 +25,36 @@ export const CANONICAL_NAVIGATION: NavigationItem[] = [
   { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 2, group: 'primary' },
   { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 3, group: 'primary' },
   { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 4, group: 'primary' },
-  
   { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 5, group: 'more' },
   { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 6, group: 'more' },
   { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more' },
+];
+
+const SHELL_COPY: Record<Language, { profile: string; language: string; selectLanguage: string; closeActions: string }> = {
+  PT: {
+    profile: 'Perfil',
+    language: 'Idioma',
+    selectLanguage: 'Selecionar idioma',
+    closeActions: 'Fechar atalhos de registro',
+  },
+  EN: {
+    profile: 'Profile',
+    language: 'Language',
+    selectLanguage: 'Select language',
+    closeActions: 'Close record shortcuts',
+  },
+  ES: {
+    profile: 'Perfil',
+    language: 'Idioma',
+    selectLanguage: 'Seleccionar idioma',
+    closeActions: 'Cerrar accesos de registro',
+  },
+};
+
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'PT', label: 'PT' },
+  { value: 'EN', label: 'EN' },
+  { value: 'ES', label: 'ES' },
 ];
 
 function getInitials(name: string) {
@@ -39,227 +66,276 @@ function getInitials(name: string) {
   return name.substring(0, 2).toUpperCase();
 }
 
+function LanguageSwitcher({ language, setLanguage, compact = false }: { language: Language; setLanguage: (language: Language) => void; compact?: boolean }) {
+  const copy = SHELL_COPY[language];
+
+  return (
+    <label className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+      <span className={compact ? 'sr-only' : 'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted'}>
+        {!compact ? <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : null}
+        {copy.language}
+      </span>
+      <span className="relative">
+        {compact ? <Globe className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" aria-hidden="true" /> : null}
+        <select
+          value={language}
+          onChange={(event) => setLanguage(event.target.value as Language)}
+          aria-label={copy.selectLanguage}
+          className={`nf-interactive min-h-11 appearance-none rounded-xl border border-border-subtle bg-background-base text-xs font-bold text-text-secondary outline-none hover:border-border-strong hover:text-text-primary focus:border-accent-primary ${compact ? 'w-[4.5rem] pl-8 pr-2' : 'w-[4.25rem] px-3'}`}
+        >
+          {LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  );
+}
+
 function ShellLayoutInner() {
   const { accessState } = useAuth();
-  const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
+  const { activeFinanceEntityName } = useFinanceEntity();
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
-  
+  const copy = SHELL_COPY[language];
+
   const orgName = accessState.organization?.name || t('shell_waiting');
-  const profileName = accessState.profile?.displayName || 'Perfil';
+  const profileName = accessState.profile?.displayName || copy.profile;
   const profilePhoto = accessState.profile?.photoURL;
-  
+
   const [fabOpen, setFabOpen] = useState(false);
+  const fabButtonRef = useRef<HTMLButtonElement>(null);
+  const fabMenuId = 'nestfinance-global-capture-menu';
+
+  useEffect(() => {
+    setFabOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!fabOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFabOpen(false);
+        requestAnimationFrame(() => fabButtonRef.current?.focus());
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [fabOpen]);
+
+  const navigateFromFab = (direction: 'income' | 'expense' | 'transfer') => {
+    setFabOpen(false);
+    navigate(`${APP_ROUTES.transactionCreate}?direction=${direction}`);
+  };
+
+  const primaryNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'primary');
+  const moreNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'more');
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
-      
-      {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-surface-default border-r border-border-subtle fixed h-full z-10">
-        <div className="h-16 flex items-center px-6 border-b border-border-subtle">
-          <NestFinanceLogo layout="horizontal" compact={true} className="h-7 w-auto" />
+      <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
+        <div className="flex h-16 items-center border-b border-border-subtle px-6">
+          <NestFinanceLogo layout="horizontal" compact className="h-7 w-auto" />
         </div>
-        <div className="p-4 flex-1 overflow-y-auto space-y-1">
-          <div className="mb-4 px-3 py-3 bg-surface-secondary rounded-lg border border-border-subtle overflow-hidden">
-            <p className="text-[10px] text-text-muted mb-1 uppercase tracking-wider font-semibold">{t('shell_organization')}</p>
-            <p className="text-sm font-medium truncate" title={orgName}>{orgName}</p>
-            {activeFinanceEntityName && (
-              <div className="mt-2 pt-2 border-t border-border-subtle/40 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse shrink-0" />
-                <p className="text-xs text-accent-primary font-medium truncate" title={activeFinanceEntityName}>
+
+        <div className="flex-1 space-y-1 overflow-y-auto p-4">
+          <div className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-surface-secondary px-3 py-3">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_organization')}</p>
+            <p className="truncate text-sm font-medium" title={orgName}>{orgName}</p>
+            {activeFinanceEntityName ? (
+              <div className="mt-2 flex items-center gap-1.5 border-t border-border-subtle/40 pt-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-primary" aria-hidden="true" />
+                <p className="truncate text-xs font-medium text-accent-primary" title={activeFinanceEntityName}>
                   {activeFinanceEntityName}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
-          
-          <nav className="space-y-1">
+
+          <nav className="space-y-1" aria-label={t('shell_principal')}>
             <div className="mb-2">
-              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-3">{t('shell_principal')}</p>
-              {CANONICAL_NAVIGATION.filter(i => i.group === 'primary').map((item) => (
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_principal')}</p>
+              {primaryNavigation.map((item) => (
                 <NavLink
                   key={item.id}
                   to={item.route}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive 
-                        ? 'bg-surface-elevated text-text-primary' 
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                    `nf-interactive flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${
+                      isActive
+                        ? 'bg-surface-elevated text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
                     }`
                   }
                 >
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {t(item.labelKey)}
                 </NavLink>
               ))}
             </div>
 
             <div>
-              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2 px-3 mt-4">{t('shell_more')}</p>
-              {CANONICAL_NAVIGATION.filter(i => i.group === 'more').map((item) => (
+              <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_more')}</p>
+              {moreNavigation.map((item) => (
                 <NavLink
                   key={item.id}
                   to={item.route}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive 
-                        ? 'bg-surface-elevated text-text-primary' 
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                    `nf-interactive flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${
+                      isActive
+                        ? 'bg-surface-elevated text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
                     }`
                   }
                 >
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {t(item.labelKey)}
                 </NavLink>
               ))}
             </div>
           </nav>
         </div>
-        
-        <div className="p-4 border-t border-border-subtle bg-surface-default/50">
+
+        <div className="border-t border-border-subtle bg-surface-default/50 p-4">
           <div className="flex items-center gap-3 overflow-hidden">
             {profilePhoto ? (
-              <img src={profilePhoto} alt={profileName} className="w-8 h-8 rounded-full bg-surface-elevated object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+              <img
+                src={profilePhoto}
+                alt={profileName}
+                className="h-9 w-9 flex-shrink-0 rounded-full bg-surface-elevated object-cover"
+                referrerPolicy="no-referrer"
+              />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-surface-elevated flex items-center justify-center text-xs font-semibold flex-shrink-0 text-text-secondary">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-surface-elevated text-xs font-semibold text-text-secondary" aria-hidden="true">
                 {getInitials(profileName)}
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" title={profileName}>{profileName}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium" title={profileName}>{profileName}</p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border-subtle">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] text-text-muted font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-                <Globe className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                Idioma
-              </span>
-              <div className="flex gap-1 bg-background-base p-0.5 rounded-lg border border-border-subtle shrink-0">
-                {(['PT', 'EN', 'ES'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => setLanguage(lang)}
-                    className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors ${
-                      language === lang
-                        ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
-                        : 'text-text-muted hover:text-text-secondary'
-                    }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="mt-4 border-t border-border-subtle pt-3">
+            <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
         </div>
       </aside>
 
-      {/* Content Area */}
-      <main className="flex-1 md:pl-64 flex flex-col min-h-screen pb-16 md:pb-0">
-        {/* Topbar Mobile */}
-        <header className="md:hidden h-14 flex items-center justify-between px-4 bg-surface-default border-b border-border-subtle sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <NestFinanceLogo layout="horizontal" compact={true} className="h-6 w-auto" />
-            {activeFinanceEntityName && (
-              <span className="text-[11px] text-accent-primary font-semibold bg-accent-primary/10 px-2 py-0.5 rounded-md truncate max-w-[120px]">
+      <main className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border-subtle bg-surface-default/95 px-3 backdrop-blur-xl md:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <NestFinanceLogo layout="horizontal" compact className="h-6 w-auto shrink-0" />
+            {activeFinanceEntityName ? (
+              <span className="max-w-[110px] truncate rounded-lg bg-accent-primary/10 px-2 py-1 text-[11px] font-semibold text-accent-primary">
                 {activeFinanceEntityName}
               </span>
-            )}
+            ) : null}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5 bg-background-base p-0.5 rounded-lg border border-border-subtle shrink-0">
-              {(['PT', 'EN', 'ES'] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setLanguage(lang)}
-                  className={`px-1 py-0.5 text-[9px] font-bold rounded transition-colors ${
-                    language === lang
-                      ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
-                      : 'text-text-muted hover:text-text-secondary'
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
-            <div className="text-[10px] text-text-secondary font-medium truncate max-w-[80px]">
+          <div className="ml-2 flex shrink-0 items-center gap-2">
+            <LanguageSwitcher language={language} setLanguage={setLanguage} compact />
+            <div className="hidden max-w-[76px] truncate text-[10px] font-medium text-text-secondary min-[390px]:block" title={orgName}>
               {orgName}
             </div>
           </div>
         </header>
-        
-        <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <div className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>
 
-      {/* Global Capture Action (FAB) */}
-      {hasEffectiveCapability(accessState, "finance.create_drafts") && !location.pathname.includes('/finance/transactions/new') && !location.pathname.includes('/finance/transactions/edit') && !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 md:bottom-8 md:right-8 z-30 flex flex-col items-end gap-3">
-          {fabOpen && (
-             <>
-               <div className="fixed inset-0 bg-transparent z-40" onClick={() => setFabOpen(false)}></div>
-               <div className="flex flex-col gap-2 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
-                  <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=income'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
-                     <span>{t('shortcut_income')}</span>
-                     <div className="w-8 h-8 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center">
-                        <Plus className="w-4 h-4" />
-                     </div>
-                  </button>
-                  <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=expense'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
-                     <span>{t('shortcut_expense')}</span>
-                     <div className="w-8 h-8 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                        <Plus className="w-4 h-4" />
-                     </div>
-                  </button>
-                  <button onClick={() => { setFabOpen(false); navigate(APP_ROUTES.transactionCreate + '?direction=transfer'); }} className="bg-surface-elevated text-text-primary px-4 py-3 rounded-2xl shadow-lg border border-border-subtle hover:bg-surface-secondary text-sm font-medium flex items-center justify-end gap-3">
-                     <span>{t('shortcut_transfer')}</span>
-                     <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                        <Plus className="w-4 h-4" />
-                     </div>
-                  </button>
-               </div>
-             </>
-          )}
+      {hasEffectiveCapability(accessState, 'finance.create_drafts') &&
+        !location.pathname.includes('/finance/transactions/new') &&
+        !location.pathname.includes('/finance/transactions/edit') &&
+        !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 z-30 flex flex-col items-end gap-3 md:bottom-8 md:right-8">
+          {fabOpen ? (
+            <>
+              <div className="fixed inset-0 z-40 bg-background-base/15 backdrop-blur-[1px]" onClick={() => setFabOpen(false)} aria-hidden="true" />
+              <div
+                id={fabMenuId}
+                role="group"
+                aria-label={t('action_register_title')}
+                className="z-50 flex min-w-[14rem] flex-col gap-2 fade-in"
+              >
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-success/10 text-semantic-success"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('income')}
+                >
+                  {t('shortcut_income')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-danger/10 text-semantic-danger"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('expense')}
+                >
+                  {t('shortcut_expense')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('transfer')}
+                >
+                  {t('shortcut_transfer')}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
           <button
-            onClick={() => setFabOpen(!fabOpen)}
-            className="h-14 w-14 bg-text-primary text-surface-base hover:bg-text-primary/90 rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 z-50"
-            aria-label={t('action_register_title')}
+            ref={fabButtonRef}
+            type="button"
+            onClick={() => setFabOpen((current) => !current)}
+            className="nf-interactive press-fx z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-text-primary/90 bg-text-primary text-background-base shadow-[var(--nf-shadow-floating)] hover:bg-white"
+            aria-label={fabOpen ? copy.closeActions : t('action_register_title')}
+            aria-expanded={fabOpen}
+            aria-controls={fabOpen ? fabMenuId : undefined}
           >
-            <Plus className={`w-6 h-6 transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`} />
+            <Plus className={`h-6 w-6 nf-interactive ${fabOpen ? 'rotate-45' : ''}`} aria-hidden="true" />
           </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Bottom Nav Mobile */}
-      <nav className="md:hidden fixed bottom-0 w-full h-[calc(env(safe-area-inset-bottom,0)+3.5rem)] bg-surface-elevated border-t border-border-subtle flex items-center justify-around px-2 z-20 pb-[env(safe-area-inset-bottom,0)]">
-        {CANONICAL_NAVIGATION.filter(i => i.group === 'primary').map((item) => (
+      <nav className="fixed bottom-0 z-20 flex h-[calc(env(safe-area-inset-bottom,0)+3.5rem)] w-full items-center justify-around border-t border-border-subtle bg-surface-elevated/95 px-2 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-xl md:hidden" aria-label={t('shell_principal')}>
+        {primaryNavigation.map((item) => (
           <NavLink
             key={item.id}
             to={item.route}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${
-                isActive ? 'text-text-primary font-semibold' : 'text-text-muted hover:text-text-secondary'
+              `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
+                isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
               }`
             }
           >
-            <item.icon className="w-5 h-5" />
-            <span className="text-[10px] leading-none truncate w-full text-center px-1">{t(item.labelKey)}</span>
+            <item.icon className="h-5 w-5" aria-hidden="true" />
+            <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t(item.labelKey)}</span>
           </NavLink>
         ))}
         <NavLink
           to={APP_ROUTES.more}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${
-              isActive ? 'text-text-primary font-semibold' : 'text-text-muted hover:text-text-secondary'
+            `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
+              isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
             }`
           }
         >
-          <MoreHorizontal className="w-5 h-5" />
-          <span className="text-[10px] leading-none truncate w-full text-center px-1">{t('nav_mais')}</span>
+          <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+          <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t('nav_mais')}</span>
         </NavLink>
       </nav>
     </div>
