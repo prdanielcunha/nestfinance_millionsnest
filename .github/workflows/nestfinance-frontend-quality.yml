@@ -10,6 +10,7 @@ on:
       - "shared/finance/countCapture.ts"
       - "shared/finance/countCaptureGeometry.ts"
       - "shared/finance/countCaptureExtraction.ts"
+      - "shared/finance/countCaptureDenominations.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -23,6 +24,7 @@ on:
       - "scripts/test-count-capture-h3b1.ts"
       - "scripts/test-count-capture-h3b2.ts"
       - "scripts/test-count-capture-h3b3.ts"
+      - "scripts/test-count-capture-h3b4.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -38,6 +40,7 @@ on:
       - "shared/finance/countCapture.ts"
       - "shared/finance/countCaptureGeometry.ts"
       - "shared/finance/countCaptureExtraction.ts"
+      - "shared/finance/countCaptureDenominations.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -51,6 +54,7 @@ on:
       - "scripts/test-count-capture-h3b1.ts"
       - "scripts/test-count-capture-h3b2.ts"
       - "scripts/test-count-capture-h3b3.ts"
+      - "scripts/test-count-capture-h3b4.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -117,6 +121,9 @@ jobs:
 
       - name: Verify Count Capture H3B3 extraction
         run: npx tsx scripts/test-count-capture-h3b3.ts
+
+      - name: Verify Count Capture H3B4 denominations
+        run: npx tsx scripts/test-count-capture-h3b4.ts
 
       - name: Verify brand assets
         run: npm run check:brand-assets

@@ -5,6 +5,7 @@ import {
   isCountCaptureMaterialHidden,
   isValidCountCaptureId,
 } from '../../../shared/finance/countCapture.js';
+import { buildUnresolvedCountCaptureDenominationCandidates } from '../../../shared/finance/countCaptureDenominations.js';
 import { resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
 import { toOptionalIso } from './countPaperHelpers.js';
@@ -68,6 +69,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           candidates: null,
           extraction: null,
           review: null,
+          denominationCandidates: null,
+          denominationExtraction: null,
+          denominationReview: null,
+          evidenceReviewComplete: false,
           originalUrl: null,
           normalizedUrl: null,
           createdAt: toOptionalIso(capture.createdAt),
@@ -85,6 +90,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         storage.createReadUrl(String(capture.normalized?.path || ''), COUNT_CAPTURE_READ_TTL_MS),
       ]);
     }
+
+    const denominationCandidates = Array.isArray(capture.denominationCandidates) && capture.denominationCandidates.length > 0
+      ? capture.denominationCandidates
+      : buildUnresolvedCountCaptureDenominationCandidates(canonical.form.templateVersion).map((field) =>
+          capture.normalization?.geometry?.mode === 'full_frame' ? { ...field, region: null } : field,
+        );
 
     return res.status(200).json({
       capture: {
@@ -111,6 +122,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           completedAt: toOptionalIso(capture.extraction.completedAt),
         },
         review: materialHidden ? null : capture.review || null,
+        denominationCandidates: materialHidden ? null : denominationCandidates,
+        denominationExtraction: materialHidden || !capture.denominationExtraction ? null : {
+          provider: capture.denominationExtraction.provider,
+          model: capture.denominationExtraction.model,
+          revision: capture.denominationExtraction.revision,
+          completedAt: toOptionalIso(capture.denominationExtraction.completedAt),
+        },
+        denominationReview: materialHidden ? null : capture.denominationReview || null,
+        evidenceReviewComplete: !materialHidden && Boolean(capture.review?.fields && capture.denominationReview?.fields),
         originalUrl,
         normalizedUrl,
         readUrlExpiresInMs: originalUrl || normalizedUrl ? COUNT_CAPTURE_READ_TTL_MS : null,

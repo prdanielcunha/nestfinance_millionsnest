@@ -4,6 +4,7 @@ import { Button, Surface } from '@/src/components/foundation';
 import type { Language } from '@/src/contexts/LanguageContext';
 import { countCaptureService, type CountCaptureDetail } from '@/src/services/countCaptureService';
 import { prepareCountCaptureExtractionRegions } from './countCaptureExtractionImage';
+import { CountCaptureDenominationReviewPanel } from './CountCaptureDenominationReviewPanel';
 
 const COPY: Record<Language, { title: string; body: string; action: string; working: string; unavailable: string; failed: string }> = {
   PT: {
@@ -59,10 +60,9 @@ export function CountCaptureExtractionPanel({
 
   const eligible = canEdit && capture.status === 'captured' && !capture.materialHidden && !capture.extraction &&
     capture.normalization?.geometry?.mode !== 'full_frame' && Boolean(capture.normalizedUrl && capture.normalizedSha256);
-  if (!eligible) return null;
 
   const run = async () => {
-    if (working || !capture.normalizedSha256) return;
+    if (!eligible || working || !capture.normalizedSha256) return;
     const fingerprint = `${capture.id}|${capture.version}|${capture.normalizedSha256}`;
     if (!attemptRef.current || attemptRef.current.fingerprint !== fingerprint) {
       attemptRef.current = { fingerprint, key: token('idcountcapture_extract') };
@@ -90,18 +90,30 @@ export function CountCaptureExtractionPanel({
   };
 
   return (
-    <Surface variant="secondary" radius="lg" className="border-accent-primary/15 bg-accent-primary/5 p-4">
-      <div className="flex items-start gap-3">
-        <ScanText className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-text-primary">{copy.title}</h2><ShieldCheck className="h-4 w-4 text-text-muted" aria-hidden="true" /></div>
-          <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.body}</p>
-          {message ? <p className="mt-3 text-xs leading-relaxed text-text-secondary" role="status">{copy[message]}</p> : null}
-          <Button className="mt-4" variant="secondary" fullWidth disabled={working} onClick={() => void run()}>
-            {working ? copy.working : copy.action}
-          </Button>
-        </div>
-      </div>
-    </Surface>
+    <>
+      {eligible ? (
+        <Surface variant="secondary" radius="lg" className="border-accent-primary/15 bg-accent-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <ScanText className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-text-primary">{copy.title}</h2><ShieldCheck className="h-4 w-4 text-text-muted" aria-hidden="true" /></div>
+              <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.body}</p>
+              {message ? <p className="mt-3 text-xs leading-relaxed text-text-secondary" role="status">{copy[message]}</p> : null}
+              <Button className="mt-4" variant="secondary" fullWidth disabled={working} onClick={() => void run()}>
+                {working ? copy.working : copy.action}
+              </Button>
+            </div>
+          </div>
+        </Surface>
+      ) : null}
+      <CountCaptureDenominationReviewPanel
+        capture={capture}
+        organizationId={organizationId}
+        financeEntityId={financeEntityId}
+        language={language}
+        canEdit={canEdit}
+        onUpdated={onExtracted}
+      />
+    </>
   );
 }
