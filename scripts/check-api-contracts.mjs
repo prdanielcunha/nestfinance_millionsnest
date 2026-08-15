@@ -62,6 +62,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-start', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-finalize', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-detail', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-extract-candidates', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-save-review', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },

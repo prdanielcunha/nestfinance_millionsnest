@@ -1,6 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { CountCaptureNormalization, CountCaptureRegion, CountCaptureReviewInputField } from '../../shared/finance/countCapture.js';
+import type { CountCaptureExtractionRegionInput } from '../../shared/finance/countCaptureExtraction.js';
 
 async function makeHeaders(organizationId: string) {
   const headers = new Headers();
@@ -32,7 +33,9 @@ export type CountCaptureDetail = {
   materialHidden: boolean;
   duplicateOfCaptureId?: string | null;
   normalization?: CountCaptureNormalization | null;
+  normalizedSha256?: string | null;
   candidates: Array<{ key: string; state: string; valueCents: number | null; confidence: number | null; region?: CountCaptureRegion | null }> | null;
+  extraction?: { provider: string; model: string; revision: string; completedAt?: string | null } | null;
   review: { fields?: Array<{ key: string; decision: string; valueCents: number | null }> } | null;
   originalUrl: string | null;
   normalizedUrl: string | null;
@@ -60,9 +63,6 @@ export const countCaptureService = {
     const headers = new Headers(grant.requiredHeaders || {});
     headers.set('Content-Type', grant.contentType);
     const response = await fetch(grant.url, { method: 'PUT', headers, body });
-    // A 412 from the write-once precondition means this exact capture object path
-    // already contains an upload from an earlier ambiguous attempt. Finalize will
-    // hash the stored object and reject it unless it matches the declared SHA-256.
     if (!response.ok && response.status !== 412) throw new Error('COUNT_CAPTURE_UPLOAD_FAILED');
   },
 
@@ -72,6 +72,17 @@ export const countCaptureService = {
 
   async detail(organizationId: string, financeEntityId: string, captureId: string) {
     return post<{ capture: CountCaptureDetail }>(organizationId, 'count-captures-detail', { financeEntityId, captureId });
+  },
+
+  async extractCandidates(organizationId: string, financeEntityId: string, input: {
+    captureId: string;
+    expectedVersion: number;
+    normalizedSha256: string;
+    regions: CountCaptureExtractionRegionInput[];
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{ captureId: string; version: number; status: 'captured'; extracted: true }>(organizationId, 'count-captures-extract-candidates', { financeEntityId, ...input });
   },
 
   async saveReview(organizationId: string, financeEntityId: string, input: { captureId: string; expectedVersion: number; fields: CountCaptureReviewInputField[]; idempotencyKey: string; requestId: string }) {

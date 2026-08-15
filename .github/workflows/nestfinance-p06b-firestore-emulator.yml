@@ -22,12 +22,14 @@ on:
       - "scripts/test-count-firestore-emulator.ts"
       - "scripts/test-count-paper-firestore-emulator.ts"
       - "scripts/test-count-capture-firestore-emulator.ts"
+      - "scripts/test-count-capture-extraction-emulator.ts"
       - "scripts/test-count-firestore-rules.ts"
       - "scripts/test-count-paper-firestore-rules.ts"
       - "scripts/test-count-capture-firestore-rules.ts"
       - "scripts/test-count-paper-h3a.ts"
       - "scripts/test-count-capture-h3b1.ts"
       - "scripts/test-count-capture-h3b2.ts"
+      - "scripts/test-count-capture-h3b3.ts"
       - "scripts/test-transactions-p06b-journey.ts"
       - "scripts/test-transactions-integration.ts"
       - "scripts/test-firestore-rules-emulator.ts"
@@ -80,12 +82,12 @@ jobs:
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
@@ -106,7 +108,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
@@ -134,6 +136,7 @@ jobs:
           npx tsx scripts/test-count-paper-h3a.ts
           npx tsx scripts/test-count-capture-h3b1.ts
           npx tsx scripts/test-count-capture-h3b2.ts
+          npx tsx scripts/test-count-capture-h3b3.ts
           npm run test:certification-gates
           npm run lint
           npm run build

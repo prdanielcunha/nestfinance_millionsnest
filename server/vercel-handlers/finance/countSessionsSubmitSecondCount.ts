@@ -9,6 +9,7 @@ import {
   isValidCountSessionId,
   normalizeCountEntries,
 } from '../../../shared/finance/count.js';
+import { hasActiveCountCaptureExtractionLease } from '../../../shared/finance/countCaptureExtraction.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -66,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {
           throw new Error('COUNT_FIRST_COUNT_REQUIRED');
         }
+        if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
 
         const comparison = compareCountEntries(session.countA.entries, normalizedEntries);
         const nextStatus = comparison.matched ? 'matched' : 'divergent';
@@ -129,7 +131,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Count Second Count Submit Error:', error);
     const message = String(error?.message || '');
     if (message.startsWith('COUNT_')) {
-      const status = message === 'COUNT_VERSION_CONFLICT' ? 409 : message === 'COUNT_SESSION_NOT_FOUND' ? 404 : 400;
+      const status = ['COUNT_VERSION_CONFLICT', 'COUNT_CAPTURE_EXTRACTION_IN_PROGRESS'].includes(message)
+        ? 409
+        : message === 'COUNT_SESSION_NOT_FOUND'
+          ? 404
+          : 400;
       return res.status(status).json({ error: message });
     }
     if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
