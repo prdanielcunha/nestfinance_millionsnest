@@ -92,8 +92,11 @@ assert.ok(reviewSource.includes('calculateReviewedDenominationSubtotals') && rev
 assert.ok(clientSource.includes('COUNT_CAPTURE_DENOMINATION_MAX_TOTAL_BYTES') && clientSource.includes("'image/jpeg'"));
 assert.ok(panelSource.includes('PT:') && panelSource.includes('EN:') && panelSource.includes('ES:'));
 assert.ok(panelSource.includes('verified') && panelSource.includes('saveDenominationReview'));
+assert.ok(panelSource.includes('DenominationEvidenceCrop') && panelSource.includes('inspectCellKey') && panelSource.includes('candidate?.region'));
+assert.ok(panelSource.includes('Focus') && panelSource.includes('normalizedUrl'));
 assert.ok(finalizeSource.includes('buildUnresolvedCountCaptureDenominationCandidates'));
 assert.ok(detailSource.includes('denominationCandidates: materialHidden ? null') && detailSource.includes('denominationReview: materialHidden ? null'));
+assert.ok(detailSource.includes('COUNT_CAPTURE_FIELD_KEYS.length') && detailSource.includes('COUNT_CAPTURE_DENOMINATION_CELL_KEYS.length'));
 for (const forbidden of ['financeTransactions', 'financeJournalEntries', 'financeJournalLines', 'financeAggregates', 'approve-for-posting']) {
   assert.ok(!extractSource.includes(forbidden), `H3B4 extraction must not reference ${forbidden}`);
   assert.ok(!reviewSource.includes(forbidden), `H3B4 review must not reference ${forbidden}`);
