@@ -51,6 +51,7 @@ import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperF
 import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
 import countCapturesFinalize from '../server/vercel-handlers/finance/countCapturesFinalize.js';
 import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
+import countCapturesExtractCandidates from '../server/vercel-handlers/finance/countCapturesExtractCandidates.js';
 import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -166,6 +167,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return countCapturesFinalize(req, res);
     case 'count-captures-detail':
       return countCapturesDetail(req, res);
+    case 'count-captures-extract-candidates':
+      return countCapturesExtractCandidates(req, res);
     case 'count-captures-save-review':
       return countCapturesSaveReview(req, res);
     default:
