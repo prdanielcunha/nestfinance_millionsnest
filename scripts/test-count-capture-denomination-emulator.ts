@@ -92,7 +92,7 @@ async function run() {
     const extracted = await call(countCapturesExtractDenominations, extractBody);
     verify(extracted.statusCode === 200 && extracted.body.version === 3 && extracted.body.extracted === true, 'denomination extraction completes as advisory evidence only');
     const afterExtract = (await entityARef.collection('countCaptures').doc(captureId).get()).data() || {};
-    const byKey = new Map((afterExtract.denominationCandidates || []).map((item: any) => [item.cellKey, item]));
+    const byKey = new Map<string, any>((afterExtract.denominationCandidates || []).map((item: any) => [item.cellKey, item]));
     verify(byKey.get('tithe:10000')?.state === 'recognized' && byKey.get('tithe:10000')?.quantity === 2, 'recognized quantity is stored as an integer candidate');
     verify(byKey.get('tithe:5000')?.state === 'recognized' && byKey.get('tithe:5000')?.quantity === 0, 'explicit zero may become candidate zero');
     verify(byKey.get('offering:10000')?.state === 'uncertain' && byKey.get('offering:10000')?.quantity === null, 'non-integer-looking observation stays uncertain');
