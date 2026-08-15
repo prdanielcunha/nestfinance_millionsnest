@@ -1,10 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import {
+  COUNT_CAPTURE_FIELD_KEYS,
   COUNT_CAPTURE_READ_TTL_MS,
   isCountCaptureMaterialHidden,
   isValidCountCaptureId,
 } from '../../../shared/finance/countCapture.js';
+import {
+  COUNT_CAPTURE_DENOMINATION_CELL_KEYS,
+  buildUnresolvedCountCaptureDenominationCandidates,
+} from '../../../shared/finance/countCaptureDenominations.js';
 import { resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
 import { toOptionalIso } from './countPaperHelpers.js';
@@ -68,6 +73,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           candidates: null,
           extraction: null,
           review: null,
+          denominationCandidates: null,
+          denominationExtraction: null,
+          denominationReview: null,
+          evidenceReviewComplete: false,
           originalUrl: null,
           normalizedUrl: null,
           createdAt: toOptionalIso(capture.createdAt),
@@ -85,6 +94,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         storage.createReadUrl(String(capture.normalized?.path || ''), COUNT_CAPTURE_READ_TTL_MS),
       ]);
     }
+
+    const denominationCandidates = Array.isArray(capture.denominationCandidates) && capture.denominationCandidates.length > 0
+      ? capture.denominationCandidates
+      : buildUnresolvedCountCaptureDenominationCandidates(canonical.form.templateVersion).map((field) =>
+          capture.normalization?.geometry?.mode === 'full_frame' ? { ...field, region: null } : field,
+        );
+    const topLevelReviewComplete = Array.isArray(capture.review?.fields) && capture.review.fields.length === COUNT_CAPTURE_FIELD_KEYS.length;
+    const denominationReviewComplete = Array.isArray(capture.denominationReview?.fields) && capture.denominationReview.fields.length === COUNT_CAPTURE_DENOMINATION_CELL_KEYS.length;
 
     return res.status(200).json({
       capture: {
@@ -111,6 +128,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           completedAt: toOptionalIso(capture.extraction.completedAt),
         },
         review: materialHidden ? null : capture.review || null,
+        denominationCandidates: materialHidden ? null : denominationCandidates,
+        denominationExtraction: materialHidden || !capture.denominationExtraction ? null : {
+          provider: capture.denominationExtraction.provider,
+          model: capture.denominationExtraction.model,
+          revision: capture.denominationExtraction.revision,
+          completedAt: toOptionalIso(capture.denominationExtraction.completedAt),
+        },
+        denominationReview: materialHidden ? null : capture.denominationReview || null,
+        evidenceReviewComplete: !materialHidden && topLevelReviewComplete && denominationReviewComplete,
         originalUrl,
         normalizedUrl,
         readUrlExpiresInMs: originalUrl || normalizedUrl ? COUNT_CAPTURE_READ_TTL_MS : null,

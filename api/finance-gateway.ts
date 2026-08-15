@@ -52,7 +52,9 @@ import countCapturesStart from '../server/vercel-handlers/finance/countCapturesS
 import countCapturesFinalize from '../server/vercel-handlers/finance/countCapturesFinalize.js';
 import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
 import countCapturesExtractCandidates from '../server/vercel-handlers/finance/countCapturesExtractCandidates.js';
+import countCapturesExtractDenominations from '../server/vercel-handlers/finance/countCapturesExtractDenominations.js';
 import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
+import countCapturesSaveDenominationReview from '../server/vercel-handlers/finance/countCapturesSaveDenominationReview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -169,8 +171,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return countCapturesDetail(req, res);
     case 'count-captures-extract-candidates':
       return countCapturesExtractCandidates(req, res);
+    case 'count-captures-extract-denominations':
+      return countCapturesExtractDenominations(req, res);
     case 'count-captures-save-review':
       return countCapturesSaveReview(req, res);
+    case 'count-captures-save-denomination-review':
+      return countCapturesSaveDenominationReview(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

@@ -2,6 +2,11 @@ import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { CountCaptureNormalization, CountCaptureRegion, CountCaptureReviewInputField } from '../../shared/finance/countCapture.js';
 import type { CountCaptureExtractionRegionInput } from '../../shared/finance/countCaptureExtraction.js';
+import type {
+  CountCaptureDenominationCandidate,
+  CountCaptureDenominationRegionInput,
+  CountCaptureDenominationReviewInput,
+} from '../../shared/finance/countCaptureDenominations.js';
 
 async function makeHeaders(organizationId: string) {
   const headers = new Headers();
@@ -37,6 +42,13 @@ export type CountCaptureDetail = {
   candidates: Array<{ key: string; state: string; valueCents: number | null; confidence: number | null; region?: CountCaptureRegion | null }> | null;
   extraction?: { provider: string; model: string; revision: string; completedAt?: string | null } | null;
   review: { fields?: Array<{ key: string; decision: string; valueCents: number | null }> } | null;
+  denominationCandidates: CountCaptureDenominationCandidate[] | null;
+  denominationExtraction?: { provider: string; model: string; revision: string; completedAt?: string | null } | null;
+  denominationReview?: {
+    fields?: Array<{ cellKey: string; decision: string; quantity: number | null; candidateQuantity?: number | null; entryType?: string; denominationCents?: number }>;
+    subtotalsCents?: Record<string, number | null>;
+  } | null;
+  evidenceReviewComplete?: boolean;
   originalUrl: string | null;
   normalizedUrl: string | null;
 };
@@ -85,7 +97,22 @@ export const countCaptureService = {
     return post<{ captureId: string; version: number; status: 'captured'; extracted: true }>(organizationId, 'count-captures-extract-candidates', { financeEntityId, ...input });
   },
 
+  async extractDenominations(organizationId: string, financeEntityId: string, input: {
+    captureId: string;
+    expectedVersion: number;
+    normalizedSha256: string;
+    regions: CountCaptureDenominationRegionInput[];
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{ captureId: string; version: number; status: 'captured' | 'reviewed'; extracted: true }>(organizationId, 'count-captures-extract-denominations', { financeEntityId, ...input });
+  },
+
   async saveReview(organizationId: string, financeEntityId: string, input: { captureId: string; expectedVersion: number; fields: CountCaptureReviewInputField[]; idempotencyKey: string; requestId: string }) {
     return post<{ captureId: string; version: number; status: 'reviewed' }>(organizationId, 'count-captures-save-review', { financeEntityId, ...input });
+  },
+
+  async saveDenominationReview(organizationId: string, financeEntityId: string, input: { captureId: string; expectedVersion: number; denominations: CountCaptureDenominationReviewInput[]; idempotencyKey: string; requestId: string }) {
+    return post<{ captureId: string; version: number; status: 'captured' | 'reviewed'; denominationReviewSaved: true }>(organizationId, 'count-captures-save-denomination-review', { financeEntityId, ...input });
   },
 };
