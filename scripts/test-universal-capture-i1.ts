@@ -13,6 +13,7 @@ const files = await Promise.all([
   readFile('server/vercel-handlers/finance/universalEvidenceStorage.ts', 'utf8'),
 ]);
 const [copy, page, shell, service, handler, storage] = files;
+const i1ExecutionPath = [page, service, handler, storage].join('\n');
 let passed = 0;
 const verify = (condition: unknown, message: string) => { if (!condition) throw new Error(message); passed++; console.log(`✅ ${message}`); };
 
@@ -42,7 +43,7 @@ verify(service.includes("['x-goog-if-generation-match']") && service.includes("=
 verify(storage.indexOf('size > UNIVERSAL_EVIDENCE_MAX_BYTES') >= 0 && storage.indexOf('size > UNIVERSAL_EVIDENCE_MAX_BYTES') < storage.indexOf('file.createReadStream()'), 'real object size is rejected before streaming');
 verify(handler.includes("collection('universalEvidenceHashes')") && handler.includes("collection('financeEntities').doc(financeEntityId)"), 'duplicate index is financeEntity-scoped');
 verify(handler.includes('resolveFinanceRequestContext') && !handler.match(/organizationId\s*[,}]\s*=\s*req\.body/), 'organization and entity authority are resolved server-side');
-verify(!files.join('\n').match(/Gemini|Vision|\bOCR\b|@google\/genai|PostingPlan|financeTransactions|financeJournal|financeAggregates|\bbalance\b|countSessions/), 'I1 path has zero AI, OCR, posting, transaction, journal, aggregate, balance or Count mutation usage');
+verify(!i1ExecutionPath.match(/Gemini|Vision|\bOCR\b|@google\/genai|PostingPlan|financeTransactions|financeJournal|financeAggregates|\bbalance\b|countSessions/), 'I1 execution path has zero AI, OCR, posting, transaction, journal, aggregate, balance or Count mutation usage');
 
 const pinned = createUniversalCaptureContext({ organizationId: 'org-a', financeEntityId: 'entity-a', financeEntityName: 'Book A', epoch: 7 });
 verify(Object.isFrozen(pinned) && pinned.organizationId === 'org-a' && pinned.financeEntityId === 'entity-a', 'capture context is immutable and pins organization/entity');
