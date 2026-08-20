@@ -14,6 +14,7 @@ export const APP_ROUTES = {
   countPaperForm: '/finance/count/forms/:formId',
   countCapture: '/finance/count/capture',
   countCaptureReview: '/finance/count/captures/:captureId',
+  universalCapture: '/finance/capture',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
   reports: '/finance/reports',

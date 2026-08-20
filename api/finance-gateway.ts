@@ -55,6 +55,8 @@ import countCapturesExtractCandidates from '../server/vercel-handlers/finance/co
 import countCapturesExtractDenominations from '../server/vercel-handlers/finance/countCapturesExtractDenominations.js';
 import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
 import countCapturesSaveDenominationReview from '../server/vercel-handlers/finance/countCapturesSaveDenominationReview.js';
+import universalEvidenceStart from '../server/vercel-handlers/finance/universalEvidenceStart.js';
+import universalEvidenceFinalize from '../server/vercel-handlers/finance/universalEvidenceFinalize.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -177,6 +179,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return countCapturesSaveReview(req, res);
     case 'count-captures-save-denomination-review':
       return countCapturesSaveDenominationReview(req, res);
+    case 'universal-evidence-start':
+      return universalEvidenceStart(req, res);
+    case 'universal-evidence-finalize':
+      return universalEvidenceFinalize(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
