@@ -78,3 +78,13 @@ Encontrados no `package.json`:
 - **Integração Externa:** Não encontrada ou validada integração externa de terceiros (Stripe, etc.) no código investigado.
 - **Testes Backend:** Vários scripts de teste presentes na pasta `/scripts/` indicando uso de testes customizados executáveis via `npx tsx scripts/test-xxx.ts`.
 - **Billing / Assinaturas:** NÃO VERIFICADO no código analisado (parece ser abstraído pela MillionsNest via `sessionResolve`).
+
+## 11. Universal Capture I1
+- A rota frontend `/finance/capture` oferece uma superfície única para câmera, foto, arquivo e, por capability detection, clipboard.
+- O intake documental usa as operações `universal-evidence-start` e `universal-evidence-finalize` do gateway financeiro. A organização vem exclusivamente do token Handoff validado e a entidade financeira passa pelo contexto financeiro canônico com a capability existente `finance.create_drafts`.
+- O arquivo é vinculado à organização e à `financeEntityId` no momento da seleção. Troca de organização/entidade invalida uma seleção pendente; requisições já iniciadas permanecem vinculadas ao contexto original e respostas stale não retargetam a UI.
+- Metadados e índices SHA-256 ficam isolados em `organizations/{organizationId}/financeEntities/{financeEntityId}/universalEvidence` e `universalEvidenceHashes`. O original é enviado por URL autorizada, write-once, sob o mesmo caminho de tenant.
+- Retry de upload preserva write-once: somente um HTTP 412 associado à precondition `x-goog-if-generation-match: 0` pode avançar para o `finalize` idempotente; 403/500 e outros erros continuam falhando.
+- I1 valida deterministicamente limite de 10 MB, assinatura MIME, SHA-256 e dimensões/orientação básica de imagens. O tamanho real do objeto é validado antes de abrir o stream; WebP cobre VP8, VP8L e VP8X com parsing determinístico.
+- I1 não executa OCR, IA, classificação ou qualquer mutação contábil.
+- O acesso direto do cliente aos registros e hashes permanece explicitamente negado nas Firestore Rules; criação e finalização são server-mediated.

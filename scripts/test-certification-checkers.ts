@@ -53,8 +53,8 @@ async function run() {
       rewrites: buildRewrites(),
     });
     assert.deepStrictEqual(errors, []);
-    assert.strictEqual(GATEWAY_CONTRACTS.length, 58);
-    assert.strictEqual(GATEWAY_CONTRACTS.filter((item) => item.gateway === '/api/finance-gateway').length, 55);
+    assert.strictEqual(GATEWAY_CONTRACTS.length, 60);
+    assert.strictEqual(GATEWAY_CONTRACTS.filter((item) => item.gateway === '/api/finance-gateway').length, 57);
   });
 
   await check('operação de gateway não certificada falha', () => {

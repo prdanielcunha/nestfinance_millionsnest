@@ -3,7 +3,7 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Globe } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
@@ -30,24 +30,27 @@ export const CANONICAL_NAVIGATION: NavigationItem[] = [
   { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more' },
 ];
 
-const SHELL_COPY: Record<Language, { profile: string; language: string; selectLanguage: string; closeActions: string }> = {
+const SHELL_COPY: Record<Language, { profile: string; language: string; selectLanguage: string; closeActions: string; capture: string }> = {
   PT: {
     profile: 'Perfil',
     language: 'Idioma',
     selectLanguage: 'Selecionar idioma',
     closeActions: 'Fechar atalhos de registro',
+    capture: 'Capturar comprovante',
   },
   EN: {
     profile: 'Profile',
     language: 'Language',
     selectLanguage: 'Select language',
     closeActions: 'Close record shortcuts',
+    capture: 'Capture receipt',
   },
   ES: {
     profile: 'Perfil',
     language: 'Idioma',
     selectLanguage: 'Seleccionar idioma',
     closeActions: 'Cerrar accesos de registro',
+    capture: 'Capturar comprobante',
   },
 };
 
@@ -132,6 +135,11 @@ function ShellLayoutInner() {
   const navigateFromFab = (direction: 'income' | 'expense' | 'transfer') => {
     setFabOpen(false);
     navigate(`${APP_ROUTES.transactionCreate}?direction=${direction}`);
+  };
+
+  const navigateCaptureFromFab = () => {
+    setFabOpen(false);
+    navigate(APP_ROUTES.universalCapture);
   };
 
   const primaryNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'primary');
@@ -292,6 +300,16 @@ function ShellLayoutInner() {
                   onClick={() => navigateFromFab('transfer')}
                 >
                   {t('shortcut_transfer')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Camera className="h-4 w-4" /></span>}
+                  onClick={navigateCaptureFromFab}
+                >
+                  {copy.capture}
                 </Button>
               </div>
             </>

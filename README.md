@@ -65,6 +65,8 @@ Consulte `/docs/Pending-Integration-Contract.md` para visualizar as etapas de lo
 ## Banco de Dados
 Firebase Firestore. Usa as coleções raiz `users`, `organizations`, `organization_members` e as subcoleções (e.g. `organizations/{orgId}/financeAccounts`, `financeTransactions`, etc).
 
+O Universal Capture documental preserva evidências originais em storage autorizado e mantém seus envelopes e índices de duplicidade dentro de `organizations/{orgId}/financeEntities/{financeEntityId}`. A fase I1 é estritamente determinística e não cria transações ou lançamentos contábeis.
+
 ## Deploy
 Deploy é configurado para a Vercel através de rotas/rewrites em `vercel.json`. O script `prebuild` valida contratos antes da publicação (`check:vercel-entrypoints` e `check:brand-assets`).
 
