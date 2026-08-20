@@ -23,6 +23,9 @@ export async function sha256File(file: File) {
   const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+export function shouldFinalizeAfterUpload(status: number, ok: boolean, writeOncePrecondition: boolean) {
+  return ok || (status === 412 && writeOncePrecondition);
+}
 export const universalCaptureService = {
   token,
   async accept(organizationId: string, financeEntityId: string, file: File, sourceKind: UniversalEvidenceSourceKind, keys: { start: string; finalize: string }) {
@@ -37,8 +40,7 @@ export const universalCaptureService = {
     uploadHeaders.set('Content-Type', start.upload.contentType);
     const upload = await fetch(start.upload.url, { method: 'PUT', headers: uploadHeaders, body: file });
     const writeOncePrecondition = String(start.upload.requiredHeaders?.['x-goog-if-generation-match'] || '') === '0';
-    const priorWriteMayExist = upload.status === 412 && writeOncePrecondition;
-    if (!upload.ok && !priorWriteMayExist) {
+    if (!shouldFinalizeAfterUpload(upload.status, upload.ok, writeOncePrecondition)) {
       const error: any = new Error('EVIDENCE_UPLOAD_FAILED');
       error.code = 'EVIDENCE_UPLOAD_FAILED';
       error.status = upload.status;
