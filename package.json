@@ -12,6 +12,8 @@
     "check:saas-isolation": "tsx scripts/check-saas-isolation.ts",
     "check:brand-assets": "node scripts/check-brand-assets.mjs",
     "test:certification-gates": "tsx scripts/test-certification-checkers.ts",
+    "test:universal-capture-i1": "tsx scripts/test-universal-capture-i1.ts",
+    "test:universal-evidence-emulator": "FIREBASE_PROJECT_ID=nestfinance-i1-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-i1-emulator \"tsx scripts/test-universal-evidence-firestore-emulator.ts && tsx scripts/test-universal-evidence-firestore-rules.ts\"",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",

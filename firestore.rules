@@ -295,6 +295,12 @@ service cloud.firestore {
         allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
+      match /financeEntities/{entityId}/universalEvidence/{id} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/universalEvidenceHashes/{id} {
+        allow read, create, update, delete: if false;
+      }
       match /financeFunds/{id} {
         allow read: if canReadNestFinance(orgId);
         allow write: if false;
