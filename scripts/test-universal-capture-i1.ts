@@ -31,6 +31,7 @@ verify(shell.includes('aria-expanded={fabOpen}') && shell.includes("event.key ==
 verify(page.includes("hasEffectiveCapability(accessState, 'finance.create_drafts')"), 'capture route fails closed on finance.create_drafts capability');
 verify(page.includes('captureContext.organizationId') && page.includes('captureContext.financeEntityId'), 'submit uses pinned organization and finance entity');
 verify(page.includes('hasUniversalCaptureContextChanged') && page.includes('isUniversalCaptureEpochCurrent'), 'entity switch and stale response guards are wired');
+verify(page.includes("state === 'recoverable_error'") && page.includes('onClick={submit}>{copy.retry}'), 'recoverable errors retry the same pinned file and idempotency keys');
 verify(service.includes("crypto.subtle.digest('SHA-256'") && !service.includes('localStorage'), 'browser SHA-256 uses Web Crypto without financial localStorage');
 verify(shouldFinalizeAfterUpload(200, true, true), 'successful upload advances to finalize');
 verify(shouldFinalizeAfterUpload(412, false, true), 'write-once 412 advances to idempotent finalize');
@@ -41,7 +42,7 @@ verify(service.includes("['x-goog-if-generation-match']") && service.includes("=
 verify(storage.indexOf('size > UNIVERSAL_EVIDENCE_MAX_BYTES') >= 0 && storage.indexOf('size > UNIVERSAL_EVIDENCE_MAX_BYTES') < storage.indexOf('file.createReadStream()'), 'real object size is rejected before streaming');
 verify(handler.includes("collection('universalEvidenceHashes')") && handler.includes("collection('financeEntities').doc(financeEntityId)"), 'duplicate index is financeEntity-scoped');
 verify(handler.includes('resolveFinanceRequestContext') && !handler.match(/organizationId\s*[,}]\s*=\s*req\.body/), 'organization and entity authority are resolved server-side');
-verify(!files.join('\n').match(/Gemini|Vision|\bOCR\b|@google\/genai|PostingPlan|financeTransactions|financeJournal|financeAggregates|countSessions/), 'I1 path has zero AI, OCR, posting, transaction, journal, aggregate or Count mutation usage');
+verify(!files.join('\n').match(/Gemini|Vision|\bOCR\b|@google\/genai|PostingPlan|financeTransactions|financeJournal|financeAggregates|\bbalance\b|countSessions/), 'I1 path has zero AI, OCR, posting, transaction, journal, aggregate, balance or Count mutation usage');
 
 const pinned = createUniversalCaptureContext({ organizationId: 'org-a', financeEntityId: 'entity-a', financeEntityName: 'Book A', epoch: 7 });
 verify(Object.isFrozen(pinned) && pinned.organizationId === 'org-a' && pinned.financeEntityId === 'entity-a', 'capture context is immutable and pins organization/entity');
