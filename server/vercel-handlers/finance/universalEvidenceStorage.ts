@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getStorage } from 'firebase-admin/storage';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
+import { UNIVERSAL_EVIDENCE_MAX_BYTES } from '../../../shared/finance/universalEvidence.js';
 
 export type EvidenceStoredObject = { path: string; contentType: string; size: number; sha256: string; headerBytes: Uint8Array };
 export interface UniversalEvidenceStorageAdapter {
@@ -24,12 +25,22 @@ export function getUniversalEvidenceStorageAdapter(): UniversalEvidenceStorageAd
       const [metadata] = await file.getMetadata();
       const size = Number(metadata.size || 0);
       if (!Number.isSafeInteger(size) || size <= 0) throw new Error('EVIDENCE_UPLOAD_MISSING');
+      if (size > UNIVERSAL_EVIDENCE_MAX_BYTES) throw new Error('EVIDENCE_TOO_LARGE');
       const hash = createHash('sha256');
-      const header: Buffer[] = []; let headerLength = 0;
+      const header: Buffer[] = [];
+      let headerLength = 0;
       await new Promise<void>((resolve, reject) => {
         const stream = file.createReadStream();
-        stream.on('data', (chunk: Buffer) => { hash.update(chunk); if (headerLength < 65536) { const part = chunk.subarray(0, 65536 - headerLength); header.push(part); headerLength += part.length; } });
-        stream.on('error', reject); stream.on('end', resolve);
+        stream.on('data', (chunk: Buffer) => {
+          hash.update(chunk);
+          if (headerLength < 65536) {
+            const part = chunk.subarray(0, 65536 - headerLength);
+            header.push(part);
+            headerLength += part.length;
+          }
+        });
+        stream.on('error', reject);
+        stream.on('end', resolve);
       });
       return { path, contentType: String(metadata.contentType || ''), size, sha256: hash.digest('hex'), headerBytes: Buffer.concat(header) };
     },

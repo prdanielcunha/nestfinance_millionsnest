@@ -19,11 +19,15 @@ export function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }
 
+function ascii(bytes: Uint8Array, start: number, end: number) {
+  return String.fromCharCode(...bytes.slice(start, end));
+}
+
 export function detectUniversalEvidenceMime(bytes: Uint8Array): UniversalEvidenceMime | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
   if (bytes.length >= 8 && bytes.slice(0, 8).every((byte, index) => byte === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index])) return 'image/png';
-  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
-  if (bytes.length >= 5 && String.fromCharCode(...bytes.slice(0, 5)) === '%PDF-') return 'application/pdf';
+  if (bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 12) === 'WEBP') return 'image/webp';
+  if (bytes.length >= 5 && ascii(bytes, 0, 5) === '%PDF-') return 'application/pdf';
   return null;
 }
 
@@ -37,13 +41,43 @@ function u32(bytes: Uint8Array, offset: number, little = false) {
     : ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
 }
 
-export function inspectImageMetadata(bytes: Uint8Array, mime: UniversalEvidenceMime) {
-  if (mime === 'image/png' && bytes.length >= 24) return { width: u32(bytes, 16), height: u32(bytes, 20), orientation: 1 };
-  if (mime === 'image/webp' && bytes.length >= 30 && String.fromCharCode(...bytes.slice(12, 16)) === 'VP8X') {
+function inspectWebpMetadata(bytes: Uint8Array) {
+  if (bytes.length < 20 || ascii(bytes, 0, 4) !== 'RIFF' || ascii(bytes, 8, 12) !== 'WEBP') return null;
+  const chunk = ascii(bytes, 12, 16);
+  const chunkSize = u32(bytes, 16, true);
+
+  if (chunk === 'VP8X') {
+    if (chunkSize < 10 || bytes.length < 30) return null;
     const width = 1 + bytes[24] + (bytes[25] << 8) + (bytes[26] << 16);
     const height = 1 + bytes[27] + (bytes[28] << 8) + (bytes[29] << 16);
-    return { width, height, orientation: 1 };
+    return width > 0 && height > 0 ? { width, height, orientation: 1 } : null;
   }
+
+  if (chunk === 'VP8 ') {
+    if (chunkSize < 10 || bytes.length < 30) return null;
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return null;
+    const width = u16(bytes, 26, true) & 0x3fff;
+    const height = u16(bytes, 28, true) & 0x3fff;
+    return width > 0 && height > 0 ? { width, height, orientation: 1 } : null;
+  }
+
+  if (chunk === 'VP8L') {
+    if (chunkSize < 5 || bytes.length < 25 || bytes[20] !== 0x2f) return null;
+    const b1 = bytes[21];
+    const b2 = bytes[22];
+    const b3 = bytes[23];
+    const b4 = bytes[24];
+    const width = 1 + (((b2 & 0x3f) << 8) | b1);
+    const height = 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+    return width > 0 && height > 0 ? { width, height, orientation: 1 } : null;
+  }
+
+  return null;
+}
+
+export function inspectImageMetadata(bytes: Uint8Array, mime: UniversalEvidenceMime) {
+  if (mime === 'image/png' && bytes.length >= 24) return { width: u32(bytes, 16), height: u32(bytes, 20), orientation: 1 };
+  if (mime === 'image/webp') return inspectWebpMetadata(bytes);
   if (mime !== 'image/jpeg') return null;
   let offset = 2;
   let orientation = 1;
@@ -52,8 +86,9 @@ export function inspectImageMetadata(bytes: Uint8Array, mime: UniversalEvidenceM
     const marker = bytes[offset + 1];
     const length = u16(bytes, offset + 2);
     if (length < 2 || offset + 2 + length > bytes.length) break;
-    if (marker === 0xe1 && length >= 16 && String.fromCharCode(...bytes.slice(offset + 4, offset + 10)) === 'Exif\0\0') {
+    if (marker === 0xe1 && length >= 16 && ascii(bytes, offset + 4, offset + 10) === 'Exif\0\0') {
       const tiff = offset + 10;
+      if (tiff + 8 > bytes.length) break;
       const little = String.fromCharCode(bytes[tiff], bytes[tiff + 1]) === 'II';
       const ifd = tiff + u32(bytes, tiff + 4, little);
       const entries = ifd + 2 <= bytes.length ? u16(bytes, ifd, little) : 0;

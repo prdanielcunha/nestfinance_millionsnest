@@ -3,11 +3,12 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Camera, Globe } from 'lucide-react';
-import { useRef, type ElementType } from 'react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe } from 'lucide-react';
+import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
+import { Button } from '@/src/components/foundation';
 
 export type NavigationItem = {
   id: string;
@@ -108,7 +109,38 @@ function ShellLayoutInner() {
   const profileName = accessState.profile?.displayName || copy.profile;
   const profilePhoto = accessState.profile?.photoURL;
 
+  const [fabOpen, setFabOpen] = useState(false);
   const fabButtonRef = useRef<HTMLButtonElement>(null);
+  const fabMenuId = 'nestfinance-global-capture-menu';
+
+  useEffect(() => {
+    setFabOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!fabOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFabOpen(false);
+        requestAnimationFrame(() => fabButtonRef.current?.focus());
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [fabOpen]);
+
+  const navigateFromFab = (direction: 'income' | 'expense' | 'transfer') => {
+    setFabOpen(false);
+    navigate(`${APP_ROUTES.transactionCreate}?direction=${direction}`);
+  };
+
+  const navigateCaptureFromFab = () => {
+    setFabOpen(false);
+    navigate(APP_ROUTES.universalCapture);
+  };
 
   const primaryNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'primary');
   const moreNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'more');
@@ -230,14 +262,69 @@ function ShellLayoutInner() {
         !location.pathname.includes('/finance/transactions/edit') &&
         !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 z-30 flex flex-col items-end gap-3 md:bottom-8 md:right-8">
+          {fabOpen ? (
+            <>
+              <div className="fixed inset-0 z-40 bg-background-base/15 backdrop-blur-[1px]" onClick={() => setFabOpen(false)} aria-hidden="true" />
+              <div
+                id={fabMenuId}
+                role="group"
+                aria-label={t('action_register_title')}
+                className="z-50 flex min-w-[14rem] flex-col gap-2 fade-in"
+              >
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-success/10 text-semantic-success"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('income')}
+                >
+                  {t('shortcut_income')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-danger/10 text-semantic-danger"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('expense')}
+                >
+                  {t('shortcut_expense')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Plus className="h-4 w-4" /></span>}
+                  onClick={() => navigateFromFab('transfer')}
+                >
+                  {t('shortcut_transfer')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="justify-between shadow-lg"
+                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Camera className="h-4 w-4" /></span>}
+                  onClick={navigateCaptureFromFab}
+                >
+                  {copy.capture}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
           <button
             ref={fabButtonRef}
             type="button"
-            onClick={() => navigate(APP_ROUTES.universalCapture)}
+            onClick={() => setFabOpen((current) => !current)}
             className="nf-interactive press-fx z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-text-primary/90 bg-text-primary text-background-base shadow-[var(--nf-shadow-floating)] hover:bg-white"
-            aria-label={copy.capture}
+            aria-label={fabOpen ? copy.closeActions : t('action_register_title')}
+            aria-expanded={fabOpen}
+            aria-controls={fabOpen ? fabMenuId : undefined}
           >
-            <Camera className="h-6 w-6" aria-hidden="true" />
+            <Plus className={`h-6 w-6 nf-interactive ${fabOpen ? 'rotate-45' : ''}`} aria-hidden="true" />
           </button>
         </div>
       ) : null}

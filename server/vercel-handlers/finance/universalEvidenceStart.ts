@@ -36,7 +36,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     const message = String(error?.message || '');
     if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
-    if (message === 'FORBIDDEN_FINANCE_ACCESS') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (message === 'FORBIDDEN_FINANCE_ACCESS' || message === 'Session not granted') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (message === 'FINANCE_ENTITY_NOT_FOUND') return res.status(404).json({ error: message });
+    if (message === 'FINANCE_ENTITY_NOT_ACTIVE') return res.status(409).json({ error: message });
     if (error.status) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     console.error('Universal Evidence Start Error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });

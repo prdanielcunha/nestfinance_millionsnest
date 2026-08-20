@@ -6,10 +6,10 @@ import universalEvidenceFinalize from '../server/vercel-handlers/finance/univers
 class MockRes { statusCode = 200; body: any = null; status(code: number) { this.statusCode = code; return this; } json(body: any) { this.body = body; return this; } }
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 const png = Buffer.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,2,0,0,0,3]);
-process.env.NODE_ENV = 'test'; process.env.FIREBASE_PROJECT_ID = 'nestfinance-i1-emulator';
+process.env.NODE_ENV = 'test'; process.env.FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'nestfinance-i1-emulator';
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Universal Evidence test requires Firestore Emulator');
 resetFirebaseAdminForTests(); const admin = getFirebaseAdmin(); const db = admin.firestore;
-const orgId = `org_i1_${randomBytes(4).toString('hex')}`, entityA = `ent_a_${randomBytes(4).toString('hex')}`, entityB = `ent_b_${randomBytes(4).toString('hex')}`, uid = `usr_i1_${randomBytes(4).toString('hex')}`;
+const orgId = `org_i1_${randomBytes(4).toString('hex')}`, entityA = `ent_a_${randomBytes(4).toString('hex')}`, entityB = `ent_b_${randomBytes(4).toString('hex')}`, uid = `usr_i1_${randomBytes(4).toString('hex')}`, deniedUid = `usr_denied_${randomBytes(4).toString('hex')}`;
 const objects = new Map<string, { bytes: Buffer; contentType: string }>();
 (globalThis as any)[Symbol.for('TEST_UNIVERSAL_EVIDENCE_STORAGE')] = {
   async createUploadUrl(path: string) { return { url: `memory://${path}`, requiredHeaders: { 'x-goog-if-generation-match': '0' } }; },
@@ -17,7 +17,9 @@ const objects = new Map<string, { bytes: Buffer; contentType: string }>();
 };
 await db.collection('organizations').doc(orgId).set({ name: 'I1 Org', status: 'active' }); await db.collection('users').doc(uid).set({ systemRole: 'ceo' });
 for (const id of [entityA, entityB]) await db.collection('organizations').doc(orgId).collection('financeEntities').doc(id).set({ name: id, active: true });
-const originalVerify = admin.auth.verifyIdToken; admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
+const originalVerify = admin.auth.verifyIdToken;
+let verifiedUid = uid;
+admin.auth.verifyIdToken = async () => ({ uid: verifiedUid, mn_organization_id: orgId }) as any;
 const call = async (handler: any, body: any, headerOrg = orgId) => { const req = { method: 'POST', headers: { authorization: 'Bearer i1_test', 'x-organization-id': headerOrg }, body, query: {} }; const res = new MockRes(); await handler(req as any, res as any); return res; };
 const key = () => `idevidence_${randomBytes(12).toString('hex')}`, request = () => `req_${randomBytes(12).toString('hex')}`;
 const startBody = (entity: string, idempotencyKey = key()) => ({ financeEntityId: entity, originalFilename: 'receipt.png', declaredMimeType: 'image/png', byteSize: png.length, originalSha256: sha(png), sourceKind: 'photo', idempotencyKey, requestId: request() });
@@ -26,6 +28,14 @@ try {
   const badMime = await call(universalEvidenceStart, { ...startBody(entityA), declaredMimeType: 'text/plain' }); verify(badMime.statusCode === 400, 'invalid MIME is rejected before persistence');
   const tooLarge = await call(universalEvidenceStart, { ...startBody(entityA), byteSize: 10 * 1024 * 1024 + 1 }); verify(tooLarge.statusCode === 400, 'oversized declaration is rejected');
   const spoofedOrg = await call(universalEvidenceStart, startBody(entityA), 'another-org'); verify(spoofedOrg.statusCode === 403, 'organization authority comes from signed token');
+
+  verifiedUid = deniedUid;
+  const denied = await call(universalEvidenceStart, startBody(entityA)); verify(denied.statusCode === 403, 'session without canonical finance authority fails closed');
+  verifiedUid = uid;
+
+  const missingEntity = await call(universalEvidenceStart, startBody('ent_missing')); verify(missingEntity.statusCode === 404, 'unknown finance entity returns controlled not-found');
+  const spoofedBody = await call(universalEvidenceStart, { ...startBody(entityA), organizationId: 'body-org-must-not-win' }); verify(spoofedBody.statusCode === 200 && String(spoofedBody.body.upload.url).includes(`/organizations/${orgId}/`), 'organizationId in body cannot retarget canonical organization');
+
   const startKey = key(); const started = await call(universalEvidenceStart, startBody(entityA, startKey)); verify(started.statusCode === 200 && /^evd_[a-f0-9]{32}$/.test(started.body.evidenceId), 'server creates opaque evidence in Entity A');
   const retriedStart = await call(universalEvidenceStart, startBody(entityA, startKey)); verify(retriedStart.body.evidenceId === started.body.evidenceId, 'start retry is idempotent');
   const pathA = String(started.body.upload.url).replace('memory://', ''); objects.set(pathA, { bytes: png, contentType: 'image/png' });
