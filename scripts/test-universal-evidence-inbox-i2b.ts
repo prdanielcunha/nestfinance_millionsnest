@@ -41,6 +41,12 @@ check(!handler.includes('FieldValue') && !handler.includes('.set(') && !handler.
 for (const forbidden of ['generateContent', 'GEMINI', 'OCR', 'PostingPlan', 'financeTransactions', 'financeJournalEntries', 'countSessions']) {
   check(!handler.includes(forbidden), `detail execution path has no ${forbidden} side effect/integration`);
 }
-check(detail.includes('OCR, IA, classificação') && detail.includes('OCR, AI, classification'), 'UI does not imply intelligence that is not active');
+check(detail.includes('copy.noAccountingActionBody'), 'detail renders the localized inactive-intelligence boundary copy');
+check(
+  copy.includes('OCR, IA, classificação') &&
+    copy.includes('OCR, AI, classification') &&
+    copy.includes('OCR, IA, clasificación'),
+  'localized UI copy does not imply intelligence that is not active in PT/EN/ES',
+);
 
 console.log(`\nUniversal Evidence Inbox I2B totals: ${passed} Passed`);
