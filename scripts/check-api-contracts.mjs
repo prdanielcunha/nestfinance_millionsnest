@@ -68,6 +68,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-captures-save-denomination-review', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-start', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-finalize', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-list', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
