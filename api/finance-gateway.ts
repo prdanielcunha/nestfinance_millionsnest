@@ -58,6 +58,7 @@ import countCapturesSaveDenominationReview from '../server/vercel-handlers/finan
 import universalEvidenceStart from '../server/vercel-handlers/finance/universalEvidenceStart.js';
 import universalEvidenceFinalize from '../server/vercel-handlers/finance/universalEvidenceFinalize.js';
 import universalEvidenceList from '../server/vercel-handlers/finance/universalEvidenceList.js';
+import universalEvidenceDetail from '../server/vercel-handlers/finance/universalEvidenceDetail.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -186,6 +187,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return universalEvidenceFinalize(req, res);
     case 'universal-evidence-list':
       return universalEvidenceList(req, res);
+    case 'universal-evidence-detail':
+      return universalEvidenceDetail(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }

@@ -34,6 +34,47 @@ export interface UniversalEvidenceInboxResponse {
   requestId?: string;
 }
 
+export interface UniversalEvidenceDetail extends UniversalEvidenceInboxItem {
+  declaredMimeType: string | null;
+  verifiedMimeType: string | null;
+  verification: {
+    immutableOriginal: boolean;
+    mimeVerified: boolean;
+    sizeVerified: boolean;
+    contentHashVerified: boolean;
+  };
+}
+
+export interface UniversalEvidenceDetailResponse {
+  evidence: UniversalEvidenceDetail;
+  requestId?: string;
+}
+
+async function buildHeaders(organizationId: string) {
+  const auth = getAuth();
+  const headers = new Headers();
+  if (auth.currentUser) {
+    headers.set('Authorization', `Bearer ${await auth.currentUser.getIdToken()}`);
+  }
+  headers.set('Content-Type', 'application/json');
+  headers.set('x-organization-id', organizationId);
+  return headers;
+}
+
+async function parseError(response: Response, fallback: string) {
+  const raw = await response.text().catch(() => '');
+  let details: any = {};
+  try {
+    details = raw ? JSON.parse(raw) : {};
+  } catch {
+    details = { error: raw || `HTTP ${response.status}` };
+  }
+  const error: any = new Error(details.error || fallback);
+  error.details = details;
+  error.status = response.status;
+  return error;
+}
+
 export const universalEvidenceInboxService = {
   async list(
     organizationId: string,
@@ -41,14 +82,7 @@ export const universalEvidenceInboxService = {
     cursor?: string,
     pageSize = 25,
   ): Promise<UniversalEvidenceInboxResponse> {
-    const auth = getAuth();
-    const headers = new Headers();
-    if (auth.currentUser) {
-      headers.set('Authorization', `Bearer ${await auth.currentUser.getIdToken()}`);
-    }
-    headers.set('Content-Type', 'application/json');
-    headers.set('x-organization-id', organizationId);
-
+    const headers = await buildHeaders(organizationId);
     const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-list`, {
       method: 'POST',
       headers,
@@ -56,17 +90,26 @@ export const universalEvidenceInboxService = {
     });
 
     if (!response.ok) {
-      const raw = await response.text().catch(() => '');
-      let details: any = {};
-      try {
-        details = raw ? JSON.parse(raw) : {};
-      } catch {
-        details = { error: raw || `HTTP ${response.status}` };
-      }
-      const error: any = new Error(details.error || 'UNIVERSAL_EVIDENCE_LIST_FAILED');
-      error.details = details;
-      error.status = response.status;
-      throw error;
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_LIST_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async detail(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+  ): Promise<UniversalEvidenceDetailResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-detail`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, evidenceId }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_DETAIL_FAILED');
     }
 
     return response.json();

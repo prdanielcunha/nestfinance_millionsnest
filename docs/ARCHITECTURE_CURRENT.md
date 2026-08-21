@@ -101,3 +101,13 @@ Encontrados no `package.json`:
 - A UI possui loading, vazio, erro recuperável, paginação e textos PT/EN/ES; troca de organização/entidade invalida respostas stale.
 - I2A continua sem OCR, IA, classificação documental, criação de transação, posting, journal, aggregate, balance ou mutação de Count.
 - Preview/download do original e Document Intelligence permanecem fora do I2A e devem entrar apenas em slices posteriores com autorização e auditoria explícitas.
+
+## 13. Inbox I2B — Evidence Detail
+- A rota `/finance/inbox/:evidenceId` abre um detalhe somente leitura a partir da fila do Inbox, preservando a entidade financeira ativa.
+- A leitura usa a operação server-mediated `universal-evidence-detail` e exige `finance.view` tanto na UI quanto no backend.
+- O lookup permanece em `organizations/{organizationId}/financeEntities/{financeEntityId}/universalEvidence/{evidenceId}` e rejeita IDs ausentes ou pertencentes a outra entidade sem revelar a existência cross-entity.
+- O DTO é allowlisted e não devolve path do Storage, valor SHA-256, `duplicateOfEvidenceId`, `createdByUid` ou `validatedByUid`.
+- O detalhe expõe apenas resultados booleanos das verificações determinísticas já executadas pelo I1: original imutável, MIME verificado, tamanho verificado e conteúdo verificado por hash. O valor do hash não é exposto ao cliente.
+- A tela possui loading, erro recuperável, not-found, PT/EN/ES e stale-response guard para troca de organização, entidade ou `evidenceId`.
+- I2B não gera URL de download/preview, não lê o binário do Storage, não executa OCR, IA, classificação, criação de transação, posting, journal, aggregate, balance ou mutação de Count.
+- Preview seguro do original e Document Intelligence continuam reservados para slices posteriores com política explícita de autorização, custo e auditoria.
