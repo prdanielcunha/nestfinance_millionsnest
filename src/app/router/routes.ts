@@ -17,6 +17,7 @@ export const APP_ROUTES = {
   universalCapture: '/finance/capture',
   balance: '/finance/balance',
   inbox: '/finance/inbox',
+  inboxEvidenceDetail: '/finance/inbox/:evidenceId',
   reports: '/finance/reports',
   audit: '/finance/audit',
   more: '/finance/more',
