@@ -16,6 +16,8 @@ export const FINANCE_COLLECTIONS = [
   'financeJournalEntries',
   'financeJournalLines',
   'financeAggregates',
+  'universalEvidence',
+  'universalEvidenceHashes',
 ] as const;
 
 const ENTITY_SENSITIVE_COLLECTIONS = [
@@ -28,6 +30,8 @@ const ENTITY_SENSITIVE_COLLECTIONS = [
   'financeJournalEntries',
   'financeJournalLines',
   'financeAggregates',
+  'universalEvidence',
+  'universalEvidenceHashes',
 ] as const;
 
 const AUTHORIZATION_MARKERS = [
