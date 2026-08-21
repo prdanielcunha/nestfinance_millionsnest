@@ -20,6 +20,8 @@
     "test:universal-evidence-detail-emulator": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2b-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2b-emulator \"tsx scripts/test-universal-evidence-detail-emulator.ts\"",
     "test:universal-evidence-inbox-i2c": "tsx scripts/test-universal-evidence-inbox-i2c.ts",
     "test:universal-evidence-preview-emulator": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2c-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2c-emulator \"tsx scripts/test-universal-evidence-preview-emulator.ts\"",
+    "test:universal-evidence-pdf-inspector-i2d": "tsx scripts/test-universal-evidence-pdf-inspector-i2d.ts",
+    "test:universal-evidence-pdf-inspect-emulator": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2d-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2d-emulator \"tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts\"",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
