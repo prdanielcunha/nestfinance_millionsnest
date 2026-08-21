@@ -105,7 +105,7 @@ export function UniversalEvidencePdfReadinessCard({ evidence }: Props) {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">{copy.subtitle}</p>
         </div>
         <Button variant="secondary" disabled={loading} onClick={() => void inspect()}>
-          {loading ? copy.loading : analysis ? copy.retry : copy.action}
+          {loading ? copy.loading : analysis || errorDetails ? copy.retry : copy.action}
         </Button>
       </div>
 
