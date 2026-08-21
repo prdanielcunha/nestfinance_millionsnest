@@ -16,8 +16,10 @@ const pdfWithStream = (payload: Buffer) => Buffer.concat([
   payload,
   Buffer.from('\nendstream\nendobj\n%%EOF\n', 'latin1'),
 ]);
-const pdf = pdfWithStream(Buffer.from('BT /F1 12 Tf (Hello) Tj ET', 'latin1'));
-const noTextPdf = pdfWithStream(Buffer.from('q /Im0 Do Q', 'latin1'));
+const textPayload = Buffer.from('BT /F1 12 Tf (Hello) Tj ET', 'latin1');
+const noTextPayload = Buffer.from('q /Im0 Do Q', 'latin1');
+const pdf = pdfWithStream(textPayload);
+const noTextPdf = pdfWithStream(noTextPayload);
 const png = Buffer.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,2,0,0,0,3]);
 
 process.env.NODE_ENV = 'test';
@@ -146,6 +148,9 @@ const verify = (condition: unknown, message: string) => {
 };
 
 try {
+  verify(pdf.includes(Buffer.from(`/Length ${textPayload.length}`, 'latin1')), 'text fixture declares the exact payload length');
+  verify(noTextPdf.includes(Buffer.from(`/Length ${noTextPayload.length}`, 'latin1')), 'no-text fixture declares the exact payload length');
+
   const detected = await call({ financeEntityId: entityA, evidenceId: textId });
   verify(detected.statusCode === 200 && detected.body.analysis.textLayerState === 'detected', 'same-entity verified PDF reports deterministic text-layer detection');
   verify(detected.body.analysis.deterministic === true && detected.body.analysis.aiUsed === false && detected.body.analysis.ocrUsed === false && detected.body.analysis.financialRecognition === false, 'analysis explicitly reports zero AI, OCR and financial recognition');
