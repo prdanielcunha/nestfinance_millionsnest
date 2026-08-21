@@ -352,6 +352,13 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
                           {item.validatedAt ? (
                             <p className="mt-1">{copy.validatedAt}: {formatInboxDate(item.validatedAt, language)}</p>
                           ) : null}
+                          <Button
+                            variant="secondary"
+                            className="mt-3"
+                            onClick={() => navigate(APP_ROUTES.inboxEvidenceDetail.replace(':evidenceId', item.evidenceId))}
+                          >
+                            {copy.openDetail}
+                          </Button>
                         </div>
                       </div>
                     </Surface>
