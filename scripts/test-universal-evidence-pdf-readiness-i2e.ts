@@ -33,6 +33,7 @@ check(card.includes("analysis?.textLayerState === 'detected'"), 'detected state 
 check(card.includes("analysis?.textLayerState === 'not_detected'"), 'not_detected state is rendered explicitly');
 check(card.includes('copy.unknownTitle'), 'unknown state is rendered fail-closed');
 check(card.includes("aria-live=\"polite\""), 'result announcement is accessible');
+check(card.includes('analysis || errorDetails ? copy.retry : copy.action'), 'retry label is shown after either a result or an error');
 
 check(page.includes('<UniversalEvidencePdfReadinessCard evidence={evidence} />'), 'detail page renders readiness card exactly for the loaded evidence');
 check((page.match(/UniversalEvidencePdfReadinessCard evidence=/g) || []).length === 1, 'detail page renders a single readiness card');
@@ -43,6 +44,8 @@ check(copy.includes('This does not prove that the PDF has no text'), 'EN copy pr
 check(copy.includes('Esto no demuestra que el PDF no tenga texto'), 'ES copy preserves not_detected semantic boundary');
 check(copy.includes('OCR continua desativado') && copy.includes('OCR remains disabled') && copy.includes('OCR permanece desactivado'), 'all languages state that OCR remains disabled');
 check(copy.includes('Nenhum lançamento financeiro é criado') && copy.includes('No financial entry is created') && copy.includes('No se crea ningún asiento financiero'), 'all languages preserve zero-accounting-action boundary');
+check(!copy.includes('utilizável') && !copy.includes('usable digital text layer') && !copy.includes('utilizable'), 'copy does not overstate text usability');
+check(copy.includes('sinais de texto digital') && copy.includes('signs of digital text') && copy.includes('señales de texto digital'), 'all languages describe the detector as a bounded signal');
 
 const combined = `${service}\n${card}\n${page}\n${copy}`;
 check(!combined.includes('@google/genai'), 'I2E readiness UX introduces no AI dependency');
