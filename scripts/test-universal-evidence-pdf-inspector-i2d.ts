@@ -32,6 +32,13 @@ const flateResult = inspectPdfStructure(flateText);
 check(flateResult.textLayerState === 'detected', 'detects text in a bounded FlateDecode stream');
 check(flateResult.flateStreams === 1, 'reports one analyzed FlateDecode stream');
 
+const oversizedInflated = deflateSync(Buffer.alloc(3 * 1024 * 1024, 0x41));
+const boundedResult = inspectPdfStructure(pdfWithStream(oversizedInflated, '/Filter /FlateDecode'));
+check(
+  boundedResult.textLayerState === 'unknown' && boundedResult.unsupportedStreams === 1,
+  'oversized decompression fails closed without unbounded inflation',
+);
+
 const noText = pdfWithStream(Buffer.from('q 100 0 0 100 0 0 cm /Im0 Do Q', 'latin1'));
 const noTextResult = inspectPdfStructure(noText);
 check(noTextResult.textLayerState === 'not_detected', 'returns not_detected only when analyzed streams contain no text operators');
