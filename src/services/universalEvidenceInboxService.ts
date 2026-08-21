@@ -56,6 +56,29 @@ export interface UniversalEvidencePreviewResponse {
   requestId?: string;
 }
 
+export type UniversalEvidencePdfTextLayerState = 'detected' | 'not_detected' | 'unknown';
+
+export interface UniversalEvidencePdfReadinessResponse {
+  analysis: {
+    evidenceId: string;
+    deterministic: true;
+    aiUsed: false;
+    ocrUsed: false;
+    financialRecognition: false;
+    version: number;
+    parser: string;
+    encrypted: boolean;
+    textLayerState: UniversalEvidencePdfTextLayerState;
+    analyzedStreams: number;
+    rawStreams: number;
+    flateStreams: number;
+    imageStreams: number;
+    unsupportedStreams: number;
+    limited: boolean;
+  };
+  requestId?: string;
+}
+
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
   const headers = new Headers();
@@ -142,5 +165,24 @@ export const universalEvidenceInboxService = {
       mimeType: response.headers.get('content-type') || 'application/octet-stream',
       requestId: response.headers.get('x-request-id') || undefined,
     };
+  },
+
+  async inspectPdfTextLayer(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+  ): Promise<UniversalEvidencePdfReadinessResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-pdf-inspect`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, evidenceId }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_PDF_INSPECT_FAILED');
+    }
+
+    return response.json();
   },
 };
