@@ -7,10 +7,12 @@ class MockRes {
   statusCode = 200;
   body: any = null;
   headers = new Map<string, string>();
+  chunks: Buffer[] = [];
   status(code: number) { this.statusCode = code; return this; }
   json(body: any) { this.body = body; return this; }
   setHeader(name: string, value: string) { this.headers.set(name.toLowerCase(), String(value)); return this; }
-  send(body: any) { this.body = body; return this; }
+  write(chunk: Buffer) { this.chunks.push(Buffer.from(chunk)); return true; }
+  end() { if (this.chunks.length > 0) this.body = Buffer.concat(this.chunks); return this; }
 }
 
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -152,7 +154,8 @@ const verify = (condition: unknown, message: string) => {
 
 try {
   const accepted = await call({ financeEntityId: entityA, evidenceId: acceptedId });
-  verify(accepted.statusCode === 200 && Buffer.isBuffer(accepted.body) && accepted.body.equals(png), 'same-entity accepted evidence returns the verified original bytes');
+  verify(accepted.statusCode === 200 && Buffer.isBuffer(accepted.body) && accepted.body.equals(png), 'same-entity accepted evidence streams the verified original bytes');
+  verify(accepted.chunks.length > 0, 'preview response uses streamed chunks instead of buffered send');
   verify(accepted.headers.get('content-type') === 'image/png', 'preview returns the verified MIME type');
   verify(accepted.headers.get('cache-control') === 'private, no-store, max-age=0' && accepted.headers.get('x-content-type-options') === 'nosniff', 'preview is private no-store and nosniff');
   verify(!JSON.stringify([...accepted.headers.entries()]).includes(acceptedPath), 'preview headers never expose the private Storage path');
