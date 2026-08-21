@@ -38,6 +38,7 @@ on:
       - "scripts/test-universal-evidence-preview-emulator.ts"
       - "scripts/test-universal-evidence-pdf-inspector-i2d.ts"
       - "scripts/test-universal-evidence-pdf-inspect-emulator.ts"
+      - "scripts/test-universal-evidence-pdf-readiness-i2e.ts"
       - "scripts/test-count-firestore-rules.ts"
       - "scripts/test-count-paper-firestore-rules.ts"
       - "scripts/test-count-capture-firestore-rules.ts"
@@ -160,6 +161,7 @@ jobs:
           npm run test:universal-evidence-inbox-i2b
           npm run test:universal-evidence-inbox-i2c
           npm run test:universal-evidence-pdf-inspector-i2d
+          npm run test:universal-evidence-pdf-readiness-i2e
           npm run lint
           npm run build
           npm run check:api-contracts
