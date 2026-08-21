@@ -38,6 +38,8 @@ Localizadas em `/src/app/router/routes.ts`:
 - `/auth/handoff`: Recebe transição de autenticação (Handoff).
 - `/finance`: Dashboard principal.
 - `/finance/transactions`: Lista de movimentações (transactions).
+- `/finance/capture`: Universal Capture documental.
+- `/finance/inbox`: Fila server-mediated de documentos e evidências da entidade financeira ativa.
 - `/finance/settings`: Configurações (com sub-rotas para accounts, entities, funds, categories).
 
 ## 6. Fluxo de Autenticação e RBAC
@@ -88,3 +90,14 @@ Encontrados no `package.json`:
 - I1 valida deterministicamente limite de 10 MB, assinatura MIME, SHA-256 e dimensões/orientação básica de imagens. O tamanho real do objeto é validado antes de abrir o stream; WebP cobre VP8, VP8L e VP8X com parsing determinístico.
 - I1 não executa OCR, IA, classificação ou qualquer mutação contábil.
 - O acesso direto do cliente aos registros e hashes permanece explicitamente negado nas Firestore Rules; criação e finalização são server-mediated.
+
+## 12. Inbox I2A — Evidence Queue
+- A rota `/finance/inbox` deixa de ser placeholder e passa a listar evidências reais da `financeEntityId` ativa.
+- A leitura usa a operação server-mediated `universal-evidence-list` e exige `finance.view`; a CTA de nova captura é exibida separadamente apenas com `finance.create_drafts`.
+- A organização continua derivada do token Handoff validado. O header `x-organization-id` é somente compatibilidade e conflitos com o token falham fechados.
+- A consulta é limitada à subcoleção `organizations/{organizationId}/financeEntities/{financeEntityId}/universalEvidence`, ordenada por `createdAt` e paginada por cursor. Não foi criado índice composto novo nem requisito de deploy manual de índice nesta fase.
+- O DTO do Inbox é propositalmente mínimo: nome do arquivo, MIME, tamanho, origem, estado, dimensões seguras e timestamps. Não expõe path do Storage, SHA-256 original, UID interno nem `duplicateOfEvidenceId`.
+- O resumo do Inbox contabiliza total, aceitos, duplicados e uploads pendentes dentro da mesma entidade financeira.
+- A UI possui loading, vazio, erro recuperável, paginação e textos PT/EN/ES; troca de organização/entidade invalida respostas stale.
+- I2A continua sem OCR, IA, classificação documental, criação de transação, posting, journal, aggregate, balance ou mutação de Count.
+- Preview/download do original e Document Intelligence permanecem fora do I2A e devem entrar apenas em slices posteriores com autorização e auditoria explícitas.
