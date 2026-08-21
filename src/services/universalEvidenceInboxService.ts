@@ -50,6 +50,12 @@ export interface UniversalEvidenceDetailResponse {
   requestId?: string;
 }
 
+export interface UniversalEvidencePreviewResponse {
+  blob: Blob;
+  mimeType: string;
+  requestId?: string;
+}
+
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
   const headers = new Headers();
@@ -113,5 +119,28 @@ export const universalEvidenceInboxService = {
     }
 
     return response.json();
+  },
+
+  async preview(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+  ): Promise<UniversalEvidencePreviewResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-preview`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, evidenceId }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_PREVIEW_FAILED');
+    }
+
+    return {
+      blob: await response.blob(),
+      mimeType: response.headers.get('content-type') || 'application/octet-stream',
+      requestId: response.headers.get('x-request-id') || undefined,
+    };
   },
 };

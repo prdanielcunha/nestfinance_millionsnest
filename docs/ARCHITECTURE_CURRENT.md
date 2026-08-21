@@ -111,3 +111,14 @@ Encontrados no `package.json`:
 - A tela possui loading, erro recuperável, not-found, PT/EN/ES e stale-response guard para troca de organização, entidade ou `evidenceId`.
 - I2B não gera URL de download/preview, não lê o binário do Storage, não executa OCR, IA, classificação, criação de transação, posting, journal, aggregate, balance ou mutação de Count.
 - Preview seguro do original e Document Intelligence continuam reservados para slices posteriores com política explícita de autorização, custo e auditoria.
+
+## 14. Inbox I2C — Secure Original Preview
+- O detalhe da evidência passa a oferecer `Visualizar original` somente para evidências finalizadas (`accepted` ou `duplicate`, versão 2) cujas verificações determinísticas de imutabilidade, MIME, tamanho e hash estejam concluídas.
+- A visualização é opt-in: nenhum binário é transferido automaticamente ao abrir o Inbox ou o detalhe. O download acontece somente após ação explícita do usuário.
+- A operação server-mediated `universal-evidence-preview` exige `finance.view` e reaplica o mesmo isolamento canônico por organização, `financeEntityId` e `evidenceId`; `organizationId` do body não ganha autoridade.
+- O backend não devolve signed read URL nem path do Storage. Ele lê o objeto protegido somente após autorização, limitado a 10 MB, e revalida tamanho, SHA-256, `Content-Type` e assinatura MIME contra a metadata certificada antes de servir qualquer byte.
+- A resposta usa `Content-Disposition: inline`, `Cache-Control: private, no-store`, `Pragma: no-cache` e `X-Content-Type-Options: nosniff`; o nome enviado é genérico e não revela o path interno.
+- No navegador, o binário vira uma URL `blob:` temporária. Essa URL é revogada ao fechar a visualização, trocar organização/entidade/evidência ou desmontar a tela.
+- Imagens são exibidas diretamente e PDFs em frame local do blob; qualquer drift pós-validação de tamanho, hash, MIME ou assinatura falha fechado.
+- O custo de Storage/transferência só ocorre quando o usuário solicita o original; não há background job, API paga, OCR ou IA nesse fluxo.
+- I2C permanece somente leitura e não cria transação, posting, journal, aggregate, balance, PostingPlan ou mutação de Count.

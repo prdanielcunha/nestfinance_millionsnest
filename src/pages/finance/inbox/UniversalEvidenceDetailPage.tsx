@@ -7,11 +7,13 @@ import {
   CheckCircle2,
   Clipboard,
   Copy,
+  Eye,
   FileText,
   Image as ImageIcon,
   ShieldCheck,
   ShieldX,
   Upload,
+  X,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -34,6 +36,7 @@ import {
 } from './inboxModel';
 
 const VALID_EVIDENCE_ID = /^evd_[a-f0-9]{32}$/;
+const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
 export default function UniversalEvidenceDetailPage() {
   const { accessState } = useAuth();
@@ -77,7 +80,27 @@ function EvidenceDetailContent() {
   const [evidence, setEvidence] = useState<UniversalEvidenceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorDetails, setErrorDetails] = useState<any | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMime, setPreviewMime] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErrorDetails, setPreviewErrorDetails] = useState<any | null>(null);
   const epochRef = useRef(0);
+  const previewUrlRef = useRef<string | null>(null);
+
+  const revokePreviewUrl = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+  };
+
+  const closePreview = () => {
+    revokePreviewUrl();
+    setPreviewUrl(null);
+    setPreviewMime(null);
+    setPreviewErrorDetails(null);
+    setPreviewLoading(false);
+  };
 
   const loadDetail = async (epoch = epochRef.current) => {
     const organizationId = accessState.organizationId;
@@ -109,16 +132,55 @@ function EvidenceDetailContent() {
     }
   };
 
+  const openPreview = async () => {
+    const organizationId = accessState.organizationId;
+    if (!organizationId || !activeFinanceEntityId || !evidenceId || !VALID_EVIDENCE_ID.test(evidenceId)) return;
+
+    const epoch = epochRef.current;
+    setPreviewLoading(true);
+    setPreviewErrorDetails(null);
+
+    try {
+      const response = await universalEvidenceInboxService.preview(
+        organizationId,
+        activeFinanceEntityId,
+        evidenceId,
+      );
+      if (epoch !== epochRef.current) return;
+
+      revokePreviewUrl();
+      const url = URL.createObjectURL(response.blob);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
+      setPreviewMime(response.mimeType);
+    } catch (error: any) {
+      if (epoch !== epochRef.current) return;
+      revokePreviewUrl();
+      setPreviewUrl(null);
+      setPreviewMime(null);
+      setPreviewErrorDetails(error?.details || { error: error?.message });
+    } finally {
+      if (epoch !== epochRef.current) return;
+      setPreviewLoading(false);
+    }
+  };
+
   useEffect(() => {
     const epoch = ++epochRef.current;
+    revokePreviewUrl();
+    setPreviewUrl(null);
+    setPreviewMime(null);
+    setPreviewErrorDetails(null);
+    setPreviewLoading(false);
     setEvidence(null);
     setErrorDetails(null);
     void loadDetail(epoch);
 
     return () => {
       epochRef.current += 1;
+      revokePreviewUrl();
     };
-    // Detail requests must restart whenever the route or canonical context changes.
+    // Detail and preview requests must restart whenever the route or canonical context changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessState.organizationId, activeFinanceEntityId, evidenceId]);
 
@@ -201,6 +263,15 @@ function EvidenceDetailContent() {
     { label: copy.sizeVerified, value: evidence.verification.sizeVerified },
     { label: copy.hashVerified, value: evidence.verification.contentHashVerified },
   ];
+  const previewState = normalizeInboxEvidenceState(evidence.processingState);
+  const canPreview =
+    (previewState === 'accepted' || previewState === 'duplicate') &&
+    evidence.version === 2 &&
+    Boolean(evidence.verifiedMimeType && PREVIEW_MIME_TYPES.has(evidence.verifiedMimeType)) &&
+    evidence.verification.immutableOriginal &&
+    evidence.verification.mimeVerified &&
+    evidence.verification.sizeVerified &&
+    evidence.verification.contentHashVerified;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
@@ -225,6 +296,18 @@ function EvidenceDetailContent() {
                   <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-border-subtle bg-surface-secondary px-3 text-xs font-medium text-text-muted">{sourceIcon(evidence.sourceKind)}{sourceLabel(evidence.sourceKind)}</span>
                 </div>
                 <h2 className="mt-4 break-words text-xl font-semibold text-text-primary">{evidence.originalFilename || copy.unknownFile}</h2>
+                {canPreview ? (
+                  <div className="mt-4">
+                    <Button
+                      variant="secondary"
+                      disabled={previewLoading}
+                      onClick={() => (previewUrl ? closePreview() : void openPreview())}
+                    >
+                      {previewUrl ? <X className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                      {previewUrl ? copy.previewClose : previewLoading ? copy.previewLoading : copy.previewOriginal}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
               <div className="shrink-0 text-left text-xs leading-relaxed text-text-muted sm:text-right">
                 <p>{copy.receivedAt}: {formatInboxDate(evidence.createdAt, language)}</p>
@@ -232,6 +315,49 @@ function EvidenceDetailContent() {
               </div>
             </div>
           </Surface>
+
+          {previewErrorDetails ? (
+            <Surface variant="elevated" radius="xl" role="alert" className="border border-semantic-danger/20 p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-semantic-danger" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-text-primary">{copy.previewErrorTitle}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.previewErrorBody}</p>
+                  <Button className="mt-4" variant="secondary" disabled={previewLoading} onClick={() => void openPreview()}>
+                    {previewLoading ? copy.previewLoading : copy.retry}
+                  </Button>
+                  {previewErrorDetails?.requestId ? (
+                    <p className="mt-4 break-all font-mono text-xs text-text-muted">{copy.supportCode}: {previewErrorDetails.requestId}</p>
+                  ) : null}
+                </div>
+              </div>
+            </Surface>
+          ) : null}
+
+          {previewUrl ? (
+            <Surface variant="elevated" radius="xl" className="overflow-hidden p-0">
+              <div className="border-b border-border-subtle p-5 sm:p-6">
+                <h2 className="text-lg font-semibold text-text-primary">{copy.previewTitle}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.previewSubtitle}</p>
+                <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.previewPrivacy}</p>
+              </div>
+              <div className="flex min-h-64 items-center justify-center bg-surface-secondary/50 p-3 sm:p-5">
+                {previewMime?.startsWith('image/') ? (
+                  <img
+                    src={previewUrl}
+                    alt={evidence.originalFilename || copy.previewTitle}
+                    className="max-h-[70vh] max-w-full rounded-lg object-contain"
+                  />
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    title={copy.previewTitle}
+                    className="h-[70vh] w-full rounded-lg border-0 bg-white"
+                  />
+                )}
+              </div>
+            </Surface>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
