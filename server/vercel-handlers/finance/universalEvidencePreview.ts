@@ -8,6 +8,7 @@ import {
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { getUniversalEvidenceStorageAdapter } from './universalEvidenceStorage.js';
 
+const PREVIEW_RESPONSE_CHUNK_BYTES = 256 * 1024;
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
 
@@ -17,6 +18,16 @@ function extensionForMime(mime: string) {
   if (mime === 'image/webp') return 'webp';
   if (mime === 'application/pdf') return 'pdf';
   return 'bin';
+}
+
+async function streamVerifiedBytes(res: VercelResponse, bytes: Buffer) {
+  for (let offset = 0; offset < bytes.length; offset += PREVIEW_RESPONSE_CHUNK_BYTES) {
+    const chunk = bytes.subarray(offset, Math.min(offset + PREVIEW_RESPONSE_CHUNK_BYTES, bytes.length));
+    if (!res.write(chunk)) {
+      await new Promise<void>((resolve) => res.once('drain', resolve));
+    }
+  }
+  return res.end();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -93,13 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.setHeader('Content-Type', verifiedMimeType);
-    res.setHeader('Content-Length', String(stored.size));
     res.setHeader('Content-Disposition', `inline; filename="evidence-${evidenceId}.${extensionForMime(verifiedMimeType)}"`);
     res.setHeader('Cache-Control', 'private, no-store, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Request-Id', requestId);
-    return res.status(200).send(stored.bytes);
+    res.status(200);
+    return streamVerifiedBytes(res, stored.bytes);
   } catch (error: any) {
     const message = String(error?.message || '');
     if (error?.status) {
