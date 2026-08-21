@@ -14,6 +14,12 @@ function pdfWithTwoStreams(first: { data: Buffer; extra?: string }, second: { da
   return Buffer.concat([one.subarray(0, one.length - Buffer.byteLength('%%EOF\n')), twoBody]);
 }
 
+function pdfWithIndirectLength(data: Buffer) {
+  const prefix = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Length 2 0 R >>\nstream\n', 'latin1');
+  const suffix = Buffer.from('\nendstream\nendobj\n2 0 obj\n0\nendobj\n%%EOF\n', 'latin1');
+  return Buffer.concat([prefix, data, suffix]);
+}
+
 let passed = 0;
 function check(condition: unknown, message: string) {
   assert.ok(condition, message);
@@ -31,6 +37,12 @@ const flateText = pdfWithStream(flatePayload, '/Filter /FlateDecode');
 const flateResult = inspectPdfStructure(flateText);
 check(flateResult.textLayerState === 'detected', 'detects text in a bounded FlateDecode stream');
 check(flateResult.flateStreams === 1, 'reports one analyzed FlateDecode stream');
+
+const quoteText = inspectPdfStructure(pdfWithStream(Buffer.from("BT (Line) ' ET", 'latin1')));
+check(quoteText.textLayerState === 'detected', 'recognizes the single-quote text-showing operator inside a text object');
+
+const doubleQuoteText = inspectPdfStructure(pdfWithStream(Buffer.from('BT 0 0 (Line) " ET', 'latin1')));
+check(doubleQuoteText.textLayerState === 'detected', 'recognizes the double-quote text-showing operator inside a text object');
 
 const oversizedInflated = deflateSync(Buffer.alloc(3 * 1024 * 1024, 0x41));
 const boundedResult = inspectPdfStructure(pdfWithStream(oversizedInflated, '/Filter /FlateDecode'));
@@ -66,6 +78,17 @@ check(inlineImageResult.textLayerState === 'unknown', 'inline image syntax fails
 const commentedThenRealText = pdfWithStream(Buffer.from('% BT (fake) Tj ET\nBT /F1 12 Tf (Real) Tj ET', 'latin1'));
 const commentedThenRealTextResult = inspectPdfStructure(commentedThenRealText);
 check(commentedThenRealTextResult.textLayerState === 'detected', 'still detects a real text object after an ignored comment');
+
+const embeddedEndstream = pdfWithStream(Buffer.from('q (endstream) pop BT /F1 12 Tf (Real) Tj ET Q', 'latin1'));
+const embeddedEndstreamResult = inspectPdfStructure(embeddedEndstream);
+check(embeddedEndstreamResult.textLayerState === 'detected', 'uses the declared stream length instead of truncating on endstream bytes inside content');
+
+const fakeStreamComment = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Length 0 >>\n% stream\nBT /F1 12 Tf (Fake) Tj ET\nendstream\nendobj\n%%EOF\n', 'latin1');
+const fakeStreamCommentResult = inspectPdfStructure(fakeStreamComment);
+check(fakeStreamCommentResult.textLayerState === 'unknown' && fakeStreamCommentResult.analyzedStreams === 0, 'ignores stream keywords that occur only inside PDF comments');
+
+const indirectLengthResult = inspectPdfStructure(pdfWithIndirectLength(Buffer.from('BT /F1 12 Tf (Hidden) Tj ET', 'latin1')));
+check(indirectLengthResult.textLayerState === 'unknown' && indirectLengthResult.unsupportedStreams === 1, 'indirect stream lengths fail closed instead of guessing the byte boundary');
 
 const unsupported = pdfWithStream(Buffer.from('encoded', 'latin1'), '/Filter /ASCII85Decode');
 const unsupportedResult = inspectPdfStructure(unsupported);

@@ -59,6 +59,73 @@ function skipHexString(value: string, start: number) {
   return end < 0 ? -1 : end + 1;
 }
 
+function skipComment(value: string, start: number) {
+  let cursor = start + 1;
+  while (cursor < value.length) {
+    const code = value.charCodeAt(cursor);
+    if (code === 10 || code === 13) break;
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function findNextKeywordOutsideLexicalNoise(value: string, keyword: string, start: number) {
+  let cursor = start;
+  while (cursor < value.length) {
+    const code = value.charCodeAt(cursor);
+    if (isWhitespaceCode(code)) {
+      cursor += 1;
+      continue;
+    }
+    if (code === 37) {
+      cursor = skipComment(value, cursor);
+      continue;
+    }
+    if (code === 40) {
+      const next = skipLiteralString(value, cursor);
+      if (next < 0) return -2;
+      cursor = next;
+      continue;
+    }
+    if (code === 60) {
+      if (value.charCodeAt(cursor + 1) === 60) {
+        cursor += 2;
+        continue;
+      }
+      const next = skipHexString(value, cursor);
+      if (next < 0) return -2;
+      cursor = next;
+      continue;
+    }
+    if (code === 47) {
+      cursor += 1;
+      while (cursor < value.length) {
+        const nameCode = value.charCodeAt(cursor);
+        if (isWhitespaceCode(nameCode) || isDelimiterCode(nameCode)) break;
+        cursor += 1;
+      }
+      continue;
+    }
+    if (code === 39 || code === 34 || isDelimiterCode(code)) {
+      cursor += 1;
+      continue;
+    }
+
+    const tokenStart = cursor;
+    while (cursor < value.length) {
+      const tokenCode = value.charCodeAt(cursor);
+      if (isWhitespaceCode(tokenCode) || isDelimiterCode(tokenCode) || tokenCode === 39 || tokenCode === 34) break;
+      cursor += 1;
+    }
+    if (cursor === tokenStart) {
+      cursor += 1;
+      continue;
+    }
+    if (value.slice(tokenStart, cursor) === keyword) return tokenStart;
+  }
+  return -1;
+}
+
 function scanTextOperators(bytes: Buffer): TextOperatorScan {
   const value = bytes.toString('latin1');
   let cursor = 0;
@@ -72,24 +139,16 @@ function scanTextOperators(bytes: Buffer): TextOperatorScan {
       cursor += 1;
       continue;
     }
-
     if (code === 37) {
-      cursor += 1;
-      while (cursor < value.length) {
-        const commentCode = value.charCodeAt(cursor);
-        if (commentCode === 10 || commentCode === 13) break;
-        cursor += 1;
-      }
+      cursor = skipComment(value, cursor);
       continue;
     }
-
     if (code === 40) {
       const next = skipLiteralString(value, cursor);
       if (next < 0) return 'unknown';
       cursor = next;
       continue;
     }
-
     if (code === 60) {
       if (value.charCodeAt(cursor + 1) === 60) {
         cursor += 2;
@@ -100,7 +159,6 @@ function scanTextOperators(bytes: Buffer): TextOperatorScan {
       cursor = next;
       continue;
     }
-
     if (code === 47) {
       cursor += 1;
       while (cursor < value.length) {
@@ -110,13 +168,11 @@ function scanTextOperators(bytes: Buffer): TextOperatorScan {
       }
       continue;
     }
-
     if (code === 39 || code === 34) {
       if (inTextObject) textShowingSeen = true;
       cursor += 1;
       continue;
     }
-
     if (isDelimiterCode(code)) {
       cursor += 1;
       continue;
@@ -128,16 +184,13 @@ function scanTextOperators(bytes: Buffer): TextOperatorScan {
       if (isWhitespaceCode(tokenCode) || isDelimiterCode(tokenCode) || tokenCode === 39 || tokenCode === 34) break;
       cursor += 1;
     }
-
     if (cursor === start) {
       cursor += 1;
       continue;
     }
 
     const token = value.slice(start, cursor);
-    if (token === 'BI') {
-      return 'unknown';
-    }
+    if (token === 'BI') return 'unknown';
     if (token === 'BT') {
       if (inTextObject) return 'unknown';
       inTextObject = true;
@@ -151,9 +204,7 @@ function scanTextOperators(bytes: Buffer): TextOperatorScan {
       textShowingSeen = false;
       continue;
     }
-    if (inTextObject && (token === 'Tj' || token === 'TJ')) {
-      textShowingSeen = true;
-    }
+    if (inTextObject && (token === 'Tj' || token === 'TJ')) textShowingSeen = true;
   }
 
   if (inTextObject) return 'unknown';
@@ -167,6 +218,13 @@ function findDictionary(text: string, streamIndex: number) {
   const dictStart = text.lastIndexOf('<<', dictEnd);
   if (dictStart < lowerBound) return null;
   return text.slice(dictStart, dictEnd + 2);
+}
+
+function directStreamLength(dictionary: string) {
+  const match = dictionary.match(/\/Length\s+(\d+)(?=\s|>)(?!\s+\d+\s+R\b)/);
+  if (!match) return null;
+  const length = Number(match[1]);
+  return Number.isSafeInteger(length) && length >= 0 ? length : null;
 }
 
 function filterKind(dictionary: string): 'raw' | 'flate' | 'unsupported' {
@@ -202,13 +260,13 @@ export function inspectPdfStructure(bytes: Buffer): PdfStructureInspection {
   let limited = false;
 
   while (cursor < bytes.length) {
-    const streamIndex = documentText.indexOf('stream', cursor);
-    if (streamIndex < 0) break;
+    const streamIndex = findNextKeywordOutsideLexicalNoise(documentText, 'stream', cursor);
+    if (streamIndex === -1) break;
+    if (streamIndex === -2) {
+      unsupportedStreams += 1;
+      break;
+    }
     cursor = streamIndex + 6;
-
-    const before = streamIndex > 0 ? bytes[streamIndex - 1] : undefined;
-    const after = bytes[streamIndex + 6];
-    if (!isWhitespaceCode(before) || !isWhitespaceCode(after)) continue;
 
     streamsSeen += 1;
     if (streamsSeen > MAX_STREAMS) {
@@ -219,15 +277,37 @@ export function inspectPdfStructure(bytes: Buffer): PdfStructureInspection {
     const dictionary = findDictionary(documentText, streamIndex);
     if (!dictionary) {
       unsupportedStreams += 1;
-      continue;
+      break;
+    }
+
+    const declaredLength = directStreamLength(dictionary);
+    if (declaredLength === null) {
+      unsupportedStreams += 1;
+      break;
     }
 
     let dataStart = streamIndex + 6;
     if (bytes[dataStart] === 13 && bytes[dataStart + 1] === 10) dataStart += 2;
     else if (bytes[dataStart] === 10 || bytes[dataStart] === 13) dataStart += 1;
+    else {
+      unsupportedStreams += 1;
+      break;
+    }
 
-    const endStreamIndex = documentText.indexOf('endstream', dataStart);
-    if (endStreamIndex < 0) {
+    const dataEnd = dataStart + declaredLength;
+    if (dataEnd > bytes.length) {
+      unsupportedStreams += 1;
+      break;
+    }
+
+    let endStreamIndex = dataEnd;
+    while (endStreamIndex < bytes.length && isWhitespaceCode(bytes[endStreamIndex])) endStreamIndex += 1;
+    if (!documentText.startsWith('endstream', endStreamIndex)) {
+      unsupportedStreams += 1;
+      break;
+    }
+    const afterEndStream = bytes[endStreamIndex + 9];
+    if (afterEndStream !== undefined && !isWhitespaceCode(afterEndStream) && !isDelimiterCode(afterEndStream)) {
       unsupportedStreams += 1;
       break;
     }
@@ -242,11 +322,7 @@ export function inspectPdfStructure(bytes: Buffer): PdfStructureInspection {
       continue;
     }
 
-    let streamBytes = bytes.subarray(dataStart, endStreamIndex);
-    while (streamBytes.length > 0 && (streamBytes.at(-1) === 10 || streamBytes.at(-1) === 13)) {
-      streamBytes = streamBytes.subarray(0, streamBytes.length - 1);
-    }
-
+    const streamBytes = bytes.subarray(dataStart, dataEnd);
     const decoded = decodeStream(streamBytes, kind);
     if (!decoded) {
       if (!isImage) unsupportedStreams += 1;

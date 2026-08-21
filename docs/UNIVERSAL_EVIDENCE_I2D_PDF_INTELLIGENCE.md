@@ -24,9 +24,9 @@ The private Storage path and content hash are never returned to the client.
 
 The inspector returns one of three `textLayerState` values:
 
-- `detected`: a supported, non-image PDF content stream contains a PDF text object (`BT ... ET`) with a text-showing operator such as `Tj` or `TJ`.
-- `not_detected`: supported non-image streams were analyzed completely within the I2D limits and no text-showing operator was detected.
-- `unknown`: the inspector cannot make the deterministic statement safely. Examples include encryption, unsupported non-image stream filters, decompression limits, malformed structures, or the stream-count limit.
+- `detected`: a supported, non-image PDF content stream contains a lexical PDF text object (`BT ... ET`) with a text-showing operator such as `Tj`, `TJ`, `'` or `"` outside comments, names and string payloads.
+- `not_detected`: supported non-image streams were analyzed completely within the I2D limits and no executable text-showing operator was detected.
+- `unknown`: the inspector cannot make the deterministic statement safely. Examples include encryption, unsupported non-image stream filters, indirect or malformed stream lengths, inline-image syntax, decompression limits, malformed lexical structures, or the stream-count limit.
 
 `not_detected` means only **not detected by this deterministic I2D parser**. It is not proof that the document has no text and must never be presented as such.
 
@@ -36,9 +36,11 @@ I2D intentionally has a narrow parser surface:
 
 - raw/unfiltered streams;
 - a single `FlateDecode` (`Fl`) stream filter;
+- direct numeric `/Length` values for safe stream byte boundaries;
+- PDF comments, literal strings, hexadecimal strings and names are lexically excluded from operator recognition;
 - image streams are identified and excluded from text-layer detection.
 
-Unsupported non-image filters fail closed to `unknown`. Unsupported image compression by itself does not make the text-layer result unknown when all relevant non-image content streams were analyzed safely.
+Unsupported non-image filters fail closed to `unknown`. Indirect `/Length` references and ambiguous stream boundaries also fail closed to `unknown` rather than guessing where content ends. Unsupported image compression by itself does not make the text-layer result unknown when all relevant non-image content streams were analyzed safely.
 
 ## Resource limits
 
@@ -60,6 +62,7 @@ A compressed stream that exceeds these limits is not expanded without bound; the
 - `financeEntityId` remains the legal-book boundary;
 - organizational `owner` is not treated as a global role;
 - the handler revalidates the immutable original before inspection;
+- stream and operator keywords that appear only inside PDF comments or string payloads do not count as executable structure;
 - no raw original bytes, extracted text, Storage path, SHA-256 or internal UID are returned;
 - no new Firestore client read path is introduced.
 
