@@ -240,7 +240,7 @@ function EvidenceDetailContent() {
                 <DetailRow label={copy.declaredMime} value={formatInboxMime(evidence.declaredMimeType)} />
                 <DetailRow label={copy.verifiedMime} value={formatInboxMime(evidence.verifiedMimeType)} />
                 <DetailRow label={copy.imageDimensions} value={dimensions} />
-                <DetailRow label="Tamanho / Size" value={formatInboxBytes(evidence.byteSize, language)} />
+                <DetailRow label={copy.fileSize} value={formatInboxBytes(evidence.byteSize, language)} />
                 <DetailRow label={copy.evidenceId} value={evidence.evidenceId} mono />
                 <DetailRow label={copy.version} value={String(evidence.version)} />
               </dl>
