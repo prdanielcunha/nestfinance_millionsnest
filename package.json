@@ -16,6 +16,8 @@
     "test:universal-evidence-emulator": "FIREBASE_PROJECT_ID=nestfinance-i1-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-i1-emulator \"tsx scripts/test-universal-evidence-firestore-emulator.ts && tsx scripts/test-universal-evidence-firestore-rules.ts\"",
     "test:universal-evidence-inbox-i2a": "tsx scripts/test-universal-evidence-inbox-i2a.ts",
     "test:universal-evidence-inbox-emulator": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2a-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2a-emulator \"tsx scripts/test-universal-evidence-inbox-emulator.ts\"",
+    "test:universal-evidence-inbox-i2b": "tsx scripts/test-universal-evidence-inbox-i2b.ts",
+    "test:universal-evidence-detail-emulator": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2b-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2b-emulator \"tsx scripts/test-universal-evidence-detail-emulator.ts\"",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
