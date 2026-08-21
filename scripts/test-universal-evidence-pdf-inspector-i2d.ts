@@ -43,6 +43,30 @@ const noText = pdfWithStream(Buffer.from('q 100 0 0 100 0 0 cm /Im0 Do Q', 'lati
 const noTextResult = inspectPdfStructure(noText);
 check(noTextResult.textLayerState === 'not_detected', 'returns not_detected only when analyzed streams contain no text operators');
 
+const commentNoise = pdfWithStream(Buffer.from('% BT (fake) Tj ET', 'latin1'));
+const commentNoiseResult = inspectPdfStructure(commentNoise);
+check(commentNoiseResult.textLayerState === 'not_detected', 'ignores text-like operators that occur only inside PDF comments');
+
+const literalNoise = pdfWithStream(Buffer.from('(BT (fake) Tj ET) pop', 'latin1'));
+const literalNoiseResult = inspectPdfStructure(literalNoise);
+check(literalNoiseResult.textLayerState === 'not_detected', 'ignores text-like operators that occur only inside literal strings');
+
+const hexNoise = pdfWithStream(Buffer.from('<425420546a204554> pop', 'latin1'));
+const hexNoiseResult = inspectPdfStructure(hexNoise);
+check(hexNoiseResult.textLayerState === 'not_detected', 'ignores text-like operators that occur only inside hexadecimal strings');
+
+const nameNoise = pdfWithStream(Buffer.from('/BT /Tj /ET', 'latin1'));
+const nameNoiseResult = inspectPdfStructure(nameNoise);
+check(nameNoiseResult.textLayerState === 'not_detected', 'ignores text-like operator names instead of treating them as executable operators');
+
+const inlineImageNoise = pdfWithStream(Buffer.from('BI /W 1 /H 1 /BPC 8 /CS /RGB ID BT Tj ET EI', 'latin1'));
+const inlineImageResult = inspectPdfStructure(inlineImageNoise);
+check(inlineImageResult.textLayerState === 'unknown', 'inline image syntax fails closed instead of scanning image data as text operators');
+
+const commentedThenRealText = pdfWithStream(Buffer.from('% BT (fake) Tj ET\nBT /F1 12 Tf (Real) Tj ET', 'latin1'));
+const commentedThenRealTextResult = inspectPdfStructure(commentedThenRealText);
+check(commentedThenRealTextResult.textLayerState === 'detected', 'still detects a real text object after an ignored comment');
+
 const unsupported = pdfWithStream(Buffer.from('encoded', 'latin1'), '/Filter /ASCII85Decode');
 const unsupportedResult = inspectPdfStructure(unsupported);
 check(unsupportedResult.textLayerState === 'unknown' && unsupportedResult.unsupportedStreams === 1, 'unsupported non-image filters fail closed to unknown');

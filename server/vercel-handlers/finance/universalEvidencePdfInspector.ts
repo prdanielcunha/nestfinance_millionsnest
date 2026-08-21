@@ -21,26 +21,143 @@ const MAX_COMPRESSED_STREAM_BYTES = 2 * 1024 * 1024;
 const MAX_INFLATED_STREAM_BYTES = 2 * 1024 * 1024;
 const PDF_HEADER = Buffer.from('%PDF-', 'ascii');
 
+type TextOperatorScan = 'detected' | 'not_detected' | 'unknown';
+
 function isWhitespaceCode(code: number | undefined) {
   return code === 0 || code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
+}
+
+function isDelimiterCode(code: number | undefined) {
+  return code === 40 || code === 41 || code === 60 || code === 62 || code === 91 || code === 93 || code === 47 || code === 37;
 }
 
 function hasPdfHeader(bytes: Buffer) {
   return bytes.length >= PDF_HEADER.length && bytes.subarray(0, PDF_HEADER.length).equals(PDF_HEADER);
 }
 
-function hasTextShowingOperator(value: string) {
-  const begin = /(^|[\s\x00])BT(?=[\s\x00])/g;
-  let match: RegExpExecArray | null;
-  while ((match = begin.exec(value)) !== null) {
-    const start = match.index + match[0].length;
-    const end = value.indexOf('ET', start);
-    if (end < 0) return false;
-    const block = value.slice(start, Math.min(end, start + 512 * 1024));
-    if (/\bTj\b|\bTJ\b|(^|\s)'(?=\s|$)|(^|\s)"(?=\s|$)/m.test(block)) return true;
-    begin.lastIndex = end + 2;
+function skipLiteralString(value: string, start: number) {
+  let depth = 1;
+  let cursor = start + 1;
+  while (cursor < value.length) {
+    const code = value.charCodeAt(cursor);
+    if (code === 92) {
+      cursor += 2;
+      continue;
+    }
+    if (code === 40) depth += 1;
+    else if (code === 41) {
+      depth -= 1;
+      if (depth === 0) return cursor + 1;
+    }
+    cursor += 1;
   }
-  return false;
+  return -1;
+}
+
+function skipHexString(value: string, start: number) {
+  const end = value.indexOf('>', start + 1);
+  return end < 0 ? -1 : end + 1;
+}
+
+function scanTextOperators(bytes: Buffer): TextOperatorScan {
+  const value = bytes.toString('latin1');
+  let cursor = 0;
+  let inTextObject = false;
+  let textShowingSeen = false;
+
+  while (cursor < value.length) {
+    const code = value.charCodeAt(cursor);
+
+    if (isWhitespaceCode(code)) {
+      cursor += 1;
+      continue;
+    }
+
+    if (code === 37) {
+      cursor += 1;
+      while (cursor < value.length) {
+        const commentCode = value.charCodeAt(cursor);
+        if (commentCode === 10 || commentCode === 13) break;
+        cursor += 1;
+      }
+      continue;
+    }
+
+    if (code === 40) {
+      const next = skipLiteralString(value, cursor);
+      if (next < 0) return 'unknown';
+      cursor = next;
+      continue;
+    }
+
+    if (code === 60) {
+      if (value.charCodeAt(cursor + 1) === 60) {
+        cursor += 2;
+        continue;
+      }
+      const next = skipHexString(value, cursor);
+      if (next < 0) return 'unknown';
+      cursor = next;
+      continue;
+    }
+
+    if (code === 47) {
+      cursor += 1;
+      while (cursor < value.length) {
+        const nameCode = value.charCodeAt(cursor);
+        if (isWhitespaceCode(nameCode) || isDelimiterCode(nameCode)) break;
+        cursor += 1;
+      }
+      continue;
+    }
+
+    if (code === 39 || code === 34) {
+      if (inTextObject) textShowingSeen = true;
+      cursor += 1;
+      continue;
+    }
+
+    if (isDelimiterCode(code)) {
+      cursor += 1;
+      continue;
+    }
+
+    const start = cursor;
+    while (cursor < value.length) {
+      const tokenCode = value.charCodeAt(cursor);
+      if (isWhitespaceCode(tokenCode) || isDelimiterCode(tokenCode) || tokenCode === 39 || tokenCode === 34) break;
+      cursor += 1;
+    }
+
+    if (cursor === start) {
+      cursor += 1;
+      continue;
+    }
+
+    const token = value.slice(start, cursor);
+    if (token === 'BI') {
+      return 'unknown';
+    }
+    if (token === 'BT') {
+      if (inTextObject) return 'unknown';
+      inTextObject = true;
+      textShowingSeen = false;
+      continue;
+    }
+    if (token === 'ET') {
+      if (!inTextObject) return 'unknown';
+      if (textShowingSeen) return 'detected';
+      inTextObject = false;
+      textShowingSeen = false;
+      continue;
+    }
+    if (inTextObject && (token === 'Tj' || token === 'TJ')) {
+      textShowingSeen = true;
+    }
+  }
+
+  if (inTextObject) return 'unknown';
+  return 'not_detected';
 }
 
 function findDictionary(text: string, streamIndex: number) {
@@ -141,7 +258,9 @@ export function inspectPdfStructure(bytes: Buffer): PdfStructureInspection {
 
     if (isImage) continue;
     analyzedStreams += 1;
-    if (hasTextShowingOperator(decoded.toString('latin1'))) detected = true;
+    const scan = scanTextOperators(decoded);
+    if (scan === 'detected') detected = true;
+    else if (scan === 'unknown') unsupportedStreams += 1;
   }
 
   let textLayerState: PdfTextLayerState = 'unknown';
