@@ -11,8 +11,13 @@ class MockRes {
 }
 
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
-const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Length 28 >>\nstream\nBT /F1 12 Tf (Hello) Tj ET\nendstream\nendobj\n%%EOF\n', 'latin1');
-const noTextPdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Length 14 >>\nstream\nq /Im0 Do Q\nendstream\nendobj\n%%EOF\n', 'latin1');
+const pdfWithStream = (payload: Buffer) => Buffer.concat([
+  Buffer.from(`%PDF-1.4\n1 0 obj\n<< /Length ${payload.length} >>\nstream\n`, 'latin1'),
+  payload,
+  Buffer.from('\nendstream\nendobj\n%%EOF\n', 'latin1'),
+]);
+const pdf = pdfWithStream(Buffer.from('BT /F1 12 Tf (Hello) Tj ET', 'latin1'));
+const noTextPdf = pdfWithStream(Buffer.from('q /Im0 Do Q', 'latin1'));
 const png = Buffer.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,2,0,0,0,3]);
 
 process.env.NODE_ENV = 'test';
