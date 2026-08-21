@@ -8,8 +8,8 @@ import {
   Clipboard,
   Copy,
   FileText,
-  FolderInbox,
   Image as ImageIcon,
+  Inbox as InboxIcon,
   Plus,
   ShieldCheck,
   ShieldX,
@@ -239,7 +239,7 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
               </Button>
               <div className="min-w-0 pt-1">
                 <div className="flex items-center gap-2">
-                  <FolderInbox className="h-5 w-5 text-accent-primary" aria-hidden="true" />
+                  <InboxIcon className="h-5 w-5 text-accent-primary" aria-hidden="true" />
                   <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
                     {copy.pageTitle}
                   </h1>
@@ -300,7 +300,7 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
             ) : items.length === 0 ? (
               <Surface variant="elevated" radius="xl" className="p-8 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-border-subtle bg-surface-secondary text-text-muted">
-                  <FolderInbox className="h-6 w-6" aria-hidden="true" />
+                  <InboxIcon className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-text-primary">{copy.emptyTitle}</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-muted">
