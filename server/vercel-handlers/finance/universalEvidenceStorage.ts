@@ -4,9 +4,11 @@ import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { UNIVERSAL_EVIDENCE_MAX_BYTES } from '../../../shared/finance/universalEvidence.js';
 
 export type EvidenceStoredObject = { path: string; contentType: string; size: number; sha256: string; headerBytes: Uint8Array };
+export type EvidencePreviewObject = { bytes: Buffer; contentType: string; size: number; sha256: string };
 export interface UniversalEvidenceStorageAdapter {
   createUploadUrl(path: string, contentType: string, ttlMs: number): Promise<{ url: string; requiredHeaders: Record<string, string> }>;
   inspectAndHash(path: string): Promise<EvidenceStoredObject>;
+  readPreview(path: string): Promise<EvidencePreviewObject>;
 }
 const SYMBOL = Symbol.for('TEST_UNIVERSAL_EVIDENCE_STORAGE');
 
@@ -43,6 +45,21 @@ export function getUniversalEvidenceStorageAdapter(): UniversalEvidenceStorageAd
         stream.on('end', resolve);
       });
       return { path, contentType: String(metadata.contentType || ''), size, sha256: hash.digest('hex'), headerBytes: Buffer.concat(header) };
+    },
+    async readPreview(path) {
+      const file = bucket.file(path);
+      const [metadata] = await file.getMetadata();
+      const size = Number(metadata.size || 0);
+      if (!Number.isSafeInteger(size) || size <= 0) throw new Error('EVIDENCE_UPLOAD_MISSING');
+      if (size > UNIVERSAL_EVIDENCE_MAX_BYTES) throw new Error('EVIDENCE_TOO_LARGE');
+      const [bytes] = await file.download();
+      if (bytes.length !== size) throw new Error('EVIDENCE_SIZE_MISMATCH');
+      return {
+        bytes,
+        contentType: String(metadata.contentType || ''),
+        size,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+      };
     },
   };
 }
