@@ -113,12 +113,12 @@ verify(tooLarge.state === 'unavailable' && tooLarge.reason === 'input_too_large'
 const tooManyPages = await extractNativePdfText(buildPdf(Array.from({ length: PDF_TEXT_MAX_PAGES + 1 }, () => 'x')));
 verify(tooManyPages.state === 'unavailable' && tooManyPages.reason === 'page_limit_exceeded' && tooManyPages.totalPages === PDF_TEXT_MAX_PAGES + 1, 'page fan-out is blocked before per-page extraction');
 
-const longText = 'A'.repeat(PDF_TEXT_MAX_CHARACTERS + 4096);
-const truncated = await extractNativePdfText(buildPdf([longText]));
-verify(truncated.state === 'extracted', 'large but bounded native text remains extractable');
+const truncationPages = Array.from({ length: PDF_TEXT_MAX_PAGES }, () => 'A'.repeat(5000));
+const truncated = await extractNativePdfText(buildPdf(truncationPages));
+verify(truncated.state === 'extracted', 'multi-page native text exceeding the response budget remains boundedly extractable');
 if (truncated.state === 'extracted') {
   verify(truncated.characters === truncated.text.length && truncated.text.length <= PDF_TEXT_MAX_CHARACTERS, 'native text never exceeds the 100k-character cap after normalization');
-  verify(truncated.truncated === true, 'truncation is explicit rather than silent');
+  verify(truncated.truncated === true && truncated.extractedPages < PDF_TEXT_MAX_PAGES, 'response-budget truncation is explicit and stops page fan-out early');
 }
 
 console.log(`\nUniversal Evidence Native PDF Text I2F totals: ${passed} Passed`);
