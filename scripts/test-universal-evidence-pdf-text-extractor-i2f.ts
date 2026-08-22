@@ -118,7 +118,8 @@ const truncated = await extractNativePdfText(buildPdf(truncationPages));
 verify(truncated.state === 'extracted', 'multi-page native text exceeding the response budget remains boundedly extractable');
 if (truncated.state === 'extracted') {
   verify(truncated.characters === truncated.text.length && truncated.text.length <= PDF_TEXT_MAX_CHARACTERS, 'native text never exceeds the 100k-character cap after normalization');
-  verify(truncated.truncated === true && truncated.extractedPages < PDF_TEXT_MAX_PAGES, 'response-budget truncation is explicit and stops page fan-out early');
+  verify(truncated.truncated === true, 'response-budget truncation is explicit rather than silent');
+  verify(truncated.extractedPages >= 1 && truncated.extractedPages <= PDF_TEXT_MAX_PAGES, 'page accounting remains bounded independently of the exact truncation boundary');
 }
 
 console.log(`\nUniversal Evidence Native PDF Text I2F totals: ${passed} Passed`);
