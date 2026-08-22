@@ -11,6 +11,7 @@ on:
       - "shared/finance/countCaptureGeometry.ts"
       - "shared/finance/countCaptureExtraction.ts"
       - "shared/finance/countCaptureDenominations.ts"
+      - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -25,6 +26,7 @@ on:
       - "scripts/test-count-capture-h3b2.ts"
       - "scripts/test-count-capture-h3b3.ts"
       - "scripts/test-count-capture-h3b4.ts"
+      - "scripts/test-universal-evidence-pdf-text-extractor-i2f.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -41,6 +43,7 @@ on:
       - "shared/finance/countCaptureGeometry.ts"
       - "shared/finance/countCaptureExtraction.ts"
       - "shared/finance/countCaptureDenominations.ts"
+      - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-transaction-create-guided.ts"
@@ -55,6 +58,7 @@ on:
       - "scripts/test-count-capture-h3b2.ts"
       - "scripts/test-count-capture-h3b3.ts"
       - "scripts/test-count-capture-h3b4.ts"
+      - "scripts/test-universal-evidence-pdf-text-extractor-i2f.ts"
       - "package.json"
       - "package-lock.json"
       - "vite.config.*"
@@ -82,6 +86,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify native PDF text extractor I2F
+        run: npm run test:universal-evidence-pdf-text-extractor-i2f
 
       - name: Verify human-safe infrastructure errors
         run: npx tsx scripts/test-human-safe-infra-errors.ts
