@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import {
+  appendNativePdfTextBounded,
   extractNativePdfText,
   PDF_TEXT_MAX_CHARACTERS,
   PDF_TEXT_MAX_INPUT_BYTES,
@@ -91,12 +92,24 @@ verify(PDF_TEXT_MAX_INPUT_BYTES === 4 * 1024 * 1024, 'native extraction input is
 verify(PDF_TEXT_MAX_PAGES === 40, 'native extraction is capped at 40 pages');
 verify(PDF_TEXT_MAX_CHARACTERS === 100_000, 'native extraction response is capped at 100k characters');
 
+const bounded = appendNativePdfTextBounded('A'.repeat(PDF_TEXT_MAX_CHARACTERS - 10), 'B'.repeat(20));
+verify(bounded.text.length === PDF_TEXT_MAX_CHARACTERS, 'bounded accumulator never exceeds the 100k-character budget');
+verify(bounded.text.endsWith('B'.repeat(10)), 'bounded accumulator preserves only the portion that fits the budget');
+verify(bounded.truncated === true, 'bounded accumulator reports truncation explicitly');
+
 const simple = await extractNativePdfText(buildPdf(['Hello I2F']));
 verify(simple.state === 'extracted', 'valid one-page native-text PDF is extracted');
 if (simple.state === 'extracted') {
   verify(simple.text.includes('Hello I2F'), 'extracted text contains the native PDF text');
   verify(simple.totalPages === 1 && simple.extractedPages === 1, 'page counts are explicit and correct');
   verify(simple.characters === simple.text.length && simple.truncated === false, 'character metadata is exact for non-truncated text');
+}
+
+const multiPage = await extractNativePdfText(buildPdf(['First page', 'Second page']));
+verify(multiPage.state === 'extracted', 'multi-page native PDF text is extracted page-by-page');
+if (multiPage.state === 'extracted') {
+  verify(multiPage.text.includes('First page') && multiPage.text.includes('Second page'), 'multi-page output contains text from each page');
+  verify(multiPage.totalPages === 2 && multiPage.extractedPages === 2, 'multi-page accounting remains exact');
 }
 
 const noText = await extractNativePdfText(buildPdf([null]));
@@ -120,13 +133,11 @@ verify(tooLarge.state === 'unavailable' && tooLarge.reason === 'input_too_large'
 const tooManyPages = await extractNativePdfText(buildPdf(Array.from({ length: PDF_TEXT_MAX_PAGES + 1 }, () => 'x')));
 verify(tooManyPages.state === 'unavailable' && tooManyPages.reason === 'page_limit_exceeded' && tooManyPages.totalPages === PDF_TEXT_MAX_PAGES + 1, 'page fan-out is blocked before per-page extraction');
 
-const truncationPages = Array.from({ length: PDF_TEXT_MAX_PAGES }, () => 'A'.repeat(5000));
-const truncated = await extractNativePdfText(buildPdf(truncationPages));
-verify(truncated.state === 'extracted', 'multi-page native text exceeding the response budget remains boundedly extractable');
-if (truncated.state === 'extracted') {
-  verify(truncated.characters === truncated.text.length && truncated.text.length <= PDF_TEXT_MAX_CHARACTERS, 'native text never exceeds the 100k-character cap after normalization');
-  verify(truncated.truncated === true, 'response-budget truncation is explicit rather than silent');
-  verify(truncated.extractedPages >= 1 && truncated.extractedPages <= PDF_TEXT_MAX_PAGES, 'page accounting remains bounded independently of the exact truncation boundary');
+const largeNativePdf = await extractNativePdfText(buildPdf(Array.from({ length: PDF_TEXT_MAX_PAGES }, () => 'A'.repeat(5000))));
+verify(largeNativePdf.state === 'extracted', 'large native-text PDF remains boundedly extractable');
+if (largeNativePdf.state === 'extracted') {
+  verify(largeNativePdf.characters === largeNativePdf.text.length && largeNativePdf.text.length <= PDF_TEXT_MAX_CHARACTERS, 'end-to-end native extraction never exceeds the response character budget');
+  verify(largeNativePdf.extractedPages >= 1 && largeNativePdf.extractedPages <= PDF_TEXT_MAX_PAGES, 'end-to-end page accounting remains within the page cap');
 }
 
 console.log(`\nUniversal Evidence Native PDF Text I2F totals: ${passed} Passed`);
