@@ -78,6 +78,7 @@ export async function extractNativePdfText(bytes: Buffer): Promise<NativePdfText
       maxImageSize: PDF_TEXT_MAX_IMAGE_PIXELS,
       disableAutoFetch: true,
       disableStream: true,
+      isEvalSupported: false,
     });
 
     const totalPages = Number(pdf?.numPages || 0);
