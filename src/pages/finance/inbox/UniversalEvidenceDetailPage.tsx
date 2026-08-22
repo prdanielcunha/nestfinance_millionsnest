@@ -34,6 +34,7 @@ import {
   formatInboxMime,
   normalizeInboxEvidenceState,
 } from './inboxModel';
+import { UniversalEvidencePdfReadinessCard } from './UniversalEvidencePdfReadinessCard';
 
 const VALID_EVIDENCE_ID = /^evd_[a-f0-9]{32}$/;
 const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -358,6 +359,8 @@ function EvidenceDetailContent() {
               </div>
             </Surface>
           ) : null}
+
+          <UniversalEvidencePdfReadinessCard evidence={evidence} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
