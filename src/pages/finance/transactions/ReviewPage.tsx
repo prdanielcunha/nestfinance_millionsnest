@@ -1,32 +1,68 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShieldCheck, Filter, ArrowLeft, ArrowRight, ShieldX, Clock, FileWarning, HelpCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronRight,
+  Clock3,
+  ShieldCheck,
+  ShieldX,
+} from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { useAuth } from '@/src/hooks/useAuth';
-import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
-import { useTransactions } from '@/src/hooks/finance/useTransactions';
+import { Button, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
-import { hasEffectiveCapability } from '@/src/lib/permissions';
-
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
+import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import { useLanguage } from '@/src/contexts/LanguageContext';
+import { useTransactions } from '@/src/hooks/finance/useTransactions';
+import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { TRANSACTION_REVIEW_COPY } from './transactionReviewCopy';
+import {
+  formatReviewDate,
+  formatReviewMoney,
+  normalizeReviewDirection,
+  normalizeReviewOrder,
+  type ReviewDirectionFilter,
+  type ReviewOrder,
+} from './transactionReviewModel';
+
+type ReviewErrorKind = 'index' | 'generic' | null;
+
+const DIRECTION_FILTERS: ReviewDirectionFilter[] = [
+  'all',
+  'income',
+  'expense',
+  'transfer',
+  'liability_settlement',
+];
+
+const ORDER_FILTERS: ReviewOrder[] = ['oldest', 'newest'];
 
 export default function ReviewPage() {
   const { accessState } = useAuth();
-  
-  if (accessState.status === 'initializing' || accessState.status === 'authenticated_unresolved') {
+  const { language } = useLanguage();
+  const copy = TRANSACTION_REVIEW_COPY[language];
+
+  if (
+    accessState.status === 'initializing' ||
+    accessState.status === 'authenticated_unresolved'
+  ) {
     return null;
   }
 
   if (!hasEffectiveCapability(accessState, 'finance.review')) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-base border-t border-border-subtle">
-        <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 text-red-500 border border-red-500/20">
-          <ShieldX className="w-8 h-8" />
+      <main className="flex flex-1 flex-col items-center justify-center border-t border-border-subtle bg-surface-base p-8 text-center">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-semantic-danger/20 bg-semantic-danger/10 text-semantic-danger">
+          <ShieldX className="h-8 w-8" aria-hidden="true" />
         </div>
-        <h3 className="text-lg font-medium text-text-primary mb-2">Acesso Negado</h3>
-        <p className="text-sm text-text-muted max-w-sm mb-6">
-           Você não tem permissão para revisar movimentações.
+        <h1 className="mb-2 text-lg font-semibold text-text-primary">
+          {copy.accessDeniedTitle}
+        </h1>
+        <p className="max-w-sm text-sm leading-relaxed text-text-muted">
+          {copy.accessDeniedBody}
         </p>
       </main>
     );
@@ -44,356 +80,432 @@ function ReviewContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { listTransactions } = useTransactions();
-  
+  const { language } = useLanguage();
+  const copy = TRANSACTION_REVIEW_COPY[language];
+
+  const directionFilter = normalizeReviewDirection(searchParams.get('direction'));
+  const orderFilter = normalizeReviewOrder(searchParams.get('order'));
+
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ReviewErrorKind>(null);
   const [errorDetails, setErrorDetails] = useState<any | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(true);
-
-  // Filters
-  const directionFilter = searchParams.get('direction') || 'all';
-  const orderFilter = searchParams.get('order') || 'oldest';
-
   const epochRef = useRef(0);
 
-  useEffect(() => {
-    let abortController = new AbortController();
-    setItems([]);
-    setNextCursor(undefined);
-    setHasMore(true);
-    
-    if (activeFinanceEntityId) {
-      loadData(undefined, abortController.signal, ++epochRef.current);
-    }
-    
-    return () => {
-      abortController.abort();
-    };
-  }, [activeFinanceEntityId, directionFilter, orderFilter]);
-
-  const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
+  const loadData = async (
+    cursor?: string,
+    signal?: AbortSignal,
+    currentEpoch?: number,
+  ) => {
     if (!cursor) setLoading(true);
     else setLoadingMore(true);
-    setError(null);
+    setErrorKind(null);
     setErrorDetails(null);
 
     try {
-      const filters: any = {
+      const filters: Record<string, string> = {
         status: 'ready_for_review',
-        order: orderFilter
+        order: orderFilter,
       };
       if (directionFilter !== 'all') filters.direction = directionFilter;
 
-      const res = await listTransactions(filters, cursor, 25);
-      
-      if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
-      
-      setItems(prev => cursor ? [...prev, ...res.items] : res.items);
-      setNextCursor(res.nextCursor);
-      setHasMore(res.hasMore);
-    } catch (err: any) {
-      if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
-      setError(err.message || 'Falha ao carregar a fila de revisão.');
-      setErrorDetails(err.details || null);
+      const response = await listTransactions(filters, cursor, 25);
+
+      if (
+        signal?.aborted ||
+        (currentEpoch !== undefined && currentEpoch !== epochRef.current)
+      ) {
+        return;
+      }
+
+      setItems((current) =>
+        cursor ? [...current, ...response.items] : response.items,
+      );
+      setNextCursor(response.nextCursor);
+      setHasMore(response.hasMore);
+    } catch (error: any) {
+      if (
+        signal?.aborted ||
+        (currentEpoch !== undefined && currentEpoch !== epochRef.current)
+      ) {
+        return;
+      }
+
+      const details = error?.details || null;
+      const rawMessage = String(error?.message || '');
+      const isIndexError =
+        details?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED' ||
+        details?.remediation?.type === 'CREATE_FIRESTORE_INDEX' ||
+        rawMessage.includes('requires an index');
+
+      setErrorKind(isIndexError ? 'index' : 'generic');
+      setErrorDetails(details);
     } finally {
-      if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
+      if (
+        signal?.aborted ||
+        (currentEpoch !== undefined && currentEpoch !== epochRef.current)
+      ) {
+        return;
+      }
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  const handleDirectionFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (val === 'all') {
-      searchParams.delete('direction');
-    } else {
-      searchParams.set('direction', val);
+  useEffect(() => {
+    const abortController = new AbortController();
+    setItems([]);
+    setNextCursor(undefined);
+    setHasMore(true);
+
+    if (activeFinanceEntityId) {
+      void loadData(
+        undefined,
+        abortController.signal,
+        ++epochRef.current,
+      );
     }
-    setSearchParams(searchParams);
+
+    return () => abortController.abort();
+    // The request is intentionally restarted by these canonical queue dimensions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFinanceEntityId, directionFilter, orderFilter]);
+
+  const updateDirection = (value: ReviewDirectionFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'all') next.delete('direction');
+    else next.set('direction', value);
+    next.delete('cursor');
+    setSearchParams(next);
   };
 
-  const handleOrderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (val === 'oldest') {
-      searchParams.delete('order');
-    } else {
-      searchParams.set('order', val);
-    }
-    setSearchParams(searchParams);
+  const updateOrder = (value: ReviewOrder) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'oldest') next.delete('order');
+    else next.set('order', value);
+    next.delete('cursor');
+    setSearchParams(next);
   };
 
   const loadMore = () => {
     if (!loadingMore && hasMore && nextCursor) {
-      loadData(nextCursor, undefined, epochRef.current);
+      void loadData(nextCursor, undefined, epochRef.current);
     }
   };
 
-  const getTransactionLabel = (tx: any) => {
-    if (tx.transactionKind === 'income') return 'Entrada';
-    if (tx.transactionKind === 'expense') return 'Saída';
-    if (tx.transactionKind === 'transfer') return 'Transf.';
-    if (tx.transactionKind === 'liability_settlement') return 'Acerto';
-    return 'Outro';
+  const openReview = (transactionId: string) => {
+    navigate(
+      APP_ROUTES.transactionReviewDetail.replace(':transactionId', transactionId),
+    );
   };
 
-  const getStatusBadge = (tx: any) => {
-    if (tx.status === 'ready_for_review') {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20">Aguardando</span>;
+  const transactionType = (transactionKind: string) => {
+    if (transactionKind === 'income') return copy.directions.income;
+    if (transactionKind === 'expense') return copy.directions.expense;
+    if (transactionKind === 'transfer') return copy.directions.transfer;
+    if (transactionKind === 'liability_settlement') {
+      return copy.directions.liability_settlement;
     }
-    return null;
+    return copy.directions.all;
   };
 
-  const formatMoney = (cents: number, currency: string) => {
-    return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: currency || 'BRL' });
-  };
-
-  // Dedicated human-friendly error state with action controls
-  if (error && items.length === 0) {
-    const isIndexError = errorDetails?.errorCode === 'FINANCE_REVIEW_INDEX_REQUIRED' || errorDetails?.remediation?.type === 'CREATE_FIRESTORE_INDEX' || error?.includes('requires an index');
-    
-    if (isIndexError) {
-      return (
-        <div className="flex-1 flex flex-col min-h-0 bg-surface-base pb-24 md:pb-8">
-          <FinanceEntityContextBar />
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 flex items-center justify-center">
-             <div className="max-w-md w-full">
-               <FirestoreIndexRemediationCard 
-                  remediation={errorDetails?.remediation} 
-                  requestId={errorDetails?.requestId} 
-                  errorText={error}
-                  onRetry={() => loadData(undefined, undefined, epochRef.current)} 
-               />
-             </div>
-          </div>
-        </div>
-      );
-    }
-
+  if (errorKind === 'index' && items.length === 0) {
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-surface-base pb-24 md:pb-8">
-        <FinanceEntityContextBar />
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 flex items-center justify-center">
-          <div className="max-w-md w-full bg-surface-elevated border border-border-subtle rounded-2xl p-6 shadow-sm text-center">
-            <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border border-red-500/20">
-              <FileWarning className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-medium text-text-primary mb-2">
-              Não foi possível carregar as revisões
-            </h3>
-            <p className="text-sm text-text-muted mb-6 leading-relaxed">
-              Tivemos uma falha ao buscar as movimentações desta igreja. Tente novamente.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-              <button
-                onClick={() => loadData(undefined, undefined, epochRef.current)}
-                className="w-full sm:w-auto h-11 px-5 rounded-lg bg-surface-base border border-border-subtle hover:bg-surface-elevated text-text-primary text-sm font-medium transition-colors cursor-pointer flex items-center justify-center min-h-[44px]"
-              >
-                Tentar novamente
-              </button>
-              <button
-                onClick={() => navigate(APP_ROUTES.finance)}
-                className="w-full sm:w-auto h-11 px-5 rounded-lg bg-surface-base border border-border-subtle hover:bg-surface-elevated text-text-primary text-sm font-medium transition-colors cursor-pointer flex items-center justify-center min-h-[44px]"
-              >
-                Voltar para Finance
-              </button>
-            </div>
-
-            {errorDetails?.requestId && (
-              <p className="mt-6 text-[10px] font-mono text-text-muted select-all">
-                Código de atendimento: {errorDetails.requestId}
-              </p>
-            )}
+      <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
+        <FinanceEntityContextBar areaName={copy.pageTitle} />
+        <div className="flex flex-1 items-center justify-center overflow-y-auto p-4 md:p-6">
+          <div className="w-full max-w-md">
+            <FirestoreIndexRemediationCard
+              remediation={errorDetails?.remediation}
+              requestId={errorDetails?.requestId}
+              onRetry={() =>
+                void loadData(undefined, undefined, epochRef.current)
+              }
+            />
           </div>
         </div>
       </div>
     );
   }
 
+  if (errorKind === 'generic' && items.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
+        <FinanceEntityContextBar areaName={copy.pageTitle} />
+        <div className="flex flex-1 items-center justify-center overflow-y-auto p-4 md:p-6">
+          <Surface
+            variant="elevated"
+            radius="xl"
+            role="alert"
+            className="w-full max-w-md p-6 text-center"
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-semantic-danger/20 bg-semantic-danger/10 text-semantic-danger">
+              <AlertCircle className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h1 className="text-lg font-semibold text-text-primary">
+              {copy.errorTitle}
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-text-muted">
+              {copy.errorBody}
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Button
+                fullWidth
+                onClick={() =>
+                  void loadData(undefined, undefined, epochRef.current)
+                }
+              >
+                {copy.retry}
+              </Button>
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => navigate(APP_ROUTES.finance)}
+              >
+                {copy.backToFinance}
+              </Button>
+            </div>
+            {errorDetails?.requestId ? (
+              <p className="mt-5 break-all font-mono text-xs text-text-muted">
+                {copy.supportCode}: {errorDetails.requestId}
+              </p>
+            ) : null}
+          </Surface>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-surface-base pb-24 md:pb-8">
-      <FinanceEntityContextBar />
-      
-      <div className="flex-1 overflow-y-auto min-h-0 p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center text-amber-600 border border-amber-500/20 flex-shrink-0">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-medium text-text-primary">Central de Revisão</h1>
-                <p className="text-sm text-text-muted">Aprovação de movimentações prontas para lançamento</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
-              <select
-                value={orderFilter}
-                onChange={handleOrderChange}
-                className="h-11 md:h-9 px-3 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary w-full sm:w-auto font-medium"
-                style={{ minHeight: '44px' }}
+    <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
+      <FinanceEntityContextBar areaName={copy.pageTitle} />
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+          <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <Button
+                variant="ghost"
+                className="!min-h-12 !w-12 !px-0"
+                aria-label={copy.back}
+                onClick={() => navigate(APP_ROUTES.finance)}
               >
-                <option value="oldest">Mais Antigas Primeiro</option>
-                <option value="newest">Mais Recentes Primeiro</option>
-              </select>
-
-              <div className="relative w-full sm:w-auto">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                <select
-                  value={directionFilter}
-                  onChange={handleDirectionFilterChange}
-                  className="h-11 md:h-9 pl-9 pr-8 bg-surface-elevated border border-border-subtle rounded-md text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary appearance-none w-full sm:min-w-[150px] font-medium"
-                  style={{ minHeight: '44px' }}
-                >
-                  <option value="all">Todos os tipos</option>
-                  <option value="income">Entradas</option>
-                  <option value="expense">Saídas</option>
-                  <option value="transfer">Transferências</option>
-                  <option value="liability_settlement">Acertos/Repasses</option>
-                </select>
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <div className="min-w-0 pt-1">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck
+                    className="h-5 w-5 text-accent-primary"
+                    aria-hidden="true"
+                  />
+                  <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+                    {copy.pageTitle}
+                  </h1>
+                </div>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-muted">
+                  {copy.pageSubtitle}
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Desktop Table View (hidden on smaller screens) */}
-          <div className="hidden md:block bg-surface-elevated border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-surface-base/50 text-text-muted font-medium border-b border-border-subtle">
-                  <tr>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3">Data</th>
-                    <th className="px-4 py-3">Descrição</th>
-                    <th className="px-4 py-3">Conta Principal</th>
-                    <th className="px-4 py-3 text-right">Valor</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {loading && items.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-text-muted">
-                        <div className="flex flex-col items-center justify-center space-y-3">
-                          <div className="w-8 h-8 border-4 border-surface-base border-t-accent-primary rounded-full animate-spin" />
-                          <p>Carregando fila...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : items.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-text-muted">
-                        Nenhuma movimentação aguardando revisão nesta entidade.
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((tx) => (
-                      <tr 
-                        key={tx.id} 
-                        className="hover:bg-surface-base/30 transition-colors group cursor-pointer"
-                        onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', tx.id) + '?reviewMode=true')}
-                      >
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-text-primary">{getTransactionLabel(tx)}</span>
-                        </td>
-                        <td className="px-4 py-3 text-text-primary">
-                          {tx.occurredAt && !isNaN(new Date(tx.occurredAt).getTime()) ? new Date(tx.occurredAt).toLocaleDateString('pt-BR') : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-text-primary truncate max-w-[200px]">
-                          {tx.description || <span className="text-text-muted italic">Sem descrição</span>}
-                        </td>
-                        <td className="px-4 py-3 text-text-primary">
-                          {tx.accountSnapshot?.name || <span className="text-text-muted">-</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-text-primary">
-                          {formatMoney(tx.amountCents, tx.currency || 'BRL')}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {getStatusBadge(tx)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button 
-                            className="text-accent-primary hover:text-accent-hover font-medium text-sm transition-colors opacity-0 group-hover:opacity-100 min-h-[44px] flex items-center justify-end w-full"
-                          >
-                            Revisar
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Mobile Cards View (hidden on medium screens and up) */}
-          <div className="block md:hidden space-y-4">
-            {loading && items.length === 0 ? (
-              <div className="py-12 text-center text-text-muted">
-                <div className="flex flex-col items-center justify-center space-y-3">
-                  <div className="w-8 h-8 border-4 border-surface-base border-t-accent-primary rounded-full animate-spin" />
-                  <p>Carregando fila...</p>
-                </div>
-              </div>
-            ) : items.length === 0 ? (
-              <div className="py-12 text-center text-text-muted text-sm bg-surface-elevated border border-border-subtle rounded-xl">
-                Nenhuma movimentação aguardando revisão nesta entidade.
-              </div>
-            ) : (
-              items.map((tx) => (
-                <div
-                  key={tx.id}
-                  onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', tx.id) + '?reviewMode=true')}
-                  className="p-4 bg-surface-elevated border border-border-subtle rounded-xl hover:bg-surface-base/30 active:bg-surface-base/50 transition-all cursor-pointer shadow-sm relative flex flex-col justify-between"
-                  style={{ minHeight: '44px' }}
+            <div
+              className="flex rounded-xl border border-border-subtle bg-surface-elevated p-1"
+              aria-label={copy.filtersLabel}
+            >
+              {ORDER_FILTERS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={orderFilter === value}
+                  onClick={() => updateOrder(value)}
+                  className={`min-h-11 flex-1 rounded-lg px-3 text-xs font-semibold transition-colors sm:flex-none ${
+                    orderFilter === value
+                      ? 'bg-surface-secondary text-text-primary'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                        {getTransactionLabel(tx)}
-                      </span>
-                      <span className="text-xs text-text-secondary font-medium">
-                        {tx.occurredAt && !isNaN(new Date(tx.occurredAt).getTime()) ? new Date(tx.occurredAt).toLocaleDateString('pt-BR') : '-'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-sm font-semibold text-text-primary">
-                        {formatMoney(tx.amountCents, tx.currency || 'BRL')}
-                      </span>
-                      {getStatusBadge(tx)}
-                    </div>
-                  </div>
+                  {copy.orders[value]}
+                </button>
+              ))}
+            </div>
+          </header>
 
-                  <div className="mt-2.5 text-sm text-text-primary break-words whitespace-normal leading-relaxed">
-                    {tx.description || <span className="text-text-muted italic text-xs">Sem descrição</span>}
-                  </div>
-
-                  <div className="mt-3.5 pt-2.5 border-t border-border-subtle/50 flex justify-between items-center text-xs text-text-muted">
-                    <span>Conta: <strong className="text-text-secondary">{tx.accountSnapshot?.name || '-'}</strong></span>
-                    <span className="text-accent-primary font-medium flex items-center gap-1 min-h-[44px]">
-                      Revisar <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          
-          {items.length > 0 && hasMore && (
-            <div className="p-4 bg-surface-elevated border border-border-subtle rounded-xl flex justify-center shadow-sm">
+          <div
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+            aria-label={copy.filtersLabel}
+          >
+            {DIRECTION_FILTERS.map((value) => (
               <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="px-5 py-2.5 text-sm font-medium text-text-primary bg-surface-elevated border border-border-subtle rounded-lg hover:bg-surface-base hover:border-border-strong disabled:opacity-50 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
+                key={value}
+                type="button"
+                aria-pressed={directionFilter === value}
+                onClick={() => updateDirection(value)}
+                className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${
+                  directionFilter === value
+                    ? 'border-accent-primary/30 bg-accent-primary/10 text-accent-primary'
+                    : 'border-border-subtle bg-surface-elevated text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+                }`}
               >
-                {loadingMore ? 'Carregando...' : 'Carregar mais'}
+                {copy.directions[value]}
               </button>
+            ))}
+          </div>
+
+          {loading && items.length === 0 ? (
+            <div className="grid gap-3" aria-busy="true" aria-label={copy.loading}>
+              {[0, 1, 2].map((item) => (
+                <Surface
+                  key={item}
+                  variant="elevated"
+                  radius="lg"
+                  className="animate-pulse p-5"
+                >
+                  <div className="h-4 w-24 rounded bg-surface-secondary" />
+                  <div className="mt-4 h-6 w-2/3 rounded bg-surface-secondary" />
+                  <div className="mt-5 h-4 w-full rounded bg-surface-secondary" />
+                </Surface>
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <Surface variant="elevated" radius="xl" className="p-8 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-border-subtle bg-surface-secondary text-text-muted">
+                <Clock3 className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <h2 className="mt-4 text-lg font-semibold text-text-primary">
+                {copy.emptyTitle}
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-muted">
+                {copy.emptyBody}
+              </p>
+            </Surface>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="hidden grid-cols-[8rem_8rem_minmax(12rem,1fr)_12rem_9rem_7rem] gap-4 px-4 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted md:grid">
+                <span>{copy.date}</span>
+                <span>{copy.type}</span>
+                <span>{copy.description}</span>
+                <span>{copy.account}</span>
+                <span className="text-right">{copy.amount}</span>
+                <span className="text-right">{copy.review}</span>
+              </div>
+
+              {items.map((transaction) => {
+                const date =
+                  formatReviewDate(transaction.occurredAt, language) || '—';
+                const accountName =
+                  transaction.accountSnapshot?.name || copy.noAccount;
+                const description = transaction.description || copy.noDescription;
+                const warningCount = Number(transaction.warningCount || 0);
+
+                return (
+                  <button
+                    key={transaction.id}
+                    type="button"
+                    onClick={() => openReview(transaction.id)}
+                    className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                  >
+                    <Surface
+                      variant="elevated"
+                      radius="lg"
+                      className="p-4 transition-colors group-hover:bg-surface-secondary/70 sm:p-5"
+                    >
+                      <div className="grid gap-3 md:grid-cols-[8rem_8rem_minmax(12rem,1fr)_12rem_9rem_7rem] md:items-center md:gap-4">
+                        <div className="flex items-center justify-between gap-3 md:block">
+                          <span className="text-xs font-medium text-text-muted md:text-sm md:text-text-secondary">
+                            {date}
+                          </span>
+                          <span className="inline-flex rounded-full border border-semantic-warning/20 bg-semantic-warning/10 px-2.5 py-1 text-[11px] font-semibold text-semantic-warning md:hidden">
+                            {copy.awaitingReview}
+                          </span>
+                        </div>
+
+                        <span className="text-sm font-semibold text-text-primary">
+                          {transactionType(transaction.transactionKind)}
+                        </span>
+
+                        <div className="min-w-0">
+                          <p
+                            className={`truncate text-sm font-medium ${
+                              transaction.description
+                                ? 'text-text-primary'
+                                : 'italic text-text-muted'
+                            }`}
+                          >
+                            {description}
+                          </p>
+                          {warningCount > 0 ? (
+                            <p className="mt-1 text-xs text-semantic-warning">
+                              {copy.warnings(warningCount)}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <span className="truncate text-sm text-text-secondary">
+                          {accountName}
+                        </span>
+
+                        <span className="text-base font-semibold tabular-nums text-text-primary md:text-right">
+                          {formatReviewMoney(
+                            Number(transaction.amountCents || 0),
+                            language,
+                            transaction.currency || 'BRL',
+                          )}
+                        </span>
+
+                        <span className="flex min-h-11 items-center justify-end gap-1 text-sm font-semibold text-accent-primary">
+                          {copy.review}
+                          <ChevronRight
+                            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                            aria-hidden="true"
+                          />
+                        </span>
+                      </div>
+                    </Surface>
+                  </button>
+                );
+              })}
             </div>
           )}
+
+          {items.length > 0 ? (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              {hasMore && nextCursor ? (
+                <Button
+                  variant="secondary"
+                  disabled={loadingMore}
+                  onClick={loadMore}
+                >
+                  {loadingMore ? copy.loadingMore : copy.loadMore}
+                </Button>
+              ) : (
+                <p className="text-xs text-text-muted">{copy.endOfQueue}</p>
+              )}
+            </div>
+          ) : null}
+
+          {errorKind === 'generic' && items.length > 0 ? (
+            <Surface
+              variant="secondary"
+              radius="lg"
+              role="status"
+              className="border-semantic-warning/20 bg-semantic-warning/10 p-4"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-text-primary">{copy.errorBody}</p>
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    void loadData(undefined, undefined, epochRef.current)
+                  }
+                >
+                  {copy.retry}
+                </Button>
+              </div>
+            </Surface>
+          ) : null}
         </div>
       </div>
     </div>

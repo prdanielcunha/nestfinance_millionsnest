@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { requireFinanceTransactionAccess, resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
@@ -39,25 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isValidIdempotencyKey(approvalIdempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    // Check capability: finance.approve_for_posting
-    const context = await requireFinanceTransactionAccess({
-      db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.approve_for_posting'
-    });
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.approve_for_posting');
 
     const payload = { financeEntityId, transactionId, expectedVersion, comment }; 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'approve_for_posting', approvalIdempotencyKey);
@@ -85,7 +67,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Load all accounts for readiness check
       const accountsQ = await t.get(context.repository.getAccountsRef());
       const accounts = accountsQ.docs.map(d => ({id: d.id, ...d.data()}));
-      console.log('--- DEBUG accountsApprove:', accounts);
 
       const { evaluateReviewReadiness } = await import('../../../shared/finance/ledger/evaluateReviewReadiness.js');
       const { computeApprovalSourceHash } = await import('../../../shared/finance/ledger/approvalSourceHash.js');

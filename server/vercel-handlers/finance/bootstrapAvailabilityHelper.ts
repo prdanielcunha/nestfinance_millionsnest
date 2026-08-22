@@ -1,4 +1,3 @@
-import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 
 export type AvailabilityReason = 'emergency_disabled' | 'available';
@@ -10,7 +9,7 @@ export interface ApplicationAvailability {
 
 export async function getApplicationAvailability(financeEntityId: string): Promise<ApplicationAvailability> {
   const isEmergencyDisabled = process.env.NESTFINANCE_BOOTSTRAP_EMERGENCY_DISABLED === 'true';
-  
+
   if (isEmergencyDisabled) {
     return { available: false, reason: 'emergency_disabled' };
   }
@@ -18,64 +17,62 @@ export async function getApplicationAvailability(financeEntityId: string): Promi
   return { available: true, reason: 'available' };
 }
 
+function sessionPermissions(session: any): string[] {
+  if (Array.isArray(session?.permissions)) return session.permissions;
+  return Array.isArray(session?.capabilities) ? session.capabilities : [];
+}
+
+function hasEntityScope(session: any, financeEntityId: string): boolean {
+  if (session?.isGlobalAccess === true) return true;
+
+  const scopes = session?.scopes;
+  if (!scopes || typeof scopes !== 'object') return true;
+
+  const globalScope = scopes['*'];
+  if (Array.isArray(globalScope) && globalScope.includes('*')) return true;
+
+  if (Object.prototype.hasOwnProperty.call(scopes, 'financeEntityIds')) {
+    const financeEntityIds = scopes.financeEntityIds;
+    return Array.isArray(financeEntityIds) && (financeEntityIds.includes('*') || financeEntityIds.includes(financeEntityId));
+  }
+
+  return true;
+}
+
 export async function canManageFinanceBootstrap(uid: string, organizationId: string, financeEntityId: string) {
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    if (!sessionList.granted) {
-        return { canApply: false, reason: 'UNAUTHORIZED' };
-    }
+  // Authorization is resolved once from the canonical Hub-compatible session contract.
+  // Legacy membership documents are intentionally not read here.
+  const session = await resolveEcosystemSession(uid, organizationId);
 
-    if (sessionList.isGlobalAccess === true) {
-        return { canApply: true, accessSource: 'global_role' };
-    }
+  if (!session.granted) {
+    return { canApply: false, reason: session.denialReason || 'UNAUTHORIZED' };
+  }
 
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    
-    let memberData: any = null;
-    const memberDoc = await db.collection('organizations').doc(organizationId).collection('users').doc(uid).get();
+  if (session.isGlobalAccess === true) {
+    return { canApply: true, accessSource: 'global_system_role' };
+  }
 
-    if (memberDoc.exists) {
-        memberData = memberDoc.data();
-    } else {
-        const rootMemberQuery = await db.collection('organization_members')
-            .where('organizationId', '==', organizationId)
-            .where('uid', '==', uid)
-            .get();
-        if (!rootMemberQuery.empty) {
-            memberData = rootMemberQuery.docs[0].data();
-        }
-    }
+  if (!hasEntityScope(session, financeEntityId)) {
+    return { canApply: false, reason: 'INSUFFICIENT_ENTITY_PERMISSION' };
+  }
 
-    if (!memberData) {
-        return { canApply: false, reason: 'NOT_A_MEMBER' };
-    }
+  const permissions = sessionPermissions(session);
+  const roles = Array.isArray(session.roles) ? session.roles : [];
+  const organizationRole = session.organizationRole;
 
-    if (memberData.status && memberData.status !== 'active') {
-        return { canApply: false, reason: 'INACTIVE_MEMBERSHIP' };
-    }
+  const hasFinanceAdmin =
+    permissions.includes('*') ||
+    permissions.includes('organization.manage_entities') ||
+    permissions.includes('finance.manage') ||
+    permissions.includes('finance_admin') ||
+    roles.includes('admin') ||
+    roles.includes('treasurer') ||
+    organizationRole === 'owner' ||
+    organizationRole === 'admin';
 
-    const orgRole = memberData.organizationRole || memberData.role;
-    const isOrgAdmin = orgRole === 'owner' || orgRole === 'admin';
-    
-    const financeAccess = memberData.nestFinanceAccess || {};
-    const financeRoles = Array.isArray(financeAccess.roles) ? financeAccess.roles : [];
-    const financePermissions = Array.isArray(financeAccess.permissions) ? financeAccess.permissions : [];
-    
-    const hasFinanceAdmin = isOrgAdmin || 
-                         financeRoles.includes('admin') || 
-                         financeRoles.includes('treasurer') || 
-                         financePermissions.includes('finance_admin');
-
-    if (hasFinanceAdmin) {
-        // Enforce entity isolation if explicitly scoped
-        if (financeAccess.scopes && Array.isArray(financeAccess.scopes.financeEntityIds)) {
-            if (!financeAccess.scopes.financeEntityIds.includes(financeEntityId)) {
-                return { canApply: false, reason: 'INSUFFICIENT_ENTITY_PERMISSION' };
-            }
-        }
-        return { canApply: true, accessSource: 'organization_membership' };
-    }
-
+  if (!hasFinanceAdmin) {
     return { canApply: false, reason: 'INSUFFICIENT_FINANCE_PERMISSION' };
+  }
+
+  return { canApply: true, accessSource: 'organization_membership' };
 }

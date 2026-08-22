@@ -15,17 +15,27 @@ const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/Fina
 const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/FinanceEntitiesPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
-const CountPage = lazy(() => import('@/src/pages/finance/CountPage'));
+const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
+const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
+const CountPaperFormsPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormsPage'));
+const CountPaperFormPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormPage'));
+const CountCapturePage = lazy(() => import('@/src/pages/finance/count/CountCapturePage'));
+const CountCaptureReviewPage = lazy(() => import('@/src/pages/finance/count/CountCaptureReviewPage'));
+const UniversalCapturePage = lazy(() => import('@/src/pages/finance/capture/UniversalCapturePage'));
 const BalancePage = lazy(() => import('@/src/pages/finance/BalancePage'));
 const InboxPage = lazy(() => import('@/src/pages/finance/InboxPage'));
+const UniversalEvidenceDetailPage = lazy(() => import('@/src/pages/finance/inbox/UniversalEvidenceDetailPage'));
 const ReportsPage = lazy(() => import('@/src/pages/finance/ReportsPage'));
 const AuditPage = lazy(() => import('@/src/pages/finance/AuditPage'));
 const MorePage = lazy(() => import('@/src/pages/finance/MorePage'));
 const TransactionsListPage = lazy(() => import('@/src/pages/finance/transactions/TransactionsListPage'));
 const TransactionCreatePage = lazy(() => import('@/src/pages/finance/transactions/TransactionCreatePage'));
-const TransactionDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionDetailPage'));
-const TransactionEditPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditPage'));
+const TransactionDetailOverviewPage = lazy(() => import('@/src/pages/finance/transactions/TransactionDetailOverviewPage'));
+const TransactionAdvancedDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionAdvancedDetailPage'));
+const TransactionEditGuidedPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditGuidedPage'));
+const TransactionEditLegacyPage = lazy(() => import('@/src/pages/finance/transactions/TransactionEditPage'));
 const ReviewPage = lazy(() => import('@/src/pages/finance/transactions/ReviewPage'));
+const TransactionReviewDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionReviewDetailPage'));
 
 const PageFallback = () => (
   <div className="flex h-[50vh] items-center justify-center fade-in">
@@ -41,8 +51,6 @@ const routes: RouteObject[] = [
     children: [
       {
         index: true,
-        // Ao carregar a raiz, o AuthBoundary irá detectar se está deslogado e mostrar a tela dele.
-        // Mas se estiver autenticado, na ShellLayout o EcosystemAccessBoundary vai bloquear o acesso por enquanto.
         element: <Navigate to={APP_ROUTES.finance} replace />,
       },
       {
@@ -52,42 +60,18 @@ const routes: RouteObject[] = [
       {
         element: <ShellLayout />,
         children: [
-          {
-            path: APP_ROUTES.finance,
-            element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactions,
-            element: <Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionCreate,
-            element: <Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionDetail,
-            element: <Suspense fallback={<PageFallback />}><TransactionDetailPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.transactionEdit,
-            element: <Suspense fallback={<PageFallback />}><TransactionEditPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeReview,
-            element: <Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSetup,
-            element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettings,
-            element: <Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettingsAccounts,
-            element: <Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense>,
-          },
+          { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
+          { path: APP_ROUTES.transactions, element: <Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense> },
+          { path: APP_ROUTES.transactionCreate, element: <Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense> },
+          { path: APP_ROUTES.transactionDetail, element: <Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense> },
+          { path: APP_ROUTES.transactionDetailLegacy, element: <Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense> },
+          { path: APP_ROUTES.transactionEdit, element: <Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense> },
+          { path: APP_ROUTES.transactionEditLegacy, element: <Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense> },
+          { path: APP_ROUTES.financeReview, element: <Suspense fallback={<PageFallback />}><ReviewPage /></Suspense> },
+          { path: APP_ROUTES.transactionReviewDetail, element: <Suspense fallback={<PageFallback />}><TransactionReviewDetailPage /></Suspense> },
+          { path: APP_ROUTES.financeSetup, element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense> },
+          { path: APP_ROUTES.financeSettings, element: <Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense> },
+          { path: APP_ROUTES.financeSettingsAccounts, element: <Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense> },
           {
             path: APP_ROUTES.financeSettingsEntities,
             element: (
@@ -98,56 +82,37 @@ const routes: RouteObject[] = [
               </Suspense>
             ),
           },
-          {
-            path: APP_ROUTES.financeSettingsFunds,
-            element: <Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.financeSettingsCategories,
-            element: <Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.count,
-            element: <Suspense fallback={<PageFallback />}><CountPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.balance,
-            element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.inbox,
-            element: <Suspense fallback={<PageFallback />}><InboxPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.reports,
-            element: <Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.audit,
-            element: <Suspense fallback={<PageFallback />}><AuditPage /></Suspense>,
-          },
-          {
-            path: APP_ROUTES.more,
-            element: <Suspense fallback={<PageFallback />}><MorePage /></Suspense>,
-          },
-        ]
-      }
-    ]
-  }
+          { path: APP_ROUTES.financeSettingsFunds, element: <Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense> },
+          { path: APP_ROUTES.financeSettingsCategories, element: <Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense> },
+          { path: APP_ROUTES.count, element: <Suspense fallback={<PageFallback />}><CountPage /></Suspense> },
+          { path: APP_ROUTES.countSession, element: <Suspense fallback={<PageFallback />}><CountSessionPage /></Suspense> },
+          { path: APP_ROUTES.countPaperForms, element: <Suspense fallback={<PageFallback />}><CountPaperFormsPage /></Suspense> },
+          { path: APP_ROUTES.countPaperForm, element: <Suspense fallback={<PageFallback />}><CountPaperFormPage /></Suspense> },
+          { path: APP_ROUTES.countCapture, element: <Suspense fallback={<PageFallback />}><CountCapturePage /></Suspense> },
+          { path: APP_ROUTES.countCaptureReview, element: <Suspense fallback={<PageFallback />}><CountCaptureReviewPage /></Suspense> },
+          { path: APP_ROUTES.universalCapture, element: <Suspense fallback={<PageFallback />}><UniversalCapturePage /></Suspense> },
+          { path: APP_ROUTES.balance, element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense> },
+          { path: APP_ROUTES.inbox, element: <Suspense fallback={<PageFallback />}><InboxPage /></Suspense> },
+          { path: APP_ROUTES.inboxEvidenceDetail, element: <Suspense fallback={<PageFallback />}><UniversalEvidenceDetailPage /></Suspense> },
+          { path: APP_ROUTES.reports, element: <Suspense fallback={<PageFallback />}><ReportsPage /></Suspense> },
+          { path: APP_ROUTES.audit, element: <Suspense fallback={<PageFallback />}><AuditPage /></Suspense> },
+          { path: APP_ROUTES.more, element: <Suspense fallback={<PageFallback />}><MorePage /></Suspense> },
+        ],
+      },
+    ],
+  },
 ];
 
 if (import.meta.env.DEV) {
-  // Apenas dinamicamente injetado em DEV garantindo que não vaza pra prd
   const FoundationPreviewPage = lazy(() => import('@/src/pages/dev/FoundationPreviewPage'));
-  
   routes[0]?.children?.push({
     element: <ShellLayout />,
     children: [
       {
         path: APP_ROUTES.preview,
         element: <Suspense fallback={<PageFallback />}><FoundationPreviewPage /></Suspense>,
-      }
-    ]
+      },
+    ],
   });
 }
 

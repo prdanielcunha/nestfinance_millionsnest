@@ -1,5 +1,7 @@
-import React from 'react';
-import { AlertCircle, ExternalLink, RefreshCw } from 'lucide-react';
+import type { FC } from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button, Surface } from '@/src/components/foundation';
+import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 
 export interface FirestoreIndexRemediationProps {
   remediation?: { type: string; url?: string };
@@ -8,78 +10,75 @@ export interface FirestoreIndexRemediationProps {
   onRetry: () => void;
 }
 
-export const FirestoreIndexRemediationCard: React.FC<FirestoreIndexRemediationProps> = ({ remediation, requestId, errorText, onRetry }) => {
-  let url = remediation?.type === 'CREATE_FIRESTORE_INDEX' ? remediation.url : undefined;
-  
-  // Se não tem URL estruturada mas temos o texto do erro, tentamos extrair o link
-  if (!url && errorText) {
-    const match = errorText.match(/(https:\/\/console\.firebase\.google\.com[^\s]+)/);
-    if (match && match[1]) {
-      url = match[1];
-    }
-  }
-
-  const hasUrl = !!url;
-
-  return (
-    <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto my-12 bg-surface-elevated rounded-xl border border-border-subtle shadow-sm">
-      <AlertCircle className="h-10 w-10 text-amber-500 mb-4" />
-      
-      {hasUrl && url ? (
-        <>
-          <h3 className="text-xl font-medium text-text-primary mb-2">Índice necessário</h3>
-          <p className="text-sm text-text-muted mb-6">
-            Esta consulta exige a criação de um índice estruturado no Firestore para retornar dados de forma eficiente e segura.
-          </p>
-          <div className="flex flex-col gap-3 w-full mb-6">
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center px-4 py-3 bg-accent-primary hover:bg-accent-primary/90 text-sm font-medium rounded-xl transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-            >
-              Criar índice no Firestore
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </a>
-            <button 
-              onClick={onRetry} 
-              className="flex items-center justify-center px-4 py-3 bg-surface-base text-text-primary border border-border-subtle hover:bg-surface-hover text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Tentar novamente
-            </button>
-          </div>
-          <div className="bg-surface-base rounded-lg p-3 w-full overflow-x-auto text-left border border-border-subtle mb-2">
-             <p className="text-xs text-text-muted font-mono break-all whitespace-pre-wrap select-all">
-               {remediation.url}
-             </p>
-          </div>
-          <p className="text-xs text-text-muted mt-2">
-            Clique no botão acima ou copie a URL para o seu navegador, crie o índice no Console do Google, aguarde a construção e tentar novamente.
-          </p>
-        </>
-      ) : (
-        <>
-          <h3 className="text-lg font-medium text-text-primary mb-2">Dados indisponíveis</h3>
-          <p className="text-sm text-text-muted mb-6">
-            Esta consulta está temporariamente indisponível devido a infraestrutura. Tente novamente mais tarde.
-          </p>
-          <button 
-            onClick={onRetry} 
-            className="flex items-center justify-center px-4 py-3 bg-surface-base text-text-primary border border-border-subtle hover:bg-surface-hover text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary mb-4 w-full"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Tentar novamente
-          </button>
-        </>
-      )}
-
-      {requestId && (
-        <p className="text-xs text-text-muted mt-6 font-mono break-all max-w-full opacity-60">
-          Req ID: {requestId}
-        </p>
-      )}
-    </div>
-  );
+const COPY: Record<Language, {
+  title: string;
+  description: string;
+  retry: string;
+  supportCode: string;
+}> = {
+  PT: {
+    title: 'Não foi possível carregar estes dados agora',
+    description: 'Nada foi alterado. Tente novamente em instantes. Se continuar acontecendo, informe o código de suporte para que possamos verificar.',
+    retry: 'Tentar novamente',
+    supportCode: 'Código de suporte',
+  },
+  EN: {
+    title: 'We could not load this data right now',
+    description: 'Nothing was changed. Try again in a moment. If this keeps happening, share the support code so we can investigate.',
+    retry: 'Try again',
+    supportCode: 'Support code',
+  },
+  ES: {
+    title: 'No pudimos cargar estos datos ahora',
+    description: 'No se modificó nada. Inténtalo de nuevo en unos instantes. Si continúa ocurriendo, informa el código de soporte para que podamos revisarlo.',
+    retry: 'Intentar de nuevo',
+    supportCode: 'Código de soporte',
+  },
 };
 
+export const FirestoreIndexRemediationCard: FC<FirestoreIndexRemediationProps> = ({
+  requestId,
+  onRetry,
+}) => {
+  const { language } = useLanguage();
+  const copy = COPY[language];
+
+  return (
+    <Surface
+      variant="elevated"
+      radius="xl"
+      role="alert"
+      aria-live="polite"
+      className="mx-auto my-12 flex max-w-md flex-col items-center p-6 text-center sm:p-8"
+    >
+      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-semantic-warning/20 bg-semantic-warning/10 text-semantic-warning">
+        <AlertCircle className="h-6 w-6" aria-hidden="true" />
+      </div>
+
+      <h3 className="text-lg font-semibold tracking-tight text-text-primary sm:text-xl">
+        {copy.title}
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-text-secondary">
+        {copy.description}
+      </p>
+
+      <Button
+        variant="secondary"
+        size="lg"
+        fullWidth
+        leadingIcon={<RefreshCw className="h-4 w-4" />}
+        onClick={onRetry}
+        className="mt-6"
+      >
+        {copy.retry}
+      </Button>
+
+      {requestId ? (
+        <p className="mt-5 max-w-full break-all text-xs text-text-muted">
+          <span className="font-medium">{copy.supportCode}:</span>{' '}
+          <span className="font-mono select-all">{requestId}</span>
+        </p>
+      ) : null}
+    </Surface>
+  );
+};

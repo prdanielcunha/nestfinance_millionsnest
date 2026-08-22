@@ -1,10 +1,23 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { requireFinanceTransactionAccess, resolveFinanceRequestContext } from './accessHelpers.js';
 import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { normalizeFirestoreInfrastructureError } from '../../shared/firestore/indexRemediation.js';
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
+
+function toOptionalIso(value: any): string | null {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') {
+    try {
+      return value.toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'string') return value;
+  return null;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = req.headers['x-vercel-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -22,27 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'financeEntityId is required' });
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'UNAUTHORIZED' });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) {
-      return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-    }
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    if (!sessionList.granted) {
-       console.log('Session denial reason:', sessionList);
-    }
-    isGlobalAdmin = sessionList.isGlobalAccess || false;
-    
     let direction = undefined;
     let status = undefined;
     let occurredFrom = undefined;
@@ -66,16 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const requiredCapability = status === 'ready_for_review' ? 'finance.review' : 'finance.view';
-
+    
     // Will throw if forbidden or not found/active
-    const context = await requireFinanceTransactionAccess({
-      db: admin.firestore,
-      uid,
-      organizationId,
-      financeEntityId,
-      sessionList,
-      capability: requiredCapability
-    });
+    const { db, uid, organizationId, sessionList, context } = await resolveFinanceRequestContext(req, requiredCapability);
+
+    isGlobalAdmin = sessionList.isGlobalAccess || false;
 
     const bounds = getTransactionListQueryBounds(
       financeEntityId, direction, status, occurredFrom, occurredTo
@@ -224,7 +211,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           submittedByDisplayName: data.submittedByDisplayName || data.createdBy || 'Sistema',
           blockerCount: readiness.blockers.length,
           warningCount: readiness.warnings.length,
-          isReady: readiness.ready
+          isReady: readiness.ready,
+          returnedToDraftAt: toOptionalIso(data.returnedToDraftAt),
+          returnedToDraftReason: data.returnedToDraftReason || null,
+          returnedToDraftComment: data.returnedToDraftComment || null
         };
 
         // Filter by readiness status on server-side

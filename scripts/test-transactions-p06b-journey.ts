@@ -1,21 +1,18 @@
-import { getFirestore, FieldValue, Timestamp, GeoPoint } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, GeoPoint } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../api/_lib/firebaseAdmin.js';
 import { FakeFirestore } from './fakeFirestore.js';
 import { sanitizeFirestoreObject } from '../server/vercel-handlers/finance/sanitizeFirestoreObject.js';
-import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import { validateAccountMetadata } from '../shared/finance/smartLogic.js';
-import * as assert from 'assert';
 
 process.env.NODE_ENV = 'test';
 
-// Simulated Vercel Response
 class MockRes {
-  statusCode: number = 200;
+  statusCode = 200;
   body: any = null;
 
   status(code: number) {
@@ -36,40 +33,36 @@ async function runP06BConsolidatedTests() {
 
   const assertTest = (condition: boolean, msg: string) => {
     if (condition) {
-       console.log(`✅ ${msg}`);
-       passed++;
+      console.log(`✅ ${msg}`);
+      passed++;
     } else {
-       console.error(`❌ ${msg}`);
-       failed++;
+      console.error(`❌ ${msg}`);
+      failed++;
     }
   };
 
   const fakeDb = new FakeFirestore();
-  const TEST_FIRESTORE_SYMBOL = Symbol.for('TEST_FIRESTORE');
-  (globalThis as any)[TEST_FIRESTORE_SYMBOL] = fakeDb;
+  (globalThis as any)[Symbol.for('TEST_FIRESTORE')] = fakeDb;
 
   const admin = getFirebaseAdmin();
   const db = fakeDb;
 
-  // Set up mock context data
   const orgId = 'p06b_org';
   const finEntityId = 'p06b_entity';
   const uid = 'p06b_user';
 
   const orgRef = db.collection('organizations').doc(orgId);
   await orgRef.set({ name: 'P06B Organization', ownerId: 'other' });
-  await orgRef.collection('users').doc(uid).set({
-    capabilities: ['finance.create_drafts', 'finance.view', 'finance.submit_for_review']
-  });
+  // Match the canonical MillionsNest development gate. No legacy organization/users
+  // membership is seeded, so this journey cannot accidentally depend on that old path.
   await db.collection('users').doc(uid).set({
-    displayName: 'P06B Tester'
+    displayName: 'P06B Tester',
+    systemRole: 'ceo'
   });
   await orgRef.collection('financeEntities').doc(finEntityId).set({
     name: 'P06B Entity',
     active: true
   });
-
-  const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
 
   async function testCall(handler: any, reqData: any, headers: any = {}) {
     const req = {
@@ -79,19 +72,18 @@ async function runP06BConsolidatedTests() {
         'x-organization-id': orgId,
         ...headers
       },
-      body: reqData.body
+      body: reqData.body,
+      query: reqData.query || {}
     };
     const res = new MockRes();
     await handler(req as any, res as any);
     return res;
   }
 
-  // Mock token verification
-  admin.auth.verifyIdToken = async () => ({ uid }) as any;
+  admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
 
   console.log('\n--- 11. AUDITANDO SANITIZADOR E INTEGRIDADE DE ARRAYS ---');
 
-  // 1. plain object remove propriedade undefined
   try {
     const res = sanitizeFirestoreObject({ a: 1, b: undefined }) as any;
     assertTest(!('b' in res) && res.a === 1, 'plain object remove propriedade undefined');
@@ -99,7 +91,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'plain object remove propriedade undefined');
   }
 
-  // 2. array com undefined é rejeitado
   try {
     sanitizeFirestoreObject({ arr: [1, undefined] });
     assertTest(false, 'array com undefined é rejeitado');
@@ -107,17 +98,15 @@ async function runP06BConsolidatedTests() {
     assertTest(e.message.includes('Array with undefined elements') || e.message.includes('undefined'), 'array com undefined é rejeitado');
   }
 
-  // 3. array esparso é rejeitado
   try {
     const arr = [1];
-    arr[2] = 3; // creates a sparse index at 1
+    arr[2] = 3;
     sanitizeFirestoreObject({ arr });
     assertTest(false, 'array esparso é rejeitado');
   } catch (e: any) {
     assertTest(e.message.includes('Sparse array') || e.message.includes('undefined'), 'array esparso é rejeitado');
   }
 
-  // 4. Date válida é preservada
   try {
     const d = new Date('2026-06-22T00:00:00Z');
     const res = sanitizeFirestoreObject({ d }) as any;
@@ -126,7 +115,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'Date válida é preservada');
   }
 
-  // 5. Date inválida é rejeitada
   try {
     sanitizeFirestoreObject({ d: new Date('invalid') });
     assertTest(false, 'Date inválida é rejeitada');
@@ -134,7 +122,6 @@ async function runP06BConsolidatedTests() {
     assertTest(e.message.includes('Invalid Date'), 'Date inválida é rejeitada');
   }
 
-  // 6. FieldValue.serverTimestamp é preservado
   try {
     const ts = FieldValue.serverTimestamp();
     const res = sanitizeFirestoreObject({ ts }) as any;
@@ -143,7 +130,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'FieldValue.serverTimestamp é preservado');
   }
 
-  // 7. Timestamp é preservado
   try {
     const ts = Timestamp.now();
     const res = sanitizeFirestoreObject({ ts }) as any;
@@ -152,7 +138,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'Timestamp é preservado');
   }
 
-  // 8. DocumentReference não é desmontado
   try {
     const ref = db.collection('x').doc('y');
     const res = sanitizeFirestoreObject({ ref }) as any;
@@ -161,7 +146,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'DocumentReference não é desmontado');
   }
 
-  // 9. GeoPoint não é desmontado
   try {
     const gp = new GeoPoint(10, 20);
     const res = sanitizeFirestoreObject({ gp }) as any;
@@ -170,7 +154,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'GeoPoint não é desmontado');
   }
 
-  // 10. bytes são preservados
   try {
     const buf = Buffer.from('hello');
     const res = sanitizeFirestoreObject({ buf }) as any;
@@ -179,7 +162,6 @@ async function runP06BConsolidatedTests() {
     assertTest(false, 'bytes são preservados');
   }
 
-  // 11. class instance desconhecida não vira plain object
   try {
     class UnknownClass {
       a = 1;
@@ -190,14 +172,8 @@ async function runP06BConsolidatedTests() {
     assertTest(e.message.includes('Unknown class instance'), 'class instance desconhecida não vira plain object');
   }
 
-  // 12. allocations não são compactadas
   try {
-    // Creating allocations with a sparse index should fail
-    const allocations = [
-      { categoryId: 'cat_1', amountCents: 100 },
-      undefined
-    ];
-    sanitizeFirestoreObject({ allocations });
+    sanitizeFirestoreObject({ allocations: [{ categoryId: 'cat_1', amountCents: 100 }, undefined] });
     assertTest(false, 'allocations não são compactadas');
   } catch (e: any) {
     assertTest(e.message.includes('Array with undefined elements') || e.message.includes('undefined'), 'allocations não são compactadas');
@@ -205,7 +181,6 @@ async function runP06BConsolidatedTests() {
 
   console.log('\n--- CONTAS LEGADAS, OUTROS TIPOS E AUDITORIA CONTÁBIL ---');
 
-  // 13. type: other completo pode ser válido
   {
     const accountData = {
       type: 'other',
@@ -217,29 +192,18 @@ async function runP06BConsolidatedTests() {
     assertTest(meta.valid && accountData.configurationStatus === 'complete', 'type: other completo é válido');
   }
 
-  // 14. type: other incompleto é rejeitado
   {
-    const accountData = {
-      type: 'other',
-      name: 'Incompleta Outros'
-    };
+    const accountData = { type: 'other', name: 'Incompleta Outros' };
     const meta = validateAccountMetadata(accountData);
     assertTest(!meta.valid, 'type: other incompleto é rejeitado');
   }
 
-  // 15. nome da conta não determina natureza
   {
-    const accountData = {
-      name: 'Caixa de Coleta',
-      type: 'other'
-    };
+    const accountData = { name: 'Caixa de Coleta', type: 'other' };
     const meta = validateAccountMetadata(accountData);
-    // nature should not be cash or asset just because of the name "Caixa"
     assertTest((meta.nature as string) !== 'cash' && (meta.nature as string) !== 'asset', 'nome da conta não determina natureza');
   }
 
-  // 16. conta legada é resolvida pelo documento canônico
-  // Setting up canonical account in database
   const canonAccountId = 'canon_legacy_acc';
   await orgRef.collection('financeAccounts').doc(canonAccountId).set({
     financeEntityId: finEntityId,
@@ -250,7 +214,6 @@ async function runP06BConsolidatedTests() {
     configurationStatus: 'complete'
   });
 
-  // Adding legacy transaction without accountSnapshot
   const legacyTxId = 'legacy_tx_1';
   await orgRef.collection('financeTransactions').doc(legacyTxId).set({
     id: legacyTxId,
@@ -269,10 +232,12 @@ async function runP06BConsolidatedTests() {
 
   {
     const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId } });
-    assertTest(res.statusCode === 200 && res.body.transaction?.accountSnapshot && res.body.transaction.accountSnapshot.name === 'Canon Legacy Bank', 'conta legada é resolvida pelo documento canônico');
+    assertTest(
+      res.statusCode === 200 && res.body.transaction?.accountSnapshot?.name === 'Canon Legacy Bank',
+      'conta legada é resolvida pelo documento canônico'
+    );
   }
 
-  // 17. conta legada incompleta permanece pendente
   const incompleteCanonAccountId = 'canon_incomplete_acc';
   await orgRef.collection('financeAccounts').doc(incompleteCanonAccountId).set({
     financeEntityId: finEntityId,
@@ -298,21 +263,22 @@ async function runP06BConsolidatedTests() {
 
   {
     const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId2 } });
-    // In Detail, legacy incomplete account must produce specific pending issues and configurationStatus incomplete
-    assertTest(res.statusCode === 200 && res.body.transaction?.accountSnapshot && res.body.transaction.accountSnapshot.name === 'Conta ainda não configurada' && res.body.transaction.accountSnapshot.code === 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE', 'conta legada incompleta permanece pendente');
+    assertTest(
+      res.statusCode === 200 &&
+      res.body.transaction?.accountSnapshot?.name === 'Conta ainda não configurada' &&
+      res.body.transaction.accountSnapshot.code === 'FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE',
+      'conta legada incompleta permanece pendente'
+    );
   }
 
-  // 18. category/fund não recebem fallback inventado
-  // Set up categories and funds
   const incompleteCatId = 'incomplete_cat';
   await orgRef.collection('financeCategories').doc(incompleteCatId).set({
     financeEntityId: finEntityId,
     active: true,
     kind: 'income',
-    name: '' // empty name is incomplete
+    name: ''
   });
 
-  // Adding draft transaction using incomplete category
   const draftTxId = 'draft_tx_with_incomplete_cat';
   await orgRef.collection('financeTransactions').doc(draftTxId).set({
     id: draftTxId,
@@ -339,15 +305,14 @@ async function runP06BConsolidatedTests() {
 
   {
     const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: draftTxId } });
-    // Category snapshot should not invent a name (it shouldn't fall back to "Outros")
-    assertTest(res.statusCode === 200 && res.body.allocations[0].categorySnapshot && res.body.allocations[0].categorySnapshot.name === 'Categoria ainda não configurada' && res.body.allocations[0].categorySnapshot.code === 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE', 'category/fund não recebem fallback inventado');
+    assertTest(
+      res.statusCode === 200 &&
+      res.body.allocations[0].categorySnapshot?.name === 'Categoria ainda não configurada' &&
+      res.body.allocations[0].categorySnapshot.code === 'FINANCE_CATEGORY_CONFIGURATION_INCOMPLETE',
+      'category/fund não recebem fallback inventado'
+    );
   }
 
-  // 19. create-and-submit termina em ready_for_review
-  // 20. zero Journal
-  // 21. zero Posting
-  // 22. zero alteração de saldos
-  // 23. zero writes de teste em produção
   {
     const csCatId = 'complete_cat_cs';
     await orgRef.collection('financeCategories').doc(csCatId).set({
@@ -371,26 +336,22 @@ async function runP06BConsolidatedTests() {
           paymentMethod: 'pix',
           description: 'Test payload',
           evidenceIds: ['mock-doc'],
-          allocations: [
-            { categoryId: csCatId, amountCents: 7500 }
-          ]
+          allocations: [{ categoryId: csCatId, amountCents: 7500 }]
         }
       }
     });
 
     assertTest(res.statusCode === 200, 'create-and-submit executa com sucesso');
-    
-    // Check status is ready_for_review
+
     const txDoc = await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(res.body.transactionId).get();
     const tx = txDoc.data();
-    assertTest(tx.status === 'ready_for_review', 'create-and-submit termina em ready_for_review');
+    assertTest(tx?.status === 'ready_for_review', 'create-and-submit termina em ready_for_review');
 
-    // Confirm no Journal writes, no Ledger balances writes
     let journalFound = false;
     let balanceFound = false;
     for (const key of Object.keys(db.data)) {
-       if (key.includes('journal') || key.includes('Journal')) journalFound = true;
-       if (key.includes('ledger') || key.includes('balance') || key.includes('Balance')) balanceFound = true;
+      if (key.includes('journal') || key.includes('Journal')) journalFound = true;
+      if (key.includes('ledger') || key.includes('balance') || key.includes('Balance')) balanceFound = true;
     }
     assertTest(!journalFound, 'zero Journal events gerados');
     assertTest(!balanceFound, 'zero Posting ou alteração de saldos real ocorrendo');
@@ -398,8 +359,7 @@ async function runP06BConsolidatedTests() {
   }
 
   console.log('\n--- 12. JORNADA DE EXECUÇÃO REAL (FAKE FIRESTORE) ---');
-  
-  // 1. criar draft sem conta
+
   let testTxId = '';
   {
     const res = await testCall(transactionsCreateDraft, {
@@ -411,9 +371,7 @@ async function runP06BConsolidatedTests() {
           transactionKind: 'income',
           amountCents: 9500,
           occurredAt: '2026-06-22T00:00:00Z',
-          allocations: [
-            { categoryId: incompleteCatId, amountCents: 9500 }
-          ]
+          allocations: [{ categoryId: incompleteCatId, amountCents: 9500 }]
         }
       }
     });
@@ -421,7 +379,6 @@ async function runP06BConsolidatedTests() {
     testTxId = res.body.transactionId;
   }
 
-  // 2. criar draft com conta completa
   {
     const res = await testCall(transactionsCreateDraft, {
       body: {
@@ -433,16 +390,13 @@ async function runP06BConsolidatedTests() {
           amountCents: 9500,
           occurredAt: '2026-06-22T00:00:00Z',
           accountId: canonAccountId,
-          allocations: [
-            { categoryId: incompleteCatId, amountCents: 9500 }
-          ]
+          allocations: [{ categoryId: incompleteCatId, amountCents: 9500 }]
         }
       }
     });
     assertTest(res.statusCode === 200, '2. criar draft com conta completa executado');
   }
 
-  // 3. criar draft com conta incompleta
   {
     const res = await testCall(transactionsCreateDraft, {
       body: {
@@ -454,22 +408,18 @@ async function runP06BConsolidatedTests() {
           amountCents: 9500,
           occurredAt: '2026-06-22T00:00:00Z',
           accountId: incompleteCanonAccountId,
-          allocations: [
-            { categoryId: incompleteCatId, amountCents: 9500 }
-          ]
+          allocations: [{ categoryId: incompleteCatId, amountCents: 9500 }]
         }
       }
     });
     assertTest(res.statusCode === 200, '3. criar draft com conta incompleta executado');
   }
 
-  // 4. salvar com serverTimestamp real (emulado)
   {
     const txDoc = await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(testTxId).get();
     assertTest(txDoc.exists && txDoc.data().recordedAt !== undefined, '4. salvar com serverTimestamp real executado');
   }
 
-  // 5. atualizar draft
   {
     const res = await testCall(transactionsUpdateDraft, {
       body: {
@@ -480,17 +430,13 @@ async function runP06BConsolidatedTests() {
         requestId: 'req_real_journey_5',
         payload: {
           amountCents: 12000,
-          allocations: [
-            { categoryId: incompleteCatId, amountCents: 12000 }
-          ]
+          allocations: [{ categoryId: incompleteCatId, amountCents: 12000 }]
         }
       }
     });
     assertTest(res.statusCode === 200, '5. atualizar draft executado');
   }
 
-  // 6. enviar transação completa para revisão
-  // Setup a fully complete transaction to submit
   const validCatId = 'valid_cat_inc';
   await orgRef.collection('financeCategories').doc(validCatId).set({
     financeEntityId: finEntityId,
@@ -513,7 +459,13 @@ async function runP06BConsolidatedTests() {
     currency: 'BRL',
     occurredAt: '2026-06-22T00:00:00Z',
     accountId: canonAccountId,
-    accountSnapshot: { id: canonAccountId, name: 'Canon Legacy Bank', type: 'asset:bank', nature: 'asset', configurationStatus: 'complete' },
+    accountSnapshot: {
+      id: canonAccountId,
+      name: 'Canon Legacy Bank',
+      type: 'asset:bank',
+      nature: 'asset',
+      configurationStatus: 'complete'
+    },
     allocationIds: ['alloc_complete_1'],
     paymentMethod: 'pix',
     description: 'Test payload',
@@ -543,22 +495,19 @@ async function runP06BConsolidatedTests() {
     assertTest(res.statusCode === 200, '6. enviar transação completa para revisão executado');
   }
 
-  // 7. abrir detalhe de documento legado
   {
     const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId } });
     assertTest(res.statusCode === 200, '7. abrir detalhe de documento legado executado');
   }
 
-  // 8. confirmar ausência de valores inventados
   {
     const res = await testCall(transactionsDetail, { body: { financeEntityId: finEntityId, transactionId: legacyTxId2 } });
-    // Incomplete snapshot has NO invented type, or fallback nature.
     const snap = res.body.transaction?.accountSnapshot;
     assertTest(snap && !snap.type && !snap.nature, '8. confirmar ausência de valores inventados executado');
   }
 
   console.log(`\nP06B Consolidated UI & Logic Totals: ${passed} Passed, ${failed} Failed\n`);
-  
+
   if (failed > 0) process.exit(1);
 }
 

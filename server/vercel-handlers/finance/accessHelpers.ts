@@ -1,12 +1,88 @@
 import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
+import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
+import { VercelRequest } from '@vercel/node';
+
+export async function resolveFinanceRequestContext(req: VercelRequest, requiredCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft') {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw { status: 401, error: 'UNAUTHORIZED' };
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  const admin = getFirebaseAdmin();
+  const db = admin.firestore;
+  // Finance mutations/reads must reject revoked Firebase sessions, matching auth/session/resolve.
+  const decodedToken = await admin.auth.verifyIdToken(token, true);
+  const uid = decodedToken.uid;
+
+  // Handoff token organization is canonical. Header remains only for compatibility/consistency checking.
+  const headerOrgId = req.headers['x-organization-id'] as string;
+  const tokenOrgId = decodedToken.mn_organization_id as string;
+  const organizationId = tokenOrgId || headerOrgId;
+
+  if (!organizationId) {
+    throw { status: 400, error: 'MISSING_ORGANIZATION_ID' };
+  }
+
+  const sessionList = await resolveEcosystemSession(uid, organizationId);
+
+  // Never let a caller retarget a handoff-bound token through a conflicting header.
+  if (tokenOrgId && headerOrgId && tokenOrgId !== headerOrgId) {
+    console.error(`[CRITICAL] Multi-tenant violation attempt: User ${uid} with tokenOrg ${tokenOrgId} attempted to access headerOrg ${headerOrgId}`);
+    throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
+  }
+
+  const financeEntityId = req.body?.financeEntityId || req.query?.financeEntityId;
+  if (!financeEntityId || typeof financeEntityId !== 'string') {
+    throw { status: 400, error: 'INVALID_PARAMETERS', details: 'Missing financeEntityId' };
+  }
+
+  const context = await requireFinanceTransactionAccess({
+    db,
+    uid,
+    organizationId,
+    financeEntityId,
+    sessionList,
+    capability: requiredCapability
+  });
+
+  return { admin, db, uid, organizationId, financeEntityId, sessionList, context };
+}
+
+function canonicalPermissions(sessionList: any): string[] {
+  if (Array.isArray(sessionList?.permissions)) return sessionList.permissions;
+  // Compatibility with older in-process callers/tests. The canonical resolver only exposes
+  // capabilities as an alias of its resolved permissions, never from legacy membership docs.
+  return Array.isArray(sessionList?.capabilities) ? sessionList.capabilities : [];
+}
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
-  if (sessionList.isGlobalAccess) return true;
-  
-  const caps = sessionList.capabilities || [];
-  return caps.includes(requestedCapability);
+  if (sessionList?.isGlobalAccess) return true;
+
+  const permissions = canonicalPermissions(sessionList);
+  return permissions.includes('*') || permissions.includes(requestedCapability);
+}
+
+export function hasFinanceEntityScope(sessionList: any, financeEntityId: string): boolean {
+  if (sessionList?.isGlobalAccess) return true;
+
+  const scopes = sessionList?.scopes;
+  if (!scopes || typeof scopes !== 'object') return true;
+
+  const globalScope = scopes['*'];
+  if (Array.isArray(globalScope) && globalScope.includes('*')) return true;
+
+  // Current Hub contract allows scopes to be absent. When financeEntityIds is explicitly
+  // present, however, it is authoritative and restrictive.
+  if (Object.prototype.hasOwnProperty.call(scopes, 'financeEntityIds')) {
+    const financeEntityIds = scopes.financeEntityIds;
+    return Array.isArray(financeEntityIds) && (financeEntityIds.includes('*') || financeEntityIds.includes(financeEntityId));
+  }
+
+  return true;
 }
 
 export function canManageFinanceEntities(sessionList: any): boolean {
@@ -15,7 +91,7 @@ export function canManageFinanceEntities(sessionList: any): boolean {
 
 export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft'): boolean {
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
-  if (sessionList.capabilities?.includes('finance.manage')) return true; // broader access
+  if (hasEffectiveCapability(sessionList, 'finance.manage')) return true;
   if (requestedCapability === 'finance.return_to_draft' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
   if (requestedCapability === 'finance.invalidate_approval' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
   return false;
@@ -54,14 +130,12 @@ export async function requireFinanceEntityAccess({
   }
 
   if (!sessionGranted) {
-    throw new Error('Session not granted'); // A higher level handles this typically
+    throw new Error('Session not granted');
   }
 
-  // Find entity
   const entityDoc = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
-  
+
   if (!entityDoc.exists) {
-    // Cannot leak existence
     throw new Error('FINANCE_ENTITY_NOT_FOUND');
   }
 
@@ -72,7 +146,7 @@ export async function requireFinanceEntityAccess({
 
   const access = await canManageFinanceBootstrap(uid, organizationId, financeEntityId);
   if (!access.canApply) {
-     throw new Error('FORBIDDEN_FINANCE_ACCESS');
+    throw new Error('FORBIDDEN_FINANCE_ACCESS');
   }
 
   const repository = createFinanceEntityScope({ db, organizationId, financeEntityId });
@@ -121,7 +195,6 @@ export async function requireScopedFinanceAccount({
   }
 
   const accountData = accountDoc.data()!;
-
   context.repository.assertEntityIsolation(accountData);
 
   return {
@@ -149,10 +222,10 @@ export async function requireFinanceTransactionAccess({
 }): Promise<FinanceEntityAccessContext> {
   if (!organizationId) throw new Error('Organization ID is required');
   if (!financeEntityId) throw new Error('Finance Entity ID is required');
-  if (!sessionList.granted) throw new Error('Session not granted');
+  if (!sessionList?.granted) throw new Error('Session not granted');
 
   const entityDoc = await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();
-  
+
   if (!entityDoc.exists) {
     throw new Error('FINANCE_ENTITY_NOT_FOUND');
   }
@@ -162,7 +235,7 @@ export async function requireFinanceTransactionAccess({
     throw new Error('FINANCE_ENTITY_NOT_ACTIVE');
   }
 
-  if (!hasFinanceCapability(sessionList, capability)) {
+  if (!hasFinanceCapability(sessionList, capability) || !hasFinanceEntityScope(sessionList, financeEntityId)) {
     throw new Error('FORBIDDEN_FINANCE_ACCESS');
   }
 
@@ -184,7 +257,6 @@ export function createFinanceEntityScope(args: {
   const { db, organizationId, financeEntityId } = args;
   const orgRef = db.collection('organizations').doc(organizationId);
 
-  // Helper to validate the response respects the isolation scope (fail-closed)
   const assertEntityIsolation = (data: any) => {
     if (data.financeEntityId !== financeEntityId) {
       console.error(`[CRITICAL] Security violation: Document ${data.id || 'unknown'} has mismatched financeEntityId ${data.financeEntityId} instead of requested ${financeEntityId}.`);
@@ -207,7 +279,7 @@ export function createFinanceEntityScope(args: {
     getAllocationsRef: () => orgRef.collection('financeAllocations'),
     getAllocationsQuery: () => orgRef.collection('financeAllocations').where('financeEntityId', '==', financeEntityId),
     getIdempotencyRef: () => orgRef.collection('financeIdempotency'),
-    
+
     assertEntityIsolation
   };
 }

@@ -8,6 +8,19 @@ export interface TransactionsListResponse {
   hasMore: boolean;
 }
 
+export interface TransactionsActionSummary {
+  returnedCorrections: number;
+  simpleDrafts: number;
+  readyForReview: number;
+  approvedForPosting: number;
+  totalOpen: number;
+}
+
+export interface TransactionsSummaryResponse {
+  summary: TransactionsActionSummary;
+  requestId?: string;
+}
+
 export interface TransactionDetailResponse {
   transaction: LedgerTransaction;
   allocations: any[];
@@ -56,6 +69,30 @@ export const transactionsService = {
       const throwErr: any = new Error(err.message || err.error || 'Failed to list transactions');
       throwErr.details = err;
       throw throwErr;
+    }
+
+    return res.json();
+  },
+
+  async summary(organizationId: string, financeEntityId: string): Promise<TransactionsSummaryResponse> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-summary`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, requestId: `req_${generateId()}` })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to fetch transaction summary');
     }
 
     return res.json();

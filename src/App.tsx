@@ -6,11 +6,14 @@
 import { RouterProvider } from 'react-router-dom';
 import { router } from './app/router';
 import { AppErrorBoundary } from './app/boundaries/AppErrorBoundary';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 export default function App() {
   return (
     <AppErrorBoundary>
-      <RouterProvider router={router} />
+      <LanguageProvider>
+        <RouterProvider router={router} />
+      </LanguageProvider>
     </AppErrorBoundary>
   );
 }

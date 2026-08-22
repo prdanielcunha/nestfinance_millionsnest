@@ -7,7 +7,56 @@ on:
       - "api/**"
       - "server/vercel-handlers/finance/**"
       - "shared/finance/**"
+      - "src/pages/finance/transactions/**"
+      - "src/pages/finance/count/**"
+      - "src/pages/finance/capture/**"
+      - "src/pages/finance/inbox/**"
+      - "src/pages/finance/InboxPage.tsx"
+      - "src/services/universalCaptureService.ts"
+      - "src/services/universalEvidenceInboxService.ts"
+      - "src/pages/finance/CountPage.tsx"
+      - "src/services/countService.ts"
+      - "src/services/countPaperService.ts"
+      - "src/services/countCaptureService.ts"
+      - "src/components/finance/AccountRepairCard.tsx"
+      - "src/components/finance/TransactionEvidenceUpload.tsx"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/check-saas-isolation.ts"
+      - "scripts/test-certification-checkers.ts"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-count-firestore-emulator.ts"
+      - "scripts/test-count-paper-firestore-emulator.ts"
+      - "scripts/test-count-capture-firestore-emulator.ts"
+      - "scripts/test-count-capture-extraction-emulator.ts"
+      - "scripts/test-count-capture-denomination-emulator.ts"
+      - "scripts/test-universal-evidence-firestore-emulator.ts"
+      - "scripts/test-universal-evidence-inbox-emulator.ts"
+      - "scripts/test-universal-evidence-inbox-i2a.ts"
+      - "scripts/test-universal-evidence-inbox-i2b.ts"
+      - "scripts/test-universal-evidence-detail-emulator.ts"
+      - "scripts/test-universal-evidence-inbox-i2c.ts"
+      - "scripts/test-universal-evidence-preview-emulator.ts"
+      - "scripts/test-universal-evidence-pdf-inspector-i2d.ts"
+      - "scripts/test-universal-evidence-pdf-inspect-emulator.ts"
+      - "scripts/test-universal-evidence-pdf-readiness-i2e.ts"
+      - "scripts/test-count-firestore-rules.ts"
+      - "scripts/test-count-paper-firestore-rules.ts"
+      - "scripts/test-count-capture-firestore-rules.ts"
+      - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
+      - "scripts/test-count-capture-h3b2.ts"
+      - "scripts/test-count-capture-h3b3.ts"
+      - "scripts/test-count-capture-h3b4.ts"
+      - "scripts/test-transactions-p06b-journey.ts"
+      - "scripts/test-transactions-integration.ts"
+      - "scripts/test-firestore-rules-emulator.ts"
+      - "scripts/test-ecosystem-session-resolver.ts"
+      - "scripts/test-finance-request-context.ts"
+      - "scripts/test-posting-plan-entity-isolation.ts"
+      - "scripts/test-authorization.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "vercel.json"
       - "firebase.json"
       - "firestore.rules"
       - "firestore.indexes.json"
@@ -42,55 +91,77 @@ jobs:
             echo "Security Error: Production credentials detected"
             exit 1
           fi
-          
-          if grep -q "firebase deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml || grep -q "vercel deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
+
+          firebase_cli="firebase"
+          vercel_cli="vercel"
+          if grep -Eq "${firebase_cli}[[:space:]]+deploy|${vercel_cli}[[:space:]]+deploy" .github/workflows/nestfinance-p06b-firestore-emulator.yml; then
             echo "Security Error: Deploy commands detected in workflow"
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
-          
+
           echo "Preflight complete."
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install tools
-        run: npm install firebase-tools@latest tsx@latest --no-save
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
 
-      - name: Run P06B Firestore Emulator tests
+      - name: Run Firestore Emulator operation tests
         env:
           NODE_ENV: test
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
           GCLOUD_PROJECT: nestfinance-p06b-emulator
         run: |
+          set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
           NODE_ENV: test
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
-          
+          set -o pipefail
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts && npx tsx scripts/test-count-paper-firestore-rules.ts && npx tsx scripts/test-count-capture-firestore-rules.ts && npx tsx scripts/test-universal-evidence-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
+
       - name: Run Additional Checks
         env:
           NODE_ENV: test
+          FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
         run: |
+          npx tsx scripts/test-ecosystem-session-resolver.ts
+          npx tsx scripts/test-finance-request-context.ts
+          npx tsx scripts/test-posting-plan-entity-isolation.ts
           npx tsx scripts/test-transactions-p06b-journey.ts
           npx tsx scripts/test-transactions-integration.ts
           npx tsx scripts/test-firestore-seam.ts
           npx tsx scripts/test-ledger.ts
           npx tsx scripts/test-authorization.ts
+          npx tsx scripts/test-count-pilot.ts
+          npx tsx scripts/test-count-paper-h3a.ts
+          npx tsx scripts/test-count-capture-h3b1.ts
+          npx tsx scripts/test-count-capture-h3b2.ts
+          npx tsx scripts/test-count-capture-h3b3.ts
+          npx tsx scripts/test-count-capture-h3b4.ts
+          npm run test:certification-gates
+          npm run test:universal-capture-i1
+          npm run test:universal-evidence-inbox-i2a
+          npm run test:universal-evidence-inbox-i2b
+          npm run test:universal-evidence-inbox-i2c
+          npm run test:universal-evidence-pdf-inspector-i2d
+          npm run test:universal-evidence-pdf-readiness-i2e
           npm run lint
           npm run build
           npm run check:api-contracts

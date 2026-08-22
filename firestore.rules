@@ -9,23 +9,41 @@ service cloud.firestore {
 
     function isAuthenticated() { return request.auth != null; }
     function incoming() { return request.resource.data; }
+
+    function hasAuthorityFields(data) {
+      return data.keys().hasAny([
+        'systemRole', 'globalRole', 'appRole', 'role', 'organizationRole',
+        'capabilities', 'permissions', 'scopes', 'appAccess', 'entitlement',
+        'entitlements', 'lifetimeAccess', 'isGlobalAccess'
+      ]);
+    }
+
+    function changesAuthorityFields() {
+      return incoming().diff(resource.data).affectedKeys().hasAny([
+        'systemRole', 'globalRole', 'appRole', 'role', 'organizationRole',
+        'capabilities', 'permissions', 'scopes', 'appAccess', 'entitlement',
+        'entitlements', 'lifetimeAccess', 'isGlobalAccess'
+      ]);
+    }
+
+    function isServerOnlyFinanceCollection(collectionName) {
+      return collectionName in [
+        'financeSettings', 'financeCategories', 'financeAccounts',
+        'financeEntities', 'financeFunds', 'financeTransactions',
+        'financeAllocations', 'financeAuditLogs', 'financeIdempotency',
+        'financeJournalEntries', 'financeJournalLines', 'financeAggregates'
+      ];
+    }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isSystemAdminEmail() {
-      return request.auth != null && 
-             request.auth.token != null && 
-             (
-               request.auth.token.email == 'pastordanielpcunha@gmail.com' || 
-               request.auth.token.email == 'danielcunhapastor@gmail.com' || 
-               request.auth.token.email == 'millionstreinamentos@gmail.com'
-             );
-    }
-
     function isOrgActive(orgId) {
-      return true;
+      return (orgId is string) &&
+             exists(/databases/$(database)/documents/organizations/$(orgId)) &&
+             get(/databases/$(database)/documents/organizations/$(orgId)).data.get('disabled', false) != true &&
+             !(get(/databases/$(database)/documents/organizations/$(orgId)).data.get('status', 'active') in ['inactive', 'suspended', 'disabled', 'archived']);
     }
 
     function checkMemberExists(orgId) {
@@ -47,7 +65,7 @@ service cloud.firestore {
 
     function checkOrgAccess(orgId) {
       return (
-        isSystemAdminEmail() || 
+        isSystemAdmin() || 
         orgId == request.auth.uid || 
         checkMemberExists(orgId) || 
         isOwnerOfOrg(orgId)
@@ -110,18 +128,23 @@ service cloud.firestore {
     }
     
     function isSystemAdmin() {
-      return isSystemAdminEmail() || (
-        isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '').lower() in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'owner'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('appRole', '').lower() in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').lower() in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder'] ||
-          // Fallback if lower() is not supported cleanly on nulls
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'owner', 'CEO', 'Admin', 'Global_Admin', 'Ecosystem_Owner', 'Founder', 'Owner'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('appRole', '') in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'CEO', 'Admin', 'Global_Admin', 'Ecosystem_Owner', 'Founder'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['ceo', 'admin', 'global_admin', 'ecosystem_owner', 'founder', 'CEO', 'Admin', 'Global_Admin', 'Ecosystem_Owner', 'Founder']
-        )
+      return (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'global_admin', 'ecosystem_owner', 'founder']
       );
+    }
+
+    function canAccessNestFinanceDevelopment() {
+      return (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'global_admin', 'ecosystem_owner']
+      );
+    }
+
+    function canReadNestFinance(orgId) {
+      return canAccessNestFinanceDevelopment() && isOrgActive(orgId);
     }
 
     // ==========================================
@@ -148,21 +171,18 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated() && (userId == request.auth.uid || isSystemAdmin() || ('organizationId' in resource.data && checkOrgAccess(resource.data.get('organizationId', ''))));
-      allow create: if isAuthenticated() && (userId == request.auth.uid || isSystemAdmin() || hasOrgContext(incoming()));
+      allow create: if isAuthenticated() && (
+        isSystemAdmin() ||
+        ((userId == request.auth.uid || hasOrgContext(incoming())) && !hasAuthorityFields(incoming()))
+      );
       allow update: if isAuthenticated() && (
         isSystemAdmin() || 
         // User updating their own profile
-        (userId == request.auth.uid && 
-          (!('systemRole' in incoming()) || incoming().systemRole == resource.data.get('systemRole', null)) &&
-          (!('lifetimeAccess' in incoming()) || incoming().lifetimeAccess == resource.data.get('lifetimeAccess', null)) &&
-          (!('capabilities' in incoming()) || incoming().capabilities == resource.data.get('capabilities', null))
-        ) ||
+        (userId == request.auth.uid && !changesAuthorityFields()) ||
         // Org admin updating member of their org
         (
           resource != null && 'organizationId' in resource.data && isOrgAdmin(resource.data.get('organizationId', '')) &&
-          (!('systemRole' in incoming()) || incoming().systemRole == resource.data.get('systemRole', null)) &&
-          (!('lifetimeAccess' in incoming()) || incoming().lifetimeAccess == resource.data.get('lifetimeAccess', null)) &&
-          (!('capabilities' in incoming()) || incoming().capabilities == resource.data.get('capabilities', null)) &&
+          !changesAuthorityFields() &&
           (
             (!isOwner(userId) && (
               (resource.data.get('role', '') != 'owner' && resource.data.get('role', '') != 'Dono' && resource.data.get('organizationRole', '') != 'Dono' && resource.data.get('organizationRole', '') != 'owner') ||
@@ -174,7 +194,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isSystemAdmin() || (resource != null && 'organizationId' in resource.data && isOrgAdmin(resource.data.get('organizationId', '')) && checkOrgAccess(resource.data.get('organizationId', ''))));
     }
 
-    match /users/{userId}/{document=**} {
+    match /users/{userId}/{collection}/{document=**} {
       allow read, write: if isOwner(userId);
     }
 
@@ -184,7 +204,7 @@ service cloud.firestore {
 
     match /organizations/{orgId} {
       allow get: if isAuthenticated() && (
-        isSystemAdminEmail() ||
+        isSystemAdmin() ||
         (resource != null && resource.data.get('ownerUid', '') == request.auth.uid) ||
         (resource != null && resource.data.get('ownerId', '') == request.auth.uid) ||
         (resource != null && resource.data.get('owner_user_id', '') == request.auth.uid) ||
@@ -195,7 +215,7 @@ service cloud.firestore {
         orgId == request.auth.uid
       );
       allow list: if isAuthenticated() && (
-        isSystemAdminEmail() ||
+        isSystemAdmin() ||
         resource.data.get('ownerUid', '') == request.auth.uid ||
         resource.data.get('ownerId', '') == request.auth.uid ||
         resource.data.get('owner_user_id', '') == request.auth.uid ||
@@ -228,7 +248,7 @@ service cloud.firestore {
         );
         allow list: if isAuthenticated() && (checkOrgAccess(orgId) || isSystemAdmin());
         allow create: if isAuthenticated() && (
-          uid == request.auth.uid || isOrgAdmin(orgId) || isSystemAdmin()
+          isOrgAdmin(orgId) || isSystemAdmin()
         );
         allow update, delete: if isAuthenticated() && (
           isOrgAdmin(orgId) || isSystemAdmin()
@@ -260,56 +280,66 @@ service cloud.firestore {
       // NESTFINANCE EXPLICIT COLLECTIONS
       // ==========================================
       match /financeSettings/{id} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId);
-        allow write: if isAuthenticated() && isOrgAdmin(orgId) && checkOrgAccess(orgId);
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
       }
       match /financeCategories/{id} {
-        allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
       }
       match /financeAccounts/{id} {
-        allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
       }
       match /financeEntities/{id} {
-        allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
+      }
+      match /financeEntities/{entityId}/universalEvidence/{id} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/universalEvidenceHashes/{id} {
+        allow read, create, update, delete: if false;
       }
       match /financeFunds/{id} {
-        allow read, write: if isAuthenticated() && checkOrgAccess(orgId);
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
       }
 
-      // NO DIRECT CLIENT WRITES FOR THESE NESTFINANCE CORE LEDGER COLLECTIONS
+      // NO DIRECT CLIENT WRITES FOR NESTFINANCE FINANCIAL COLLECTIONS
       match /financeTransactions/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeAllocations/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeAuditLogs/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeIdempotency/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeJournalEntries/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeJournalLines/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
       match /financeAggregates/{id=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
 
       match /{app}/{document=**} {
-        allow read: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
-        allow create: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
-        allow update, delete: if isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow read: if !isServerOnlyFinanceCollection(app) && isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow create: if !isServerOnlyFinanceCollection(app) && isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
+        allow update, delete: if !isServerOnlyFinanceCollection(app) && isAuthenticated() && checkOrgAccess(orgId) && isOrgActive(orgId);
       }
     }
 
@@ -321,16 +351,12 @@ service cloud.firestore {
         checkOrgAccess(resource.data.get('organizationId', '')) ||
         checkOrgAccess(resource.data.get('organization_id', ''))
       );
-      allow list: if isAuthenticated();
+      allow list: if isSystemAdmin();
       allow create: if isAuthenticated() && (
-        request.resource.data.get('uid', '') == request.auth.uid || 
-        request.resource.data.get('user_id', '') == request.auth.uid || 
-        isOrgAdmin(request.resource.data.get('organizationId', ''))
+        isSystemAdmin() || isOrgAdmin(request.resource.data.get('organizationId', ''))
       );
       allow update: if isAuthenticated() && (
         isSystemAdmin() || 
-        request.resource.data.get('uid', '') == request.auth.uid ||
-        request.resource.data.get('user_id', '') == request.auth.uid ||
         (
           checkOrgAccess(resource.data.get('organizationId', '')) && 
           isOrgAdmin(resource.data.get('organizationId', '')) &&
@@ -542,7 +568,7 @@ service cloud.firestore {
 
     match /{path=**}/members/{uid} {
       allow read, list: if isAuthenticated() && (
-        isSystemAdminEmail() || 
+        isSystemAdmin() || 
         uid == request.auth.uid ||
         (resource != null && (
           resource.data.get('uid', '') == request.auth.uid || 

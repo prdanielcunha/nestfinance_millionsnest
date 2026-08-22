@@ -1,0 +1,139 @@
+name: NestFinance Frontend Quality Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "shared/finance/count.ts"
+      - "shared/finance/countPaper.ts"
+      - "shared/finance/countCapture.ts"
+      - "shared/finance/countCaptureGeometry.ts"
+      - "shared/finance/countCaptureExtraction.ts"
+      - "shared/finance/countCaptureDenominations.ts"
+      - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
+      - "scripts/test-human-safe-infra-errors.ts"
+      - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-transaction-create-guided.ts"
+      - "scripts/test-transaction-create-no-posting.ts"
+      - "scripts/test-transaction-review-queue.ts"
+      - "scripts/test-transaction-review-detail.ts"
+      - "scripts/test-transaction-detail-overview.ts"
+      - "scripts/test-transaction-edit-guided.ts"
+      - "scripts/test-count-pilot.ts"
+      - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
+      - "scripts/test-count-capture-h3b2.ts"
+      - "scripts/test-count-capture-h3b3.ts"
+      - "scripts/test-count-capture-h3b4.ts"
+      - "scripts/test-universal-evidence-pdf-text-extractor-i2f.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - ".github/workflows/nestfinance-frontend-quality.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "shared/finance/count.ts"
+      - "shared/finance/countPaper.ts"
+      - "shared/finance/countCapture.ts"
+      - "shared/finance/countCaptureGeometry.ts"
+      - "shared/finance/countCaptureExtraction.ts"
+      - "shared/finance/countCaptureDenominations.ts"
+      - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
+      - "scripts/test-human-safe-infra-errors.ts"
+      - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-transaction-create-guided.ts"
+      - "scripts/test-transaction-create-no-posting.ts"
+      - "scripts/test-transaction-review-queue.ts"
+      - "scripts/test-transaction-review-detail.ts"
+      - "scripts/test-transaction-detail-overview.ts"
+      - "scripts/test-transaction-edit-guided.ts"
+      - "scripts/test-count-pilot.ts"
+      - "scripts/test-count-paper-h3a.ts"
+      - "scripts/test-count-capture-h3b1.ts"
+      - "scripts/test-count-capture-h3b2.ts"
+      - "scripts/test-count-capture-h3b3.ts"
+      - "scripts/test-count-capture-h3b4.ts"
+      - "scripts/test-universal-evidence-pdf-text-extractor-i2f.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - ".github/workflows/nestfinance-frontend-quality.yml"
+
+jobs:
+  frontend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Verify native PDF text extractor I2F
+        run: npm run test:universal-evidence-pdf-text-extractor-i2f
+
+      - name: Verify human-safe infrastructure errors
+        run: npx tsx scripts/test-human-safe-infra-errors.ts
+
+      - name: Verify finance context localization
+        run: npx tsx scripts/test-finance-context-bar-i18n.ts
+
+      - name: Verify guided transaction create flow
+        run: npx tsx scripts/test-transaction-create-guided.ts
+
+      - name: Verify Transaction Create has no posting side effects
+        run: npx tsx scripts/test-transaction-create-no-posting.ts
+
+      - name: Verify Transaction Review 2.0 queue
+        run: npx tsx scripts/test-transaction-review-queue.ts
+
+      - name: Verify Transaction Review Detail 2.0
+        run: npx tsx scripts/test-transaction-review-detail.ts
+
+      - name: Verify Transaction Detail 2.0 overview
+        run: npx tsx scripts/test-transaction-detail-overview.ts
+
+      - name: Verify Transaction Edit 2.0 guided flow
+        run: npx tsx scripts/test-transaction-edit-guided.ts
+
+      - name: Verify Count 2.0 H1/H2
+        run: npx tsx scripts/test-count-pilot.ts
+
+      - name: Verify Count Paper H3A
+        run: npx tsx scripts/test-count-paper-h3a.ts
+
+      - name: Verify Count Capture H3B1
+        run: npx tsx scripts/test-count-capture-h3b1.ts
+
+      - name: Verify Count Capture H3B2 geometry
+        run: npx tsx scripts/test-count-capture-h3b2.ts
+
+      - name: Verify Count Capture H3B3 extraction
+        run: npx tsx scripts/test-count-capture-h3b3.ts
+
+      - name: Verify Count Capture H3B4 denominations
+        run: npx tsx scripts/test-count-capture-h3b4.ts
+
+      - name: Verify brand assets
+        run: npm run check:brand-assets
+
+      - name: Verify public entrypoints
+        run: npm run check:vercel-entrypoints

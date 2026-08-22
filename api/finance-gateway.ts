@@ -25,6 +25,7 @@ import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entities
 import entitiesBootstrapApply from '../server/vercel-handlers/finance/entitiesBootstrapApply.js';
 import entitiesBootstrapVerify from '../server/vercel-handlers/finance/entitiesBootstrapVerify.js';
 import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
+import transactionsSummary from '../server/vercel-handlers/finance/transactionsSummary.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
@@ -37,6 +38,29 @@ import transactionsPostingPlanPreview from '../server/vercel-handlers/finance/tr
 import transactionsRepairApprovalVerification from '../server/vercel-handlers/finance/transactionsRepairApprovalVerification.js';
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
 import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
+import countSessionsList from '../server/vercel-handlers/finance/countSessionsList.js';
+import countSessionsCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
+import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
+import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
+import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
+import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
+import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
+import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
+import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
+import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
+import countCapturesFinalize from '../server/vercel-handlers/finance/countCapturesFinalize.js';
+import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
+import countCapturesExtractCandidates from '../server/vercel-handlers/finance/countCapturesExtractCandidates.js';
+import countCapturesExtractDenominations from '../server/vercel-handlers/finance/countCapturesExtractDenominations.js';
+import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
+import countCapturesSaveDenominationReview from '../server/vercel-handlers/finance/countCapturesSaveDenominationReview.js';
+import universalEvidenceStart from '../server/vercel-handlers/finance/universalEvidenceStart.js';
+import universalEvidenceFinalize from '../server/vercel-handlers/finance/universalEvidenceFinalize.js';
+import universalEvidenceList from '../server/vercel-handlers/finance/universalEvidenceList.js';
+import universalEvidenceDetail from '../server/vercel-handlers/finance/universalEvidenceDetail.js';
+import universalEvidencePreview from '../server/vercel-handlers/finance/universalEvidencePreview.js';
+import universalEvidencePdfInspect from '../server/vercel-handlers/finance/universalEvidencePdfInspect.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -99,6 +123,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return entitiesBootstrapVerify(req, res);
     case 'transactions-list':
       return transactionsList(req, res);
+    case 'transactions-summary':
+      return transactionsSummary(req, res);
     case 'transactions-detail':
       return transactionsDetail(req, res);
     case 'transactions-create-draft':
@@ -123,8 +149,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return transactionsRepairApprovalVerification(req, res);
     case 'transactions-posting-plan-preview':
       return transactionsPostingPlanPreview(req, res);
+    case 'count-sessions-list':
+      return countSessionsList(req, res);
+    case 'count-sessions-create':
+      return countSessionsCreate(req, res);
+    case 'count-sessions-detail':
+      return countSessionsDetail(req, res);
+    case 'count-sessions-save-first-count':
+      return countSessionsSaveFirstCount(req, res);
+    case 'count-sessions-start-second-count':
+      return countSessionsStartSecondCount(req, res);
+    case 'count-sessions-submit-second-count':
+      return countSessionsSubmitSecondCount(req, res);
+    case 'count-sessions-start-recount':
+      return countSessionsStartRecount(req, res);
+    case 'count-sessions-submit-recount':
+      return countSessionsSubmitRecount(req, res);
+    case 'count-paper-forms-generate':
+      return countPaperFormsGenerate(req, res);
+    case 'count-paper-forms-detail':
+      return countPaperFormsDetail(req, res);
+    case 'count-captures-start':
+      return countCapturesStart(req, res);
+    case 'count-captures-finalize':
+      return countCapturesFinalize(req, res);
+    case 'count-captures-detail':
+      return countCapturesDetail(req, res);
+    case 'count-captures-extract-candidates':
+      return countCapturesExtractCandidates(req, res);
+    case 'count-captures-extract-denominations':
+      return countCapturesExtractDenominations(req, res);
+    case 'count-captures-save-review':
+      return countCapturesSaveReview(req, res);
+    case 'count-captures-save-denomination-review':
+      return countCapturesSaveDenominationReview(req, res);
+    case 'universal-evidence-start':
+      return universalEvidenceStart(req, res);
+    case 'universal-evidence-finalize':
+      return universalEvidenceFinalize(req, res);
+    case 'universal-evidence-list':
+      return universalEvidenceList(req, res);
+    case 'universal-evidence-detail':
+      return universalEvidenceDetail(req, res);
+    case 'universal-evidence-preview':
+      return universalEvidencePreview(req, res);
+    case 'universal-evidence-pdf-inspect':
+      return universalEvidencePdfInspect(req, res);
     default:
       return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
-
