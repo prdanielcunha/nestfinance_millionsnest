@@ -1,0 +1,36 @@
+name: I2F Temporary Lockfile Generator
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - package.json
+      - .github/workflows/i2f-lockfile-temp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  generate-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Generate package-lock only
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Verify unpdf is locked
+        run: |
+          node -e "const l=require('./package-lock.json'); const p=l.packages?.['node_modules/unpdf']; if (!p || p.version !== '1.8.1') process.exit(1); console.log(p.version, p.integrity)"
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: i2f-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
