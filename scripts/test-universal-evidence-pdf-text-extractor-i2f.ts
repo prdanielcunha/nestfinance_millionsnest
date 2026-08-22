@@ -10,6 +10,11 @@ function escapePdfString(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
+function nativeTextOperators(text: string) {
+  const chunks = text.match(/[\s\S]{1,500}/g) || [];
+  return chunks.map((chunk) => `(${escapePdfString(chunk)}) Tj`).join(' ');
+}
+
 function buildPdf(pageTexts: Array<string | null>, trailerExtra = '') {
   const objects = new Map<number, Buffer>();
   const fontId = 3 + pageTexts.length * 2;
@@ -22,7 +27,7 @@ function buildPdf(pageTexts: Array<string | null>, trailerExtra = '') {
     const contentId = pageId + 1;
     const payload = text === null
       ? Buffer.from('q Q', 'latin1')
-      : Buffer.from(`BT /F1 12 Tf 72 720 Td (${escapePdfString(text)}) Tj ET`, 'latin1');
+      : Buffer.from(`BT /F1 12 Tf 72 720 Td ${nativeTextOperators(text)} ET`, 'latin1');
     objects.set(
       pageId,
       Buffer.from(
@@ -97,9 +102,11 @@ if (simple.state === 'extracted') {
 const noText = await extractNativePdfText(buildPdf([null]));
 verify(noText.state === 'unavailable' && noText.reason === 'text_layer_not_detected', 'PDF without supported text operators remains unavailable with no OCR fallback');
 
-const malformedText = await extractNativePdfText(buildPdf(['Hello']).toString('latin1').includes('%%EOF')
-  ? Buffer.from(buildPdf(['Hello']).toString('latin1').replace('BT /F1 12 Tf 72 720 Td (Hello) Tj ET', 'BT /F1 12 Tf (Hello) Tj'), 'latin1')
-  : buildPdf(['Hello']));
+const validHelloPdf = buildPdf(['Hello']);
+const malformedText = await extractNativePdfText(Buffer.from(
+  validHelloPdf.toString('latin1').replace('BT /F1 12 Tf 72 720 Td (Hello) Tj ET', 'BT /F1 12 Tf (Hello) Tj'),
+  'latin1',
+));
 verify(malformedText.state === 'unavailable' && malformedText.reason === 'structural_preflight_incomplete', 'ambiguous text object fails closed before PDF.js extraction');
 
 const encrypted = await extractNativePdfText(buildPdf(['Secret'], '/Encrypt 99 0 R '));
