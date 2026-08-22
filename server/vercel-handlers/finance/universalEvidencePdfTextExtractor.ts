@@ -32,8 +32,10 @@ export type NativePdfTextResult =
       totalPages?: number;
     };
 
-function appendBounded(target: string, value: string) {
-  if (!value || target.length >= PDF_TEXT_MAX_CHARACTERS) return { text: target, truncated: target.length >= PDF_TEXT_MAX_CHARACTERS };
+export function appendNativePdfTextBounded(target: string, value: string) {
+  if (!value || target.length >= PDF_TEXT_MAX_CHARACTERS) {
+    return { text: target, truncated: target.length >= PDF_TEXT_MAX_CHARACTERS };
+  }
   const available = PDF_TEXT_MAX_CHARACTERS - target.length;
   if (value.length <= available) return { text: target + value, truncated: false };
   return { text: target + value.slice(0, available), truncated: true };
@@ -96,7 +98,7 @@ export async function extractNativePdfText(bytes: Buffer): Promise<NativePdfText
       extractedPages += 1;
       if (!pageText) continue;
       const prefix = text ? '\n\n' : '';
-      const appended = appendBounded(text, prefix + pageText);
+      const appended = appendNativePdfTextBounded(text, prefix + pageText);
       text = appended.text;
       if (appended.truncated) {
         truncated = true;
