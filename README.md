@@ -1,82 +1,92 @@
-# NestFinance - MillionsNest
+# NestFinance — MillionsNest
 
-Este repositório pertence ao aplicativo **NestFinance**, parte do ecossistema MillionsNest (identificado internamente via pacote como `react-example`).
+NestFinance é o aplicativo financeiro do ecossistema MillionsNest. Ele opera como uma aplicação multi-tenant integrada ao Hub MillionsNest por Handoff, com autenticação, organização, memberships e RBAC resolvidos de forma canônica pelo ecossistema.
 
-## Visão Geral
-O NestFinance é um aplicativo de gestão financeira integrado como parte do ecossistema MillionsNest. Ele opera recebendo sessões de autenticação via Handoff a partir do Hub MillionsNest. Não há login paralelo ou cadastro de contas direto neste aplicativo. Toda autenticação e resolução de acesso flui estritamente pelo Hub e é validada server-side.
+## Estado do repositório
 
-## Tecnologias e Stack
-- **Frontend:** React 19, React Router v7, Tailwind CSS v4, framer-motion.
-- **Backend:** Node.js (via Vercel Serverless Functions), Express, `firebase-admin` (v13.10.0).
-- **Banco de Dados:** Firebase Firestore.
-- **Autenticação:** Firebase Auth (validado no backend via token ID e custom tokens).
-- **Linguagem:** TypeScript (typecheck via `tsc`).
-- **Build/Dev:** Vite 6.
+Este repositório pode ser visível publicamente para transparência técnica e execução de CI, mas **não é software open source**. Consulte `LICENSE.md` antes de copiar, modificar, redistribuir ou usar o código em outro produto.
 
-## Estrutura do Repositório
-- `/api/` - Pontos de entrada para Serverless Functions da Vercel (gateways).
-- `/src/` - Código do Frontend React.
-- `/server/` - Código do Backend (Vercel handlers e lógicas compartilhadas).
-- `/scripts/` - Scripts utilitários, validação de contratos e testes.
-- `/docs/` - Documentação arquitetural e de projeto (ADRs, contratos, etc).
+Nunca inclua neste repositório credenciais, tokens, chaves privadas, dumps de banco, comprovantes reais, dados pessoais ou identificadores operacionais de clientes.
 
-## Pré-requisitos
-- Node.js versão 22.x (configurada em `package.json` engines).
-- NPM para gerenciamento de pacotes.
+## Stack
 
-## Comandos Operacionais (Scripts)
-O gerenciador de pacotes utilizado é o **npm**.
+- React 19 + React Router v7
+- TypeScript
+- Tailwind CSS v4
+- Vite 6
+- Node.js 22
+- Vercel Serverless Functions
+- Firebase Auth / Firestore / Admin SDK
 
-- **Instalação:** `npm install`
-- **Desenvolvimento:** `npm run dev` (inicia o Vite na porta 3000)
-- **Build:** `npm run build` (compila o frontend via Vite)
-- **Preview Local:** `npm run preview`
-- **Typecheck (Lint):** `npm run lint` (`tsc --noEmit`)
-- **Validações de Contrato e Backend:**
-  - `npm run check:api-contracts` (valida rotas de API do Vercel)
-  - `npm run check:vercel-entrypoints`
-  - `npm run check:saas-isolation`
-  - `npm run check:brand-assets`
+## Estrutura
 
-## Variáveis de Ambiente
-As variáveis de ambiente requeridas estão documentadas no arquivo `.env.example`. Não inserir valores reais em código.
+- `/api` — entrypoints/gateways Vercel
+- `/src` — frontend React
+- `/server` — handlers e lógica server-side
+- `/shared` — contratos e lógica compartilhada
+- `/scripts` — testes, certificações e verificações
+- `/docs` — arquitetura, contratos e decisões
 
-**Client-side (configuradas no runtime via Vercel ou env):**
-- `APP_URL`
-- Variáveis do Firebase Client (não expostas diretamente no `.env.example`, dependendo da inicialização)
+## Desenvolvimento
 
-**Server-side (Segredos / Feature Flags):**
-- `GEMINI_API_KEY`
-- `NESTFINANCE_HANDOFF_REDEEM_ENABLED`
-- `NESTFINANCE_SESSION_RESOLVE_ENABLED`
-- Flags de feature write (`NESTFINANCE_SETUP_WRITE_ENABLED`, etc.)
-- Credenciais Firebase Admin (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`)
+Instalação reproduzível:
 
-## Arquitetura Resumida
-A arquitetura é dividida em Frontend (React SPA) e Backend Serverless. O Frontend é servido via Vite (em desenvolvimento) e os endpoints da API (sob `/api/`) são mapeados via `vercel.json` para arquivos de gateway que delegam as operações para a pasta `/server/vercel-handlers/`.
+```bash
+npm ci
+```
 
-A separação Multitenant baseia-se fortemente em `organizationId`, validada em todo acesso. Consulte `/docs/ARCHITECTURE_CURRENT.md` para mais detalhes.
+Comandos principais:
 
-## Autenticação e Autorização
-A autenticação acontece via "Handoff" do Hub MillionsNest. Um redirecionamento gera um código que é consumido no backend (`/api/auth/handoff/redeem`), resultando em um Custom Token do Firebase. A resolução da sessão valida o papel global, papel organizacional, capabilities (RBAC) e as fronteiras (Boundaries) no frontend asseguram a exibição correta. 
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run check:api-contracts
+npm run check:vercel-entrypoints
+npm run check:saas-isolation
+npm run check:brand-assets
+npm run test:certification-gates
+```
 
-Consulte `/docs/Pending-Integration-Contract.md` para visualizar as etapas de login pendentes de coordenação.
+Os demais testes canônicos estão declarados em `package.json` e nos workflows de `.github/workflows`.
 
-## Banco de Dados
-Firebase Firestore. Usa as coleções raiz `users`, `organizations`, `organization_members` e as subcoleções (e.g. `organizations/{orgId}/financeAccounts`, `financeTransactions`, etc).
+## Segurança e multi-tenancy
 
-O Universal Capture documental preserva evidências originais em storage autorizado e mantém seus envelopes e índices de duplicidade dentro de `organizations/{orgId}/financeEntities/{financeEntityId}`. A fase I1 é estritamente determinística e não cria transações ou lançamentos contábeis.
+- Autenticação entra pelo Handoff do Hub MillionsNest.
+- O backend valida token e contexto da organização.
+- `organizationId` e `financeEntityId` são fronteiras de segurança.
+- O frontend nunca é fonte suficiente de autorização.
+- Papéis, capabilities e escopos devem vir do resolver canônico.
+- Não criar fontes paralelas de Auth, membership, organization ou RBAC.
+- Universal Evidence permanece server-mediated e fail-closed.
 
-## Deploy
-Deploy é configurado para a Vercel através de rotas/rewrites em `vercel.json`. O script `prebuild` valida contratos antes da publicação (`check:vercel-entrypoints` e `check:brand-assets`).
+Consulte `SECURITY.md`, `AGENTS.md` e `docs/ARCHITECTURE_CURRENT.md` antes de alterar áreas sensíveis.
 
-## Documentação Adicional
-- [Arquitetura Atual](./docs/ARCHITECTURE_CURRENT.md)
-- [Protocolo de Mudança de IA](./docs/AI_CHANGE_PROTOCOL.md)
-- [Arquitetura Frontend](./docs/Frontend-Architecture.md)
-- E outras referências disponíveis na pasta `/docs/`.
+## Variáveis de ambiente
+
+Somente nomes/placeholders ficam em `.env.example`. Valores reais devem ser configurados no ambiente de execução (por exemplo, Vercel) e nunca commitados.
+
+Entre as variáveis server-side estão credenciais Firebase Admin, feature flags e, quando uma funcionalidade explicitamente habilitada exigir, chaves de provedores externos.
+
+## Branches e promoção
+
+- `main` — desenvolvimento/homologação integrada.
+- `production` — linha de produção; não deve receber alterações automáticas ou incidentais.
+- Mudanças devem ocorrer em branches de escopo pequeno e chegar a `main` por PR após gates e auditoria.
+- Promoção para `production` é uma decisão separada e explícita.
+
+## Automação de engenharia
+
+ChatGPT e Codex são os operadores de IA atualmente usados no projeto. Qualquer operador deve seguir o mesmo protocolo: repository-first, escopo mínimo, evidência real de testes, preservação de multi-tenancy/RBAC e nenhuma alteração direta em `production`.
+
+## Universal Capture / Inbox
+
+O Universal Capture preserva evidências originais de forma autorizada e mantém os envelopes dentro de `organizations/{orgId}/financeEntities/{financeEntityId}`. As fases atuais são deliberadamente fail-closed e não criam posting financeiro automaticamente. Camadas de OCR/IA só podem ser habilitadas em slices explicitamente desenhados e certificados.
+
+## Divulgação responsável
+
+Não publique vulnerabilidades, segredos ou dados reais em Issues/PRs. Consulte `SECURITY.md`.
 
 ---
-*O Google AI Studio é o único agente autorizado a modificar o código e sincronizar alterações na branch `main`.*
-*A branch `main` representa desenvolvimento e homologação.*
-*A branch `production` representa o código aprovado e publicado.*
+
+Copyright © 2026 NestFinance / MillionsNest project maintainers. Todos os direitos reservados.

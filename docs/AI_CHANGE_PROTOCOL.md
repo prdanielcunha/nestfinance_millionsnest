@@ -1,70 +1,70 @@
 # AI Change Protocol
 
-Este documento define o protocolo rigoroso que deve ser seguido por qualquer IA (incluindo o Google AI Studio) antes, durante e após a execução de qualquer mudança técnica neste repositório.
+Este documento define o protocolo rigoroso que qualquer operador de IA deve seguir antes, durante e após mudanças técnicas no NestFinance. O fluxo atual utiliza ChatGPT e Codex; as regras abaixo independem da ferramenta.
 
-## PARTE A — ANTES DE ALTERAR
+## A — Antes de alterar
 
-- Ler `AGENTS.md`.
-- Ler `ARCHITECTURE_CURRENT.md`.
-- Identificar o pedido exato do usuário.
-- Definir o que está DENTRO e FORA do escopo solicitado.
-- Localizar os arquivos reais no repositório que são relacionados à mudança.
-- Localizar dependências diretas e indiretas dos arquivos identificados.
-- Verificar riscos de quebra do isolamento Multi-tenant (`organizationId`).
-- Verificar riscos de quebra de permissões (RBAC) ou de papéis.
-- Verificar riscos associados a lógicas Backend (Express/Vercel) e regras de banco (`firestore.rules`).
-- Registrar mentalmente o comportamento atual.
-- Definir os critérios de aceite.
-- Definir quais validações/testes serão necessários para confirmar a segurança da mudança.
+- Ler `AGENTS.md`, `README.md` e a documentação do domínio afetado.
+- Inspecionar o código real antes de propor mudanças.
+- Definir claramente o que está dentro e fora do escopo.
+- Localizar implementações, contratos, testes e dependências relacionados.
+- Identificar riscos a `organizationId`, `financeEntityId`, RBAC, Firestore, Vercel e integrações.
+- Confirmar o comportamento atual com evidência.
+- Definir critérios de aceite e gates necessários.
+- Trabalhar em branch dedicada; `production` fica fora do escopo por padrão.
 
-## PARTE B — DURANTE A ALTERAÇÃO
+## B — Durante a alteração
 
-- Fazer as mudanças estritamente mínimas.
-- Não alterar arquivos sem necessidade.
-- Não modificar contratos públicos (API/Endpoints) sem necessidade comprovada.
-- Não duplicar lógica existente; reutilizar contextos, serviços ou componentes quando possível.
-- Não confiar apenas no frontend: toda alteração que lide com dados, finanças ou acesso deve ter validação server-side.
-- Preservar o isolamento de organização ativa (garantir que `mn_organization_id` ou equivalente seja mantido inviolável).
-- Preservar o RBAC atual (não modificar `capabilities` sem autorização explícita).
-- Preservar a internacionalização: todo novo texto deve suportar os padrões existentes (Português, English, Español).
-- Preservar a responsividade e adaptar para web/mobile.
-- Implementar tratamentos de loading (carregamento), estados de sucesso, falha e estado vazio (empty states) quando aplicável.
-- Considerar idempotência e concorrência em operações financeiras e críticas de banco.
-- Não adicionar logs temporários ou mockups de produção no ambiente real.
+- Fazer a menor mudança que resolva o problema.
+- Não modificar arquivos sem necessidade.
+- Não alterar contratos públicos sem necessidade comprovada.
+- Reutilizar contexts, serviços, gateways e componentes existentes.
+- Autorizações financeiras e de dados devem permanecer server-side.
+- Preservar organização e entidade financeira canônicas; nunca permitir retarget por body/header quando o token/contexto já definiu a organização.
+- Preservar o resolver canônico de sessão/capabilities; não criar fonte paralela de Auth, membership ou RBAC.
+- Papel organizacional `owner` não deve ser promovido implicitamente a autoridade global.
+- Todo texto novo visível deve manter PT/EN/ES.
+- Considerar idempotência, concorrência e fail-closed em operações críticas.
+- Não habilitar posting, OCR, IA ou processamento pago como efeito colateral de um slice que não os autorizou explicitamente.
+- Não introduzir credenciais, dados reais, dumps ou identificadores operacionais de clientes em código/testes.
 
-## PARTE C — APÓS A ALTERAÇÃO
+## C — Após a alteração
 
-- Revisar cuidadosamente o diff completo.
-- Verificar ativamente se arquivos fora do escopo sofreram alterações indesejadas.
-- Executar lint (`npm run lint`).
-- Executar typecheck (neste projeto o lint e typecheck estão mesclados em `tsc --noEmit`).
-- Executar build (`npm run build`).
-- Executar testes relacionados caso existam localmente.
-- Verificar erros preexistentes separadamente de erros introduzidos pela alteração.
-- Verificar a segurança e coesão da mudança.
-- Verificar se o Multi-tenant permaneceu intacto e isolado.
-- Verificar as amarras de RBAC e permissões.
-- Verificar a internacionalização visual.
-- Verificar que o layout não foi quebrado no mobile, tablet e desktop.
-- Informar qualquer configuração manual necessária ao desenvolvedor humano.
-- Produzir relatório final verificável na resposta para o usuário.
+- Revisar o diff completo e procurar drift fora do escopo.
+- Usar instalação reproduzível (`npm ci`) quando aplicável.
+- Executar os testes específicos do slice.
+- Executar lint/typecheck e build.
+- Executar gates de contratos, entrypoints, isolamento SaaS e brand quando aplicáveis.
+- Executar Firestore Emulator/Rules quando o domínio afetado exigir.
+- Separar falhas preexistentes ou de infraestrutura de regressões reais de código.
+- Revalidar multi-tenancy, RBAC, i18n, custos e efeitos colaterais.
+- Registrar SHA/tree/diff e resultados verificáveis antes do merge.
+- Promover por PR; promoção para `production` é decisão separada e explícita.
 
-## PARTE D — CRITÉRIOS DE BLOQUEIO
+## D — Critérios de bloqueio
 
-A tarefa **NÃO PODE** ser declarada concluída quando houver:
+A mudança não pode ser considerada concluída quando houver:
 
-- Erro de build introduzido pela mudança;
-- Erro TypeScript introduzido pela mudança;
-- Lint impeditivo introduzido pela mudança;
-- Algum teste relacionado falhando;
-- Alterações em arquivos fora do escopo inicial;
-- Risco de vazamento ou mistura de dados entre organizações;
-- Lógica de autorização crítica validada SOMENTE no frontend;
-- Algum bypass de segurança via hardcoded;
-- Segredos ou credenciais expostas;
-- Sistema de billing ou entitlements duplicado ou manipulado;
-- Texto em tela sem suporte à arquitetura de internacionalização;
-- Ausência de tratamento de erros, empty states ou falhas de rede num fluxo crítico;
-- Ausência de validação no backend;
-- Ausência de evidência que afirme que testes ou builds foram realmente executados com sucesso;
-- Configuração ou script manual que foi omitida da comunicação com o usuário.
+- erro de build/typecheck introduzido;
+- teste relevante falhando;
+- drift não explicado;
+- risco de mistura de organizações ou entidades;
+- autorização crítica apenas no frontend;
+- bypass por e-mail, UID, role ou valor hardcoded;
+- segredo, credencial ou dado real exposto;
+- fonte paralela de Auth/Hub/membership/RBAC;
+- billing/entitlement duplicado ou manipulado fora do contrato;
+- texto novo sem PT/EN/ES;
+- side effect financeiro não autorizado;
+- OCR/IA/posting ativado fora de um slice explicitamente certificado;
+- ausência de evidência real de testes/build quando o gate é obrigatório.
+
+## E — Repositório publicamente visível
+
+Quando a visibilidade do repositório for pública:
+
+- usar apenas fixtures sintéticos;
+- não incluir IDs operacionais de clientes em scripts one-off;
+- não publicar vulnerabilidades ou segredos em Issues/PRs;
+- seguir `SECURITY.md`;
+- lembrar que visibilidade pública não altera a licença proprietária descrita em `LICENSE.md`.
