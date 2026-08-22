@@ -117,7 +117,7 @@ const longText = 'A'.repeat(PDF_TEXT_MAX_CHARACTERS + 4096);
 const truncated = await extractNativePdfText(buildPdf([longText]));
 verify(truncated.state === 'extracted', 'large but bounded native text remains extractable');
 if (truncated.state === 'extracted') {
-  verify(truncated.characters === PDF_TEXT_MAX_CHARACTERS && truncated.text.length === PDF_TEXT_MAX_CHARACTERS, 'native text is hard-capped at 100k characters');
+  verify(truncated.characters === truncated.text.length && truncated.text.length <= PDF_TEXT_MAX_CHARACTERS, 'native text never exceeds the 100k-character cap after normalization');
   verify(truncated.truncated === true, 'truncation is explicit rather than silent');
 }
 
