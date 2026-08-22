@@ -72,6 +72,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-detail', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-preview', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-pdf-inspect', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-pdf-text', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
