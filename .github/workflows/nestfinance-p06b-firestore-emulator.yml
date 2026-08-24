@@ -43,6 +43,7 @@ on:
       - "scripts/test-universal-evidence-pdf-text-ui-i2h.ts"
       - "scripts/test-universal-evidence-text-signals-i2i.ts"
       - "scripts/test-universal-evidence-text-signals-ui-i2j.ts"
+      - "scripts/test-universal-evidence-field-role-hints-i2k.ts"
       - "scripts/test-count-firestore-rules.ts"
       - "scripts/test-count-paper-firestore-rules.ts"
       - "scripts/test-count-capture-firestore-rules.ts"
@@ -170,6 +171,7 @@ jobs:
           npm run test:universal-evidence-pdf-text-ui-i2h
           npm run test:universal-evidence-text-signals-i2i
           npm run test:universal-evidence-text-signals-ui-i2j
+          npm run test:universal-evidence-field-role-hints-i2k
           npm run lint
           npm run build
           npm run check:api-contracts
