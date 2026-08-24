@@ -1,4 +1,12 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true,
+      "production": true,
+      "preview/**": true
+    }
+  },
   "rewrites": [
     {
       "source": "/api/auth/handoff/redeem",

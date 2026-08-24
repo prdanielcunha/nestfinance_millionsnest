@@ -51,6 +51,15 @@ const combined = `${service}\n${card}\n${page}\n${copy}`;
 check(!combined.includes('@google/genai'), 'I2E readiness UX introduces no AI dependency');
 check(!combined.includes('generateContent('), 'I2E readiness UX makes no model call');
 check(!combined.includes('firebase-admin'), 'I2E readiness UX introduces no direct server persistence path');
-check(!combined.includes('universal-evidence-pdf-text'), 'experimental native text endpoint is not part of readiness slice');
+
+const readinessMethod = service.match(/async inspectPdfTextLayer\([\s\S]*?return response\.json\(\);\n  \},/)?.[0] || '';
+check(
+  !readinessMethod.includes('universal-evidence-pdf-text'),
+  'I2E readiness method remains isolated from the certified I2G native text operation',
+);
+check(
+  !/useEffect\([\s\S]{0,900}(extractPdfNativeText|readNativeText)\(/.test(card),
+  'I2E readiness lifecycle does not auto-trigger native text extraction',
+);
 
 console.log(`\nUniversal Evidence PDF Readiness I2E totals: ${passed} Passed`);
