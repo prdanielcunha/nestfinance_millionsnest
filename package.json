@@ -28,6 +28,8 @@
     "test:universal-evidence-pdf-text-ui-i2h": "tsx scripts/test-universal-evidence-pdf-text-ui-i2h.ts",
     "test:universal-evidence-text-signals-i2i": "tsx scripts/test-universal-evidence-text-signals-i2i.ts",
     "test:universal-evidence-text-signals-ui-i2j": "tsx scripts/test-universal-evidence-text-signals-ui-i2j.ts",
+    "test:universal-evidence-field-role-hints-i2k": "tsx scripts/test-universal-evidence-field-role-hints-i2k.ts",
+    "test:universal-evidence-field-role-hints-ui-i2l": "tsx scripts/test-universal-evidence-field-role-hints-ui-i2l.ts",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
