@@ -79,6 +79,47 @@ export interface UniversalEvidencePdfReadinessResponse {
   requestId?: string;
 }
 
+export type UniversalEvidencePdfTextUnavailableReason =
+  | 'input_too_large'
+  | 'encrypted'
+  | 'text_layer_not_detected'
+  | 'structural_preflight_incomplete'
+  | 'page_limit_exceeded'
+  | 'extraction_empty'
+  | 'parser_error';
+
+export type UniversalEvidencePdfTextExtraction =
+  | {
+      evidenceId: string;
+      deterministic: true;
+      aiUsed: false;
+      ocrUsed: false;
+      financialRecognition: false;
+      state: 'extracted';
+      parser: 'unpdf-pdfjs-1';
+      text: string;
+      totalPages: number;
+      extractedPages: number;
+      characters: number;
+      truncated: boolean;
+    }
+  | {
+      evidenceId: string;
+      deterministic: true;
+      aiUsed: false;
+      ocrUsed: false;
+      financialRecognition: false;
+      state: 'unavailable';
+      parser: 'unpdf-pdfjs-1';
+      reason: UniversalEvidencePdfTextUnavailableReason;
+      totalPages?: number;
+    };
+
+export interface UniversalEvidencePdfTextResponse {
+  extraction: UniversalEvidencePdfTextExtraction;
+  requestId?: string;
+}
+
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
   const headers = new Headers();
@@ -181,6 +222,25 @@ export const universalEvidenceInboxService = {
 
     if (!response.ok) {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_PDF_INSPECT_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async extractPdfNativeText(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+  ): Promise<UniversalEvidencePdfTextResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-pdf-text`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, evidenceId }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_PDF_TEXT_FAILED');
     }
 
     return response.json();
