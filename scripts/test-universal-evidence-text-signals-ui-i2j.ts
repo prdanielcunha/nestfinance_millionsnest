@@ -16,7 +16,8 @@ const gateway = await readFile('api/finance-gateway.ts', 'utf8');
 const pdfTextHandler = await readFile('server/vercel-handlers/finance/universalEvidencePdfText.ts', 'utf8');
 
 check(panel.includes("detectDocumentTextSignals") && panel.includes("../../../../shared/finance/documentIntelligenceTextSignals.js"), 'I2J reuses the certified I2I deterministic parser');
-check(panel.includes('const analyzeSignals = () =>') && panel.includes('setSignals(detectDocumentTextSignals(text))'), 'signal analysis is an explicit local parser action');
+check(panel.includes('const analyzeSignals = () =>') && panel.includes('const detectedSignals = detectDocumentTextSignals(text)') && panel.includes('setSignals(detectedSignals)'), 'signal analysis is an explicit local parser action');
+check((panel.match(/detectDocumentTextSignals\(text\)/g) || []).length === 1, 'signal analysis runs the I2I parser exactly once per explicit action');
 check(panel.includes('onClick={analyzeSignals}'), 'signal analysis requires an explicit user click');
 check(!panel.includes('useEffect('), 'signal panel has no lifecycle-triggered automatic analysis');
 check(!panel.includes('universalEvidenceInboxService') && !panel.includes('fetch('), 'signal analysis adds no network request');
