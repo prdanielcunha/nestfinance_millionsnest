@@ -33,6 +33,7 @@ export const TRANSLATIONS: Translations = {
   shell_waiting: { PT: 'Aguardando conexão', EN: 'Waiting connection', ES: 'Esperando conexión' },
   shell_principal: { PT: 'Principal', EN: 'Main', ES: 'Principal' },
   shell_more: { PT: 'Mais', EN: 'More', ES: 'Más' },
+  profile_fallback: { PT: 'Perfil', EN: 'Profile', ES: 'Perfil' },
 
   // Select Entity Page
   select_entity_title: { PT: 'Onde você quer trabalhar?', EN: 'Where do you want to work?', ES: '¿Dónde quieres trabajar?' },
@@ -53,6 +54,10 @@ export const TRANSLATIONS: Translations = {
   status_loading: { PT: 'Carregando...', EN: 'Loading...', ES: 'Cargando...' },
   status_error_title: { PT: 'Falha ao carregar dados financeiros', EN: 'Failed to load financial data', ES: 'Error al cargar los datos financieros' },
   status_error_desc: { PT: 'Não foi possível validar a estrutura organizacional base. Verifique sua conexão ou tente novamente.', EN: 'Could not validate the base organizational structure. Check your connection or try again.', ES: 'No se pudo validar la estructura organizacional base. Verifique su conexión o intente nuevamente.' },
+  status_partial_error_desc: { PT: 'Alguns dados não puderam ser carregados. Tente novamente.', EN: 'Some data could not be loaded. Try again.', ES: 'Algunos datos no se pudieron cargar. Inténtalo de nuevo.' },
+  status_error_short: { PT: 'Erro', EN: 'Error', ES: 'Error' },
+  status_ok: { PT: 'OK', EN: 'OK', ES: 'OK' },
+  status_pending: { PT: 'Pendente', EN: 'Pending', ES: 'Pendiente' },
   status_retry: { PT: 'Tentar novamente', EN: 'Try again', ES: 'Intentar de nuevo' },
   status_empty_work: { PT: 'Tudo limpo por aqui!', EN: 'All clear here!', ES: '¡Todo limpio por aquí!' },
   status_empty_work_desc: { PT: 'Nenhuma tarefa pendente precisa da sua atenção no momento. Excelente trabalho!', EN: 'No pending tasks require your attention at the moment. Great job!', ES: 'Ninguna tarea pendiente requiere su atención en este momento. ¡Excelente trabalho!' },
@@ -113,6 +118,7 @@ export const TRANSLATIONS: Translations = {
   // Activity Feed
   recent_activity_title: { PT: 'Atividade Recente', EN: 'Recent Activity', ES: 'Actividad Reciente' },
   recent_activity_empty: { PT: 'Nenhuma movimentação registrada recentemente.', EN: 'No recent transactions recorded.', ES: 'Ninguna transacción registrada recientemente.' },
+  recent_activity_error: { PT: 'Falha ao carregar a atividade recente.', EN: 'Failed to load recent activity.', ES: 'No se pudo cargar la actividad reciente.' },
   activity_income: { PT: 'Entrada', EN: 'Income', ES: 'Ingreso' },
   activity_expense: { PT: 'Saída', EN: 'Expense', ES: 'Egreso' },
   activity_transfer: { PT: 'Transferência', EN: 'Transfer', ES: 'Transferencia' }
