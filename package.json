@@ -26,6 +26,7 @@
     "test:universal-evidence-pdf-text-extractor-i2f": "tsx scripts/test-universal-evidence-pdf-text-extractor-i2f.ts",
     "test:universal-evidence-pdf-text-emulator-i2g": "FIREBASE_PROJECT_ID=nestfinance-inbox-i2g-emulator npx firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-inbox-i2g-emulator \"tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts\"",
     "test:universal-evidence-pdf-text-ui-i2h": "tsx scripts/test-universal-evidence-pdf-text-ui-i2h.ts",
+    "test:universal-evidence-text-signals-i2i": "tsx scripts/test-universal-evidence-text-signals-i2i.ts",
     "prebuild": "npm run check:vercel-entrypoints && npm run check:brand-assets",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
