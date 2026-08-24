@@ -13,6 +13,7 @@ import {
 import { normalizeInboxEvidenceState } from './inboxModel';
 import { PDF_READINESS_COPY } from './pdfReadinessCopy';
 import { PDF_TEXT_COPY } from './pdfTextCopy';
+import { UniversalEvidenceTextSignalsPanel } from './UniversalEvidenceTextSignalsPanel';
 
 type Props = {
   evidence: UniversalEvidenceDetail;
@@ -225,6 +226,7 @@ export function UniversalEvidencePdfReadinessCard({ evidence }: Props) {
                 <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-border-subtle bg-surface-base p-4">
                   <div className="whitespace-pre-wrap break-words text-sm leading-6 text-text-secondary">{extraction.text}</div>
                 </div>
+                <UniversalEvidenceTextSignalsPanel text={extraction.text} />
               </div>
             ) : null}
           </div>
