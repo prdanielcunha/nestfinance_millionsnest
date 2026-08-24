@@ -6,6 +6,10 @@ import {
   detectDocumentTextSignals,
   type DocumentTextSignalsResult,
 } from '../../../../shared/finance/documentIntelligenceTextSignals.js';
+import {
+  buildDocumentFieldRoleHints,
+  type DocumentFieldRoleHintsResult,
+} from '../../../../shared/finance/documentIntelligenceFieldRoleHints.js';
 import { PDF_SIGNALS_COPY } from './pdfSignalsCopy';
 
 type Props = {
@@ -16,9 +20,12 @@ export function UniversalEvidenceTextSignalsPanel({ text }: Props) {
   const { language } = useLanguage();
   const copy = PDF_SIGNALS_COPY[language];
   const [signals, setSignals] = useState<DocumentTextSignalsResult | null>(null);
+  const [roleHints, setRoleHints] = useState<DocumentFieldRoleHintsResult | null>(null);
 
   const analyzeSignals = () => {
-    setSignals(detectDocumentTextSignals(text));
+    const detectedSignals = detectDocumentTextSignals(text);
+    setSignals(detectedSignals);
+    setRoleHints(buildDocumentFieldRoleHints(text, detectedSignals));
   };
 
   return (
@@ -56,29 +63,53 @@ export function UniversalEvidenceTextSignalsPanel({ text }: Props) {
               ) : null}
 
               <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
-                {signals.candidates.map((candidate) => (
-                  <div
-                    key={`${candidate.kind}:${candidate.start}:${candidate.end}:${candidate.normalized}`}
-                    className="rounded-lg border border-border-subtle bg-surface-secondary p-3"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-border-subtle bg-surface-elevated px-2 py-0.5 text-xs font-medium text-text-primary">
-                        {copy.kinds[candidate.kind]}
-                      </span>
-                      <span className="text-xs text-text-muted">{copy.evidence[candidate.evidence]}</span>
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-xs font-medium text-text-muted">{copy.rawLabel}</p>
-                      <p className="mt-1 break-words font-mono text-sm text-text-primary">{candidate.raw}</p>
-                    </div>
-                    {candidate.context && candidate.context !== candidate.raw ? (
-                      <div className="mt-3">
-                        <p className="text-xs font-medium text-text-muted">{copy.contextLabel}</p>
-                        <p className="mt-1 break-words text-sm leading-relaxed text-text-secondary">{candidate.context}</p>
+                {signals.candidates.map((candidate, index) => {
+                  const roleCandidate = roleHints?.candidates[index];
+                  return (
+                    <div
+                      key={`${candidate.kind}:${candidate.start}:${candidate.end}:${candidate.normalized}`}
+                      className="rounded-lg border border-border-subtle bg-surface-secondary p-3"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-border-subtle bg-surface-elevated px-2 py-0.5 text-xs font-medium text-text-primary">
+                          {copy.kinds[candidate.kind]}
+                        </span>
+                        <span className="text-xs text-text-muted">{copy.evidence[candidate.evidence]}</span>
                       </div>
-                    ) : null}
-                  </div>
-                ))}
+
+                      <div className="mt-3 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2">
+                        {roleCandidate?.roleHint ? (
+                          <>
+                            <p className="text-xs font-medium text-text-muted">{copy.roleHintLabel}</p>
+                            <p className="mt-1 text-sm font-medium text-text-primary">{copy.roles[roleCandidate.roleHint]}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.roleHintBody}</p>
+                            {roleCandidate.matchedLabel ? (
+                              <p className="mt-2 text-xs text-text-muted">
+                                {copy.roleEvidenceLabel}: <span className="font-medium text-text-secondary">{roleCandidate.matchedLabel}</span>
+                              </p>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs font-medium text-text-muted">{copy.roleHintLabel}</p>
+                            <p className="mt-1 text-sm text-text-secondary">{copy.roleUnassigned}</p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="mt-3">
+                        <p className="text-xs font-medium text-text-muted">{copy.rawLabel}</p>
+                        <p className="mt-1 break-words font-mono text-sm text-text-primary">{candidate.raw}</p>
+                      </div>
+                      {candidate.context && candidate.context !== candidate.raw ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-medium text-text-muted">{copy.contextLabel}</p>
+                          <p className="mt-1 break-words text-sm leading-relaxed text-text-secondary">{candidate.context}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )
