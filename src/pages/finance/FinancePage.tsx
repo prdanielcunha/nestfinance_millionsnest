@@ -122,6 +122,7 @@ export default function FinancePage() {
   const [searchParams] = useSearchParams();
   const { activeFinanceEntityId, setActiveFinanceEntityId, lastUsedFinanceEntityId } = useFinanceEntity();
   const { language, t } = useLanguage();
+  const locale = language === 'PT' ? 'pt-BR' : language === 'EN' ? 'en-US' : 'es-ES';
   
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [apiError, setApiError] = useState(false);
@@ -489,7 +490,7 @@ export default function FinancePage() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-border-subtle pb-6">
             <div>
               <p className="text-xs text-text-secondary font-medium uppercase tracking-wider mb-1">
-                {t(greetingKey)}, {accessState.profile?.displayName || 'Perfil'}
+                {t(greetingKey)}, {accessState.profile?.displayName || t('profile_fallback')}
               </p>
               <h1 className="text-4xl font-bold text-text-primary tracking-tight">
                 {t('today_title')}
@@ -499,7 +500,7 @@ export default function FinancePage() {
               <div className="flex items-center gap-2 text-xs bg-surface-default border border-border-subtle px-3 py-1.5 rounded-xl w-fit self-start md:self-auto">
                 <Clock className="w-3.5 h-3.5 text-text-muted" />
                 <span className="text-text-secondary">{t('today_period')}:</span>
-                <span className="font-semibold text-accent-primary">{new Date().toLocaleDateString(language === 'PT' ? 'pt-BR' : language === 'EN' ? 'en-US' : 'es-ES', { month: 'long', year: 'numeric' })}</span>
+                <span className="font-semibold text-accent-primary">{new Date().toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</span>
               </div>
             )}
           </div>
@@ -521,7 +522,7 @@ export default function FinancePage() {
                   <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-semibold text-text-primary">{t('status_error_title')}</h4>
-                    <p className="text-xs text-text-secondary mt-1">Alguns dados não puderam ser carregados. Tente novamente.</p>
+                    <p className="text-xs text-text-secondary mt-1">{t('status_partial_error_desc')}</p>
                   </div>
                 </div>
                 <button
@@ -543,7 +544,7 @@ export default function FinancePage() {
                 <div className="flex flex-col gap-4">
                   <div>
                     <span className="text-[10px] uppercase font-bold tracking-wider text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full border border-accent-primary/20 w-fit block mb-2">
-                      {priorityAction.type === 'HEALTHY' || priorityAction.type === 'READ_ONLY' || priorityAction.type === 'CREATE' ? 'OK' : 'PENDING'}
+                      {priorityAction.type === 'HEALTHY' || priorityAction.type === 'READ_ONLY' || priorityAction.type === 'CREATE' ? t('status_ok') : t('status_pending')}
                     </span>
                     <h3 className="text-xl font-bold text-text-primary tracking-tight">
                       {t(priorityAction.titleKey)}
@@ -587,7 +588,7 @@ export default function FinancePage() {
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : draftsState.status === 'error' ? (
                     <span className="text-xs text-rose-500 font-semibold mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Error
+                      <AlertCircle className="w-3.5 h-3.5" /> {t('status_error_short')}
                     </span>
                   ) : (
                     <span className={`text-2xl font-bold mt-1 tracking-tight font-mono ${draftsState.data?.returned ? 'text-rose-500' : 'text-text-primary'}`}>
@@ -610,7 +611,7 @@ export default function FinancePage() {
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : reviewState.status === 'error' ? (
                     <span className="text-xs text-rose-500 font-semibold mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Error
+                      <AlertCircle className="w-3.5 h-3.5" /> {t('status_error_short')}
                     </span>
                   ) : (
                     <span className={`text-2xl font-bold mt-1 tracking-tight font-mono ${reviewState.data ? 'text-amber-500' : 'text-text-primary'}`}>
@@ -633,7 +634,7 @@ export default function FinancePage() {
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : draftsState.status === 'error' ? (
                     <span className="text-xs text-rose-500 font-semibold mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Error
+                      <AlertCircle className="w-3.5 h-3.5" /> {t('status_error_short')}
                     </span>
                   ) : (
                     <span className="text-2xl font-bold mt-1 tracking-tight text-text-primary font-mono">
@@ -656,7 +657,7 @@ export default function FinancePage() {
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : approvedState.status === 'error' ? (
                     <span className="text-xs text-rose-500 font-semibold mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Error
+                      <AlertCircle className="w-3.5 h-3.5" /> {t('status_error_short')}
                     </span>
                   ) : (
                     <span className={`text-2xl font-bold mt-1 tracking-tight font-mono ${approvedState.data ? 'text-teal-500' : 'text-text-primary'}`}>
@@ -748,7 +749,7 @@ export default function FinancePage() {
               </div>
             ) : activityState.status === 'error' ? (
               <div className="bg-surface-default border border-border-subtle rounded-2xl p-6 text-center text-xs text-rose-500 font-medium">
-                Falha ao carregar a atividade recente.
+                {t('recent_activity_error')}
               </div>
             ) : !activityState.data || activityState.data.length === 0 ? (
               <div className="bg-surface-default border border-border-subtle rounded-2xl p-6 text-center text-sm text-text-muted">
@@ -759,7 +760,7 @@ export default function FinancePage() {
                 {activityState.data.map((tx: any) => {
                   const isIncome = tx.direction === 'income';
                   const isExpense = tx.direction === 'expense';
-                  const amountText = (tx.amountCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                  const amountText = (tx.amountCents / 100).toLocaleString(locale, { style: 'currency', currency: 'BRL' });
                   
                   return (
                     <button
@@ -790,7 +791,7 @@ export default function FinancePage() {
                             {tx.description || (isIncome ? t('activity_income') : isExpense ? t('activity_expense') : t('activity_transfer'))}
                           </p>
                           <p className="text-xs text-text-secondary mt-0.5">
-                            {tx.occurredAt ? new Date(tx.occurredAt).toLocaleDateString(language === 'PT' ? 'pt-BR' : language === 'EN' ? 'en-US' : 'es-ES') : ''}
+                            {tx.occurredAt ? new Date(tx.occurredAt).toLocaleDateString(locale) : ''}
                             {tx.counterparty ? ` • ${tx.counterparty}` : ''}
                           </p>
                         </div>
