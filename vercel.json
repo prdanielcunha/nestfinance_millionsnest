@@ -1,11 +1,6 @@
 {
   "git": {
-    "deploymentEnabled": {
-      "**": false,
-      "main": true,
-      "production": true,
-      "preview/**": true
-    }
+    "deploymentEnabled": false
   },
   "rewrites": [
     {
