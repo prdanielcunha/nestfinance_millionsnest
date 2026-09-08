@@ -30,17 +30,21 @@ export function getFirebaseAdmin() {
          defaultApp = firebaseAdmin.initializeApp({
             projectId
          });
-      } else {
-         if (!projectId || !clientEmail || !privateKey) {
-            throw new Error('MISSING_FIREBASE_CREDENTIALS');
-         }
-
+      } else if (projectId && clientEmail && privateKey) {
+         // Preserve the explicit credential path used by the current Vercel rollback deployment.
          defaultApp = firebaseAdmin.initializeApp({
             credential: firebaseAdmin.credential.cert({
                projectId,
                clientEmail,
                privateKey,
             }),
+         });
+      } else {
+         // Google-managed runtimes (Cloud Run) use Application Default Credentials.
+         // No long-lived service-account private key is required in the container.
+         defaultApp = firebaseAdmin.initializeApp({
+            credential: firebaseAdmin.credential.applicationDefault(),
+            ...(projectId ? { projectId } : {}),
          });
       }
     }
