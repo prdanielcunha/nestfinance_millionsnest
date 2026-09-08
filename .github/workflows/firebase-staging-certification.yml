@@ -1,0 +1,73 @@
+name: Firebase Staging Certification
+
+on:
+  push:
+    branches: [ production ]
+    paths:
+      - ".github/workflows/firebase-staging-certification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nestfinance-firebase-staging-certification
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Authenticate with MillionsNest production WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
+          service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
+
+      - name: Confirm private Cloud Run readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          READY="$(gcloud run services describe nestfinance-api --project millionsnest --region us-central1 --format='value(status.conditions[0].status)')"
+          test "$READY" = "True"
+          echo "NESTFINANCE_CLOUD_RUN_READY"
+
+      - name: Allow Firebase Hosting invocation
+        run: |
+          gcloud run services add-iam-policy-binding nestfinance-api             --project millionsnest             --region us-central1             --member="allUsers"             --role="roles/run.invoker"             --quiet
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate migration contract
+        run: |
+          npm run lint
+          npm run test:firebase-infra
+          npm run build
+
+      - name: Deploy NestFinance Hosting
+        run: npx -y firebase-tools@15.27.0 deploy --only hosting:nestfinance --project millionsnest --non-interactive
+
+      - name: Smoke SPA through Firebase Hosting
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://mn-nestfinance-555464791734.web.app"
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$BASE/" -o /tmp/nf-index.html
+          grep -Eiq '<!doctype html|<html' /tmp/nf-index.html
+          echo "NESTFINANCE_FIREBASE_SPA_OK"
+
+      - name: Smoke Cloud Run rewrite through Firebase Hosting
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://mn-nestfinance-555464791734.web.app"
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 2             "$BASE/api/system/release" -o /tmp/nf-release.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/nf-release.json','utf8'));if(x.app!=='nestfinance') process.exit(1);console.log('NESTFINANCE_FIREBASE_API_OK',x.releaseMarker||'');"
