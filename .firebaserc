@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "millionsnest"
+  },
+  "targets": {
+    "millionsnest": {
+      "hosting": {
+        "nestfinance": [
+          "nestfinance-millionsnest"
+        ]
+      }
+    }
+  }
+}
