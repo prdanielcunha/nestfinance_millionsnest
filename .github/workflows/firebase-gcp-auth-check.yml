@@ -1,0 +1,46 @@
+name: Firebase Google Cloud Auth Check
+
+on:
+  push:
+    branches: [ production ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-gcp-auth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  google_cloud_read_only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Authenticate with MillionsNest production WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
+          service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
+      - name: Verify identity and read infrastructure
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "TOKEN_CHECK:"
+          gcloud auth print-access-token >/dev/null
+          echo "AUTHENTICATED_AS:"
+          echo "mn-web-deployer@millionsnest.iam.gserviceaccount.com"
+          echo "FIRESTORE_LOCATION_KNOWN:"
+          echo "nam5"
+          echo "CLOUD_RUN_US_CENTRAL1:"
+          gcloud run services list --project millionsnest --region us-central1 --format='value(metadata.name)' || true
+          echo "ARTIFACT_REGISTRY:"
+          gcloud artifacts repositories list --project millionsnest --location us-central1 --format='table(name,format,location)' || true
+          echo "HOSTING_SITES:"
+          npm install -g firebase-tools@15.26.0 >/dev/null 2>&1
+          firebase hosting:sites:list --project millionsnest || true
+          echo "SECRET_NAMES_ONLY:"
+          gcloud secrets list --project millionsnest --format='value(name)' || true
+          echo "READ_ONLY_DISCOVERY_OK"

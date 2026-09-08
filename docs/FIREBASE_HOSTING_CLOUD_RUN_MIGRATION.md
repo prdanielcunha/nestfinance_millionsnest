@@ -6,7 +6,7 @@ NestFinance is migrated conservatively: Firebase Hosting serves the SPA and forw
 
 - Firebase project: `millionsnest`
 - Hosting target: `nestfinance`
-- Hosting site: `nestfinance-millionsnest`
+- Hosting site: `mn-nestfinance-555464791734`
 - Cloud Run service: `nestfinance-api`
 - Domain after cutover: `nestfinance.millionsnest.com`
 

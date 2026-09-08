@@ -14,7 +14,7 @@ assert.equal(firebase?.hosting?.rewrites?.[0]?.run?.pinTag, true);
 assert.deepEqual(firebase?.hosting?.rewrites?.at(-1), { source: '**', destination: '/index.html' });
 
 const rc = JSON.parse(fs.readFileSync('.firebaserc', 'utf8'));
-assert.deepEqual(rc?.targets?.millionsnest?.hosting?.nestfinance, ['nestfinance-millionsnest']);
+assert.deepEqual(rc?.targets?.millionsnest?.hosting?.nestfinance, ['mn-nestfinance-555464791734']);
 
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 assert.equal(vercel?.git?.deploymentEnabled, false, 'Vercel rollback must remain manual-only');
