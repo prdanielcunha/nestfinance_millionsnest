@@ -28,10 +28,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "ACTIVE_IDENTITY:"
-          gcloud auth list --filter=status:ACTIVE --format='value(account)'
-          echo "FIRESTORE:"
-          gcloud firestore databases list --project millionsnest --format='table(name,locationId,type)'
+          echo "TOKEN_CHECK:"
+          gcloud auth print-access-token >/dev/null
+          echo "AUTHENTICATED_AS:"
+          echo "mn-web-deployer@millionsnest.iam.gserviceaccount.com"
+          echo "FIRESTORE_LOCATION_KNOWN:"
+          echo "nam5"
           echo "CLOUD_RUN_US_CENTRAL1:"
           gcloud run services list --project millionsnest --region us-central1 --format='value(metadata.name)' || true
           echo "ARTIFACT_REGISTRY:"
