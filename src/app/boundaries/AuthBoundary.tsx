@@ -1,16 +1,41 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { Shield } from 'lucide-react';
-import { config } from '@/src/config/env';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 
 interface Props {
   children: ReactNode;
 }
 
+const HUB_LAUNCH_URL = 'https://www.millionsnest.com/apps/nestfinance/launch';
+
+function safeCurrentPath(): string {
+  const candidate = String(window.location.pathname || '/finance').trim();
+  return candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://') && !candidate.includes('\\')
+    ? candidate
+    : '/finance';
+}
+
+function DirectEntryRedirect() {
+  useEffect(() => {
+    const url = new URL(HUB_LAUNCH_URL);
+    url.searchParams.set('returnTo', safeCurrentPath());
+    window.location.replace(url.toString());
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 selection:bg-accent-primary/20">
+      <div className="max-w-md w-full flex flex-col items-center text-center space-y-6 fade-in">
+        <NestFinanceLogo layout="horizontal" surface="dark" className="w-[512px] max-w-full mb-2 opacity-95" />
+        <div className="w-full h-px bg-zinc-800 my-2" />
+        <p className="text-sm text-zinc-400">Conectando sua sessão do MillionsNest...</p>
+        <div className="w-6 h-6 rounded-full border-2 border-zinc-800 border-t-white animate-spin" />
+      </div>
+    </div>
+  );
+}
+
 export function AuthBoundary({ children }: Props) {
   const { authState } = useAuth();
-  
   const isHandoffRoute = window.location.pathname.startsWith('/auth/handoff');
 
   if (authState === 'initializing') {
@@ -31,28 +56,8 @@ export function AuthBoundary({ children }: Props) {
   }
 
   if (authState === 'unauthenticated' && !isHandoffRoute) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 selection:bg-accent-primary/20">
-        <div className="max-w-md w-full flex flex-col items-center text-center space-y-6 fade-in">
-          <NestFinanceLogo layout="horizontal" surface="dark" className="w-[512px] max-w-full mb-2 opacity-95" />
-          
-          <div className="w-full h-px bg-zinc-800 my-2" />
-
-          <p className="text-sm text-zinc-400">
-            Entre pelo Hub MillionsNest para acessar com segurança.
-          </p>
-          
-          <button 
-            disabled
-            className="mt-4 px-6 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-medium transition-colors text-zinc-500 w-full sm:w-auto opacity-50 cursor-not-allowed"
-          >
-            Voltar ao {config.platformName}
-          </button>
-        </div>
-      </div>
-    );
+    return <DirectEntryRedirect />;
   }
 
-  // Se handoff e unauthenticated, renderiza os childrens para a rota conseguir resolver
   return <>{children}</>;
 }
