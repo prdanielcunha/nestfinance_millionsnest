@@ -1,0 +1,42 @@
+name: NestFinance Fact Foundation Quality
+
+on:
+  push:
+    branches:
+      - 'architecture/**'
+    paths:
+      - 'shared/intelligence/**'
+      - 'server/vercel-handlers/finance/factStream.ts'
+      - 'server/vercel-handlers/finance/countSessionsCreate.ts'
+      - 'server/vercel-handlers/finance/universalEvidenceFinalize.ts'
+      - 'scripts/test-intelligence-fact-foundation.ts'
+      - '.github/workflows/nestfinance-fact-foundation-quality.yml'
+  pull_request:
+    paths:
+      - 'shared/intelligence/**'
+      - 'server/vercel-handlers/finance/factStream.ts'
+      - 'server/vercel-handlers/finance/countSessionsCreate.ts'
+      - 'server/vercel-handlers/finance/universalEvidenceFinalize.ts'
+      - 'scripts/test-intelligence-fact-foundation.ts'
+      - '.github/workflows/nestfinance-fact-foundation-quality.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fact-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Fact contract checks
+        run: npx tsx scripts/test-intelligence-fact-foundation.ts
