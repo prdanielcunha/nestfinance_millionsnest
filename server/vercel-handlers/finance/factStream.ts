@@ -38,14 +38,15 @@ export function buildFinanceFactEventId(input: Pick<FinanceFactInput, 'organizat
  * Stages a canonical fact in the same Firestore transaction as its source
  * mutation. This prevents a successful financial mutation from being separated
  * from the fact that describes it, and makes transaction retries safe.
+ *
+ * Canonical facts intentionally live in a top-level server-only collection.
+ * The current Firestore rules default-deny unmatched top-level collections, so
+ * browser clients cannot forge, mutate or read this evidence stream. Authorized
+ * read models can be projected later without weakening the source-of-truth.
  */
 export function stageFinanceFact(transaction: Transaction, db: Firestore, input: FinanceFactInput): string {
   const eventId = buildFinanceFactEventId(input);
-  const factRef = db
-    .collection('organizations')
-    .doc(input.organizationId)
-    .collection('intelligenceFacts')
-    .doc(eventId);
+  const factRef = db.collection('intelligenceFacts').doc(eventId);
   const serverTimestamp = FieldValue.serverTimestamp();
 
   const fact: CanonicalFact<Record<string, unknown>, FieldValue> = {
