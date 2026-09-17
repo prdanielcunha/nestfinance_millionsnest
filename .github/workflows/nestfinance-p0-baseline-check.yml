@@ -1,0 +1,31 @@
+name: NestFinance P0 Reconciled Baseline Check
+
+on:
+  push:
+    branches:
+      - 'architecture/p0-reconciled-baseline-check'
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Entrypoint contracts
+        run: npm run check:vercel-entrypoints
+      - name: SaaS isolation static check
+        run: npm run check:saas-isolation
