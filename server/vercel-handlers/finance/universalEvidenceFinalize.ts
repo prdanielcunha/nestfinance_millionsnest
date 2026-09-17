@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
+import { stageFinanceFact } from './factStream.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { detectUniversalEvidenceMime, inspectImageMetadata } from '../../../shared/finance/universalEvidence.js';
 import { generateEvidenceAuditId } from './universalEvidenceHelpers.js';
@@ -44,15 +45,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const hashDoc = await transaction.get(hashRef);
       const canonicalId = hashDoc.exists ? String(hashDoc.data()?.evidenceId || '') : evidenceId;
       const duplicate = Boolean(hashDoc.exists && canonicalId !== evidenceId);
+      const nextProcessingState = duplicate ? 'duplicate' : 'accepted';
       transaction.update(evidenceRef, {
         verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, imageMetadata,
         original: { ...live.data()?.original, verifiedMimeType, verifiedByteSize: stored.size, verifiedSha256: stored.sha256, imageMetadata },
-        processingState: duplicate ? 'duplicate' : 'accepted', duplicate, duplicateOfEvidenceId: duplicate ? canonicalId : null,
+        processingState: nextProcessingState, duplicate, duplicateOfEvidenceId: duplicate ? canonicalId : null,
         validatedByUid: uid, validatedAt: FieldValue.serverTimestamp(), version: 2,
       });
       if (!hashDoc.exists) transaction.create(hashRef, { evidenceId, originalSha256: stored.sha256, organizationId, financeEntityId, createdAt: FieldValue.serverTimestamp() });
       const auditId = generateEvidenceAuditId();
-      transaction.create(context.repository.getAuditRef().doc(auditId), { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: duplicate ? 'evidence.duplicate_detected' : 'evidence.accepted', requestId, idempotencyKey, afterHash: payloadHash, metadata: { verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, duplicate, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
+      const auditRef = context.repository.getAuditRef().doc(auditId);
+      transaction.create(auditRef, { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: duplicate ? 'evidence.duplicate_detected' : 'evidence.accepted', requestId, idempotencyKey, afterHash: payloadHash, metadata: { verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, duplicate, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
+      stageFinanceFact(transaction, db, {
+        organizationId,
+        eventType: 'DOCUMENT_ATTACHED',
+        entityType: 'universal_evidence',
+        entityId: evidenceId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          processingState: nextProcessingState,
+          duplicate,
+          verifiedMimeType,
+          byteSize: stored.size,
+          financialRecognition: false,
+        },
+        sourceRefs: [
+          { kind: 'evidence', ref: evidenceRef.path, version: 2 },
+          { kind: 'audit', ref: auditRef.path },
+        ],
+      });
       return { evidenceId, captureId: evidenceId, processingState: duplicate ? 'duplicate' as const : 'accepted' as const, duplicate, version: 2 };
     });
     return res.status(200).json({ ...result, requestId });
