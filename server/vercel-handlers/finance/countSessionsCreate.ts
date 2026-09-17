@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
+import { stageFinanceFact } from './factStream.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { generateCountSessionId, validateCountServiceDate, validateCountServiceLabel } from '../../../shared/finance/count.js';
 
@@ -40,7 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       async (transaction) => {
         const sessionId = generateCountSessionId();
         const auditId = `audit_${generateCountSessionId().slice(4)}`;
-        transaction.set(sessionsRef.doc(sessionId), {
+        const sessionRef = sessionsRef.doc(sessionId);
+        const auditRef = context.repository.getAuditRef().doc(auditId);
+        transaction.set(sessionRef, {
           id: sessionId,
           organizationId,
           financeEntityId,
@@ -61,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
-        transaction.set(context.repository.getAuditRef().doc(auditId), {
+        transaction.set(auditRef, {
           eventId: auditId,
           organizationId,
           financeEntityId,
@@ -74,6 +77,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           afterHash: payloadHash,
           metadata: { serviceDate: normalizedDate, status: 'counting_a', doubleCountRequired: true },
           createdAt: FieldValue.serverTimestamp(),
+        });
+        stageFinanceFact(transaction, db, {
+          organizationId,
+          eventType: 'COUNT_OPENED',
+          entityType: 'count_session',
+          entityId: sessionId,
+          actorUserId: uid,
+          correlationId: requestId,
+          payload: {
+            financeEntityId,
+            serviceDate: normalizedDate,
+            status: 'counting_a',
+            doubleCountRequired: true,
+            policyVersion: 1,
+          },
+          sourceRefs: [
+            { kind: 'record', ref: sessionRef.path, version: 1 },
+            { kind: 'audit', ref: auditRef.path },
+          ],
         });
         return { sessionId, version: 1, status: 'counting_a' };
       },
