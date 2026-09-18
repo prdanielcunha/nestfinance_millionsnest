@@ -57,6 +57,7 @@ export async function isFinanceSignalCurrent({
       Boolean(
         data.returnedToDraftAt ||
           data.returnedToDraftReason ||
+          data.returnedToDraftComment ||
           data.approvalStatus === 'invalidated' ||
           data.invalidatedAt,
       )

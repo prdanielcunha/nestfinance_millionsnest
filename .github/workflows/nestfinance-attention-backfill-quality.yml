@@ -1,0 +1,86 @@
+name: NestFinance Attention Backfill Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/intelligence/canonicalFact.ts'
+      - 'server/vercel-handlers/finance/factStream.ts'
+      - 'server/vercel-handlers/finance/attentionBackfill*.ts'
+      - 'server/vercel-handlers/finance/signalCurrentState.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-attention-backfill-contract.ts'
+      - 'scripts/test-attention-backfill-emulator.ts'
+      - 'scripts/test-intelligence-coverage-firestore-rules.ts'
+      - 'scripts/test-intelligence-fact-foundation.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-attention-backfill-quality.yml'
+  push:
+    branches:
+      - 'architecture/p7-*'
+    paths:
+      - 'shared/intelligence/canonicalFact.ts'
+      - 'server/vercel-handlers/finance/factStream.ts'
+      - 'server/vercel-handlers/finance/attentionBackfill*.ts'
+      - 'server/vercel-handlers/finance/signalCurrentState.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-attention-backfill-contract.ts'
+      - 'scripts/test-attention-backfill-emulator.ts'
+      - 'scripts/test-intelligence-coverage-firestore-rules.ts'
+      - 'scripts/test-intelligence-fact-foundation.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-attention-backfill-quality.yml'
+
+jobs:
+  attention-backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-attention-backfill-emulator
+      GCLOUD_PROJECT: nestfinance-attention-backfill-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Backfill static contract
+        run: |
+          npx tsx scripts/test-intelligence-fact-foundation.ts
+          npx tsx scripts/test-attention-backfill-contract.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Attention backfill Firestore Emulator
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-attention-backfill-emulator
+          "npx tsx scripts/test-attention-backfill-emulator.ts"
+
+      - name: Coverage browser isolation
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-attention-backfill-emulator
+          "npx tsx scripts/test-intelligence-coverage-firestore-rules.ts"

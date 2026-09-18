@@ -77,6 +77,9 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-review', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'intelligence-signals-summary', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'intelligence-signals-detail', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-preview', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-apply', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-verify', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
