@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
+import type { UniversalEvidenceDocumentType } from '../../shared/finance/universalEvidenceReview.js';
 
 export interface UniversalEvidenceInboxItem {
   evidenceId: string;
@@ -17,6 +18,15 @@ export interface UniversalEvidenceInboxItem {
   createdAt: string | null;
   validatedAt: string | null;
   version: number;
+  classification: {
+    documentType: UniversalEvidenceDocumentType;
+    source: 'human';
+    confirmedAt: string | null;
+  } | null;
+  review: {
+    status: 'pending' | 'reviewed';
+    reviewedAt: string | null;
+  } | null;
 }
 
 export interface UniversalEvidenceInboxSummary {
@@ -24,6 +34,10 @@ export interface UniversalEvidenceInboxSummary {
   accepted: number;
   duplicate: number;
   awaitingUpload: number;
+  needsClassification: number;
+  pendingReview: number;
+  needsReview: number;
+  reviewed: number;
 }
 
 export interface UniversalEvidenceInboxResponse {
@@ -35,6 +49,11 @@ export interface UniversalEvidenceInboxResponse {
 }
 
 export interface UniversalEvidenceDetail extends UniversalEvidenceInboxItem {
+  review: {
+    status: 'pending' | 'reviewed';
+    reviewedAt: string | null;
+    note: string | null;
+  } | null;
   declaredMimeType: string | null;
   verifiedMimeType: string | null;
   verification: {
@@ -206,6 +225,69 @@ export const universalEvidenceInboxService = {
       mimeType: response.headers.get('content-type') || 'application/octet-stream',
       requestId: response.headers.get('x-request-id') || undefined,
     };
+  },
+
+
+  async classify(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      evidenceId: string;
+      expectedVersion: number;
+      documentType: UniversalEvidenceDocumentType;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ): Promise<{
+    evidenceId: string;
+    version: number;
+    documentType: UniversalEvidenceDocumentType;
+    reviewStatus: 'pending';
+    requestId?: string;
+  }> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-classify`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, ...input }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_CLASSIFY_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async review(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      evidenceId: string;
+      expectedVersion: number;
+      note?: string | null;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ): Promise<{
+    evidenceId: string;
+    version: number;
+    documentType: UniversalEvidenceDocumentType;
+    reviewStatus: 'reviewed';
+    requestId?: string;
+  }> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-review`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, ...input }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_REVIEW_FAILED');
+    }
+
+    return response.json();
   },
 
   async inspectPdfTextLayer(

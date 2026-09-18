@@ -30,6 +30,8 @@ on:
       - "scripts/test-count-capture-extraction-emulator.ts"
       - "scripts/test-count-capture-denomination-emulator.ts"
       - "scripts/test-universal-evidence-firestore-emulator.ts"
+      - "scripts/test-universal-evidence-review-emulator.ts"
+      - "scripts/test-universal-evidence-review-model.ts"
       - "scripts/test-universal-evidence-inbox-emulator.ts"
       - "scripts/test-universal-evidence-inbox-i2a.ts"
       - "scripts/test-universal-evidence-inbox-i2b.ts"
@@ -105,12 +107,12 @@ jobs:
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
@@ -131,7 +133,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-review-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
@@ -149,6 +151,7 @@ jobs:
         run: |
           npx tsx scripts/test-ecosystem-session-resolver.ts
           npx tsx scripts/test-finance-request-context.ts
+          npx tsx scripts/test-universal-evidence-review-model.ts
           npx tsx scripts/test-posting-plan-entity-isolation.ts
           npx tsx scripts/test-transactions-p06b-journey.ts
           npx tsx scripts/test-transactions-integration.ts

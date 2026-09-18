@@ -29,6 +29,7 @@ import {
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
 import { INBOX_COPY } from './inbox/inboxCopy';
+import { INBOX_REVIEW_COPY } from './inbox/inboxReviewCopy';
 import {
   formatInboxBytes,
   formatInboxDate,
@@ -41,6 +42,10 @@ const EMPTY_SUMMARY: UniversalEvidenceInboxSummary = {
   accepted: 0,
   duplicate: 0,
   awaitingUpload: 0,
+  needsClassification: 0,
+  pendingReview: 0,
+  needsReview: 0,
+  reviewed: 0,
 };
 
 export default function InboxPage() {
@@ -86,6 +91,7 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = INBOX_COPY[language];
+  const reviewCopy = INBOX_REVIEW_COPY[language];
 
   const [items, setItems] = useState<UniversalEvidenceInboxItem[]>([]);
   const [summary, setSummary] = useState<UniversalEvidenceInboxSummary>(EMPTY_SUMMARY);
@@ -261,9 +267,9 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={copy.pageTitle}>
             {[
               { label: copy.summaryTotal, value: summary.total },
-              { label: copy.summaryAccepted, value: summary.accepted },
-              { label: copy.summaryDuplicate, value: summary.duplicate },
-              { label: copy.summaryAwaiting, value: summary.awaitingUpload },
+              { label: reviewCopy.needsIdentification, value: summary.needsClassification },
+              { label: reviewCopy.pendingReview, value: summary.pendingReview },
+              { label: reviewCopy.reviewed, value: summary.reviewed },
             ].map((metric) => (
               <Surface key={metric.label} variant="elevated" radius="lg" className="p-4 sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
@@ -334,6 +340,19 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
                               {sourceIcon(item.sourceKind)}
                               {sourceLabel(item.sourceKind)}
                             </span>
+                            {normalizeInboxEvidenceState(item.processingState) === 'accepted' ? (
+                              <span className={`inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-semibold ${
+                                item.review?.status === 'reviewed'
+                                  ? 'border-accent-primary/25 bg-accent-primary/10 text-accent-primary'
+                                  : 'border-border-subtle bg-surface-secondary text-text-secondary'
+                              }`}>
+                                {item.review?.status === 'reviewed'
+                                  ? reviewCopy.reviewed
+                                  : item.classification
+                                    ? reviewCopy.pendingReview
+                                    : reviewCopy.notClassified}
+                              </span>
+                            ) : null}
                           </div>
 
                           <h3 className="mt-3 truncate text-base font-semibold text-text-primary">
