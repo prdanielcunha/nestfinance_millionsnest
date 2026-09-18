@@ -26,7 +26,6 @@ export interface UniversalEvidenceInboxItem {
   review: {
     status: 'pending' | 'reviewed';
     reviewedAt: string | null;
-    note: string | null;
   } | null;
 }
 
@@ -48,6 +47,11 @@ export interface UniversalEvidenceInboxResponse {
 }
 
 export interface UniversalEvidenceDetail extends UniversalEvidenceInboxItem {
+  review: {
+    status: 'pending' | 'reviewed';
+    reviewedAt: string | null;
+    note: string | null;
+  } | null;
   declaredMimeType: string | null;
   verifiedMimeType: string | null;
   verification: {
