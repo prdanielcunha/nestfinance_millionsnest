@@ -10,9 +10,15 @@ on:
       - "src/pages/finance/todayPriorityModel.ts"
       - "src/services/transactionsService.ts"
       - "src/services/countService.ts"
+      - "src/services/needsAttentionService.ts"
+      - "shared/intelligence/needsAttention.ts"
+      - "server/vercel-handlers/finance/intelligenceSignalsSummary.ts"
+      - "server/vercel-handlers/finance/intelligenceSignalsDetail.ts"
+      - "server/vercel-handlers/finance/signalCurrentState.ts"
       - "src/app/**"
       - "scripts/test-today-route-resolution.ts"
       - "scripts/test-today-priority-model.ts"
+      - "scripts/test-today-signal-integration.ts"
       - ".github/workflows/nestfinance-today-quality.yml"
   push:
     branches:
@@ -24,9 +30,15 @@ on:
       - "src/pages/finance/todayPriorityModel.ts"
       - "src/services/transactionsService.ts"
       - "src/services/countService.ts"
+      - "src/services/needsAttentionService.ts"
+      - "shared/intelligence/needsAttention.ts"
+      - "server/vercel-handlers/finance/intelligenceSignalsSummary.ts"
+      - "server/vercel-handlers/finance/intelligenceSignalsDetail.ts"
+      - "server/vercel-handlers/finance/signalCurrentState.ts"
       - "src/app/**"
       - "scripts/test-today-route-resolution.ts"
       - "scripts/test-today-priority-model.ts"
+      - "scripts/test-today-signal-integration.ts"
       - ".github/workflows/nestfinance-today-quality.yml"
 
 jobs:
@@ -50,6 +62,9 @@ jobs:
 
       - name: Verify Today priority ordering
         run: npx tsx scripts/test-today-priority-model.ts
+
+      - name: Verify Today hybrid signal integration
+        run: npx tsx scripts/test-today-signal-integration.ts
 
       - name: TypeScript lint and typecheck
         run: npm run lint
