@@ -7,7 +7,6 @@ export function buildStatementLineFingerprint(input: {
   organizationId: string;
   financeEntityId: string;
   evidenceId: string;
-  evidenceVersion: number;
   line: PreparedStatementLine;
 }): string {
   const line = input.line;
@@ -15,7 +14,6 @@ export function buildStatementLineFingerprint(input: {
     normalize(input.organizationId),
     normalize(input.financeEntityId),
     normalize(input.evidenceId),
-    String(input.evidenceVersion),
     String(line.lineNumber),
     line.selectedDate || '',
     line.selectedAmountCents === null ? '' : String(line.selectedAmountCents),
@@ -30,14 +28,12 @@ export function buildReconciliationId(input: {
   organizationId: string;
   financeEntityId: string;
   evidenceId: string;
-  evidenceVersion: number;
   statementLineFingerprint: string;
 }): string {
   const key = [
     normalize(input.organizationId),
     normalize(input.financeEntityId),
     normalize(input.evidenceId),
-    String(input.evidenceVersion),
     normalize(input.statementLineFingerprint),
   ].join(':');
 
