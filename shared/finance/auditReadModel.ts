@@ -10,6 +10,7 @@ export type AuditSafeMetadata = {
   versionBefore?: number;
   versionAfter?: number;
   lineNumber?: number;
+  periodKey?: string;
 };
 
 export type AuditTimelineItem = {
@@ -64,6 +65,7 @@ export function buildSafeAuditMetadata(data: Record<string, unknown>): AuditSafe
   const versionBefore = safeInteger(metadata.versionBefore ?? details.versionBefore);
   const versionAfter = safeInteger(metadata.versionAfter ?? details.versionAfter);
   const lineNumber = safeInteger(metadata.lineNumber ?? details.lineNumber);
+  const periodKey = boundedString(metadata.periodKey ?? details.periodKey, 16);
 
   if (status) result.status = status;
   if (documentType) result.documentType = documentType;
@@ -72,6 +74,7 @@ export function buildSafeAuditMetadata(data: Record<string, unknown>): AuditSafe
   if (versionBefore !== undefined) result.versionBefore = versionBefore;
   if (versionAfter !== undefined) result.versionAfter = versionAfter;
   if (lineNumber !== undefined) result.lineNumber = lineNumber;
+  if (periodKey) result.periodKey = periodKey;
 
   return result;
 }

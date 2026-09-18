@@ -1,0 +1,63 @@
+name: NestFinance Period Close Human Review Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "api/finance-gateway.ts"
+      - "server/vercel-handlers/finance/accessHelpers.ts"
+      - "server/vercel-handlers/finance/periodCloseReadModel.ts"
+      - "server/vercel-handlers/finance/periodCloseReadiness.ts"
+      - "server/vercel-handlers/finance/periodCloseReviewConfirm.ts"
+      - "shared/finance/periodCloseReadiness.ts"
+      - "shared/finance/periodCloseReview.ts"
+      - "shared/finance/auditReadModel.ts"
+      - "src/pages/finance/ReportsPage.tsx"
+      - "src/pages/finance/AuditPage.tsx"
+      - "src/services/periodCloseService.ts"
+      - "scripts/test-period-close-human-review.ts"
+      - "scripts/test-period-close-human-review-emulator.ts"
+      - "scripts/test-period-close-human-review-rules.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "firestore.rules"
+      - ".github/workflows/nestfinance-period-close-review-quality.yml"
+
+jobs:
+  period-close-human-review:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-period-close-review-emulator
+      GCLOUD_PROJECT: nestfinance-period-close-review-emulator
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+      - name: Human review authority and UX
+        run: npx tsx scripts/test-period-close-human-review.ts
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+      - name: Human review Firestore Emulator
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-period-close-review-emulator "npx tsx scripts/test-period-close-human-review-emulator.ts"
+      - name: Human review Firestore Rules
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-period-close-review-emulator "npx tsx scripts/test-period-close-human-review-rules.ts"

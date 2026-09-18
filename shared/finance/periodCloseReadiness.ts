@@ -69,6 +69,13 @@ export type PeriodCloseReadinessResponse = {
     blockerCount: number;
     blockers: PeriodCloseBlocker[];
   };
+  humanReview: {
+    state: 'not_reviewed' | 'reviewed_current_snapshot';
+    reviewId: string | null;
+    reviewedAt: string | null;
+    reviewedByDisplayName: string | null;
+    sourceSnapshotMatches: boolean;
+  };
   transactions: {
     total: number;
     capturedIncomeCents: number;
@@ -229,6 +236,13 @@ export function buildPeriodCloseReadiness(input: {
       state: blockers.length === 0 ? 'ready_for_review' : 'attention_required',
       blockerCount: blockers.reduce((sum, blocker) => sum + blocker.count, 0),
       blockers,
+    },
+    humanReview: {
+      state: 'not_reviewed',
+      reviewId: null,
+      reviewedAt: null,
+      reviewedByDisplayName: null,
+      sourceSnapshotMatches: false,
     },
     transactions: {
       total: input.transactions.length,

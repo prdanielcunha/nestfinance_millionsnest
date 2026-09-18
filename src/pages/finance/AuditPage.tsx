@@ -106,6 +106,7 @@ const COPY: Record<Language, AuditCopy> = {
       universal_evidence: 'Documento',
       count_session: 'Contagem',
       reconciliation: 'Conciliação',
+      period_close_review: 'Revisão de fechamento',
       allocation: 'Rateio',
       journal: 'Diário',
       unknown: 'Item financeiro',
@@ -120,6 +121,7 @@ const COPY: Record<Language, AuditCopy> = {
       'transaction.approval_invalidated': 'Aprovação invalidada',
       'transaction.reconciled': 'Conferência com extrato registrada',
       'transaction.reconciliation_reversed': 'Conferência com extrato desfeita',
+      'period.close_review_confirmed': 'Revisão de fechamento registrada',
       'evidence.classified': 'Documento identificado',
       'evidence.reviewed': 'Documento conferido',
       'count.first_count_saved': 'Primeira contagem registrada',
@@ -170,6 +172,7 @@ const COPY: Record<Language, AuditCopy> = {
       universal_evidence: 'Document',
       count_session: 'Count',
       reconciliation: 'Reconciliation',
+      period_close_review: 'Close review',
       allocation: 'Allocation',
       journal: 'Journal',
       unknown: 'Financial item',
@@ -184,6 +187,7 @@ const COPY: Record<Language, AuditCopy> = {
       'transaction.approval_invalidated': 'Approval invalidated',
       'transaction.reconciled': 'Statement check recorded',
       'transaction.reconciliation_reversed': 'Statement check undone',
+      'period.close_review_confirmed': 'Close review recorded',
       'evidence.classified': 'Document identified',
       'evidence.reviewed': 'Document reviewed',
       'count.first_count_saved': 'First count recorded',
@@ -234,6 +238,7 @@ const COPY: Record<Language, AuditCopy> = {
       universal_evidence: 'Documento',
       count_session: 'Conteo',
       reconciliation: 'Conciliación',
+      period_close_review: 'Revisión de cierre',
       allocation: 'Distribución',
       journal: 'Diario',
       unknown: 'Elemento financiero',
@@ -248,6 +253,7 @@ const COPY: Record<Language, AuditCopy> = {
       'transaction.approval_invalidated': 'Aprobación invalidada',
       'transaction.reconciled': 'Comprobación con extracto registrada',
       'transaction.reconciliation_reversed': 'Comprobación con extracto deshecha',
+      'period.close_review_confirmed': 'Revisión de cierre registrada',
       'evidence.classified': 'Documento identificado',
       'evidence.reviewed': 'Documento revisado',
       'count.first_count_saved': 'Primer conteo registrado',
@@ -364,7 +370,7 @@ function AuditContent() {
     transactions: items.filter((item) => item.resource === 'transaction').length,
     documents: items.filter((item) => item.resource === 'universal_evidence').length,
     controls: items.filter((item) =>
-      item.resource === 'count_session' || item.resource === 'reconciliation',
+      item.resource === 'count_session' || item.resource === 'reconciliation' || item.resource === 'period_close_review',
     ).length,
   }), [items]);
 
@@ -528,6 +534,12 @@ function AuditContent() {
                                 <div>
                                   <dt className="font-semibold text-text-muted">{copy.line}</dt>
                                   <dd className="mt-1 text-text-secondary">{item.metadata.lineNumber}</dd>
+                                </div>
+                              ) : null}
+                              {item.metadata.periodKey ? (
+                                <div>
+                                  <dt className="font-semibold text-text-muted">{copy.resourceLabels.period_close_review || copy.item}</dt>
+                                  <dd className="mt-1 text-text-secondary">{item.metadata.periodKey}</dd>
                                 </div>
                               ) : null}
                               {(item.metadata.reason || item.metadata.reasonCode) ? (
