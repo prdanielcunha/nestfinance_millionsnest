@@ -18,6 +18,7 @@ on:
   push:
     branches:
       - 'architecture/p7-*'
+      - 'architecture/p8-*'
     paths:
       - 'shared/intelligence/canonicalFact.ts'
       - 'server/vercel-handlers/finance/factStream.ts'
