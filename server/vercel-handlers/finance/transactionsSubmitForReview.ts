@@ -8,6 +8,7 @@ import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../
 import { assertAllocationsTotal, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
+import { stageFinanceFact } from './factStream.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -98,7 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const eventType = isResubmission ? 'resubmitted_for_review' : 'submitted_for_review';
 
       const auditId = generateAuditId();
-      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
+      const auditRef = context.repository.getAuditRef().doc(auditId);
+      t.set(auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -110,6 +112,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         afterHash: payloadHash,
         createdAt: FieldValue.serverTimestamp()
       }));
+
+      stageFinanceFact(t, db, {
+        organizationId,
+        eventType: 'TRANSACTION_SUBMITTED',
+        entityType: 'finance_transaction',
+        entityId: transactionId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          status: 'ready_for_review',
+          transactionKind,
+          version: newVersion,
+          submissionKind: isResubmission ? 'resubmission' : 'initial',
+        },
+        sourceRefs: [
+          { kind: 'record', ref: txRef.path, version: newVersion },
+          { kind: 'audit', ref: auditRef.path },
+        ],
+      });
 
       // Internal Event
       const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
