@@ -9,7 +9,9 @@ on:
       - 'server/vercel-handlers/finance/factStream.ts'
       - 'server/vercel-handlers/finance/countSessionsCreate.ts'
       - 'server/vercel-handlers/finance/universalEvidenceFinalize.ts'
+      - 'server/vercel-handlers/finance/transactions*.ts'
       - 'scripts/test-intelligence-fact-foundation.ts'
+      - 'scripts/test-transaction-fact-coverage.ts'
       - 'scripts/test-intelligence-facts-firestore-rules.ts'
       - 'firestore.rules'
       - '.github/workflows/nestfinance-fact-foundation-quality.yml'
@@ -19,7 +21,9 @@ on:
       - 'server/vercel-handlers/finance/factStream.ts'
       - 'server/vercel-handlers/finance/countSessionsCreate.ts'
       - 'server/vercel-handlers/finance/universalEvidenceFinalize.ts'
+      - 'server/vercel-handlers/finance/transactions*.ts'
       - 'scripts/test-intelligence-fact-foundation.ts'
+      - 'scripts/test-transaction-fact-coverage.ts'
       - 'scripts/test-intelligence-facts-firestore-rules.ts'
       - 'firestore.rules'
       - '.github/workflows/nestfinance-fact-foundation-quality.yml'
@@ -47,7 +51,9 @@ jobs:
       - name: Cloud Run bundle
         run: npm run build:cloudrun
       - name: Fact contract checks
-        run: npx tsx scripts/test-intelligence-fact-foundation.ts
+        run: |
+          npx tsx scripts/test-intelligence-fact-foundation.ts
+          npx tsx scripts/test-transaction-fact-coverage.ts
       - name: Canonical fact Firestore rules
         env:
           NODE_ENV: test
