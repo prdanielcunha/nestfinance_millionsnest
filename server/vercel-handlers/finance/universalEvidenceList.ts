@@ -80,12 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       query = query.startAfter(cursorDoc);
     }
 
-    const [snapshot, totalCount, acceptedCount, duplicateCount, awaitingUploadCount, reviewedCount] = await Promise.all([
+    const [snapshot, totalCount, acceptedCount, duplicateCount, awaitingUploadCount, classifiedCount, pendingReviewCount, reviewedCount] = await Promise.all([
       query.get(),
       evidenceRef.count().get(),
       evidenceRef.where('processingState', '==', 'accepted').count().get(),
       evidenceRef.where('processingState', '==', 'duplicate').count().get(),
       evidenceRef.where('processingState', '==', 'awaiting_upload').count().get(),
+      evidenceRef.where('classification.source', '==', 'human').count().get(),
+      evidenceRef.where('review.status', '==', 'pending').count().get(),
       evidenceRef.where('review.status', '==', 'reviewed').count().get(),
     ]);
 
@@ -157,7 +159,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         accepted: acceptedCount.data().count,
         duplicate: duplicateCount.data().count,
         awaitingUpload: awaitingUploadCount.data().count,
-        needsReview: Math.max(0, acceptedCount.data().count - reviewedCount.data().count),
+        needsClassification: Math.max(0, acceptedCount.data().count - classifiedCount.data().count),
+        pendingReview: pendingReviewCount.data().count,
+        needsReview: Math.max(
+          0,
+          acceptedCount.data().count - classifiedCount.data().count + pendingReviewCount.data().count,
+        ),
         reviewed: reviewedCount.data().count,
       },
       requestId,
