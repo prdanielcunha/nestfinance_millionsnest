@@ -83,10 +83,10 @@ export async function ensureFinanceFact(
   transaction: Transaction,
   db: Firestore,
   input: FinanceFactInput,
-): Promise<string> {
+): Promise<{ eventId: string; created: boolean }> {
   const { eventId, fact } = buildFinanceFactRecord(input);
   const factRef = db.collection('intelligenceFacts').doc(eventId);
   const existing = await transaction.get(factRef);
   if (!existing.exists) transaction.create(factRef, fact);
-  return eventId;
+  return { eventId, created: !existing.exists };
 }
