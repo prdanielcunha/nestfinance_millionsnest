@@ -11,6 +11,7 @@ import type {
   ReconciliationReverseRequest,
   ReconciliationReverseResponse,
 } from '../../shared/finance/reconciliationReversal.js';
+import type { ReconciliationProgressResponse } from '../../shared/finance/reconciliationProgress.js';
 
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
@@ -142,6 +143,29 @@ export const reconciliationService = {
 
     if (!response.ok) {
       throw await parseError(response, 'RECONCILIATION_REVERSE_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async progress(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+    accountId: string,
+  ): Promise<ReconciliationProgressResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(
+      `${FINANCE_GATEWAY_PATH}?operation=reconciliation-progress`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ financeEntityId, evidenceId, accountId }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await parseError(response, 'RECONCILIATION_PROGRESS_FAILED');
     }
 
     return response.json();
