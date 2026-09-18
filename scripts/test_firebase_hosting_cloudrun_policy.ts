@@ -65,9 +65,6 @@ console.log('NestFinance Firebase Hosting + Cloud Run migration contract: OK');
 const productionRelease = fs.readFileSync('.github/workflows/nestfinance-production-release.yml', 'utf8');
 for (const required of [
   'branches: [ production ]',
-  'Ensure least-privilege Firestore deploy roles',
-  'roles/firebaserules.admin',
-  'roles/datastore.indexAdmin',
   'Deploy Firestore indexes',
   'Deploy Firestore rules',
   'Push Cloud Run image',
@@ -94,6 +91,12 @@ assert.deepEqual(
   [...releaseOrder].sort((a, b) => a - b),
   releaseOrder,
   'Production release stages must remain in the certified order',
+);
+
+assert.doesNotMatch(
+  productionRelease,
+  /gcloud projects add-iam-policy-binding|roles\/firebaserules\.admin|roles\/datastore\.indexAdmin/,
+  'Application production release must never self-modify project IAM',
 );
 
 for (const legacyWorkflow of [
