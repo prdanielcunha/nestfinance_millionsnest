@@ -297,6 +297,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : null,
         reconciledByUid: txData.reconciledByUid || null,
         lastReconciliationId: txData.lastReconciliationId || null,
+        lastReconciliationEvidenceId: txData.lastReconciliationEvidenceId || null,
         lastReconciliationReversalId: txData.lastReconciliationReversalId || null,
         lastReconciliationReversedAt: txData.lastReconciliationReversedAt
           ? (txData.lastReconciliationReversedAt.toDate
