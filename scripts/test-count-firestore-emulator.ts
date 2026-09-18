@@ -8,6 +8,7 @@ import countSessionsStartSecondCount from '../server/vercel-handlers/finance/cou
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
+import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
 
 class MockRes {
   statusCode = 200;
@@ -211,6 +212,22 @@ async function run() {
     const secondSealed = await call(countSessionsSubmitSecondCount, secondBody);
     verify(secondSealed.statusCode === 200 && secondSealed.body.version === 4 && secondSealed.body.status === 'divergent' && secondSealed.body.matched === false, 'Count B seal compares and records divergent state');
     verify(secondSealed.body.comparison === undefined && secondSealed.body.totalCents === undefined && secondSealed.body.entries === undefined, 'second-count mutation response keeps idempotency cache free of A/B material');
+    const divergenceSignalId = buildFinanceSignalId({
+      organizationId: orgId,
+      signalType: 'COUNT_DIVERGENCE_REVIEW_REQUIRED',
+      entityType: 'count_session',
+      entityId: sessionId,
+    });
+    const openDivergenceSignal = (await db.collection('intelligenceSignals').doc(divergenceSignalId).get()).data();
+    verify(
+      openDivergenceSignal?.status === 'open' &&
+        openDivergenceSignal?.financeEntityId === entityA &&
+        openDivergenceSignal?.attentionLevel === 'warning' &&
+        openDivergenceSignal?.actionCode === 'REVIEW_COUNT_DIVERGENCE' &&
+        openDivergenceSignal?.requiredCapability === 'finance.create_drafts',
+      'Count divergence opens a deterministic warning signal',
+    );
+    const divergenceOpenedAt = openDivergenceSignal?.openedAt?.toMillis?.();
     const secondRetry = await call(countSessionsSubmitSecondCount, { ...secondBody, requestId: randomRequest() });
     verify(secondRetry.statusCode === 200 && secondRetry.body.version === 4 && secondRetry.body.status === 'divergent' && secondRetry.body.comparison === undefined, 'ambiguous Count B retry remains material-free');
 
@@ -255,6 +272,16 @@ async function run() {
     verify(recountSealed.statusCode === 200 && recountSealed.body.version === 6 && recountSealed.body.status === 'matched' && recountSealed.body.resolvedBy === 'recount_matches_a', 'recount resolves only when it matches preserved Count A or B');
     const recountRetry = await call(countSessionsSubmitRecount, { ...recountBody, requestId: randomRequest() });
     verify(recountRetry.statusCode === 200 && recountRetry.body.version === 6 && recountRetry.body.resolvedBy === 'recount_matches_a', 'sealed recount retry is idempotent');
+    const resolvedDivergenceSignal = (await db.collection('intelligenceSignals').doc(divergenceSignalId).get()).data();
+    verify(
+      resolvedDivergenceSignal?.status === 'resolved' &&
+        typeof resolvedDivergenceSignal?.resolvedByFactId === 'string',
+      'matched recount resolves the existing divergence signal',
+    );
+    verify(
+      resolvedDivergenceSignal?.openedAt?.toMillis?.() === divergenceOpenedAt,
+      'resolving Count divergence preserves the original openedAt',
+    );
 
     const finalDoc = await sessionRef.get();
     const finalData = finalDoc.data() || {};
@@ -316,6 +343,13 @@ async function run() {
         divergenceFact.sourceRefs.some((source: any) => source.kind === 'record' && source.version === 4) &&
         divergenceFact.sourceRefs.some((source: any) => source.kind === 'audit'),
       'divergence fact remains traceable to the authoritative Count record and audit event',
+    );
+    verify(
+      resolvedDivergenceSignal?.sourceRefs?.every((source: any) => source.ref && source.kind) &&
+        resolvedDivergenceSignal?.totalCents === undefined &&
+        resolvedDivergenceSignal?.comparison === undefined &&
+        resolvedDivergenceSignal?.differences === undefined,
+      'Count signal keeps only evidence pointers and no blind-count material',
     );
   } finally {
     admin.auth.verifyIdToken = originalVerify;
