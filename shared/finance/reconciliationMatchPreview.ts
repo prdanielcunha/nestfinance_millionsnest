@@ -22,7 +22,7 @@ export type ReconciliationMatchableTransaction = {
   transactionId: string;
   transactionKind: string;
   status: ReconciliationMatchTransactionStatus;
-  reconciliationStatus: 'unreconciled' | 'reconciled';
+  reconciliationStatus: 'unreconciled' | 'reconciled' | 'unknown';
   amountCents: number;
   occurredAt: string;
   cashFlowDirection: string | null;
@@ -45,7 +45,7 @@ export type ReconciliationMatchCandidate = {
   transactionId: string;
   transactionKind: string;
   transactionStatus: ReconciliationMatchTransactionStatus;
-  reconciliationStatus: 'unreconciled';
+  reconciliationStatus: 'unreconciled' | 'unknown';
   postingState: 'posted' | 'not_posted';
   reconciliationEligible: boolean;
   amountCents: number;
@@ -159,9 +159,11 @@ function candidateFor(
     transactionId: transaction.transactionId,
     transactionKind: transaction.transactionKind,
     transactionStatus: transaction.status,
-    reconciliationStatus: 'unreconciled',
+    reconciliationStatus:
+      transaction.reconciliationStatus === 'unreconciled' ? 'unreconciled' : 'unknown',
     postingState: transaction.status === 'posted' ? 'posted' : 'not_posted',
-    reconciliationEligible: transaction.status === 'posted',
+    reconciliationEligible:
+      transaction.status === 'posted' && transaction.reconciliationStatus === 'unreconciled',
     amountCents: transaction.amountCents,
     occurredAt: transactionDate.normalized,
     description: transaction.description,
