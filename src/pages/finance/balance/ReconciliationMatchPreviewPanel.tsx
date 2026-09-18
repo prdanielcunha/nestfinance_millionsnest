@@ -81,6 +81,7 @@ type Copy = {
   confirmErrorBody: string;
   confirmChanged: string;
   reviewPermission: string;
+  tooManyToConfirm: string;
 };
 
 const COPY: Record<Language, Copy> = {
@@ -138,6 +139,7 @@ const COPY: Record<Language, Copy> = {
     confirmErrorBody: 'Atualize a comparação e tente novamente. Nenhum valor, saldo ou lançamento foi alterado.',
     confirmChanged: 'Essa movimentação ou o extrato mudou desde a comparação. Compare novamente antes de confirmar.',
     reviewPermission: 'Somente quem tem permissão para revisar o financeiro pode confirmar esta conferência.',
+    tooManyToConfirm: 'Há possibilidades demais para confirmar com segurança nesta tela. Revise as movimentações antes de escolher uma.',
   },
   EN: {
     title: 'Compare with recorded transactions',
@@ -193,6 +195,7 @@ const COPY: Record<Language, Copy> = {
     confirmErrorBody: 'Refresh the comparison and try again. No amount, balance, or posting was changed.',
     confirmChanged: 'This transaction or statement changed after the comparison. Compare again before confirming.',
     reviewPermission: 'Only someone with finance review permission can confirm this check.',
+    tooManyToConfirm: 'There are too many possibilities to confirm safely on this screen. Review the transactions before choosing one.',
   },
   ES: {
     title: 'Comparar con los movimientos registrados',
@@ -248,6 +251,7 @@ const COPY: Record<Language, Copy> = {
     confirmErrorBody: 'Actualiza la comparación e inténtalo de nuevo. Ningún valor, saldo o registro fue modificado.',
     confirmChanged: 'Este movimiento o el extracto cambió después de la comparación. Compara de nuevo antes de confirmar.',
     reviewPermission: 'Solo quien tiene permiso para revisar el financiero puede confirmar esta revisión.',
+    tooManyToConfirm: 'Hay demasiadas posibilidades para confirmar con seguridad en esta pantalla. Revisa los movimientos antes de elegir uno.',
   },
 };
 
@@ -384,7 +388,8 @@ export function ReconciliationMatchPreviewPanel({
         code === 'RECONCILIATION_MATCH_NO_LONGER_VALID' ||
         code === 'RECONCILIATION_TRANSACTION_NOT_AVAILABLE' ||
         code === 'RECONCILIATION_LINE_ALREADY_CONFIRMED' ||
-        code === 'RECONCILIATION_SOURCE_CHANGED'
+        code === 'RECONCILIATION_SOURCE_CHANGED' ||
+        code === 'RECONCILIATION_TOO_MANY_CANDIDATES'
           ? copy.confirmChanged
           : copy.confirmErrorBody,
       );
@@ -543,7 +548,9 @@ export function ReconciliationMatchPreviewPanel({
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-                              {candidate.reconciliationEligible && canConfirm ? (
+                              {candidate.reconciliationEligible &&
+                              canConfirm &&
+                              !line.candidateLimitReached ? (
                                 <Button
                                   onClick={() => beginConfirmation(line, candidate)}
                                 >
@@ -557,7 +564,11 @@ export function ReconciliationMatchPreviewPanel({
                                 {copy.openRecord}
                                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
                               </Button>
-                              {candidate.reconciliationEligible && !canConfirm ? (
+                              {line.candidateLimitReached ? (
+                                <p className="max-w-56 text-right text-[11px] leading-relaxed text-semantic-warning">
+                                  {copy.tooManyToConfirm}
+                                </p>
+                              ) : candidate.reconciliationEligible && !canConfirm ? (
                                 <p className="max-w-48 text-right text-[11px] leading-relaxed text-text-muted">
                                   {copy.reviewPermission}
                                 </p>
