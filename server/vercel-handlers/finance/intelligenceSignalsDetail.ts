@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { hasFinanceCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 import { NESTFINANCE_SIGNAL_TYPES } from '../../../shared/intelligence/canonicalSignal.js';
 import type { NeedsAttentionSignalDetail } from '../../../shared/intelligence/needsAttention.js';
 
@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, organizationId } =
+    const { db, organizationId, sessionList } =
       await resolveFinanceRequestContext(req, 'finance.view');
 
     const signalSnapshot = await db.collection('intelligenceSignals').doc(signalId).get();
@@ -76,6 +76,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !NESTFINANCE_SIGNAL_TYPES.includes(signal.signalType)
     ) {
       return res.status(404).json({ error: 'SIGNAL_NOT_FOUND' });
+    }
+
+    const requiredCapability = String(signal.requiredCapability || '');
+    const canExplain =
+      (requiredCapability === 'finance.review' && hasFinanceCapability(sessionList, 'finance.review')) ||
+      (requiredCapability === 'finance.create_drafts' && hasFinanceCapability(sessionList, 'finance.create_drafts'));
+    if (!canExplain) {
+      return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
     const factId = String(signal.lastFactId || '');
