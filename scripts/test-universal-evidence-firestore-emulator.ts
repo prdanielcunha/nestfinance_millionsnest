@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import universalEvidenceStart from '../server/vercel-handlers/finance/universalEvidenceStart.js';
 import universalEvidenceFinalize from '../server/vercel-handlers/finance/universalEvidenceFinalize.js';
+import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
 
 class MockRes { statusCode = 200; body: any = null; status(code: number) { this.statusCode = code; return this; } json(body: any) { this.body = body; return this; } }
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -42,7 +43,32 @@ try {
   const finalizeKey = key(); const finalized = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: started.body.evidenceId, expectedVersion: 1, idempotencyKey: finalizeKey, requestId: request() }); verify(finalized.body.processingState === 'accepted' && finalized.body.duplicate === false, 'valid evidence is accepted deterministically');
   const retriedFinal = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: started.body.evidenceId, expectedVersion: 1, idempotencyKey: finalizeKey, requestId: request() }); verify(retriedFinal.body.processingState === 'accepted', 'finalize retry creates no parallel evidence');
   const stored = (await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityA).collection('universalEvidence').doc(started.body.evidenceId).get()).data(); verify(stored?.organizationId === orgId && stored?.financeEntityId === entityA && stored?.verifiedMimeType === 'image/png' && stored?.original?.immutable === true && stored?.imageMetadata?.width === 2, 'canonical metadata is consistent and immutable-marked');
+  const identificationSignalId = buildFinanceSignalId({
+    organizationId: orgId,
+    signalType: 'INBOX_IDENTIFICATION_REQUIRED',
+    entityType: 'universal_evidence',
+    entityId: started.body.evidenceId,
+  });
+  const identificationSignal = (await db.collection('intelligenceSignals').doc(identificationSignalId).get()).data();
+  verify(
+    identificationSignal?.status === 'open' &&
+      identificationSignal?.financeEntityId === entityA &&
+      identificationSignal?.requiredCapability === 'finance.create_drafts' &&
+      identificationSignal?.actionCode === 'IDENTIFY_INBOX_DOCUMENT' &&
+      typeof identificationSignal?.lastFactId === 'string',
+    'accepted evidence opens a source-backed identification signal',
+  );
   const duplicate = await call(universalEvidenceStart, startBody(entityA)); objects.set(String(duplicate.body.upload.url).replace('memory://', ''), { bytes: png, contentType: 'image/png' }); const duplicateFinal = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: duplicate.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(duplicateFinal.body.duplicate === true && !('duplicateOfEvidenceId' in duplicateFinal.body), 'same-entity duplicate is detected without returning private canonical metadata');
+  const duplicateSignalId = buildFinanceSignalId({
+    organizationId: orgId,
+    signalType: 'INBOX_IDENTIFICATION_REQUIRED',
+    entityType: 'universal_evidence',
+    entityId: duplicate.body.evidenceId,
+  });
+  verify(
+    !(await db.collection('intelligenceSignals').doc(duplicateSignalId).get()).exists,
+    'duplicate evidence does not create actionable identification work',
+  );
   const other = await call(universalEvidenceStart, startBody(entityB)); objects.set(String(other.body.upload.url).replace('memory://', ''), { bytes: png, contentType: 'image/png' }); const otherFinal = await call(universalEvidenceFinalize, { financeEntityId: entityB, evidenceId: other.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(otherFinal.body.duplicate === false, 'same content in another entity does not leak duplicate existence');
   const corruptBytes = Buffer.from([1,2,3,4]); const corrupt = await call(universalEvidenceStart, { ...startBody(entityA), byteSize: corruptBytes.length, originalSha256: sha(corruptBytes) }); objects.set(String(corrupt.body.upload.url).replace('memory://', ''), { bytes: corruptBytes, contentType: 'image/png' }); const corruptFinal = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: corrupt.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(corruptFinal.statusCode === 415, 'corrupt/spoofed content is rejected by byte signature');
   const sideEffects = await Promise.all(['financeTransactions', 'financeJournalEntries', 'financeJournalLines', 'financeAggregates', 'financeBalances', 'postingPlans', 'countSessions'].map((name) => db.collection('organizations').doc(orgId).collection(name).get())); verify(sideEffects.every((snapshot) => snapshot.empty), 'acceptance has zero transaction, journal, aggregate, balance, PostingPlan or Count side effects');
