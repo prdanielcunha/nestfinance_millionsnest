@@ -53,8 +53,16 @@ async function run() {
       rewrites: buildRewrites(),
     });
     assert.deepStrictEqual(errors, []);
-    assert.strictEqual(GATEWAY_CONTRACTS.length, 65);
-    assert.strictEqual(GATEWAY_CONTRACTS.filter((item) => item.gateway === '/api/finance-gateway').length, 62);
+    const contractKeys = new Set(
+      GATEWAY_CONTRACTS.map((item) => `${item.gateway}::${item.operation}`),
+    );
+    assert.strictEqual(contractKeys.size, GATEWAY_CONTRACTS.length);
+    for (const gateway of Object.keys(GATEWAY_FILES)) {
+      assert.ok(
+        GATEWAY_CONTRACTS.some((item) => item.gateway === gateway),
+        `gateway sem contrato certificado: ${gateway}`,
+      );
+    }
   });
 
   await check('operação de gateway não certificada falha', () => {
