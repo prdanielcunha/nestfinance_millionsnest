@@ -8,7 +8,7 @@ import {
   type NestFinanceFactEventType,
 } from '../../../shared/intelligence/canonicalFact.js';
 
-type FinanceFactInput = {
+export type FinanceFactInput = {
   organizationId: string;
   eventType: NestFinanceFactEventType;
   entityType: string;
@@ -44,11 +44,9 @@ export function buildFinanceFactEventId(input: Pick<FinanceFactInput, 'organizat
  * browser clients cannot forge, mutate or read this evidence stream. Authorized
  * read models can be projected later without weakening the source-of-truth.
  */
-export function stageFinanceFact(transaction: Transaction, db: Firestore, input: FinanceFactInput): string {
+function buildFinanceFactRecord(input: FinanceFactInput) {
   const eventId = buildFinanceFactEventId(input);
-  const factRef = db.collection('intelligenceFacts').doc(eventId);
   const serverTimestamp = FieldValue.serverTimestamp();
-
   const fact: CanonicalFact<Record<string, unknown>, FieldValue> = {
     eventId,
     organizationId: input.organizationId,
@@ -67,6 +65,28 @@ export function stageFinanceFact(transaction: Transaction, db: Firestore, input:
     version: CANONICAL_FACT_SCHEMA_VERSION,
   };
 
+  return { eventId, fact };
+}
+
+export function stageFinanceFact(transaction: Transaction, db: Firestore, input: FinanceFactInput): string {
+  const { eventId, fact } = buildFinanceFactRecord(input);
+  const factRef = db.collection('intelligenceFacts').doc(eventId);
   transaction.create(factRef, fact);
+  return eventId;
+}
+
+/**
+ * Used by repair/backfill flows where retrying the same verified observation
+ * must be safe. Existing immutable facts are reused; they are never updated.
+ */
+export async function ensureFinanceFact(
+  transaction: Transaction,
+  db: Firestore,
+  input: FinanceFactInput,
+): Promise<string> {
+  const { eventId, fact } = buildFinanceFactRecord(input);
+  const factRef = db.collection('intelligenceFacts').doc(eventId);
+  const existing = await transaction.get(factRef);
+  if (!existing.exists) transaction.create(factRef, fact);
   return eventId;
 }
