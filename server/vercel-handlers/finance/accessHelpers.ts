@@ -279,6 +279,8 @@ export function createFinanceEntityScope(args: {
     getAllocationsRef: () => orgRef.collection('financeAllocations'),
     getAllocationsQuery: () => orgRef.collection('financeAllocations').where('financeEntityId', '==', financeEntityId),
     getIdempotencyRef: () => orgRef.collection('financeIdempotency'),
+    getReconciliationsRef: () => orgRef.collection('financeReconciliations'),
+    getReconciliationsQuery: () => orgRef.collection('financeReconciliations').where('financeEntityId', '==', financeEntityId),
 
     assertEntityIsolation
   };
