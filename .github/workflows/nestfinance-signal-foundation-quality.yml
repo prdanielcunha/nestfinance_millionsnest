@@ -1,0 +1,81 @@
+name: NestFinance Signal Foundation Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/intelligence/canonicalSignal.ts'
+      - 'server/vercel-handlers/finance/signalProjection.ts'
+      - 'server/vercel-handlers/finance/transactions*.ts'
+      - 'server/vercel-handlers/finance/universalEvidence*.ts'
+      - 'server/vercel-handlers/finance/countSessionsSubmit*.ts'
+      - 'scripts/test-intelligence-signal-foundation.ts'
+      - 'scripts/test-intelligence-signals-firestore-rules.ts'
+      - 'scripts/test-signal-integration-coverage.ts'
+      - 'scripts/test-transactions-firestore-emulator.ts'
+      - 'scripts/test-universal-evidence-firestore-emulator.ts'
+      - 'scripts/test-universal-evidence-review-emulator.ts'
+      - 'scripts/test-count-firestore-emulator.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-signal-foundation-quality.yml'
+  push:
+    branches:
+      - 'architecture/p5-*'
+    paths:
+      - 'shared/intelligence/canonicalSignal.ts'
+      - 'server/vercel-handlers/finance/signalProjection.ts'
+      - 'server/vercel-handlers/finance/transactions*.ts'
+      - 'server/vercel-handlers/finance/universalEvidence*.ts'
+      - 'server/vercel-handlers/finance/countSessionsSubmit*.ts'
+      - 'scripts/test-intelligence-signal-foundation.ts'
+      - 'scripts/test-intelligence-signals-firestore-rules.ts'
+      - 'scripts/test-signal-integration-coverage.ts'
+      - 'scripts/test-transactions-firestore-emulator.ts'
+      - 'scripts/test-universal-evidence-firestore-emulator.ts'
+      - 'scripts/test-universal-evidence-review-emulator.ts'
+      - 'scripts/test-count-firestore-emulator.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-signal-foundation-quality.yml'
+
+jobs:
+  signal-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-signal-foundation-emulator
+      GCLOUD_PROJECT: nestfinance-signal-foundation-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Signal contract and integration checks
+        run: |
+          npx tsx scripts/test-intelligence-signal-foundation.ts
+          npx tsx scripts/test-signal-integration-coverage.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Canonical signal Firestore rules
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-signal-foundation-emulator
+          "npx tsx scripts/test-intelligence-signals-firestore-rules.ts"
