@@ -57,6 +57,17 @@ type ReportsCopy = {
   nextActions: string;
   noBlockers: string;
   noBlockersBody: string;
+  reviewAction: string;
+  reviewReadonly: string;
+  reviewConfirmTitle: string;
+  reviewConfirmBody: string;
+  reviewConfirmAction: string;
+  reviewCancel: string;
+  reviewSaving: string;
+  reviewError: string;
+  reviewRegisteredTitle: string;
+  reviewRegisteredBody: (name: string, date: string) => string;
+  reviewSourceBound: string;
   operationalTitle: string;
   operationalBody: string;
   transactionPipeline: string;
@@ -109,6 +120,17 @@ const COPY: Record<Language, ReportsCopy> = {
     nextActions: 'O que falta resolver',
     noBlockers: 'Nenhum bloqueio operacional',
     noBlockersBody: 'O mês pode seguir para conferência humana. A declaração de fechamento continua bloqueada por segurança.',
+    reviewAction: 'Registrar revisão do período',
+    reviewReadonly: 'Você pode acompanhar a prontidão, mas somente quem tem permissão para revisar finanças pode registrar esta conferência.',
+    reviewConfirmTitle: 'Registrar que você conferiu este período?',
+    reviewConfirmBody: 'Você está confirmando apenas a revisão humana deste raio-X. Isso não fecha o mês, não posta lançamentos e não altera saldo. Se qualquer fonte do período mudar depois, esta revisão deixa de valer para o estado atual e precisará ser feita novamente.',
+    reviewConfirmAction: 'Sim, registrar revisão',
+    reviewCancel: 'Cancelar',
+    reviewSaving: 'Registrando revisão…',
+    reviewError: 'Não foi possível registrar a revisão. O período pode ter mudado; atualize e confira novamente.',
+    reviewRegisteredTitle: 'Revisão humana registrada',
+    reviewRegisteredBody: (name, date) => `${name} conferiu este estado do período em ${date}.`,
+    reviewSourceBound: 'A revisão vale somente enquanto as fontes permanecerem exatamente neste estado.',
     operationalTitle: 'Raio-X do período',
     operationalBody: 'A leitura abaixo vem das fontes canônicas da entidade atual e é somente leitura.',
     transactionPipeline: 'Fluxo das movimentações',
@@ -168,6 +190,17 @@ const COPY: Record<Language, ReportsCopy> = {
     nextActions: 'What still needs action',
     noBlockers: 'No operational blockers',
     noBlockersBody: 'The month can proceed to human review. The formal close declaration remains safely disabled.',
+    reviewAction: 'Record period review',
+    reviewReadonly: 'You can follow readiness, but only someone with finance review permission can record this check.',
+    reviewConfirmTitle: 'Record that you reviewed this period?',
+    reviewConfirmBody: 'You are confirming only the human review of this snapshot. This does not close the month, post entries, or change balances. If any period source changes later, this review no longer applies to the current state and must be performed again.',
+    reviewConfirmAction: 'Yes, record review',
+    reviewCancel: 'Cancel',
+    reviewSaving: 'Recording review…',
+    reviewError: 'The review could not be recorded. The period may have changed; refresh and check it again.',
+    reviewRegisteredTitle: 'Human review recorded',
+    reviewRegisteredBody: (name, date) => `${name} reviewed this period state on ${date}.`,
+    reviewSourceBound: 'This review only remains current while the underlying sources stay exactly in this state.',
     operationalTitle: 'Period snapshot',
     operationalBody: 'The view below comes from canonical sources for the current entity and is read-only.',
     transactionPipeline: 'Transaction flow',
@@ -227,6 +260,17 @@ const COPY: Record<Language, ReportsCopy> = {
     nextActions: 'Lo que falta resolver',
     noBlockers: 'Sin bloqueos operativos',
     noBlockersBody: 'El mes puede avanzar a revisión humana. La declaración formal de cierre continúa bloqueada por seguridad.',
+    reviewAction: 'Registrar revisión del período',
+    reviewReadonly: 'Puede acompañar la preparación, pero solo quien tenga permiso para revisar finanzas puede registrar esta comprobación.',
+    reviewConfirmTitle: '¿Registrar que revisó este período?',
+    reviewConfirmBody: 'Está confirmando únicamente la revisión humana de esta vista. Esto no cierra el mes, no contabiliza movimientos ni cambia saldos. Si alguna fuente del período cambia después, esta revisión deja de corresponder al estado actual y deberá hacerse de nuevo.',
+    reviewConfirmAction: 'Sí, registrar revisión',
+    reviewCancel: 'Cancelar',
+    reviewSaving: 'Registrando revisión…',
+    reviewError: 'No fue posible registrar la revisión. El período puede haber cambiado; actualice y compruébelo nuevamente.',
+    reviewRegisteredTitle: 'Revisión humana registrada',
+    reviewRegisteredBody: (name, date) => `${name} revisó este estado del período el ${date}.`,
+    reviewSourceBound: 'La revisión solo vale mientras las fuentes permanezcan exactamente en este estado.',
     operationalTitle: 'Radiografía del período',
     operationalBody: 'La lectura siguiente proviene de fuentes canónicas de la entidad actual y es de solo lectura.',
     transactionPipeline: 'Flujo de movimientos',
@@ -279,6 +323,16 @@ function formatMoney(cents: number, language: Language) {
   }).format(cents / 100);
 }
 
+function formatDateTime(value: string | null, language: Language) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(localeFor(language), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
 function blockerRoute(blocker: PeriodCloseBlocker) {
   if (blocker.routeHint === 'review') return APP_ROUTES.financeReview;
   if (blocker.routeHint === 'count') return APP_ROUTES.count;
@@ -328,11 +382,15 @@ function ReportsContent() {
   const { language } = useLanguage();
   const copy = COPY[language];
   const organizationId = accessState.organizationId || '';
+  const canReview = hasEffectiveCapability(accessState, 'finance.review');
 
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState<PeriodCloseReadinessResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [reviewConfirmOpen, setReviewConfirmOpen] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewFailed, setReviewFailed] = useState(false);
 
   const load = async () => {
     if (!organizationId || !activeFinanceEntityId) return;
@@ -351,9 +409,26 @@ function ReportsContent() {
   useEffect(() => {
     setData(null);
     setFailed(false);
+    setReviewConfirmOpen(false);
+    setReviewFailed(false);
     if (organizationId && activeFinanceEntityId) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId, period]);
+
+  const confirmReview = async () => {
+    if (!organizationId || !activeFinanceEntityId || !canReview) return;
+    setReviewSubmitting(true);
+    setReviewFailed(false);
+    try {
+      await periodCloseService.confirmReview(organizationId, activeFinanceEntityId, period);
+      setReviewConfirmOpen(false);
+      await load();
+    } catch {
+      setReviewFailed(true);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const metrics = useMemo(() => data ? [
     { label: copy.capturedIncome, value: formatMoney(data.transactions.capturedIncomeCents, language), icon: TrendingUp },
@@ -483,14 +558,77 @@ function ReportsContent() {
                 <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
                   <h2 className="text-lg font-semibold text-text-primary">{copy.nextActions}</h2>
                   {!data.readiness.blockers.length ? (
-                    <div className="mt-5 rounded-2xl border border-semantic-success/20 bg-semantic-success/5 p-4">
-                      <div className="flex gap-3">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-semantic-success" aria-hidden="true" />
-                        <div>
-                          <p className="text-sm font-semibold text-text-primary">{copy.noBlockers}</p>
-                          <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.noBlockersBody}</p>
+                    <div className="mt-5 flex flex-col gap-3">
+                      <div className="rounded-2xl border border-semantic-success/20 bg-semantic-success/5 p-4">
+                        <div className="flex gap-3">
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-semantic-success" aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-text-primary">{copy.noBlockers}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.noBlockersBody}</p>
+                          </div>
                         </div>
                       </div>
+
+                      {data.humanReview.state === 'reviewed_current_snapshot' ? (
+                        <div className="rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-4">
+                          <div className="flex gap-3">
+                            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-text-primary">{copy.reviewRegisteredTitle}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                                {copy.reviewRegisteredBody(
+                                  data.humanReview.reviewedByDisplayName || '—',
+                                  formatDateTime(data.humanReview.reviewedAt, language),
+                                )}
+                              </p>
+                              <p className="mt-2 text-[11px] leading-relaxed text-text-muted">{copy.reviewSourceBound}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : canReview ? (
+                        reviewConfirmOpen ? (
+                          <div className="rounded-2xl border border-accent-primary/20 bg-surface-secondary/70 p-4">
+                            <p className="text-sm font-semibold text-text-primary">{copy.reviewConfirmTitle}</p>
+                            <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.reviewConfirmBody}</p>
+                            {reviewFailed ? (
+                              <p className="mt-3 text-xs font-medium text-semantic-danger" role="alert">{copy.reviewError}</p>
+                            ) : null}
+                            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                              <Button
+                                variant="ghost"
+                                disabled={reviewSubmitting}
+                                onClick={() => {
+                                  setReviewConfirmOpen(false);
+                                  setReviewFailed(false);
+                                }}
+                              >
+                                {copy.reviewCancel}
+                              </Button>
+                              <Button disabled={reviewSubmitting} onClick={() => void confirmReview()}>
+                                {reviewSubmitting ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                ) : (
+                                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                                )}
+                                {reviewSubmitting ? copy.reviewSaving : copy.reviewConfirmAction}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            fullWidth
+                            onClick={() => {
+                              setReviewConfirmOpen(true);
+                              setReviewFailed(false);
+                            }}
+                          >
+                            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                            {copy.reviewAction}
+                          </Button>
+                        )
+                      ) : (
+                        <p className="px-1 text-xs leading-relaxed text-text-muted">{copy.reviewReadonly}</p>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-4 flex flex-col gap-2">
