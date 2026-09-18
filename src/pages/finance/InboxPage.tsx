@@ -42,6 +42,8 @@ const EMPTY_SUMMARY: UniversalEvidenceInboxSummary = {
   accepted: 0,
   duplicate: 0,
   awaitingUpload: 0,
+  needsClassification: 0,
+  pendingReview: 0,
   needsReview: 0,
   reviewed: 0,
 };
@@ -265,9 +267,9 @@ function InboxContent({ canCapture }: { canCapture: boolean }) {
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={copy.pageTitle}>
             {[
               { label: copy.summaryTotal, value: summary.total },
-              { label: reviewCopy.pendingReview, value: summary.needsReview },
+              { label: reviewCopy.needsIdentification, value: summary.needsClassification },
+              { label: reviewCopy.pendingReview, value: summary.pendingReview },
               { label: reviewCopy.reviewed, value: summary.reviewed },
-              { label: copy.summaryDuplicate, value: summary.duplicate },
             ].map((metric) => (
               <Surface key={metric.label} variant="elevated" radius="lg" className="p-4 sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
