@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { ReconciliationReadiness } from '../../shared/finance/reconciliation.js';
 import type { ReconciliationStatementPreparationResponse } from '../../shared/finance/reconciliationStatementPreparation.js';
+import type { ReconciliationMatchPreviewResponse } from '../../shared/finance/reconciliationMatchPreviewApi.js';
 
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
@@ -68,6 +69,29 @@ export const reconciliationService = {
 
     if (!response.ok) {
       throw await parseError(response, 'RECONCILIATION_STATEMENT_PREPARE_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async previewMatches(
+    organizationId: string,
+    financeEntityId: string,
+    evidenceId: string,
+    accountId: string,
+  ): Promise<ReconciliationMatchPreviewResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(
+      `${FINANCE_GATEWAY_PATH}?operation=reconciliation-match-preview`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ financeEntityId, evidenceId, accountId }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await parseError(response, 'RECONCILIATION_MATCH_PREVIEW_FAILED');
     }
 
     return response.json();
