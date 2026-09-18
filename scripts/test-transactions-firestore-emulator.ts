@@ -333,6 +333,8 @@ async function runEmulatorTests() {
           amountCents: 5000,
           occurredAt: new Date().toISOString(),
           description: 'Entrada criada e enviada no mesmo passo',
+          paymentMethod: 'pix',
+          evidenceJustification: 'Teste do Fact Stream sem comprovante anexado',
           accountId: completeAccountId,
           allocations: [
             { amountCents: 5000, categoryId: category1Id, description: 'Dízimos' }
