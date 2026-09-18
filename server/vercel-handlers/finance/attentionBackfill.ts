@@ -71,6 +71,62 @@ function candidate(
   };
 }
 
+export function matchesAttentionBackfillCandidate(
+  candidate: AttentionBackfillCandidate,
+  data: Record<string, any>,
+  organizationId: string,
+  financeEntityId: string,
+): boolean {
+  if (candidate.signalType === 'TRANSACTION_REVIEW_REQUIRED') {
+    return data.financeEntityId === financeEntityId && data.status === 'ready_for_review';
+  }
+
+  if (candidate.signalType === 'TRANSACTION_CORRECTION_REQUIRED') {
+    return (
+      data.financeEntityId === financeEntityId &&
+      data.status === 'draft' &&
+      Boolean(
+        data.returnedToDraftAt ||
+          data.returnedToDraftReason ||
+          data.returnedToDraftComment ||
+          data.approvalStatus === 'invalidated' ||
+          data.invalidatedAt,
+      )
+    );
+  }
+
+  if (candidate.signalType === 'INBOX_IDENTIFICATION_REQUIRED') {
+    return (
+      data.organizationId === organizationId &&
+      data.financeEntityId === financeEntityId &&
+      data.processingState === 'accepted' &&
+      data.duplicate !== true &&
+      !data.classification?.documentType
+    );
+  }
+
+  if (candidate.signalType === 'INBOX_REVIEW_REQUIRED') {
+    return (
+      data.organizationId === organizationId &&
+      data.financeEntityId === financeEntityId &&
+      data.processingState === 'accepted' &&
+      data.duplicate !== true &&
+      Boolean(data.classification?.documentType) &&
+      data.review?.status !== 'reviewed'
+    );
+  }
+
+  if (candidate.signalType === 'COUNT_DIVERGENCE_REVIEW_REQUIRED') {
+    return (
+      data.organizationId === organizationId &&
+      data.financeEntityId === financeEntityId &&
+      (data.status === 'divergent' || data.status === 'recounting')
+    );
+  }
+
+  return false;
+}
+
 export async function scanAttentionBackfillCandidates(
   db: Firestore,
   organizationId: string,
