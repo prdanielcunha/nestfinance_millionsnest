@@ -44,9 +44,9 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     types: {
       receipt: 'Recibo',
       payment_proof: 'Comprovante de pagamento',
-      invoice: 'Nota ou fatura',
+      invoice: 'Fatura ou cobrança',
       bank_statement: 'Extrato bancário',
-      tax_document: 'Documento fiscal',
+      tax_document: 'Nota fiscal ou documento fiscal',
       other: 'Outro',
     },
   },
@@ -98,7 +98,7 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     types: {
       receipt: 'Recibo',
       payment_proof: 'Comprobante de pago',
-      invoice: 'Factura',
+      invoice: 'Factura o cobro',
       bank_statement: 'Extracto bancario',
       tax_document: 'Documento fiscal',
       other: 'Otro',
