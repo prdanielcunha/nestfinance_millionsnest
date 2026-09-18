@@ -23,6 +23,7 @@ import type {
   StatementLineParseState,
 } from '../../../../shared/finance/reconciliationStatementLines.js';
 import { reconciliationService } from '@/src/services/reconciliationService';
+import { ReconciliationMatchPreviewPanel } from './ReconciliationMatchPreviewPanel';
 
 type Props = {
   organizationId: string;
@@ -69,18 +70,18 @@ type Copy = {
 
 const COPY: Record<Language, Copy> = {
   PT: {
-    title: 'Preparar linhas do extrato',
-    body: 'Organize candidatos de data, valor e direção a partir do texto nativo deste PDF. Nada é conciliado automaticamente.',
+    title: 'Organizar movimentações do extrato',
+    body: 'O NestFinance identifica data, valor e se cada item parece uma entrada ou saída. Quando houver dúvida, ele pede sua conferência.',
     chooseAccount: 'Qual conta este extrato representa?',
     accountFallback: 'Conta bancária',
-    prepare: 'Preparar linhas',
-    preparing: 'Preparando…',
-    retry: 'Preparar novamente',
-    errorTitle: 'Não foi possível preparar as linhas',
+    prepare: 'Organizar extrato',
+    preparing: 'Organizando…',
+    retry: 'Organizar novamente',
+    errorTitle: 'Não foi possível organizar o extrato',
     errorBody: 'Tente novamente. Nenhuma movimentação, saldo ou conciliação foi alterada.',
-    safeNote: 'Análise determinística, sem OCR e sem IA. A associação com a conta vale apenas para esta análise e não é salva.',
+    safeNote: 'O NestFinance usa apenas informações verificáveis do próprio PDF. Nada é lançado, conciliado ou salvo como decisão contábil nesta etapa.',
     noAccount: 'Configure pelo menos uma conta bancária pronta antes de preparar este extrato.',
-    unavailableTitle: 'O texto deste PDF não está disponível para preparação segura',
+    unavailableTitle: 'Este PDF ainda não pode ser organizado com segurança',
     unavailable: {
       input_too_large: 'O PDF ultrapassa o limite seguro desta etapa.',
       encrypted: 'O PDF está protegido ou criptografado.',
@@ -90,12 +91,12 @@ const COPY: Record<Language, Copy> = {
       extraction_empty: 'A camada de texto não retornou conteúdo utilizável.',
       parser_error: 'O analisador nativo não conseguiu ler este PDF com segurança.',
     },
-    candidatesLabel: 'Linhas candidatas',
-    prepared: 'Com direção explícita',
-    confirm: 'Precisam de confirmação',
+    candidatesLabel: 'Movimentações encontradas',
+    prepared: 'Entradas e saídas identificadas',
+    confirm: 'Precisam de conferência',
     limited: 'A análise atingiu um limite de segurança. A fonte original continua preservada.',
-    noLinesTitle: 'Nenhuma linha segura foi preparada',
-    noLinesBody: 'O texto existe, mas não encontramos linhas com data válida e valor decimal de forma suficientemente clara.',
+    noLinesTitle: 'Nenhuma movimentação foi identificada com segurança',
+    noLinesBody: 'O PDF tem texto, mas os dados não estão claros o suficiente para separar as movimentações sem adivinhar.',
     date: 'Data',
     description: 'Descrição',
     amount: 'Valor',
@@ -113,19 +114,19 @@ const COPY: Record<Language, Copy> = {
       needs_date_choice: 'Escolher a data',
     },
     showingLimit: 'A lista visual mostra as primeiras 100 linhas para manter a tela rápida.',
-    humanReview: 'Mesmo as linhas estruturadas continuam não confirmadas. O NestFinance não as transforma em lançamentos ou conciliações nesta etapa.',
+    humanReview: 'Esses dados ainda são apenas uma leitura do extrato. O NestFinance não cria lançamentos nem marca nada como conciliado nesta etapa.',
   },
   EN: {
-    title: 'Prepare statement lines',
-    body: 'Organize date, amount, and direction candidates from this PDF’s native text. Nothing is reconciled automatically.',
+    title: 'Organize statement transactions',
+    body: 'NestFinance identifies date, amount, and whether each item looks like money in or out. When something is unclear, it asks for review.',
     chooseAccount: 'Which account does this statement represent?',
     accountFallback: 'Bank account',
-    prepare: 'Prepare lines',
-    preparing: 'Preparing…',
-    retry: 'Prepare again',
-    errorTitle: 'Unable to prepare statement lines',
+    prepare: 'Organize statement',
+    preparing: 'Organizing…',
+    retry: 'Organize again',
+    errorTitle: 'Unable to organize this statement',
     errorBody: 'Try again. No transaction, balance, or reconciliation was changed.',
-    safeNote: 'Deterministic analysis with no OCR or AI. The account association is only request context and is not saved.',
+    safeNote: 'NestFinance uses only verifiable information from the PDF. Nothing is posted, reconciled, or saved as an accounting decision at this stage.',
     noAccount: 'Configure at least one ready bank account before preparing this statement.',
     unavailableTitle: 'This PDF text is not available for safe preparation',
     unavailable: {
@@ -137,12 +138,12 @@ const COPY: Record<Language, Copy> = {
       extraction_empty: 'The text layer returned no usable content.',
       parser_error: 'The native analyzer could not read this PDF safely.',
     },
-    candidatesLabel: 'Candidate lines',
-    prepared: 'Explicit direction',
-    confirm: 'Need confirmation',
+    candidatesLabel: 'Transactions found',
+    prepared: 'Inflow/outflow identified',
+    confirm: 'Need review',
     limited: 'The analysis reached a safety limit. The original source remains preserved.',
-    noLinesTitle: 'No safe lines were prepared',
-    noLinesBody: 'Text exists, but no lines with a valid date and sufficiently clear decimal amount were found.',
+    noLinesTitle: 'No transaction could be identified safely',
+    noLinesBody: 'The PDF contains text, but the data is not clear enough to separate transactions without guessing.',
     date: 'Date',
     description: 'Description',
     amount: 'Amount',
@@ -160,19 +161,19 @@ const COPY: Record<Language, Copy> = {
       needs_date_choice: 'Choose date',
     },
     showingLimit: 'The visual list shows the first 100 lines to keep the screen fast.',
-    humanReview: 'Even structured lines remain unconfirmed. NestFinance does not turn them into postings or reconciliations at this stage.',
+    humanReview: 'These are still only readings from the statement. NestFinance does not create postings or mark anything reconciled at this stage.',
   },
   ES: {
-    title: 'Preparar líneas del extracto',
-    body: 'Organiza candidatos de fecha, valor y dirección desde el texto nativo de este PDF. Nada se concilia automáticamente.',
+    title: 'Organizar movimientos del extracto',
+    body: 'NestFinance identifica fecha, valor y si cada elemento parece una entrada o salida. Cuando algo no está claro, pide revisión.',
     chooseAccount: '¿Qué cuenta representa este extracto?',
     accountFallback: 'Cuenta bancaria',
-    prepare: 'Preparar líneas',
-    preparing: 'Preparando…',
-    retry: 'Preparar de nuevo',
-    errorTitle: 'No fue posible preparar las líneas',
+    prepare: 'Organizar extracto',
+    preparing: 'Organizando…',
+    retry: 'Organizar de nuevo',
+    errorTitle: 'No fue posible organizar este extracto',
     errorBody: 'Inténtalo de nuevo. Ningún movimiento, saldo o conciliación fue modificado.',
-    safeNote: 'Análisis determinístico, sin OCR ni IA. La asociación con la cuenta vale solo para este análisis y no se guarda.',
+    safeNote: 'NestFinance usa solo información verificable del PDF. Nada se registra, concilia ni guarda como decisión contable en esta etapa.',
     noAccount: 'Configura al menos una cuenta bancaria lista antes de preparar este extracto.',
     unavailableTitle: 'El texto de este PDF no está disponible para una preparación segura',
     unavailable: {
@@ -184,12 +185,12 @@ const COPY: Record<Language, Copy> = {
       extraction_empty: 'La capa de texto no devolvió contenido utilizable.',
       parser_error: 'El analizador nativo no pudo leer este PDF de forma segura.',
     },
-    candidatesLabel: 'Líneas candidatas',
-    prepared: 'Con dirección explícita',
-    confirm: 'Necesitan confirmación',
+    candidatesLabel: 'Movimientos encontrados',
+    prepared: 'Entradas y salidas identificadas',
+    confirm: 'Necesitan revisión',
     limited: 'El análisis alcanzó un límite de seguridad. La fuente original permanece preservada.',
-    noLinesTitle: 'No se prepararon líneas seguras',
-    noLinesBody: 'Existe texto, pero no encontramos líneas con fecha válida y valor decimal suficientemente claro.',
+    noLinesTitle: 'No se identificaron movimientos con seguridad',
+    noLinesBody: 'El PDF tiene texto, pero los datos no están suficientemente claros para separar movimientos sin adivinar.',
     date: 'Fecha',
     description: 'Descripción',
     amount: 'Valor',
@@ -207,7 +208,7 @@ const COPY: Record<Language, Copy> = {
       needs_date_choice: 'Elegir fecha',
     },
     showingLimit: 'La lista visual muestra las primeras 100 líneas para mantener la pantalla rápida.',
-    humanReview: 'Incluso las líneas estructuradas siguen sin confirmar. NestFinance no las convierte en asientos ni conciliaciones en esta etapa.',
+    humanReview: 'Estos datos siguen siendo solo una lectura del extracto. NestFinance no crea asientos ni marca nada como conciliado en esta etapa.',
   },
 };
 
@@ -461,6 +462,15 @@ export function ReconciliationStatementPreparationPanel({
               <p className="rounded-lg border border-border-subtle bg-surface-secondary px-3 py-2 text-xs leading-relaxed text-text-muted">
                 {copy.humanReview}
               </p>
+
+              <ReconciliationMatchPreviewPanel
+                organizationId={organizationId}
+                financeEntityId={financeEntityId}
+                evidenceId={statement.evidenceId}
+                accountId={accountId}
+                language={language}
+                preparedLines={result.preparation.preparedLines}
+              />
             </>
           )}
         </div>
