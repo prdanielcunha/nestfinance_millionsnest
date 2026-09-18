@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageFinanceSignalOpen } from './signalProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { detectUniversalEvidenceMime, inspectImageMetadata } from '../../../shared/finance/universalEvidence.js';
 import { generateEvidenceAuditId } from './universalEvidenceHelpers.js';
@@ -56,7 +57,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const auditId = generateEvidenceAuditId();
       const auditRef = context.repository.getAuditRef().doc(auditId);
       transaction.create(auditRef, { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: duplicate ? 'evidence.duplicate_detected' : 'evidence.accepted', requestId, idempotencyKey, afterHash: payloadHash, metadata: { verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, duplicate, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
-      stageFinanceFact(transaction, db, {
+      const sourceRefs = [
+        { kind: 'evidence' as const, ref: evidenceRef.path, version: 2 },
+        { kind: 'audit' as const, ref: auditRef.path },
+      ];
+      const factId = stageFinanceFact(transaction, db, {
         organizationId,
         eventType: 'DOCUMENT_ATTACHED',
         entityType: 'universal_evidence',
@@ -71,11 +76,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           byteSize: stored.size,
           financialRecognition: false,
         },
-        sourceRefs: [
-          { kind: 'evidence', ref: evidenceRef.path, version: 2 },
-          { kind: 'audit', ref: auditRef.path },
-        ],
+        sourceRefs,
       });
+      if (!duplicate) {
+        stageFinanceSignalOpen(transaction, db, {
+          organizationId,
+          financeEntityId,
+          signalType: 'INBOX_IDENTIFICATION_REQUIRED',
+          entityType: 'universal_evidence',
+          entityId: evidenceId,
+          sourceFactId: factId,
+          sourceRefs,
+        });
+      }
       return { evidenceId, captureId: evidenceId, processingState: duplicate ? 'duplicate' as const : 'accepted' as const, duplicate, version: 2 };
     });
     return res.status(200).json({ ...result, requestId });
