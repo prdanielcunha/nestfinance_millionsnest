@@ -139,7 +139,7 @@ function directionFor(input: {
 
 function amountCandidatesFor(line: string): StatementLineAmountCandidate[] {
   const pattern =
-    /(?<sign>[+-])?\s*(?:(?<currency>R\$|BRL)\s*)?(?<amount>(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}|(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2})(?:\s*(?<marker>CRÉDITO|CREDITO|CREDIT|CRED|CR|C|DÉBITO|DEBITO|DEBIT|DEB|DB|D)\b)?/giu;
+    /(?<![\d.,])(?<sign>[+-])?\s*(?:(?<currency>R\$|BRL)\s*)?(?<amount>(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}|(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2})(?![\d.,])(?:\s*(?<marker>CRÉDITO|CREDITO|CREDIT|CRED|CR|C|DÉBITO|DEBITO|DEBIT|DEB|DB|D)\b)?/giu;
 
   const candidates: StatementLineAmountCandidate[] = [];
   for (const match of line.matchAll(pattern)) {
