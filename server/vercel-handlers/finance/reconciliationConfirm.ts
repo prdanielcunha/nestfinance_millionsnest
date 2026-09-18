@@ -316,6 +316,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'RECONCILIATION_MATCH_NO_LONGER_VALID' });
     }
 
+    const statementLineNumber = line.lineNumber;
+    const statementDate = line.selectedDate;
+    const statementAmountCents = line.selectedAmountCents;
+    const statementDirection = line.selectedDirection as 'inflow' | 'outflow';
+    const statementDescription = line.descriptionCandidate;
+
     const statementLineFingerprint = buildStatementLineFingerprint({
       organizationId,
       financeEntityId,
@@ -446,11 +452,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           evidenceId,
           evidenceVersion,
           statementLineFingerprint,
-          statementLineNumber: line.lineNumber,
-          statementDate: line.selectedDate,
-          statementAmountCents: line.selectedAmountCents,
-          statementDirection: line.selectedDirection,
-          statementDescription: line.descriptionCandidate,
+          statementLineNumber: statementLineNumber,
+          statementDate: statementDate,
+          statementAmountCents: statementAmountCents,
+          statementDirection: statementDirection,
+          statementDescription: statementDescription,
           matchEvidence: candidate.evidence,
           status: 'confirmed',
           confirmedByUid: uid,
@@ -489,10 +495,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           metadata: {
             evidenceId,
             evidenceVersion,
-            statementLineNumber: line.lineNumber,
+            statementLineNumber: statementLineNumber,
             statementLineFingerprint,
-            amountCents: line.selectedAmountCents,
-            direction: line.selectedDirection,
+            amountCents: statementAmountCents,
+            direction: statementDirection,
             balanceChanged: false,
             journalChanged: false,
           },
@@ -518,9 +524,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             transactionId,
             evidenceId,
             accountId,
-            statementLineNumber: line.lineNumber,
-            amountCents: line.selectedAmountCents,
-            direction: line.selectedDirection,
+            statementLineNumber: statementLineNumber,
+            amountCents: statementAmountCents,
+            direction: statementDirection,
             reconciliationStatus: 'reconciled',
             transactionVersion: newVersion,
             balanceChanged: false,
@@ -550,7 +556,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             versionBefore: currentVersion,
             versionAfter: newVersion,
             evidenceId,
-            statementLineNumber: line.lineNumber,
+            statementLineNumber: statementLineNumber,
             requestId,
             createdAt: confirmedAt,
           }),
@@ -561,7 +567,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           transactionId,
           transactionVersion: newVersion,
           reconciliationStatus: 'reconciled',
-          lineNumber: line.lineNumber,
+          lineNumber: statementLineNumber,
           balanceChanged: false,
           journalChanged: false,
           auditRecorded: true,
