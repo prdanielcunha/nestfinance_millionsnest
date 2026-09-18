@@ -65,6 +65,9 @@ console.log('NestFinance Firebase Hosting + Cloud Run migration contract: OK');
 const productionRelease = fs.readFileSync('.github/workflows/nestfinance-production-release.yml', 'utf8');
 for (const required of [
   'branches: [ production ]',
+  'Ensure least-privilege Firestore deploy roles',
+  'roles/firebaserules.admin',
+  'roles/datastore.indexAdmin',
   'Deploy Firestore indexes',
   'Deploy Firestore rules',
   'Push Cloud Run image',
