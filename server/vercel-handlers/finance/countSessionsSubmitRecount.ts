@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
+import { stageFinanceFact } from './factStream.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
   calculateCountEntriesTotalCents,
@@ -113,7 +114,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const auditId = `audit_${countSessionId.slice(4)}_${nextVersion}`;
-        transaction.set(context.repository.getAuditRef().doc(auditId), {
+        const auditRef = context.repository.getAuditRef().doc(auditId);
+        transaction.set(auditRef, {
           eventId: auditId,
           organizationId,
           financeEntityId,
@@ -133,6 +135,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             resolvedBy,
           },
           createdAt: FieldValue.serverTimestamp(),
+        });
+
+        stageFinanceFact(transaction, db, {
+          organizationId,
+          eventType: matched ? 'COUNT_COMPLETED' : 'COUNT_DIVERGENCE_FOUND',
+          entityType: 'count_session',
+          entityId: countSessionId,
+          actorUserId: uid,
+          correlationId: requestId,
+          payload: {
+            financeEntityId,
+            status: nextStatus,
+            version: nextVersion,
+            stage: 'recount_sealed',
+            attemptNumber,
+            matched,
+            resolvedBy,
+          },
+          sourceRefs: [
+            { kind: 'record', ref: sessionRef.path, version: nextVersion },
+            { kind: 'audit', ref: auditRef.path },
+          ],
         });
 
         return {
