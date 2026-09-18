@@ -22,6 +22,43 @@ async function countQuery(query: any): Promise<number> {
   return typeof count === 'number' ? count : 0;
 }
 
+export async function readTransactionsActionSummary(
+  repository: any,
+  financeEntityId: string,
+) {
+  const draftQuery = statusQuery(repository, financeEntityId, 'draft');
+  const readyQuery = statusQuery(repository, financeEntityId, 'ready_for_review');
+  const approvedQuery = statusQuery(repository, financeEntityId, 'approved_for_posting');
+
+  const [draftSnapshot, readyForReview, approvedForPosting] = await Promise.all([
+    draftQuery.select('returnedToDraftAt', 'returnedToDraftReason', 'returnedToDraftComment').get(),
+    countQuery(readyQuery),
+    countQuery(approvedQuery),
+  ]);
+
+  const returnedCorrections = draftSnapshot.docs.reduce((total: number, snapshot: any) => {
+    const data = snapshot.data() || {};
+    const wasReturned = Boolean(
+      data.returnedToDraftAt ||
+      data.returnedToDraftReason ||
+      data.returnedToDraftComment,
+    );
+    return total + (wasReturned ? 1 : 0);
+  }, 0);
+
+  const draftTotal = draftSnapshot.size;
+  const simpleDrafts = Math.max(0, draftTotal - returnedCorrections);
+  const totalOpen = draftTotal + readyForReview + approvedForPosting;
+
+  return {
+    returnedCorrections,
+    simpleDrafts,
+    readyForReview,
+    approvedForPosting,
+    totalOpen,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -35,38 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { context } = await resolveFinanceRequestContext(req, 'finance.view');
 
-    const draftQuery = statusQuery(context.repository, financeEntityId, 'draft');
-    const readyQuery = statusQuery(context.repository, financeEntityId, 'ready_for_review');
-    const approvedQuery = statusQuery(context.repository, financeEntityId, 'approved_for_posting');
-
-    const [draftSnapshot, readyForReview, approvedForPosting] = await Promise.all([
-      draftQuery.select('returnedToDraftAt', 'returnedToDraftReason', 'returnedToDraftComment').get(),
-      countQuery(readyQuery),
-      countQuery(approvedQuery),
-    ]);
-
-    const returnedCorrections = draftSnapshot.docs.reduce((total: number, snapshot: any) => {
-      const data = snapshot.data() || {};
-      const wasReturned = Boolean(
-        data.returnedToDraftAt ||
-        data.returnedToDraftReason ||
-        data.returnedToDraftComment,
-      );
-      return total + (wasReturned ? 1 : 0);
-    }, 0);
-
-    const draftTotal = draftSnapshot.size;
-    const simpleDrafts = Math.max(0, draftTotal - returnedCorrections);
-    const totalOpen = draftTotal + readyForReview + approvedForPosting;
+    const summary = await readTransactionsActionSummary(context.repository, financeEntityId);
 
     return res.status(200).json({
-      summary: {
-        returnedCorrections,
-        simpleDrafts,
-        readyForReview,
-        approvedForPosting,
-        totalOpen,
-      },
+      summary,
       requestId: req.body?.requestId || 'unknown',
     });
   } catch (error: any) {
