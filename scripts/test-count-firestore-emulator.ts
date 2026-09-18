@@ -299,17 +299,17 @@ async function run() {
     const divergenceFact = countFacts.find((fact: any) => fact.eventType === 'COUNT_DIVERGENCE_FOUND');
     verify(
       divergenceFact?.payload?.matched === false &&
-        divergenceFact?.payload?.divergenceCount === 1 &&
-        Array.isArray(divergenceFact?.payload?.differenceEntryTypes) &&
-        divergenceFact.payload.differenceEntryTypes[0] === 'offering',
-      'divergence fact carries safe operational context without monetary values',
+        divergenceFact?.payload?.divergenceCount === 1,
+      'divergence fact carries only blind-safe operational context',
     );
     verify(
       divergenceFact?.payload?.totalCents === undefined &&
         divergenceFact?.payload?.totalDeltaCents === undefined &&
         divergenceFact?.payload?.countATotalCents === undefined &&
-        divergenceFact?.payload?.countBTotalCents === undefined,
-      'canonical Count facts do not duplicate sensitive count amounts',
+        divergenceFact?.payload?.countBTotalCents === undefined &&
+        divergenceFact?.payload?.differenceEntryTypes === undefined &&
+        countFacts.every((fact: any) => fact?.payload?.entryTypes === undefined),
+      'canonical Count facts do not duplicate sensitive amounts or reveal blind-count categories',
     );
     verify(
       Array.isArray(divergenceFact?.sourceRefs) &&
