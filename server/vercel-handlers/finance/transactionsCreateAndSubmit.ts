@@ -8,6 +8,7 @@ import { generateTransactionId, generateAllocationId, generateAuditId, isValidId
 import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
+import { stageFinanceFact } from './factStream.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -318,6 +319,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         metadata: { status: 'ready_for_review', amountCents, transactionKind },
         createdAt: FieldValue.serverTimestamp()
       }));
+
+      const factSourceRefs = [
+        { kind: 'record' as const, ref: txRef.path, version: 1 },
+        { kind: 'audit' as const, ref: auditRef.path },
+      ];
+      stageFinanceFact(t, db, {
+        organizationId,
+        eventType: 'TRANSACTION_CREATED',
+        entityType: 'finance_transaction',
+        entityId: txId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          status: 'ready_for_review',
+          transactionKind,
+          amountCents,
+          currency: 'BRL',
+          version: 1,
+          createdAndSubmitted: true,
+        },
+        sourceRefs: factSourceRefs,
+      });
+      stageFinanceFact(t, db, {
+        organizationId,
+        eventType: 'TRANSACTION_SUBMITTED',
+        entityType: 'finance_transaction',
+        entityId: txId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          status: 'ready_for_review',
+          transactionKind,
+          version: 1,
+          submissionKind: 'initial',
+        },
+        sourceRefs: factSourceRefs,
+      });
 
       // Internal Events (sequential: created then submitted_for_review)
       const baseEvtId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
