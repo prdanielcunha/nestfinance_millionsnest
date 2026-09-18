@@ -80,6 +80,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-preview', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-apply', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'attention-backfill-verify', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'reconciliation-readiness', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
