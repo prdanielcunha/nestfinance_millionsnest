@@ -6,6 +6,7 @@ import {
   type ReconciliationReadiness,
   type ReconciliationReadinessState,
   type ReconciliationStatementSource,
+  type ReconciliationStatementSourceState,
 } from '../../../shared/finance/reconciliation.js';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 
@@ -126,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const reviewed = data.review?.status === 'reviewed';
         const verifiedMimeType =
           typeof data.verifiedMimeType === 'string' ? data.verifiedMimeType : null;
-        const state =
+        const state: ReconciliationStatementSourceState =
           !reviewed
             ? 'pending_review'
             : verifiedMimeType === 'application/pdf'
