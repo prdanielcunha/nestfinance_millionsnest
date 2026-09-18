@@ -56,7 +56,7 @@ verify(
   'UI keeps human-review boundary visible',
 );
 verify(
-  service.includes("'reconciliation-statement-prepare'") &&
+  service.includes('operation=reconciliation-statement-prepare') &&
     service.includes('JSON.stringify({ financeEntityId, evidenceId, accountId })'),
   'client calls only the certified preparation operation with entity/evidence/account identifiers',
 );
