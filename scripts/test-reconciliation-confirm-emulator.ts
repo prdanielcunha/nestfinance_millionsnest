@@ -496,6 +496,15 @@ try {
     'same idempotency key replays completed confirmation without duplicate writes or version increments',
   );
 
+  await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeEntities')
+    .doc(entityA)
+    .collection('universalEvidence')
+    .doc(source.evidenceId)
+    .update({ version: 5 });
+
   const secondChoice = await call({
     ...baseBody,
     transactionId: alternateTxId,
@@ -505,7 +514,7 @@ try {
   verify(
     secondChoice.statusCode === 409 &&
       secondChoice.body.error === 'RECONCILIATION_LINE_ALREADY_CONFIRMED',
-    'same bank-statement line cannot be confirmed against a second transaction',
+    'same immutable bank-statement line cannot be confirmed again after metadata version increments',
   );
 
   const [journals, balances, aggregates] = await Promise.all([
