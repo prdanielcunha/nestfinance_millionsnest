@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { NESTFINANCE_CLOUD_RUN_ROUTES } from '../cloudrunRoutes.js';
+import { NESTFINANCE_CLOUD_RUN_ROUTES, NESTFINANCE_DIRECT_GATEWAY_ROUTES } from '../cloudrunRoutes.js';
 
 const firebase = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
 assert.equal(firebase?.firestore?.rules, 'firestore.rules', 'Firestore Rules contract must remain untouched');
@@ -34,6 +34,20 @@ for (const rewrite of vercel.rewrites ?? []) {
 }
 assert.deepEqual(NESTFINANCE_CLOUD_RUN_ROUTES, expectedRoutes, 'Cloud Run must expose exactly the current public Vercel API contract');
 assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 27, 'Unexpected public API surface change');
+assert.deepEqual(
+  NESTFINANCE_DIRECT_GATEWAY_ROUTES,
+  {
+    '/api/auth-gateway': 'auth',
+    '/api/finance-gateway': 'finance',
+    '/api/system-gateway': 'system',
+  },
+  'Cloud Run must preserve the direct gateway URLs already used by the SPA and Vercel runtime',
+);
+
+const cloudRunSource = fs.readFileSync('cloudrun.ts', 'utf8');
+for (const gatewayPath of Object.keys(NESTFINANCE_DIRECT_GATEWAY_ROUTES)) {
+  assert.ok(cloudRunSource.includes(gatewayPath), `Cloud Run adapter missing direct gateway route: ${gatewayPath}`);
+}
 
 const dockerfile = fs.readFileSync('Dockerfile', 'utf8');
 assert.match(dockerfile, /node:22-bookworm-slim/);
@@ -46,3 +60,46 @@ assert.match(adminSource, /credential\.applicationDefault\(\)/, 'Cloud Run must 
 assert.match(adminSource, /credential\.cert\(/, 'Vercel credential fallback must remain during migration');
 
 console.log('NestFinance Firebase Hosting + Cloud Run migration contract: OK');
+
+
+const productionRelease = fs.readFileSync('.github/workflows/nestfinance-production-release.yml', 'utf8');
+for (const required of [
+  'branches: [ production ]',
+  'Deploy Firestore indexes',
+  'Deploy Firestore rules',
+  'Push Cloud Run image',
+  'Deploy Cloud Run revision',
+  'Deploy Firebase Hosting',
+  'Smoke production through Firebase Hosting',
+  'NESTFINANCE_RELEASE_SHA=$GITHUB_SHA',
+  'NESTFINANCE_FIREBASE_EXACT_SHA_OK',
+  '/api/finance-gateway?operation=transactions-summary',
+]) {
+  assert.ok(productionRelease.includes(required), `Production release contract missing: ${required}`);
+}
+
+const releaseOrder = [
+  'Deploy Firestore indexes',
+  'Deploy Firestore rules',
+  'Push Cloud Run image',
+  'Deploy Cloud Run revision',
+  'Deploy Firebase Hosting',
+  'Smoke production through Firebase Hosting',
+].map((label) => productionRelease.indexOf(label));
+assert.ok(releaseOrder.every((index) => index >= 0), 'Production release stages must all exist');
+assert.deepEqual(
+  [...releaseOrder].sort((a, b) => a - b),
+  releaseOrder,
+  'Production release stages must remain in the certified order',
+);
+
+for (const legacyWorkflow of [
+  '.github/workflows/firebase-hosting-deploy.yml',
+  '.github/workflows/cloudrun-private-deploy.yml',
+  '.github/workflows/firebase-staging-certification.yml',
+]) {
+  const source = fs.readFileSync(legacyWorkflow, 'utf8');
+  const triggerBlock = source.slice(source.indexOf('on:'), source.indexOf('permissions:'));
+  assert.match(triggerBlock, /workflow_dispatch:/, `${legacyWorkflow} must remain available as manual fallback`);
+  assert.doesNotMatch(triggerBlock, /\bpush:/, `${legacyWorkflow} must not race the atomic production release`);
+}

@@ -2,7 +2,7 @@ import express from 'express';
 import authGateway from './api/auth-gateway.js';
 import financeGateway from './api/finance-gateway.js';
 import systemGateway from './api/system-gateway.js';
-import { NESTFINANCE_CLOUD_RUN_ROUTES, type NestFinanceGateway } from './cloudrunRoutes.js';
+import { NESTFINANCE_CLOUD_RUN_ROUTES, NESTFINANCE_DIRECT_GATEWAY_ROUTES, type NestFinanceGateway } from './cloudrunRoutes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -16,6 +16,16 @@ const gateways: Record<NestFinanceGateway, (req: any, res: any) => Promise<any>>
   finance: financeGateway,
   system: systemGateway,
 };
+
+for (const [path, gateway] of Object.entries(NESTFINANCE_DIRECT_GATEWAY_ROUTES)) {
+  app.all(path, async (req, res, next) => {
+    try {
+      await gateways[gateway](req, res);
+    } catch (error) {
+      next(error);
+    }
+  });
+}
 
 for (const [path, route] of Object.entries(NESTFINANCE_CLOUD_RUN_ROUTES)) {
   app.all(path, async (req, res, next) => {

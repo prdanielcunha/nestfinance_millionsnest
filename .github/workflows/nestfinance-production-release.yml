@@ -1,0 +1,141 @@
+name: NestFinance Production Release
+
+on:
+  push:
+    branches: [ production ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nestfinance-production-release
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: millionsnest
+  REGION: us-central1
+  SERVICE: nestfinance-api
+  SITE_ID: mn-nestfinance-555464791734
+  IMAGE: us-central1-docker.pkg.dev/millionsnest/millionsnest-web/nestfinance-api:${{ github.sha }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact production commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Authenticate with MillionsNest production WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
+          service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Certify exact production commit
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run check:api-contracts
+          npm run check:saas-isolation
+          npm run test:firebase-infra
+          npm run test:certification-gates
+          npm run build
+          npm run build:cloudrun
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build exact Cloud Run image
+        run: docker build -t "$IMAGE" .
+
+      - name: Local container smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name nf-release-smoke             -e PORT=8080             -e NODE_ENV=production             -e NESTFINANCE_RELEASE_SHA="$GITHUB_SHA"             -p 18081:8080 "$IMAGE"
+          trap 'docker stop nf-release-smoke >/dev/null 2>&1 || true' EXIT
+
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18081/healthz >/dev/null; then
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              docker logs nf-release-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:18081/api/system/release -o /tmp/local-release.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/local-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);if(x.app!=='nestfinance'||x.gitCommitSha!==expected) { console.error(x, expected); process.exit(1); }"
+
+          STATUS="$(curl --silent --output /tmp/local-gateway.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/finance-gateway?operation=transactions-summary'             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke"}')"
+          test "$STATUS" = "401"
+          echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
+
+      - name: Deploy Firestore indexes
+        run: npx firebase-tools@15.27.0 deploy --only firestore:indexes --project "$PROJECT_ID" --non-interactive
+
+      - name: Deploy Firestore rules
+        run: npx firebase-tools@15.27.0 deploy --only firestore:rules --project "$PROJECT_ID" --non-interactive
+
+      - name: Push Cloud Run image
+        run: docker push "$IMAGE"
+
+      - name: Deploy Cloud Run revision
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --image "$IMAGE"             --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com"             --port 8080             --cpu 1             --memory 512Mi             --min-instances 0             --max-instances 3             --concurrency 80             --timeout 60             --no-allow-unauthenticated             --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"             --quiet
+
+      - name: Allow Firebase Hosting invocation
+        run: |
+          gcloud run services add-iam-policy-binding "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --member="allUsers"             --role="roles/run.invoker"             --quiet
+
+      - name: Verify Cloud Run exact release
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          READY="$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.conditions[0].status)')"
+          test "$READY" = "True"
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$URL/api/system/release" -o /tmp/cloudrun-release.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/cloudrun-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);if(x.app!=='nestfinance'||x.gitCommitSha!==expected){console.error(x,expected);process.exit(1)};console.log('NESTFINANCE_CLOUD_RUN_EXACT_SHA_OK', expected);"
+
+      - name: Deploy Firebase Hosting
+        run: npx firebase-tools@15.27.0 deploy --only hosting:nestfinance --project "$PROJECT_ID" --non-interactive
+
+      - name: Smoke production through Firebase Hosting
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://${SITE_ID}.web.app"
+
+          for PATHNAME in "/" "/finance" "/finance/balance" "/finance/audit"; do
+            curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$BASE$PATHNAME" -o /tmp/nf-page.html
+            grep -Eiq '<!doctype html|<html' /tmp/nf-page.html
+          done
+
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$BASE/api/system/release" -o /tmp/nf-release.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/nf-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);if(x.app!=='nestfinance'||x.gitCommitSha!==expected){console.error(x,expected);process.exit(1)};console.log('NESTFINANCE_FIREBASE_EXACT_SHA_OK', expected);"
+
+          STATUS="$(curl --silent --show-error --location --output /tmp/nf-gateway.json --write-out '%{http_code}'             -X POST "$BASE/api/finance-gateway?operation=transactions-summary"             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke"}')"
+          if [ "$STATUS" != "401" ]; then
+            echo "Expected authenticated gateway to answer 401, got $STATUS"
+            cat /tmp/nf-gateway.json || true
+            exit 1
+          fi
+
+          echo "NESTFINANCE_PRODUCTION_RELEASE_OK=$BASE"

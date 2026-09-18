@@ -1,10 +1,6 @@
 name: Firebase Staging Certification
 
 on:
-  push:
-    branches: [ production ]
-    paths:
-      - ".github/workflows/firebase-staging-certification.yml"
   workflow_dispatch:
 
 permissions:

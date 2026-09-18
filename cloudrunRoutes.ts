@@ -117,3 +117,10 @@ export const NESTFINANCE_CLOUD_RUN_ROUTES = {
     "operation": "release"
   }
 } as const;
+
+
+export const NESTFINANCE_DIRECT_GATEWAY_ROUTES = {
+  "/api/auth-gateway": "auth",
+  "/api/finance-gateway": "finance",
+  "/api/system-gateway": "system",
+} as const satisfies Record<string, NestFinanceGateway>;
