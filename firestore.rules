@@ -32,7 +32,8 @@ service cloud.firestore {
         'financeEntities', 'financeFunds', 'financeTransactions',
         'financeAllocations', 'financeAuditLogs', 'financeIdempotency',
         'financeJournalEntries', 'financeJournalLines', 'financeAggregates',
-        'financeReconciliations'
+        'financeReconciliations', 'financeReconciliationLineLocks',
+        'financeReconciliationReversals'
       ];
     }
     
@@ -337,6 +338,14 @@ service cloud.firestore {
         allow write: if false;
       }
       match /financeReconciliations/{id=**} {
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
+      }
+      match /financeReconciliationLineLocks/{id=**} {
+        allow read: if canReadNestFinance(orgId);
+        allow write: if false;
+      }
+      match /financeReconciliationReversals/{id=**} {
         allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
