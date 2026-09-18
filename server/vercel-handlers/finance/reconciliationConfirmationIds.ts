@@ -24,7 +24,7 @@ export function buildStatementLineFingerprint(input: {
   return `line_${createHash('sha256').update(key).digest('hex')}`;
 }
 
-export function buildReconciliationId(input: {
+export function buildLegacyReconciliationId(input: {
   organizationId: string;
   financeEntityId: string;
   evidenceId: string;
@@ -38,4 +38,59 @@ export function buildReconciliationId(input: {
   ].join(':');
 
   return `rec_${createHash('sha256').update(key).digest('hex')}`;
+}
+
+export const buildReconciliationId = buildLegacyReconciliationId;
+
+export function buildReconciliationLineLockId(input: {
+  organizationId: string;
+  financeEntityId: string;
+  evidenceId: string;
+  statementLineFingerprint: string;
+}): string {
+  const key = [
+    normalize(input.organizationId),
+    normalize(input.financeEntityId),
+    normalize(input.evidenceId),
+    normalize(input.statementLineFingerprint),
+    'active-lock-v1',
+  ].join(':');
+
+  return `rlock_${createHash('sha256').update(key).digest('hex')}`;
+}
+
+export function buildReconciliationAttemptId(input: {
+  organizationId: string;
+  financeEntityId: string;
+  evidenceId: string;
+  statementLineFingerprint: string;
+  transactionId: string;
+  idempotencyKeyHash: string;
+}): string {
+  const key = [
+    normalize(input.organizationId),
+    normalize(input.financeEntityId),
+    normalize(input.evidenceId),
+    normalize(input.statementLineFingerprint),
+    normalize(input.transactionId),
+    normalize(input.idempotencyKeyHash),
+    'confirmation-attempt-v2',
+  ].join(':');
+
+  return `rec_${createHash('sha256').update(key).digest('hex')}`;
+}
+
+export function buildReconciliationReversalId(input: {
+  organizationId: string;
+  financeEntityId: string;
+  reconciliationId: string;
+}): string {
+  const key = [
+    normalize(input.organizationId),
+    normalize(input.financeEntityId),
+    normalize(input.reconciliationId),
+    'reversal-v1',
+  ].join(':');
+
+  return `rrev_${createHash('sha256').update(key).digest('hex')}`;
 }

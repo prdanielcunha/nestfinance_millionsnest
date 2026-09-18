@@ -69,9 +69,11 @@ verify(
 );
 verify(
   handler.includes('buildStatementLineFingerprint') &&
-    handler.includes('buildReconciliationId') &&
-    handler.includes('t.create(reconciliationRef'),
-  'server gives each statement line a deterministic single confirmation record',
+    handler.includes('buildReconciliationAttemptId') &&
+    handler.includes('buildReconciliationLineLockId') &&
+    handler.includes('t.create(reconciliationRef') &&
+    handler.includes('t.set(lineLockRef'),
+  'server separates immutable confirmation attempts from the single active statement-line lock',
 );
 verify(
   handler.includes('RECONCILIATION_TOO_MANY_CANDIDATES') &&
@@ -116,6 +118,7 @@ for (const forbidden of [
 verify(
   updateBlock.includes("reconciliationStatus: 'reconciled'") &&
     updateBlock.includes('reconciliationEvidenceId') &&
+    updateBlock.includes('reconciliationLineLockId') &&
     updateBlock.includes('reconciledAt') &&
     updateBlock.includes('version: newVersion'),
   'transaction update is limited to reconciliation trace metadata and version',
@@ -144,11 +147,12 @@ verify(
   'client confirmation uses only the certified finance gateway',
 );
 verify(
-  traceCard.includes("title: 'Conferida com extrato'") &&
+  traceCard.includes("activeTitle: 'Conferida com extrato'") &&
+    traceCard.includes("reversedTitle: 'Conferência desfeita'") &&
     traceCard.includes("sourceValue: 'Extrato bancário'") &&
     traceCard.includes("EN: {") &&
     traceCard.includes("ES: {"),
-  'transaction trace is plain-language and localized while preserving evidence drill-down',
+  'transaction trace is plain-language and localized for active and reversed states while preserving evidence drill-down',
 );
 verify(
   detail.includes('reconciliationId:') &&

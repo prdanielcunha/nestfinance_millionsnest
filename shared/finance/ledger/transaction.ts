@@ -30,8 +30,15 @@ export type TransactionBase = {
   reconciliationId?: string;
   reconciliationEvidenceId?: EvidenceId;
   reconciliationLineFingerprint?: string;
+  reconciliationLineLockId?: string;
   reconciledAt?: string;
   reconciledByUid?: string;
+  lastReconciliationId?: string;
+  lastReconciliationEvidenceId?: EvidenceId;
+  lastReconciliationReversalId?: string;
+  lastReconciliationReversedAt?: string;
+  lastReconciliationReversedByUid?: string;
+  lastReconciliationReversalReason?: string;
   createdBy: string;
   updatedBy: string;
   postedBy?: string;

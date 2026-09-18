@@ -932,9 +932,18 @@ function TransactionDetailContent() {
                   </div>
 
                   <TransactionReconciliationTraceCard
+                    organizationId={accessState.organization?.id || ""}
+                    financeEntityId={activeFinanceEntityId || tx.financeEntityId || ""}
+                    transactionId={tx.id}
                     reconciliationStatus={tx.reconciliationStatus}
+                    reconciliationId={tx.reconciliationId}
                     reconciliationEvidenceId={tx.reconciliationEvidenceId}
                     reconciledAt={tx.reconciledAt}
+                    lastReconciliationEvidenceId={tx.lastReconciliationEvidenceId}
+                    lastReconciliationReversalId={tx.lastReconciliationReversalId}
+                    lastReconciliationReversedAt={tx.lastReconciliationReversedAt}
+                    lastReconciliationReversalReason={tx.lastReconciliationReversalReason}
+                    onChanged={() => loadData(undefined, ++epochRef.current)}
                   />
 
                   <div className="flex flex-col gap-3">
@@ -1392,6 +1401,31 @@ function TransactionDetailContent() {
                                 </div>
                               );
                               break;
+                            case 'reconciliation_reversed': {
+                              title = "Conferência desfeita";
+                              details = `Uma pessoa desfez a conferência com o extrato (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-amber-500";
+                              const reversalReasons: Record<string, string> = {
+                                wrong_transaction: "Movimentação escolhida incorretamente",
+                                wrong_statement_item: "Item do extrato escolhido incorretamente",
+                                duplicate_confirmation: "Confirmação em duplicidade",
+                                other: "Outro motivo",
+                              };
+                              const reversalReason =
+                                reversalReasons[evt.reasonCode] || "Motivo não informado";
+                              extraContent = (
+                                <div className="mt-2 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3 text-xs text-amber-700">
+                                  <div className="font-semibold">Motivo: {reversalReason}</div>
+                                  {evt.note ? (
+                                    <div className="mt-1 font-normal">{evt.note}</div>
+                                  ) : null}
+                                  <div className="mt-2 text-amber-700/80">
+                                    O histórico anterior foi preservado. Nenhum valor ou saldo foi alterado.
+                                  </div>
+                                </div>
+                              );
+                              break;
+                            }
                             case 'approval_invalidated':
                               title = "Aprovação Invalidada";
                               details = `Aprovação de Posting cancelada. Registro retornado para rascunho (v${evt.versionBefore} → v${evt.versionAfter})`;

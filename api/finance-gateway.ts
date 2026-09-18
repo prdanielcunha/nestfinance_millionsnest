@@ -73,6 +73,7 @@ import reconciliationReadiness from '../server/vercel-handlers/finance/reconcili
 import reconciliationStatementPrepare from '../server/vercel-handlers/finance/reconciliationStatementPrepare.js';
 import reconciliationMatchPreview from '../server/vercel-handlers/finance/reconciliationMatchPreview.js';
 import reconciliationConfirm from '../server/vercel-handlers/finance/reconciliationConfirm.js';
+import reconciliationReverse from '../server/vercel-handlers/finance/reconciliationReverse.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -158,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'reconciliation-statement-prepare': return reconciliationStatementPrepare(req, res);
     case 'reconciliation-match-preview': return reconciliationMatchPreview(req, res);
     case 'reconciliation-confirm': return reconciliationConfirm(req, res);
+    case 'reconciliation-reverse': return reconciliationReverse(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }

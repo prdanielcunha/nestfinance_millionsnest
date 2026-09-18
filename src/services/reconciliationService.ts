@@ -7,6 +7,10 @@ import type {
   ReconciliationConfirmRequest,
   ReconciliationConfirmResponse,
 } from '../../shared/finance/reconciliationConfirmation.js';
+import type {
+  ReconciliationReverseRequest,
+  ReconciliationReverseResponse,
+} from '../../shared/finance/reconciliationReversal.js';
 
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
@@ -117,6 +121,27 @@ export const reconciliationService = {
 
     if (!response.ok) {
       throw await parseError(response, 'RECONCILIATION_CONFIRM_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async reverseMatch(
+    organizationId: string,
+    request: ReconciliationReverseRequest,
+  ): Promise<ReconciliationReverseResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(
+      `${FINANCE_GATEWAY_PATH}?operation=reconciliation-reverse`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      },
+    );
+
+    if (!response.ok) {
+      throw await parseError(response, 'RECONCILIATION_REVERSE_FAILED');
     }
 
     return response.json();

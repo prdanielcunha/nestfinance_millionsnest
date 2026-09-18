@@ -291,10 +291,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         reconciliationId: txData.reconciliationId || null,
         reconciliationEvidenceId: txData.reconciliationEvidenceId || null,
         reconciliationLineFingerprint: txData.reconciliationLineFingerprint || null,
+        reconciliationLineLockId: txData.reconciliationLineLockId || null,
         reconciledAt: txData.reconciledAt
           ? (txData.reconciledAt.toDate ? txData.reconciledAt.toDate().toISOString() : txData.reconciledAt)
           : null,
         reconciledByUid: txData.reconciledByUid || null,
+        lastReconciliationId: txData.lastReconciliationId || null,
+        lastReconciliationEvidenceId: txData.lastReconciliationEvidenceId || null,
+        lastReconciliationReversalId: txData.lastReconciliationReversalId || null,
+        lastReconciliationReversedAt: txData.lastReconciliationReversedAt
+          ? (txData.lastReconciliationReversedAt.toDate
+              ? txData.lastReconciliationReversedAt.toDate().toISOString()
+              : txData.lastReconciliationReversedAt)
+          : null,
+        lastReconciliationReversedByUid: txData.lastReconciliationReversedByUid || null,
+        lastReconciliationReversalReason: txData.lastReconciliationReversalReason || null,
         accountId: txData.accountId,
         accountSnapshot,
         version: txData.version,

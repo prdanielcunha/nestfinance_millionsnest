@@ -22,5 +22,6 @@ assert.notEqual(first, anotherTenant, 'tenant scope must participate in the even
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('COUNT_OPENED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('DOCUMENT_ATTACHED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('ATTENTION_STATE_OBSERVED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_REVERSED'));
 
 console.log('Fact Foundation contract checks passed.');
