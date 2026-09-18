@@ -69,9 +69,11 @@ verify(
 );
 verify(
   handler.includes('buildStatementLineFingerprint') &&
-    handler.includes('buildReconciliationId') &&
-    handler.includes('t.create(reconciliationRef'),
-  'server gives each statement line a deterministic single confirmation record',
+    handler.includes('buildReconciliationAttemptId') &&
+    handler.includes('buildReconciliationLineLockId') &&
+    handler.includes('t.create(reconciliationRef') &&
+    handler.includes('t.set(lineLockRef'),
+  'server separates immutable confirmation attempts from the single active statement-line lock',
 );
 verify(
   handler.includes('RECONCILIATION_TOO_MANY_CANDIDATES') &&
@@ -116,6 +118,7 @@ for (const forbidden of [
 verify(
   updateBlock.includes("reconciliationStatus: 'reconciled'") &&
     updateBlock.includes('reconciliationEvidenceId') &&
+    updateBlock.includes('reconciliationLineLockId') &&
     updateBlock.includes('reconciledAt') &&
     updateBlock.includes('version: newVersion'),
   'transaction update is limited to reconciliation trace metadata and version',
