@@ -5,6 +5,8 @@ export type TodayPriorityKind =
   | 'count_divergence'
   | 'correction'
   | 'count_check'
+  | 'inbox_review'
+  | 'inbox_identification'
   | 'review'
   | 'approved'
   | 'draft'
@@ -13,6 +15,13 @@ export type TodayPriorityKind =
 export type TodayCountAttentionItem = {
   id: string;
   status: CountSessionStatus;
+};
+
+export type TodayInboxAttention = {
+  needsClassification: number;
+  pendingReview: number;
+  canClassify: boolean;
+  canReview: boolean;
 };
 
 export type TodayPriority = {
@@ -31,6 +40,12 @@ export type TodayPriority = {
 export function chooseTodayPriority(
   summary: TransactionsActionSummary,
   counts: TodayCountAttentionItem[],
+  inbox: TodayInboxAttention = {
+    needsClassification: 0,
+    pendingReview: 0,
+    canClassify: false,
+    canReview: false,
+  },
 ): TodayPriority {
   const divergent = counts.filter((item) => item.status === 'divergent');
   if (divergent.length > 0) {
@@ -54,6 +69,14 @@ export function chooseTodayPriority(
       count: activeIndependentChecks.length,
       countSessionId: activeIndependentChecks[0].id,
     };
+  }
+
+  if (inbox.canReview && inbox.pendingReview > 0) {
+    return { kind: 'inbox_review', count: inbox.pendingReview };
+  }
+
+  if (inbox.canClassify && inbox.needsClassification > 0) {
+    return { kind: 'inbox_identification', count: inbox.needsClassification };
   }
 
   if (summary.readyForReview > 0) {
