@@ -9,6 +9,7 @@ import { assertAllocationsTotal, FinanceAllocation } from '../../../shared/finan
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageFinanceSignalOpen, stageFinanceSignalResolve } from './signalProjection.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -113,7 +114,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: FieldValue.serverTimestamp()
       }));
 
-      stageFinanceFact(t, db, {
+      const sourceRefs = [
+        { kind: 'record' as const, ref: txRef.path, version: newVersion },
+        { kind: 'audit' as const, ref: auditRef.path },
+      ];
+      const factId = stageFinanceFact(t, db, {
         organizationId,
         eventType: 'TRANSACTION_SUBMITTED',
         entityType: 'finance_transaction',
@@ -127,10 +132,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           version: newVersion,
           submissionKind: isResubmission ? 'resubmission' : 'initial',
         },
-        sourceRefs: [
-          { kind: 'record', ref: txRef.path, version: newVersion },
-          { kind: 'audit', ref: auditRef.path },
-        ],
+        sourceRefs,
+      });
+
+      if (isResubmission) {
+        stageFinanceSignalResolve(t, db, {
+          organizationId,
+          financeEntityId,
+          signalType: 'TRANSACTION_CORRECTION_REQUIRED',
+          entityType: 'finance_transaction',
+          entityId: transactionId,
+          sourceFactId: factId,
+          sourceRefs,
+        });
+      }
+      stageFinanceSignalOpen(t, db, {
+        organizationId,
+        financeEntityId,
+        signalType: 'TRANSACTION_REVIEW_REQUIRED',
+        entityType: 'finance_transaction',
+        entityId: transactionId,
+        sourceFactId: factId,
+        sourceRefs,
       });
 
       // Internal Event

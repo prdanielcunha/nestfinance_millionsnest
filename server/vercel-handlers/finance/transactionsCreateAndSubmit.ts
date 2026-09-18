@@ -9,6 +9,7 @@ import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '.
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageFinanceSignalOpen } from './signalProjection.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -342,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         sourceRefs: factSourceRefs,
       });
-      stageFinanceFact(t, db, {
+      const submittedFactId = stageFinanceFact(t, db, {
         organizationId,
         eventType: 'TRANSACTION_SUBMITTED',
         entityType: 'finance_transaction',
@@ -356,6 +357,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           version: 1,
           submissionKind: 'initial',
         },
+        sourceRefs: factSourceRefs,
+      });
+      stageFinanceSignalOpen(t, db, {
+        organizationId,
+        financeEntityId,
+        signalType: 'TRANSACTION_REVIEW_REQUIRED',
+        entityType: 'finance_transaction',
+        entityId: txId,
+        sourceFactId: submittedFactId,
         sourceRefs: factSourceRefs,
       });
 

@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageFinanceSignalResolve } from './signalProjection.js';
 import { generateEvidenceAuditId } from './universalEvidenceHelpers.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
@@ -132,7 +133,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        stageFinanceFact(transaction, db, {
+        const sourceRefs = [
+          { kind: 'evidence' as const, ref: evidenceRef.path, version: nextVersion },
+          { kind: 'audit' as const, ref: auditRef.path },
+        ];
+        const factId = stageFinanceFact(transaction, db, {
           organizationId,
           eventType: 'INBOX_ITEM_RESOLVED',
           entityType: 'universal_evidence',
@@ -147,10 +152,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             version: nextVersion,
             financialRecognition: false,
           },
-          sourceRefs: [
-            { kind: 'evidence', ref: evidenceRef.path, version: nextVersion },
-            { kind: 'audit', ref: auditRef.path },
-          ],
+          sourceRefs,
+        });
+
+        stageFinanceSignalResolve(transaction, db, {
+          organizationId,
+          financeEntityId,
+          signalType: 'INBOX_REVIEW_REQUIRED',
+          entityType: 'universal_evidence',
+          entityId: evidenceId,
+          sourceFactId: factId,
+          sourceRefs,
         });
 
         return {

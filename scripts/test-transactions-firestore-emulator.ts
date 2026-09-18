@@ -10,6 +10,7 @@ import transactionsSubmitForReview from '../server/vercel-handlers/finance/trans
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
 import { buildIdempotencyKeyHash } from '../server/vercel-handlers/finance/idempotencyHelper.js';
 import { buildFinanceFactEventId } from '../server/vercel-handlers/finance/factStream.js';
+import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
 
 export class MockRes {
   statusCode = 200;
@@ -272,6 +273,26 @@ async function runEmulatorTests() {
         submittedFact?.payload?.submissionKind === 'initial',
       'envio para conferência emite TRANSACTION_SUBMITTED',
     );
+    const reviewSignalId = buildFinanceSignalId({
+      organizationId: orgId,
+      signalType: 'TRANSACTION_REVIEW_REQUIRED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+    });
+    const correctionSignalId = buildFinanceSignalId({
+      organizationId: orgId,
+      signalType: 'TRANSACTION_CORRECTION_REQUIRED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+    });
+    const reviewSignalAfterSubmit = (await firestore.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+    verify(
+      reviewSignalAfterSubmit?.status === 'open' &&
+        reviewSignalAfterSubmit?.openedByFactId === submittedFactId &&
+        reviewSignalAfterSubmit?.requiredCapability === 'finance.review' &&
+        reviewSignalAfterSubmit?.actionCode === 'OPEN_TRANSACTION_REVIEW',
+      'submit opens accountant-review signal from the submitted fact',
+    );
 
     const returnRequestId = randomRequestId();
     const returnRes = await testCall(transactionsReturnToDraft, {
@@ -307,6 +328,20 @@ async function runEmulatorTests() {
     verify(
       !Object.prototype.hasOwnProperty.call(returnedFact?.payload || {}, 'comment'),
       'comentário livre não é copiado para o Fact Stream',
+    );
+    const reviewSignalAfterReturn = (await firestore.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+    const correctionSignalAfterReturn = (await firestore.collection('intelligenceSignals').doc(correctionSignalId).get()).data();
+    verify(
+      reviewSignalAfterReturn?.status === 'resolved' &&
+        reviewSignalAfterReturn?.resolvedByFactId === returnedFactId,
+      'return resolves the review signal',
+    );
+    verify(
+      correctionSignalAfterReturn?.status === 'open' &&
+        correctionSignalAfterReturn?.openedByFactId === returnedFactId &&
+        correctionSignalAfterReturn?.requiredCapability === 'finance.create_drafts' &&
+        correctionSignalAfterReturn?.actionCode === 'OPEN_TRANSACTION_CORRECTION',
+      'return opens actionable correction work',
     );
 
     const returnedListRes = await testCall(transactionsList, {
@@ -371,6 +406,20 @@ async function runEmulatorTests() {
       createdAndSubmittedFacts[1].data()?.payload?.submissionKind === 'initial',
       'create-and-submit preserva semântica de envio inicial',
     );
+    const createSubmitReviewSignalId = buildFinanceSignalId({
+      organizationId: orgId,
+      signalType: 'TRANSACTION_REVIEW_REQUIRED',
+      entityType: 'finance_transaction',
+      entityId: createSubmitTxId,
+    });
+    const createSubmitReviewSignal = (
+      await firestore.collection('intelligenceSignals').doc(createSubmitReviewSignalId).get()
+    ).data();
+    verify(
+      createSubmitReviewSignal?.status === 'open' &&
+        createSubmitReviewSignal?.openedByFactId === createdAndSubmittedFactIds[1],
+      'create-and-submit atomically opens review work from TRANSACTION_SUBMITTED',
+    );
 
     console.log('--- Idempotencia Real no Emulator ---');
     const repeatKey = randomKey();
@@ -424,6 +473,24 @@ async function runEmulatorTests() {
       !(await firestore.collection('intelligenceFacts').doc(replayFactId).get()).exists,
       'replay idempotente não fabrica um segundo fato',
     );
+    const correctionAfterResubmit = (await firestore.collection('intelligenceSignals').doc(correctionSignalId).get()).data();
+    const reviewAfterResubmit = (await firestore.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+    verify(
+      correctionAfterResubmit?.status === 'resolved' &&
+        correctionAfterResubmit?.resolvedByFactId === firstRepeatFactId,
+      'resubmission closes correction work from the committed fact',
+    );
+    verify(
+      reviewAfterResubmit?.status === 'open' &&
+        reviewAfterResubmit?.openedByFactId === firstRepeatFactId &&
+        reviewAfterResubmit?.lastFactId === firstRepeatFactId,
+      'resubmission reopens review work exactly once',
+    );
+    const reviewAfterReplay = (await firestore.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+    verify(
+      reviewAfterReplay?.lastFactId === firstRepeatFactId,
+      'idempotent replay does not fabricate a new signal source fact',
+    );
 
     console.log('--- Concorrencia Real no Emulator ---');
     const returnForConcurrency = await testCall(transactionsReturnToDraft, {
@@ -476,6 +543,19 @@ async function runEmulatorTests() {
     const postJourneyBalances = await firestore.collection('organizations').doc(orgId).collection('financeBalances').get();
     verify(postJourneyJournal.empty, 'Fact Stream não cria journal entries');
     verify(postJourneyBalances.empty, 'Fact Stream não cria saldos');
+    const signalDocs = await firestore.collection('intelligenceSignals').where('organizationId', '==', orgId).get();
+    verify(
+      signalDocs.docs.every((doc) => {
+        const signal = doc.data();
+        return (
+          signal.sourceApp === 'NESTFINANCE' &&
+          signal.amountCents === undefined &&
+          signal.comment === undefined &&
+          signal.sourceHash === undefined
+        );
+      }),
+      'transaction signals remain compact and exclude material/free-form financial data',
+    );
   } catch (error: any) {
     console.error('Emulator Test Error:', error);
     if (failed === 0) failed++;
