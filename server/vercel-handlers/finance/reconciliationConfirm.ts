@@ -36,9 +36,15 @@ import {
 } from './universalEvidencePdfTextExtractor.js';
 import { getUniversalEvidenceStorageAdapter } from './universalEvidenceStorage.js';
 import {
-  buildReconciliationId,
+  buildLegacyReconciliationId,
+  buildReconciliationAttemptId,
+  buildReconciliationLineLockId,
   buildStatementLineFingerprint,
 } from './reconciliationConfirmationIds.js';
+import {
+  RECONCILIATION_LINE_LOCK_SCHEMA_VERSION,
+  type ReconciliationLineLockRecord,
+} from '../../../shared/finance/reconciliationLineLock.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { stageFinanceFact } from './factStream.js';
 
@@ -285,7 +291,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       evidenceId,
       line,
     });
-    const reconciliationId = buildReconciliationId({
+    const legacyReconciliationId = buildLegacyReconciliationId({
+      organizationId,
+      financeEntityId,
+      evidenceId,
+      statementLineFingerprint,
+    });
+    const lineLockId = buildReconciliationLineLockId({
       organizationId,
       financeEntityId,
       evidenceId,
@@ -299,6 +311,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'reconciliation_confirm',
       idempotencyKey,
     );
+    const reconciliationId = buildReconciliationAttemptId({
+      organizationId,
+      financeEntityId,
+      evidenceId,
+      statementLineFingerprint,
+      transactionId,
+      idempotencyKeyHash: keyHash,
+    });
+
     const payloadHash = hashPayload({
       evidenceId,
       accountId,
@@ -366,6 +387,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const txRef = context.repository.getTransactionsRef().doc(transactionId);
     const reconciliationRef = context.repository.getReconciliationsRef().doc(reconciliationId);
+    const legacyReconciliationRef = context.repository.getReconciliationsRef().doc(legacyReconciliationId);
+    const lineLockRef = context.repository.getReconciliationLineLocksRef().doc(lineLockId);
     const displayName = await actorDisplayName(db, uid);
 
     const result = await executeWithIdempotency<ReconciliationConfirmResponse>(
@@ -378,6 +401,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const currentEvidence = await t.get(evidenceRef);
         const currentTransaction = await t.get(txRef);
         const existingReconciliation = await t.get(reconciliationRef);
+        const lineLockSnapshot = await t.get(lineLockRef);
+        const legacyReconciliationSnapshot =
+          legacyReconciliationId === reconciliationId
+            ? existingReconciliation
+            : await t.get(legacyReconciliationRef);
 
         if (!currentAccount.exists) {
           throw { code: 'RECONCILIATION_ACCOUNT_NOT_FOUND' };
@@ -422,6 +450,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           throw { code: 'RECONCILIATION_LINE_ALREADY_CONFIRMED' };
         }
 
+        const lineLockData = lineLockSnapshot.data() || {};
+        if (lineLockSnapshot.exists && lineLockData.status === 'active') {
+          throw { code: 'RECONCILIATION_LINE_ALREADY_CONFIRMED' };
+        }
+        if (
+          lineLockSnapshot.exists &&
+          lineLockData.status !== 'active' &&
+          lineLockData.status !== 'released'
+        ) {
+          throw { code: 'RECONCILIATION_LINE_LOCK_INVALID' };
+        }
+
+        // Compatibility with P9d records that predate the active-lock model.
+        // A released lock created by P9e is the explicit proof that the legacy
+        // confirmation was reversed and the immutable line may be corrected.
+        if (!lineLockSnapshot.exists && legacyReconciliationSnapshot.exists) {
+          throw { code: 'RECONCILIATION_LINE_ALREADY_CONFIRMED' };
+        }
+
         const normalizedTransaction = matchableTransaction(
           transactionId,
           txData,
@@ -457,6 +504,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const record: ReconciliationConfirmationRecord = {
           reconciliationId,
+          lineLockId,
           organizationId,
           financeEntityId,
           accountId,
@@ -480,12 +528,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           schemaVersion: RECONCILIATION_CONFIRMATION_SCHEMA_VERSION,
         };
 
+        const lineLock: ReconciliationLineLockRecord = {
+          lineLockId,
+          organizationId,
+          financeEntityId,
+          evidenceId,
+          statementLineFingerprint,
+          status: 'active',
+          activeReconciliationId: reconciliationId,
+          activeTransactionId: transactionId,
+          activatedByUid: uid,
+          activatedAt: confirmedAt,
+          releasedByUid: null,
+          releasedAt: null,
+          releaseReversalId: null,
+          schemaVersion: RECONCILIATION_LINE_LOCK_SCHEMA_VERSION,
+        };
+
         t.create(reconciliationRef, sanitizeFirestoreObject(record));
+        t.set(lineLockRef, sanitizeFirestoreObject(lineLock));
         t.update(txRef, sanitizeFirestoreObject({
           reconciliationStatus: 'reconciled',
           reconciliationId,
           reconciliationEvidenceId: evidenceId,
           reconciliationLineFingerprint: statementLineFingerprint,
+          reconciliationLineLockId: lineLockId,
           reconciledAt: confirmedAt,
           reconciledByUid: uid,
           updatedAt: confirmedAt,
@@ -519,7 +586,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }));
 
         const sourceRefs = [
-          { kind: 'record' as const, ref: reconciliationRef.path, version: 1 },
+          { kind: 'record' as const, ref: reconciliationRef.path, version: RECONCILIATION_CONFIRMATION_SCHEMA_VERSION },
+          { kind: 'record' as const, ref: lineLockRef.path, version: RECONCILIATION_LINE_LOCK_SCHEMA_VERSION },
           { kind: 'record' as const, ref: txRef.path, version: newVersion },
           { kind: 'evidence' as const, ref: evidenceRef.path, version: evidenceVersion },
           { kind: 'audit' as const, ref: auditRef.path },
