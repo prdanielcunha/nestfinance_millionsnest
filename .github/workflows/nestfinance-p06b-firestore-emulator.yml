@@ -33,6 +33,7 @@ on:
       - "scripts/test-universal-evidence-firestore-emulator.ts"
       - "scripts/test-universal-evidence-review-emulator.ts"
       - "scripts/test-universal-evidence-review-model.ts"
+      - "scripts/test-needs-attention-read-model-emulator.ts"
       - "scripts/test-universal-evidence-inbox-emulator.ts"
       - "scripts/test-universal-evidence-inbox-i2a.ts"
       - "scripts/test-universal-evidence-inbox-i2b.ts"
@@ -134,7 +135,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-review-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-review-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts && npx tsx scripts/test-needs-attention-read-model-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:

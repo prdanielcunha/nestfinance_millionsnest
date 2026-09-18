@@ -1,0 +1,81 @@
+name: NestFinance Needs Attention Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/intelligence/needsAttention.ts'
+      - 'server/vercel-handlers/finance/intelligenceSignals*.ts'
+      - 'src/services/needsAttentionService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-needs-attention-contract.ts'
+      - 'scripts/test-needs-attention-read-model-emulator.ts'
+      - 'firestore.indexes.json'
+      - '.github/workflows/nestfinance-needs-attention-quality.yml'
+  push:
+    branches:
+      - 'architecture/p6-*'
+    paths:
+      - 'shared/intelligence/needsAttention.ts'
+      - 'server/vercel-handlers/finance/intelligenceSignals*.ts'
+      - 'src/services/needsAttentionService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-needs-attention-contract.ts'
+      - 'scripts/test-needs-attention-read-model-emulator.ts'
+      - 'firestore.indexes.json'
+      - '.github/workflows/nestfinance-needs-attention-quality.yml'
+
+jobs:
+  needs-attention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-needs-attention-emulator
+      GCLOUD_PROJECT: nestfinance-needs-attention-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Needs Attention static contract
+        run: npx tsx scripts/test-needs-attention-contract.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Needs Attention Firestore Emulator
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-needs-attention-emulator
+          "npx tsx scripts/test-needs-attention-read-model-emulator.ts"
+
+      - name: Canonical signal browser isolation
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-needs-attention-emulator
+          "npx tsx scripts/test-intelligence-signals-firestore-rules.ts"

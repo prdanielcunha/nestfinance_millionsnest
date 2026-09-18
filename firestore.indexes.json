@@ -81,6 +81,15 @@
         { "fieldPath": "financeEntityId", "order": "ASCENDING" },
         { "fieldPath": "listQueryKeys.all", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "intelligenceSignals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING" },
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
