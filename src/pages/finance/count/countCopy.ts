@@ -21,6 +21,8 @@ export type CountCopy = {
   errorBody: string;
   retry: string;
   continueSession: string;
+  viewResult: string;
+  resolveDifference: string;
   firstCount: string;
   savedFirstCount: string;
   secondCountPending: string;
@@ -106,7 +108,7 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Começar contagem',
     creating: 'Criando...',
     cancel: 'Cancelar',
-    recentSessions: 'Contagens em andamento',
+    recentSessions: 'Contagens recentes',
     emptyTitle: 'Nenhuma contagem iniciada',
     emptyBody: 'Quando um culto for contado, ele aparecerá aqui para continuar e conferir.',
     loading: 'Carregando contagens...',
@@ -114,6 +116,10 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     errorBody: 'Nenhuma informação foi alterada. Tente novamente em instantes.',
     retry: 'Tentar novamente',
     continueSession: 'Continuar',
+    viewResult: 'Ver resultado',
+    resolveDifference: 'Revisar diferencia',
+    viewResult: 'Ver resultado',
+    resolveDifference: 'Conferir diferença',
     firstCount: 'Primeira contagem',
     savedFirstCount: 'Primeira contagem salva',
     secondCountPending: 'Falta a segunda conferência',
@@ -208,7 +214,7 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Start count',
     creating: 'Creating...',
     cancel: 'Cancel',
-    recentSessions: 'Counts in progress',
+    recentSessions: 'Recent counts',
     emptyTitle: 'No count started',
     emptyBody: 'Once a service count starts, it will appear here so you can continue and review it.',
     loading: 'Loading counts...',
@@ -216,6 +222,8 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     errorBody: 'No information was changed. Try again shortly.',
     retry: 'Try again',
     continueSession: 'Continue',
+    viewResult: 'View result',
+    resolveDifference: 'Review difference',
     firstCount: 'First count',
     savedFirstCount: 'First count saved',
     secondCountPending: 'Second check still required',
@@ -310,7 +318,7 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Comenzar conteo',
     creating: 'Creando...',
     cancel: 'Cancelar',
-    recentSessions: 'Conteos en curso',
+    recentSessions: 'Conteos recientes',
     emptyTitle: 'Ningún conteo iniciado',
     emptyBody: 'Cuando comience el conteo de un culto, aparecerá aquí para continuar y revisarlo.',
     loading: 'Cargando conteos...',
