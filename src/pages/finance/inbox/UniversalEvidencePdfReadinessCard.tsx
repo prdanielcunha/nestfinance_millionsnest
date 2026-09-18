@@ -36,7 +36,7 @@ export function UniversalEvidencePdfReadinessCard({ evidence }: Props) {
   const state = normalizeInboxEvidenceState(evidence.processingState);
   const eligible =
     (state === 'accepted' || state === 'duplicate') &&
-    evidence.version === 2 &&
+    evidence.version >= 2 &&
     evidence.verifiedMimeType === 'application/pdf' &&
     evidence.verification.immutableOriginal &&
     evidence.verification.mimeVerified &&

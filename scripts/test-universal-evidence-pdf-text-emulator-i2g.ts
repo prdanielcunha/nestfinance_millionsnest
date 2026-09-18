@@ -138,7 +138,11 @@ objects.set(imagePath, { bytes: png, contentType: 'image/png' });
 objects.set(crossPath, { bytes: pdf, contentType: 'application/pdf' });
 objects.set(corruptPath, { bytes: Buffer.concat([pdf, Buffer.from('drift')]), contentType: 'application/pdf' });
 
-await evidenceCollection(entityA).doc(textId).set(evidenceData(entityA, textId, textPath, pdf));
+await evidenceCollection(entityA).doc(textId).set(evidenceData(entityA, textId, textPath, pdf, 'application/pdf', {
+  version: 4,
+  classification: { documentType: 'bank_statement', source: 'human', confirmedAt: now },
+  review: { status: 'reviewed', reviewedAt: now },
+}));
 await evidenceCollection(entityA).doc(noTextId).set(evidenceData(entityA, noTextId, noTextPath, noTextPdf));
 await evidenceCollection(entityA).doc(imageId).set(evidenceData(entityA, imageId, imagePath, png, 'image/png'));
 await evidenceCollection(entityB).doc(crossId).set(evidenceData(entityB, crossId, crossPath, pdf));
@@ -185,7 +189,7 @@ const verify = (condition: unknown, message: string) => {
 
 try {
   const extracted = await call({ financeEntityId: entityA, evidenceId: textId });
-  verify(extracted.statusCode === 200 && extracted.body.extraction.state === 'extracted', 'same-entity verified PDF returns native text extraction');
+  verify(extracted.statusCode === 200 && extracted.body.extraction.state === 'extracted', 'same-entity reviewed version 4 PDF returns native text extraction');
   verify(extracted.body.extraction.text.includes('Hello protected I2G'), 'native text is returned only in the protected response');
   verify(extracted.body.extraction.deterministic === true && extracted.body.extraction.aiUsed === false && extracted.body.extraction.ocrUsed === false && extracted.body.extraction.financialRecognition === false, 'response explicitly reports deterministic zero-AI zero-OCR zero-recognition semantics');
   verify(extracted.headers.get('cache-control') === 'private, no-store', 'native PDF text responses are non-cacheable private data');

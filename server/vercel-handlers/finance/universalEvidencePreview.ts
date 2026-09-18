@@ -66,7 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (
-      data?.version !== 2 ||
+      !Number.isInteger(Number(data?.version)) ||
+      Number(data?.version) < 2 ||
       (data?.processingState !== 'accepted' && data?.processingState !== 'duplicate')
     ) {
       return res.status(409).json({ error: 'EVIDENCE_PREVIEW_NOT_READY', requestId });

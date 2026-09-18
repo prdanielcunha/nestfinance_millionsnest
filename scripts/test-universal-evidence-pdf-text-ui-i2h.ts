@@ -33,9 +33,9 @@ check('uses canonical organization headers', () => {
   assert.ok(block.includes('buildHeaders(organizationId)'));
 });
 
-check('keeps verified finalized PDF eligibility', () => {
+check('keeps verified finalized PDF eligibility after classification/review version increments', () => {
   assert.ok(component.includes("state === 'accepted' || state === 'duplicate'"));
-  assert.ok(component.includes('evidence.version === 2'));
+  assert.ok(component.includes('evidence.version >= 2'));
   assert.ok(component.includes("evidence.verifiedMimeType === 'application/pdf'"));
   assert.ok(component.includes('evidence.verification.immutableOriginal'));
   assert.ok(component.includes('evidence.verification.mimeVerified'));

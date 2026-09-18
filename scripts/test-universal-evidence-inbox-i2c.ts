@@ -24,7 +24,7 @@ check(service.includes('operation=universal-evidence-preview') && service.includ
 check(handler.includes("resolveFinanceRequestContext(req, 'finance.view')"), 'preview backend requires finance.view');
 check(handler.includes("collection('financeEntities')") && handler.includes("collection('universalEvidence')"), 'preview lookup stays under canonical organization and finance entity');
 check(handler.includes("data?.organizationId !== organizationId") && handler.includes("data?.financeEntityId !== financeEntityId"), 'preview defensively validates tenant and entity fields');
-check(handler.includes("data?.version !== 2") && handler.includes("data?.processingState !== 'accepted'") && handler.includes("data?.processingState !== 'duplicate'"), 'preview is restricted to finalized accepted or duplicate evidence');
+check(handler.includes("Number(data?.version) < 2") && handler.includes("data?.processingState !== 'accepted'") && handler.includes("data?.processingState !== 'duplicate'"), 'preview accepts finalized evidence after metadata version increments while rejecting pre-finalization versions');
 check(handler.includes('stored.sha256 !== verifiedSha256') && handler.includes('stored.size !== byteSize'), 'preview revalidates stored hash and size against certified metadata');
 check(handler.includes('detectUniversalEvidenceMime') && handler.includes('stored.contentType !== verifiedMimeType'), 'preview revalidates byte signature and Storage content type');
 check(handler.includes("'Cache-Control', 'private, no-store, max-age=0'") && handler.includes("'X-Content-Type-Options', 'nosniff'"), 'preview response is private no-store and nosniff');
