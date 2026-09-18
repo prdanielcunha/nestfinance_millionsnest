@@ -274,7 +274,7 @@ function EvidenceDetailContent() {
   const previewState = normalizeInboxEvidenceState(evidence.processingState);
   const canPreview =
     (previewState === 'accepted' || previewState === 'duplicate') &&
-    evidence.version === 2 &&
+    evidence.version >= 2 &&
     Boolean(evidence.verifiedMimeType && PREVIEW_MIME_TYPES.has(evidence.verifiedMimeType)) &&
     evidence.verification.immutableOriginal &&
     evidence.verification.mimeVerified &&
