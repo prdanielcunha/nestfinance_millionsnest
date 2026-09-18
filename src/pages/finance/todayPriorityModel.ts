@@ -1,4 +1,5 @@
 import type { CountSessionStatus } from '../../../shared/finance/count.js';
+import type { NeedsAttentionSignalSummaryItem } from '../../../shared/intelligence/needsAttention.js';
 import type { TransactionsActionSummary } from '../../services/transactionsService.js';
 
 export type TodayPriorityKind =
@@ -24,18 +25,51 @@ export type TodayInboxAttention = {
   canReview: boolean;
 };
 
+export type TodaySignalAttention = {
+  items: NeedsAttentionSignalSummaryItem[];
+};
+
 export type TodayPriority = {
   kind: TodayPriorityKind;
   count: number;
   countSessionId?: string;
+  signalId?: string;
+  signalEntityId?: string;
+  sourceBacked?: boolean;
 };
+
+function firstSignal(
+  signals: TodaySignalAttention | undefined,
+  signalType: NeedsAttentionSignalSummaryItem['signalType'],
+  entityIds?: Set<string>,
+) {
+  return signals?.items.find(
+    (item) =>
+      item.signalType === signalType &&
+      (!entityIds || entityIds.has(item.entityId)),
+  );
+}
+
+function withSignal(
+  priority: TodayPriority,
+  signal: NeedsAttentionSignalSummaryItem | undefined,
+): TodayPriority {
+  if (!signal) return priority;
+  return {
+    ...priority,
+    signalId: signal.signalId,
+    signalEntityId: signal.entityId,
+    sourceBacked: true,
+  };
+}
 
 /**
  * Deterministic action ordering for the Today screen.
  *
- * The UI should tell a non-technical user what to do next without hiding the
- * accountant-grade source data behind each action. This function intentionally
- * consumes current authoritative state rather than making an AI judgment.
+ * Current domain state remains authoritative while the Signal Foundation has
+ * partial historical coverage. Signals may enrich an already-proven priority
+ * with explainability and a direct entity target, but they must never create,
+ * increase, or reorder work by themselves until backfill coverage is certified.
  */
 export function chooseTodayPriority(
   summary: TransactionsActionSummary,
@@ -46,18 +80,26 @@ export function chooseTodayPriority(
     canClassify: false,
     canReview: false,
   },
+  signals?: TodaySignalAttention,
 ): TodayPriority {
   const divergent = counts.filter((item) => item.status === 'divergent');
   if (divergent.length > 0) {
-    return {
-      kind: 'count_divergence',
-      count: divergent.length,
-      countSessionId: divergent[0].id,
-    };
+    const divergentIds = new Set(divergent.map((item) => item.id));
+    return withSignal(
+      {
+        kind: 'count_divergence',
+        count: divergent.length,
+        countSessionId: divergent[0].id,
+      },
+      firstSignal(signals, 'COUNT_DIVERGENCE_REVIEW_REQUIRED', divergentIds),
+    );
   }
 
   if (summary.returnedCorrections > 0) {
-    return { kind: 'correction', count: summary.returnedCorrections };
+    return withSignal(
+      { kind: 'correction', count: summary.returnedCorrections },
+      firstSignal(signals, 'TRANSACTION_CORRECTION_REQUIRED'),
+    );
   }
 
   const activeIndependentChecks = counts.filter(
@@ -72,15 +114,24 @@ export function chooseTodayPriority(
   }
 
   if (inbox.canReview && inbox.pendingReview > 0) {
-    return { kind: 'inbox_review', count: inbox.pendingReview };
+    return withSignal(
+      { kind: 'inbox_review', count: inbox.pendingReview },
+      firstSignal(signals, 'INBOX_REVIEW_REQUIRED'),
+    );
   }
 
   if (inbox.canClassify && inbox.needsClassification > 0) {
-    return { kind: 'inbox_identification', count: inbox.needsClassification };
+    return withSignal(
+      { kind: 'inbox_identification', count: inbox.needsClassification },
+      firstSignal(signals, 'INBOX_IDENTIFICATION_REQUIRED'),
+    );
   }
 
   if (summary.readyForReview > 0) {
-    return { kind: 'review', count: summary.readyForReview };
+    return withSignal(
+      { kind: 'review', count: summary.readyForReview },
+      firstSignal(signals, 'TRANSACTION_REVIEW_REQUIRED'),
+    );
   }
 
   if (summary.approvedForPosting > 0) {
