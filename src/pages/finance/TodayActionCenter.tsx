@@ -721,37 +721,6 @@ export function TodayActionCenter() {
             </Button>
           </div>
 
-          {explanationOpen && priority.signalId ? (
-            <div className="mt-5 border-t border-border-subtle pt-4" aria-live="polite">
-              {explanationLoading ? (
-                <div className="flex items-center gap-2 text-xs text-text-muted">
-                  <RefreshCw className="h-4 w-4 animate-spin text-accent-primary" aria-hidden="true" />
-                  {copy.loading}
-                </div>
-              ) : explanationFailed ? (
-                <p className="text-xs leading-relaxed text-text-muted">{copy.sourceUnavailable}</p>
-              ) : explanation?.signal.signalId === priority.signalId ? (
-                <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-semantic-success/10 text-semantic-success">
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-primary">{copy.verifiedReason}</p>
-                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-text-secondary">
-                      {copy.verifiedReasonText}
-                    </p>
-                    {explanation.explanation.recordedAt ? (
-                      <p className="mt-2 text-[11px] font-medium text-text-muted">
-                        {copy.sourceRecorded(
-                          formatRelativeDate(explanation.explanation.recordedAt, language, copy),
-                        )}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </Surface>
       ) : prioritiesLoading ? (
         <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
@@ -795,6 +764,38 @@ export function TodayActionCenter() {
               {priorityPresentation.action}
             </Button>
           </div>
+
+          {explanationOpen && priority.signalId ? (
+            <div className="mt-5 border-t border-border-subtle pt-4" aria-live="polite">
+              {explanationLoading ? (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <RefreshCw className="h-4 w-4 animate-spin text-accent-primary" aria-hidden="true" />
+                  {copy.loading}
+                </div>
+              ) : explanationFailed ? (
+                <p className="text-xs leading-relaxed text-text-muted">{copy.sourceUnavailable}</p>
+              ) : explanation?.signal.signalId === priority.signalId ? (
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-semantic-success/10 text-semantic-success">
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-text-primary">{copy.verifiedReason}</p>
+                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-text-secondary">
+                      {copy.verifiedReasonText}
+                    </p>
+                    {explanation.explanation.recordedAt ? (
+                      <p className="mt-2 text-[11px] font-medium text-text-muted">
+                        {copy.sourceRecorded(
+                          formatRelativeDate(explanation.explanation.recordedAt, language, copy),
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </Surface>
       )}
 
