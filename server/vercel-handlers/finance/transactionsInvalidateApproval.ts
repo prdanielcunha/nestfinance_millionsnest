@@ -6,6 +6,7 @@ import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
+import { stageFinanceFact } from './factStream.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -152,7 +153,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       const auditId = generateAuditId();
-      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
+      const auditRef = context.repository.getAuditRef().doc(auditId);
+      t.set(auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -165,6 +167,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: FieldValue.serverTimestamp(),
         details: { reasonCode, comment, previousVersion: txData.version, newVersion, sourceHash: txData.approvalSourceHash }
       }));
+
+      stageFinanceFact(t, db, {
+        organizationId,
+        eventType: 'TRANSACTION_RETURNED',
+        entityType: 'finance_transaction',
+        entityId: transactionId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          status: 'draft',
+          transactionKind,
+          version: newVersion,
+          returnKind: 'approval_invalidated',
+          reasonCode,
+          previousStatus: txData.status,
+        },
+        sourceRefs: [
+          { kind: 'record', ref: txRef.path, version: newVersion },
+          { kind: 'audit', ref: auditRef.path },
+        ],
+      });
 
       const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({

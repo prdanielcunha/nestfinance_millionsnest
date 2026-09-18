@@ -4,10 +4,12 @@ import * as crypto from 'crypto';
 import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
+import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
 import { buildIdempotencyKeyHash } from '../server/vercel-handlers/finance/idempotencyHelper.js';
+import { buildFinanceFactEventId } from '../server/vercel-handlers/finance/factStream.js';
 
 export class MockRes {
   statusCode = 200;
@@ -55,6 +57,7 @@ async function runEmulatorTests() {
   const entId = 'ent_' + crypto.randomBytes(4).toString('hex');
   const uid = 'usr_' + crypto.randomBytes(4).toString('hex');
   const accountId = 'acc_' + crypto.randomBytes(4).toString('hex');
+  const completeAccountId = 'acc_complete_' + crypto.randomBytes(4).toString('hex');
   const category1Id = 'cat_' + crypto.randomBytes(4).toString('hex');
   const category2Id = 'cat_' + crypto.randomBytes(4).toString('hex');
 
@@ -79,6 +82,14 @@ async function runEmulatorTests() {
     name: 'Conta Teste',
     active: true,
     kind: 'asset:current'
+  });
+  await firestore.collection('organizations').doc(orgId).collection('financeAccounts').doc(completeAccountId).set({
+    financeEntityId: entId,
+    name: 'Conta Canônica Completa',
+    active: true,
+    type: 'asset:bank',
+    nature: 'asset',
+    configurationStatus: 'complete'
   });
 
   await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category1Id).set({
@@ -128,11 +139,12 @@ async function runEmulatorTests() {
     verify(listRes.statusCode === 200 && listRes.body.items.length === 0, 'listar entidade vazia');
 
     const createKey = randomKey();
+    const createRequestId = randomRequestId();
     const createRes = await testCall(transactionsCreateDraft, {
       body: {
         financeEntityId: entId,
         idempotencyKey: createKey,
-        requestId: randomRequestId(),
+        requestId: createRequestId,
         payload: {
           direction: 'income',
           amountCents: 9500,
@@ -154,6 +166,27 @@ async function runEmulatorTests() {
     const allocationQuery = await firestore.collection('organizations').doc(orgId).collection('financeAllocations').where('transactionId', '==', txId).get();
     verify(txDoc.exists && txDoc.data()?.amountCents === 9500, 'transação persistida corretamente');
     verify(allocationQuery.docs.length === 2, 'allocations persistidas (6500 e 3000)');
+    const createdFactId = buildFinanceFactEventId({
+      organizationId: orgId,
+      eventType: 'TRANSACTION_CREATED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+      correlationId: createRequestId,
+    });
+    const createdFact = (await firestore.collection('intelligenceFacts').doc(createdFactId).get()).data();
+    verify(
+      createdFact?.eventType === 'TRANSACTION_CREATED' &&
+        createdFact?.payload?.financeEntityId === entId &&
+        createdFact?.payload?.status === 'draft' &&
+        createdFact?.payload?.version === 1,
+      'criação emite TRANSACTION_CREATED canônico',
+    );
+    verify(
+      Array.isArray(createdFact?.sourceRefs) &&
+        createdFact.sourceRefs.some((ref: any) => ref.kind === 'record') &&
+        createdFact.sourceRefs.some((ref: any) => ref.kind === 'audit'),
+      'fato criado aponta para registro e auditoria',
+    );
 
     const detailRes = await testCall(transactionsDetail, {
       body: { financeEntityId: entId, transactionId: txId }
@@ -210,13 +243,14 @@ async function runEmulatorTests() {
     });
     verify(noOpRes.statusCode === 200 && noOpRes.body.changed === false, 'confirma changed:false');
 
+    const submitRequestId = randomRequestId();
     const submitRes = await testCall(transactionsSubmitForReview, {
       body: {
         financeEntityId: entId,
         transactionId: txId,
         expectedVersion: currentVersion,
         idempotencyKey: randomKey(),
-        requestId: randomRequestId()
+        requestId: submitRequestId
       }
     });
     verify(submitRes.statusCode === 200 && submitRes.body.version === 3, 'confirma version após submit');
@@ -224,14 +258,29 @@ async function runEmulatorTests() {
 
     const afterSubmit = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
     verify(afterSubmit.data()?.status === 'ready_for_review', 'confirma ready_for_review');
+    const submittedFactId = buildFinanceFactEventId({
+      organizationId: orgId,
+      eventType: 'TRANSACTION_SUBMITTED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+      correlationId: submitRequestId,
+    });
+    const submittedFact = (await firestore.collection('intelligenceFacts').doc(submittedFactId).get()).data();
+    verify(
+      submittedFact?.payload?.status === 'ready_for_review' &&
+        submittedFact?.payload?.version === 3 &&
+        submittedFact?.payload?.submissionKind === 'initial',
+      'envio para conferência emite TRANSACTION_SUBMITTED',
+    );
 
+    const returnRequestId = randomRequestId();
     const returnRes = await testCall(transactionsReturnToDraft, {
       body: {
         financeEntityId: entId,
         transactionId: txId,
         expectedVersion: currentVersion,
         idempotencyKey: randomKey(),
-        requestId: randomRequestId(),
+        requestId: returnRequestId,
         reasonCode: 'correction_requested',
         comment: 'Correção solicitada pelo teste do Emulator'
       }
@@ -241,6 +290,24 @@ async function runEmulatorTests() {
 
     const afterReturn = await firestore.collection('organizations').doc(orgId).collection('financeTransactions').doc(txId).get();
     verify(afterReturn.data()?.status === 'draft', 'confirma status draft após retorno');
+    const returnedFactId = buildFinanceFactEventId({
+      organizationId: orgId,
+      eventType: 'TRANSACTION_RETURNED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+      correlationId: returnRequestId,
+    });
+    const returnedFact = (await firestore.collection('intelligenceFacts').doc(returnedFactId).get()).data();
+    verify(
+      returnedFact?.payload?.status === 'draft' &&
+        returnedFact?.payload?.returnKind === 'review_return' &&
+        returnedFact?.payload?.reasonCode === 'correction_requested',
+      'devolução emite TRANSACTION_RETURNED com motivo estruturado',
+    );
+    verify(
+      !Object.prototype.hasOwnProperty.call(returnedFact?.payload || {}, 'comment'),
+      'comentário livre não é copiado para o Fact Stream',
+    );
 
     const returnedListRes = await testCall(transactionsList, {
       body: { financeEntityId: entId, filters: { status: 'draft' } }
@@ -255,28 +322,79 @@ async function runEmulatorTests() {
     const aggregatesQuery = await firestore.collection('organizations').doc(orgId).collection('financeAggregates').get();
     verify(journalQuery.docs.length === 0, 'zero financeJournalEntries');
     verify(aggregatesQuery.docs.length === 0, 'zero financeAggregates');
+    const createSubmitRequestId = randomRequestId();
+    const createSubmitRes = await testCall(transactionsCreateAndSubmit, {
+      body: {
+        financeEntityId: entId,
+        idempotencyKey: randomKey(),
+        requestId: createSubmitRequestId,
+        payload: {
+          direction: 'income',
+          amountCents: 5000,
+          occurredAt: new Date().toISOString(),
+          description: 'Entrada criada e enviada no mesmo passo',
+          paymentMethod: 'pix',
+          evidenceJustification: 'Teste do Fact Stream sem comprovante anexado',
+          accountId: completeAccountId,
+          allocations: [
+            { amountCents: 5000, categoryId: category1Id, description: 'Dízimos' }
+          ]
+        }
+      }
+    });
+    verify(createSubmitRes.statusCode === 200, 'create-and-submit executa no Emulator');
+    const createSubmitTxId = createSubmitRes.body.transactionId;
+    const createdAndSubmittedFactIds = [
+      buildFinanceFactEventId({
+        organizationId: orgId,
+        eventType: 'TRANSACTION_CREATED',
+        entityType: 'finance_transaction',
+        entityId: createSubmitTxId,
+        correlationId: createSubmitRequestId,
+      }),
+      buildFinanceFactEventId({
+        organizationId: orgId,
+        eventType: 'TRANSACTION_SUBMITTED',
+        entityType: 'finance_transaction',
+        entityId: createSubmitTxId,
+        correlationId: createSubmitRequestId,
+      }),
+    ];
+    const createdAndSubmittedFacts = await Promise.all(
+      createdAndSubmittedFactIds.map((id) => firestore.collection('intelligenceFacts').doc(id).get()),
+    );
+    verify(
+      createdAndSubmittedFacts.every((snapshot) => snapshot.exists),
+      'create-and-submit grava CREATED e SUBMITTED na mesma operação',
+    );
+    verify(
+      createdAndSubmittedFacts[1].data()?.payload?.submissionKind === 'initial',
+      'create-and-submit preserva semântica de envio inicial',
+    );
 
     console.log('--- Idempotencia Real no Emulator ---');
     const repeatKey = randomKey();
+    const firstRepeatRequestId = randomRequestId();
     const firstRepeat = await testCall(transactionsSubmitForReview, {
       body: {
         financeEntityId: entId,
         transactionId: txId,
         expectedVersion: currentVersion,
         idempotencyKey: repeatKey,
-        requestId: randomRequestId()
+        requestId: firstRepeatRequestId
       }
     });
     verify(firstRepeat.statusCode === 200 && firstRepeat.body.version === 5, 'primeira chamada idempotente avança para version 5');
     currentVersion = 5;
 
+    const replayRequestId = randomRequestId();
     const repeatRes = await testCall(transactionsSubmitForReview, {
       body: {
         financeEntityId: entId,
         transactionId: txId,
         expectedVersion: 4,
         idempotencyKey: repeatKey,
-        requestId: randomRequestId()
+        requestId: replayRequestId
       }
     });
     verify(repeatRes.statusCode === 200 && repeatRes.body.version === 5, 'mesma chave + mesmo payload retorna o resultado anterior');
@@ -284,6 +402,28 @@ async function runEmulatorTests() {
     const keyHash = buildIdempotencyKeyHash(orgId, entId, uid, 'submit_review', repeatKey);
     const idempotencyDoc = await firestore.collection('organizations').doc(orgId).collection('financeIdempotency').doc(keyHash).get();
     verify(idempotencyDoc.exists, 'registro de idempotência criado');
+    const firstRepeatFactId = buildFinanceFactEventId({
+      organizationId: orgId,
+      eventType: 'TRANSACTION_SUBMITTED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+      correlationId: firstRepeatRequestId,
+    });
+    const replayFactId = buildFinanceFactEventId({
+      organizationId: orgId,
+      eventType: 'TRANSACTION_SUBMITTED',
+      entityType: 'finance_transaction',
+      entityId: txId,
+      correlationId: replayRequestId,
+    });
+    verify(
+      (await firestore.collection('intelligenceFacts').doc(firstRepeatFactId).get()).exists,
+      'primeira execução idempotente grava o fato',
+    );
+    verify(
+      !(await firestore.collection('intelligenceFacts').doc(replayFactId).get()).exists,
+      'replay idempotente não fabrica um segundo fato',
+    );
 
     console.log('--- Concorrencia Real no Emulator ---');
     const returnForConcurrency = await testCall(transactionsReturnToDraft, {
@@ -328,6 +468,14 @@ async function runEmulatorTests() {
     const conflicts = concurrentResults.filter((result) => result.statusCode === 400 && result.body?.error === 'FINANCE_VERSION_CONFLICT');
     verify(succeeded.length === 1, `exatamente um update vence (length=${succeeded.length})`);
     verify(conflicts.length === 1, 'concorrente perde com FINANCE_VERSION_CONFLICT');
+    const txFacts = await firestore.collection('intelligenceFacts').where('entityId', '==', txId).get();
+    const txFactTypes = txFacts.docs.map((doc) => doc.data().eventType);
+    verify(!txFactTypes.includes('TRANSACTION_POSTED'), 'fluxo pré-posting nunca emite TRANSACTION_POSTED');
+
+    const postJourneyJournal = await firestore.collection('organizations').doc(orgId).collection('financeJournalEntries').get();
+    const postJourneyBalances = await firestore.collection('organizations').doc(orgId).collection('financeBalances').get();
+    verify(postJourneyJournal.empty, 'Fact Stream não cria journal entries');
+    verify(postJourneyBalances.empty, 'Fact Stream não cria saldos');
   } catch (error: any) {
     console.error('Emulator Test Error:', error);
     if (failed === 0) failed++;

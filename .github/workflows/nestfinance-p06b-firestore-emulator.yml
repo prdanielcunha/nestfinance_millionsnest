@@ -24,6 +24,7 @@ on:
       - "scripts/check-saas-isolation.ts"
       - "scripts/test-certification-checkers.ts"
       - "scripts/test-transactions-firestore-emulator.ts"
+      - "scripts/test-transaction-fact-coverage.ts"
       - "scripts/test-count-firestore-emulator.ts"
       - "scripts/test-count-paper-firestore-emulator.ts"
       - "scripts/test-count-capture-firestore-emulator.ts"
@@ -151,6 +152,7 @@ jobs:
         run: |
           npx tsx scripts/test-ecosystem-session-resolver.ts
           npx tsx scripts/test-finance-request-context.ts
+          npx tsx scripts/test-transaction-fact-coverage.ts
           npx tsx scripts/test-universal-evidence-review-model.ts
           npx tsx scripts/test-posting-plan-entity-isolation.ts
           npx tsx scripts/test-transactions-p06b-journey.ts
