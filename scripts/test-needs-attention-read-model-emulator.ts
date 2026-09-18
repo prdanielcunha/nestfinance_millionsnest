@@ -106,6 +106,17 @@ await db.collection('intelligenceFacts').doc(reviewFactId).set({
   ],
   version: 1,
 });
+await db
+  .collection('organizations')
+  .doc(orgId)
+  .collection('financeTransactions')
+  .doc(reviewEntityId)
+  .set({
+    organizationId: orgId,
+    financeEntityId: entityA,
+    status: 'ready_for_review',
+    version: 3,
+  });
 await db.collection('intelligenceSignals').doc(reviewSignalId).set({
   signalId: reviewSignalId,
   organizationId: orgId,
@@ -153,6 +164,19 @@ await db.collection('intelligenceFacts').doc(correctionFactId).set({
   sourceRefs: [{ kind: 'record', ref: `organizations/${orgId}/financeTransactions/${correctionEntityId}`, version: 4 }],
   version: 1,
 });
+await db
+  .collection('organizations')
+  .doc(orgId)
+  .collection('financeTransactions')
+  .doc(correctionEntityId)
+  .set({
+    organizationId: orgId,
+    financeEntityId: entityA,
+    status: 'draft',
+    returnedToDraftReason: 'correction_requested',
+    returnedToDraftAt: now,
+    version: 4,
+  });
 await db.collection('intelligenceSignals').doc(correctionSignalId).set({
   signalId: correctionSignalId,
   organizationId: orgId,
@@ -258,7 +282,7 @@ try {
     'summary counts only actionable open signals for the requested entity',
   );
   verify(
-    summary.body.items.every((item: any) => item.explainable === true) &&
+    summary.body.items.every((item: any) => item.explainable === true && item.currentStateVerified === true) &&
       !summary.body.items.some((item: any) => item.signalId === resolvedSignalId) &&
       !summary.body.items.some((item: any) => item.signalId === otherEntitySignalId) &&
       !summary.body.items.some((item: any) => item.signalId === unsupportedCapabilitySignalId),
@@ -309,12 +333,77 @@ try {
   });
   verify(unsupported.statusCode === 403, 'unknown or unsupported signal capability fails closed');
 
+  const staleEntityId = 'tx_stale_' + suffix;
+  const staleSignalId = buildFinanceSignalId({
+    organizationId: orgId,
+    signalType: 'TRANSACTION_REVIEW_REQUIRED',
+    entityType: 'finance_transaction',
+    entityId: staleEntityId,
+  });
+  await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeTransactions')
+    .doc(staleEntityId)
+    .set({
+      organizationId: orgId,
+      financeEntityId: entityA,
+      status: 'approved_for_posting',
+      version: 9,
+    });
+  await db.collection('intelligenceSignals').doc(staleSignalId).set({
+    signalId: staleSignalId,
+    organizationId: orgId,
+    financeEntityId: entityA,
+    sourceApp: 'NESTFINANCE',
+    signalType: 'TRANSACTION_REVIEW_REQUIRED',
+    entityType: 'finance_transaction',
+    entityId: staleEntityId,
+    status: 'open',
+    attentionLevel: 'action_required',
+    requiredCapability: 'finance.review',
+    actionCode: 'OPEN_TRANSACTION_REVIEW',
+    updatedAt: now,
+    lastFactId: reviewFactId,
+    version: 1,
+  });
+
+  const summaryWithStale = await call(intelligenceSignalsSummary, { financeEntityId: entityA });
+  verify(
+    !summaryWithStale.body.items.some((item: any) => item.signalId === staleSignalId),
+    'summary suppresses an open projection whose authoritative state is no longer actionable',
+  );
+  const staleDetail = await call(intelligenceSignalsDetail, {
+    financeEntityId: entityA,
+    signalId: staleSignalId,
+  });
+  verify(
+    staleDetail.statusCode === 409 && staleDetail.body.error === 'SIGNAL_STALE',
+    'detail fails closed when an open projection no longer matches authoritative state',
+  );
+
   const missingSourceSignalId = buildFinanceSignalId({
     organizationId: orgId,
     signalType: 'INBOX_IDENTIFICATION_REQUIRED',
     entityType: 'universal_evidence',
     entityId: 'evd_' + 'e'.repeat(32),
   });
+  const missingSourceEvidenceId = 'evd_' + 'e'.repeat(32);
+  await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeEntities')
+    .doc(entityA)
+    .collection('universalEvidence')
+    .doc(missingSourceEvidenceId)
+    .set({
+      evidenceId: missingSourceEvidenceId,
+      organizationId: orgId,
+      financeEntityId: entityA,
+      processingState: 'accepted',
+      duplicate: false,
+      version: 2,
+    });
   await db.collection('intelligenceSignals').doc(missingSourceSignalId).set({
     signalId: missingSourceSignalId,
     organizationId: orgId,
