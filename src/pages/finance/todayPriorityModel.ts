@@ -45,6 +45,7 @@ function firstSignal(
 ) {
   return signals?.items.find(
     (item) =>
+      item.currentStateVerified === true &&
       item.signalType === signalType &&
       (!entityIds || entityIds.has(item.entityId)),
   );
