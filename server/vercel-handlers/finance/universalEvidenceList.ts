@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { isUniversalEvidenceDocumentType } from '../../../shared/finance/universalEvidenceReview.js';
 
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
@@ -79,12 +80,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       query = query.startAfter(cursorDoc);
     }
 
-    const [snapshot, totalCount, acceptedCount, duplicateCount, awaitingUploadCount] = await Promise.all([
+    const [snapshot, totalCount, acceptedCount, duplicateCount, awaitingUploadCount, reviewedCount] = await Promise.all([
       query.get(),
       evidenceRef.count().get(),
       evidenceRef.where('processingState', '==', 'accepted').count().get(),
       evidenceRef.where('processingState', '==', 'duplicate').count().get(),
       evidenceRef.where('processingState', '==', 'awaiting_upload').count().get(),
+      evidenceRef.where('review.status', '==', 'reviewed').count().get(),
     ]);
 
     const pageDocs = snapshot.docs.slice(0, limit);
@@ -96,6 +98,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         return [];
       }
+
+      const classificationData =
+        data.classification && typeof data.classification === 'object' ? data.classification : null;
+      const reviewData = data.review && typeof data.review === 'object' ? data.review : null;
+      const classification =
+        classificationData && isUniversalEvidenceDocumentType(classificationData.documentType)
+          ? {
+              documentType: classificationData.documentType,
+              source: 'human' as const,
+              confirmedAt: toIso(classificationData.confirmedAt),
+            }
+          : null;
+      const reviewStatus =
+        reviewData?.status === 'reviewed' ? 'reviewed' : reviewData?.status === 'pending' ? 'pending' : null;
+      const review = reviewStatus
+        ? {
+            status: reviewStatus,
+            reviewedAt: toIso(reviewData.reviewedAt),
+            note: typeof reviewData.note === 'string' && reviewData.note.trim() ? reviewData.note.trim() : null,
+          }
+        : null;
 
       return [
         {
@@ -115,6 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: toIso(data.createdAt),
           validatedAt: toIso(data.validatedAt),
           version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
+          classification,
+          review,
         },
       ];
     });
@@ -131,6 +156,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         accepted: acceptedCount.data().count,
         duplicate: duplicateCount.data().count,
         awaitingUpload: awaitingUploadCount.data().count,
+        needsReview: Math.max(0, acceptedCount.data().count - reviewedCount.data().count),
+        reviewed: reviewedCount.data().count,
       },
       requestId,
     });
