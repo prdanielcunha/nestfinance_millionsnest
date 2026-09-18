@@ -333,7 +333,22 @@ export async function inspectAttentionBackfill(
       entityId: item.entityId,
     });
 
-    if (current) verifiedExisting.push(item);
+    const factId = typeof signal.lastFactId === 'string' ? signal.lastFactId : '';
+    const factSnapshot = /^fact_[a-f0-9]{64}$/.test(factId)
+      ? await db.collection('intelligenceFacts').doc(factId).get()
+      : null;
+    const fact = factSnapshot?.data?.() || {};
+    const sourceBacked =
+      Boolean(factSnapshot?.exists) &&
+      fact.organizationId === organizationId &&
+      fact.sourceApp === 'NESTFINANCE' &&
+      fact.entityType === item.entityType &&
+      fact.entityId === item.entityId &&
+      fact.payload?.financeEntityId === financeEntityId &&
+      Array.isArray(fact.sourceRefs) &&
+      fact.sourceRefs.length > 0;
+
+    if (current && sourceBacked) verifiedExisting.push(item);
     else missing.push(item);
   }
 
