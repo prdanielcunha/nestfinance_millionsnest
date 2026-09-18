@@ -273,6 +273,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'RECONCILIATION_LINE_NOT_CONFIRMABLE' });
     }
 
+    const statementLineNumber = line.lineNumber;
+    const statementDate = line.selectedDate;
+    const statementAmountCents = line.selectedAmountCents;
+    const statementDirection = line.selectedDirection as 'inflow' | 'outflow';
+    const statementDescription = line.descriptionCandidate;
+
+    const statementLineFingerprint = buildStatementLineFingerprint({
+      organizationId,
+      financeEntityId,
+      evidenceId,
+      evidenceVersion,
+      line,
+    });
+    const reconciliationId = buildReconciliationId({
+      organizationId,
+      financeEntityId,
+      evidenceId,
+      evidenceVersion,
+      statementLineFingerprint,
+    });
+
+    const keyHash = buildIdempotencyKeyHash(
+      organizationId,
+      financeEntityId,
+      uid,
+      'reconciliation_confirm',
+      idempotencyKey,
+    );
+    const payloadHash = hashPayload({
+      evidenceId,
+      accountId,
+      transactionId,
+      lineNumber: Number(lineNumber),
+      statementLineFingerprint,
+    });
+
+    // Retry-safe fast path. A completed request must be replayable even though
+    // the first execution already changed reconciliationStatus to reconciled.
+    const idempotencySnapshot = await context.repository.getIdempotencyRef().doc(keyHash).get();
+    if (idempotencySnapshot.exists) {
+      const idempotencyData = idempotencySnapshot.data() || {};
+      if (idempotencyData.payloadHash !== payloadHash) {
+        return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
+      }
+      if (idempotencyData.status === 'completed' && idempotencyData.result) {
+        return res.status(200).json(idempotencyData.result);
+      }
+      return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
+    }
+
     const allTransactionsSnapshot = await context.repository
       .getTransactionsQuery()
       .limit(RECONCILIATION_MATCH_MAX_TRANSACTIONS + 1)
@@ -316,43 +366,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'RECONCILIATION_MATCH_NO_LONGER_VALID' });
     }
 
-    const statementLineNumber = line.lineNumber;
-    const statementDate = line.selectedDate;
-    const statementAmountCents = line.selectedAmountCents;
-    const statementDirection = line.selectedDirection as 'inflow' | 'outflow';
-    const statementDescription = line.descriptionCandidate;
-
-    const statementLineFingerprint = buildStatementLineFingerprint({
-      organizationId,
-      financeEntityId,
-      evidenceId,
-      evidenceVersion,
-      line,
-    });
-    const reconciliationId = buildReconciliationId({
-      organizationId,
-      financeEntityId,
-      evidenceId,
-      evidenceVersion,
-      statementLineFingerprint,
-    });
-
     const txRef = context.repository.getTransactionsRef().doc(transactionId);
     const reconciliationRef = context.repository.getReconciliationsRef().doc(reconciliationId);
-    const keyHash = buildIdempotencyKeyHash(
-      organizationId,
-      financeEntityId,
-      uid,
-      'reconciliation_confirm',
-      idempotencyKey,
-    );
-    const payloadHash = hashPayload({
-      evidenceId,
-      accountId,
-      transactionId,
-      lineNumber: Number(lineNumber),
-      statementLineFingerprint,
-    });
     const displayName = await actorDisplayName(db, uid);
 
     const result = await executeWithIdempotency<ReconciliationConfirmResponse>(
