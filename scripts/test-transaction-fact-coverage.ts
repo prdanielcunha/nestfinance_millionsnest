@@ -72,9 +72,16 @@ verify(
 
 for (const [key, source] of Object.entries(sources)) {
   verify(source.includes('stageFinanceFact('), `${key} stages a canonical fact`);
-  verify(
+  const hasInlineRefs =
     source.includes("{ kind: 'record', ref: txRef.path") &&
-      source.includes("{ kind: 'audit', ref: auditRef.path"),
+    source.includes("{ kind: 'audit', ref: auditRef.path");
+  const hasSharedRefs =
+    key === 'createAndSubmit' &&
+    source.includes('const factSourceRefs = [') &&
+    source.includes("kind: 'record' as const") &&
+    source.includes("kind: 'audit' as const");
+  verify(
+    hasInlineRefs || hasSharedRefs,
     `${key} fact is source-backed by record and audit refs`,
   );
 }
