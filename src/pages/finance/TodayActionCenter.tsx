@@ -23,9 +23,9 @@ import {
   transactionsService,
   type TransactionsActionSummary,
 } from '@/src/services/transactionsService';
+import { countService, type CountSessionListItem } from '@/src/services/countService';
 import { APP_ROUTES } from '@/src/app/router/routes';
-
-type PriorityKind = 'correction' | 'review' | 'approved' | 'draft' | 'clear';
+import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
 
 type TodayCopy = {
@@ -37,6 +37,11 @@ type TodayCopy = {
   chooseEntity: string;
   attention: string;
   everythingClear: string;
+  countDivergenceTitle: (count: number) => string;
+  countDivergenceText: string;
+  countCheckTitle: (count: number) => string;
+  countCheckText: string;
+  openCount: string;
   correctionTitle: (count: number) => string;
   correctionText: string;
   reviewTitle: (count: number) => string;
@@ -90,6 +95,11 @@ const COPY: Record<Language, TodayCopy> = {
     chooseEntity: 'Configurar entidade',
     attention: 'Prioridade agora',
     everythingClear: 'Tudo em dia',
+    countDivergenceTitle: (count) => count === 1 ? 'Uma contagem tem uma diferença para conferir' : `${count} contagens têm diferenças para conferir`,
+    countDivergenceText: 'Os valores não bateram. O NestFinance preservou as contagens e espera uma nova conferência antes de seguir.',
+    countCheckTitle: (count) => count === 1 ? 'Uma conferência de contagem precisa ser concluída' : `${count} conferências de contagem precisam ser concluídas`,
+    countCheckText: 'Conclua a contagem independente. Os valores anteriores continuam protegidos enquanto você conta.',
+    openCount: 'Abrir contagem',
     correctionTitle: (count) => `${count} ${count === 1 ? 'movimentação voltou para correção' : 'movimentações voltaram para correção'}`,
     correctionText: 'Esses itens já foram conferidos e precisam de um ajuste antes de seguir.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'movimentação está pronta para conferência' : 'movimentações estão prontas para conferência'}`,
@@ -105,7 +115,7 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprovadas',
     finishDrafts: 'Continuar rascunhos',
     openTransactions: 'Ver movimentações',
-    summaryTitle: 'Resumo do trabalho aberto',
+    summaryTitle: 'Movimentações abertas',
     returned: 'Para corrigir',
     drafts: 'Rascunhos',
     review: 'Para conferir',
@@ -141,6 +151,11 @@ const COPY: Record<Language, TodayCopy> = {
     chooseEntity: 'Set up entity',
     attention: 'Priority now',
     everythingClear: 'All caught up',
+    countDivergenceTitle: (count) => count === 1 ? 'One count has a difference to review' : `${count} counts have differences to review`,
+    countDivergenceText: 'The amounts did not match. NestFinance preserved both counts and is waiting for another independent check.',
+    countCheckTitle: (count) => count === 1 ? 'One count check needs to be completed' : `${count} count checks need to be completed`,
+    countCheckText: 'Finish the independent count. Previous amounts stay hidden while you count.',
+    openCount: 'Open count',
     correctionTitle: (count) => `${count} ${count === 1 ? 'transaction needs a correction' : 'transactions need corrections'}`,
     correctionText: 'These items were already checked and need an adjustment before they can continue.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'transaction is ready to be checked' : 'transactions are ready to be checked'}`,
@@ -156,7 +171,7 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'View approved',
     finishDrafts: 'Continue drafts',
     openTransactions: 'View transactions',
-    summaryTitle: 'Open work summary',
+    summaryTitle: 'Open transactions',
     returned: 'Needs correction',
     drafts: 'Drafts',
     review: 'Needs checking',
@@ -192,6 +207,11 @@ const COPY: Record<Language, TodayCopy> = {
     chooseEntity: 'Configurar entidad',
     attention: 'Prioridad ahora',
     everythingClear: 'Todo al día',
+    countDivergenceTitle: (count) => count === 1 ? 'Un conteo tiene una diferencia por revisar' : `${count} conteos tienen diferencias por revisar`,
+    countDivergenceText: 'Los valores no coincidieron. NestFinance preservó los conteos y espera una nueva revisión independiente.',
+    countCheckTitle: (count) => count === 1 ? 'Una revisión de conteo necesita completarse' : `${count} revisiones de conteo necesitan completarse`,
+    countCheckText: 'Completa el conteo independiente. Los valores anteriores permanecen ocultos mientras cuentas.',
+    openCount: 'Abrir conteo',
     correctionTitle: (count) => `${count} ${count === 1 ? 'movimiento volvió para corrección' : 'movimientos volvieron para corrección'}`,
     correctionText: 'Estos elementos ya fueron revisados y necesitan un ajuste antes de continuar.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'movimiento está listo para revisión' : 'movimientos están listos para revisión'}`,
@@ -207,7 +227,7 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprobados',
     finishDrafts: 'Continuar borradores',
     openTransactions: 'Ver movimientos',
-    summaryTitle: 'Resumen del trabajo abierto',
+    summaryTitle: 'Movimientos abiertos',
     returned: 'Para corregir',
     drafts: 'Borradores',
     review: 'Para revisar',
@@ -288,10 +308,13 @@ export function TodayActionCenter() {
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
+  const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
   const [recent, setRecent] = useState<LedgerTransaction[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [countLoading, setCountLoading] = useState(false);
   const [recentLoading, setRecentLoading] = useState(false);
   const [summaryFailed, setSummaryFailed] = useState(false);
+  const [countFailed, setCountFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
 
   const loadSummary = useCallback(async () => {
@@ -305,6 +328,20 @@ export function TodayActionCenter() {
       setSummaryFailed(true);
     } finally {
       setSummaryLoading(false);
+    }
+  }, [activeFinanceEntityId, organizationId]);
+
+  const loadCounts = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    setCountLoading(true);
+    setCountFailed(false);
+    try {
+      const result = await countService.list(organizationId, activeFinanceEntityId);
+      setCountItems(result.items);
+    } catch {
+      setCountFailed(true);
+    } finally {
+      setCountLoading(false);
     }
   }, [activeFinanceEntityId, organizationId]);
 
@@ -325,33 +362,33 @@ export function TodayActionCenter() {
   useEffect(() => {
     if (!organizationId || !activeFinanceEntityId) {
       setSummary(null);
+      setCountItems([]);
       setRecent([]);
       return;
     }
     void loadSummary();
+    void loadCounts();
     void loadRecent();
-  }, [activeFinanceEntityId, loadRecent, loadSummary, organizationId]);
+  }, [activeFinanceEntityId, loadCounts, loadRecent, loadSummary, organizationId]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
 
-  const priority = useMemo(() => {
-    if (effectiveSummary.returnedCorrections > 0) {
-      return { kind: 'correction' as PriorityKind, count: effectiveSummary.returnedCorrections };
-    }
-    if (effectiveSummary.readyForReview > 0) {
-      return { kind: 'review' as PriorityKind, count: effectiveSummary.readyForReview };
-    }
-    if (effectiveSummary.approvedForPosting > 0) {
-      return { kind: 'approved' as PriorityKind, count: effectiveSummary.approvedForPosting };
-    }
-    if (effectiveSummary.simpleDrafts > 0) {
-      return { kind: 'draft' as PriorityKind, count: effectiveSummary.simpleDrafts };
-    }
-    return { kind: 'clear' as PriorityKind, count: 0 };
-  }, [effectiveSummary]);
+  const priority = useMemo(
+    () => chooseTodayPriority(effectiveSummary, countItems),
+    [countItems, effectiveSummary],
+  );
 
   const priorityPresentation = useMemo(() => {
     switch (priority.kind) {
+      case 'count_divergence':
+        return {
+          title: copy.countDivergenceTitle(priority.count),
+          text: copy.countDivergenceText,
+          action: copy.openCount,
+          route: APP_ROUTES.countSession.replace(':sessionId', priority.countSessionId || ''),
+          icon: AlertTriangle,
+          iconClass: 'bg-semantic-warning/10 text-semantic-warning',
+        };
       case 'correction':
         return {
           title: copy.correctionTitle(priority.count),
@@ -360,6 +397,15 @@ export function TodayActionCenter() {
           route: APP_ROUTES.transactions,
           icon: AlertTriangle,
           iconClass: 'bg-semantic-warning/10 text-semantic-warning',
+        };
+      case 'count_check':
+        return {
+          title: copy.countCheckTitle(priority.count),
+          text: copy.countCheckText,
+          action: copy.openCount,
+          route: APP_ROUTES.countSession.replace(':sessionId', priority.countSessionId || ''),
+          icon: Clock3,
+          iconClass: 'bg-accent-primary/10 text-accent-primary',
         };
       case 'review':
         return {
@@ -400,6 +446,10 @@ export function TodayActionCenter() {
     }
   }, [copy, priority]);
 
+  const prioritiesFailed = summaryFailed || countFailed;
+  const prioritiesLoading =
+    (summaryLoading && !summary) || (countLoading && countItems.length === 0);
+
   if (!activeFinanceEntityId) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center">
@@ -432,7 +482,7 @@ export function TodayActionCenter() {
         ) : null}
       </header>
 
-      {summaryFailed ? (
+      {prioritiesFailed ? (
         <Surface variant="elevated" radius="lg" className="p-5" role="alert">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -444,12 +494,19 @@ export function TodayActionCenter() {
                 <p className="mt-1 text-sm text-text-secondary">{copy.summaryFailedText}</p>
               </div>
             </div>
-            <Button variant="secondary" leadingIcon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadSummary()}>
+            <Button
+              variant="secondary"
+              leadingIcon={<RefreshCw className="h-4 w-4" />}
+              onClick={() => {
+                void loadSummary();
+                void loadCounts();
+              }}
+            >
               {copy.retry}
             </Button>
           </div>
         </Surface>
-      ) : summaryLoading && !summary ? (
+      ) : prioritiesLoading ? (
         <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
           <div className="flex items-center gap-3 text-sm text-text-secondary">
             <RefreshCw className="h-5 w-5 animate-spin text-accent-primary" aria-hidden="true" />
