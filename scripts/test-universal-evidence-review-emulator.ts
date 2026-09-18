@@ -4,6 +4,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import universalEvidenceClassify from '../server/vercel-handlers/finance/universalEvidenceClassify.js';
 import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
+import universalEvidenceList from '../server/vercel-handlers/finance/universalEvidenceList.js';
 import { buildFinanceFactEventId } from '../server/vercel-handlers/finance/factStream.js';
 
 class MockRes {
@@ -205,6 +206,20 @@ try {
     'review resolution emits a canonical fact without posting',
   );
 
+  const reviewedList = await call(universalEvidenceList as any, { pageSize: 25 });
+  const reviewedItem = reviewedList.body.items.find((item: any) => item.evidenceId === evidenceId);
+  verify(
+    reviewedList.statusCode === 200 &&
+      reviewedList.body.summary.reviewed === 1 &&
+      reviewedList.body.summary.needsReview === 0,
+    'Inbox summary moves reviewed accepted evidence out of the attention count',
+  );
+  verify(
+    reviewedItem?.review?.status === 'reviewed' &&
+      !Object.prototype.hasOwnProperty.call(reviewedItem.review, 'note'),
+    'Inbox list exposes review status without leaking accountant notes',
+  );
+
   const reclassified = await call(universalEvidenceClassify, {
     evidenceId,
     expectedVersion: 4,
@@ -224,6 +239,14 @@ try {
       live.review?.status === 'pending' &&
       live.review?.reviewedAt === null,
     'reclassification removes stale reviewed state',
+  );
+
+  const pendingList = await call(universalEvidenceList as any, { pageSize: 25 });
+  verify(
+    pendingList.statusCode === 200 &&
+      pendingList.body.summary.reviewed === 0 &&
+      pendingList.body.summary.needsReview === 1,
+    'reclassification immediately returns the item to the Inbox attention count',
   );
 
   const duplicate = await call(universalEvidenceClassify, {
