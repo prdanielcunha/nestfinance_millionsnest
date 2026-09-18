@@ -27,6 +27,11 @@ export type TransactionBase = {
   evidenceIds: EvidenceId[];
   evidenceJustification?: string;
   reconciliationStatus: 'unreconciled' | 'reconciled';
+  reconciliationId?: string;
+  reconciliationEvidenceId?: EvidenceId;
+  reconciliationLineFingerprint?: string;
+  reconciledAt?: string;
+  reconciledByUid?: string;
   createdBy: string;
   updatedBy: string;
   postedBy?: string;
