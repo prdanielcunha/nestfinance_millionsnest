@@ -34,6 +34,8 @@ export interface UniversalEvidenceInboxSummary {
   accepted: number;
   duplicate: number;
   awaitingUpload: number;
+  needsClassification: number;
+  pendingReview: number;
   needsReview: number;
   reviewed: number;
 }
