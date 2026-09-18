@@ -114,7 +114,11 @@ objects.set(crossPath, { bytes: png, contentType: 'image/png' });
 objects.set(corruptPath, { bytes: mutatedPng, contentType: 'image/png' });
 objects.set(wrongContentTypePath, { bytes: png, contentType: 'application/pdf' });
 
-await evidenceCollection(entityA).doc(acceptedId).set(acceptedData(entityA, acceptedId, acceptedPath));
+await evidenceCollection(entityA).doc(acceptedId).set(acceptedData(entityA, acceptedId, acceptedPath, {
+  version: 4,
+  classification: { documentType: 'receipt', source: 'human', confirmedAt: now },
+  review: { status: 'reviewed', reviewedAt: now },
+}));
 await evidenceCollection(entityA).doc(duplicateId).set(acceptedData(entityA, duplicateId, duplicatePath, { processingState: 'duplicate', duplicate: true, duplicateOfEvidenceId: acceptedId }));
 await evidenceCollection(entityA).doc(pendingId).set({
   evidenceId: pendingId,
