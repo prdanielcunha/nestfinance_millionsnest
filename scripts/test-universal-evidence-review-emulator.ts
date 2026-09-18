@@ -115,6 +115,16 @@ const verify = (condition: unknown, message: string) => {
 };
 
 try {
+  const initialList = await call(universalEvidenceList as any, { pageSize: 25 });
+  verify(
+    initialList.statusCode === 200 &&
+      initialList.body.summary.needsClassification === 1 &&
+      initialList.body.summary.pendingReview === 0 &&
+      initialList.body.summary.reviewed === 0 &&
+      initialList.body.summary.needsReview === 1,
+    'accepted unclassified evidence starts in the identification queue',
+  );
+
   const classifyRequestId = `req_classify_${suffix}`;
   const classifyBody = {
     evidenceId,
@@ -157,6 +167,15 @@ try {
       Array.isArray(classificationFact?.sourceRefs) &&
       classificationFact.sourceRefs.length === 2,
     'classification emits a source-backed canonical fact without financial recognition',
+  );
+  const classifiedList = await call(universalEvidenceList as any, { pageSize: 25 });
+  verify(
+    classifiedList.statusCode === 200 &&
+      classifiedList.body.summary.needsClassification === 0 &&
+      classifiedList.body.summary.pendingReview === 1 &&
+      classifiedList.body.summary.reviewed === 0 &&
+      classifiedList.body.summary.needsReview === 1,
+    'classification moves the item from identification to finance review without clearing attention',
   );
 
   const replay = await call(universalEvidenceClassify, classifyBody);
