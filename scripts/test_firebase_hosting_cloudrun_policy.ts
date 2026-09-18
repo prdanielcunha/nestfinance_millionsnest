@@ -60,3 +60,46 @@ assert.match(adminSource, /credential\.applicationDefault\(\)/, 'Cloud Run must 
 assert.match(adminSource, /credential\.cert\(/, 'Vercel credential fallback must remain during migration');
 
 console.log('NestFinance Firebase Hosting + Cloud Run migration contract: OK');
+
+
+const productionRelease = fs.readFileSync('.github/workflows/nestfinance-production-release.yml', 'utf8');
+for (const required of [
+  'branches: [ production ]',
+  'Deploy Firestore indexes',
+  'Deploy Firestore rules',
+  'Push Cloud Run image',
+  'Deploy Cloud Run revision',
+  'Deploy Firebase Hosting',
+  'Smoke production through Firebase Hosting',
+  'NESTFINANCE_RELEASE_SHA=$GITHUB_SHA',
+  'NESTFINANCE_FIREBASE_EXACT_SHA_OK',
+  '/api/finance-gateway?operation=transactions-summary',
+]) {
+  assert.ok(productionRelease.includes(required), `Production release contract missing: ${required}`);
+}
+
+const releaseOrder = [
+  'Deploy Firestore indexes',
+  'Deploy Firestore rules',
+  'Push Cloud Run image',
+  'Deploy Cloud Run revision',
+  'Deploy Firebase Hosting',
+  'Smoke production through Firebase Hosting',
+].map((label) => productionRelease.indexOf(label));
+assert.ok(releaseOrder.every((index) => index >= 0), 'Production release stages must all exist');
+assert.deepEqual(
+  [...releaseOrder].sort((a, b) => a - b),
+  releaseOrder,
+  'Production release stages must remain in the certified order',
+);
+
+for (const legacyWorkflow of [
+  '.github/workflows/firebase-hosting-deploy.yml',
+  '.github/workflows/cloudrun-private-deploy.yml',
+  '.github/workflows/firebase-staging-certification.yml',
+]) {
+  const source = fs.readFileSync(legacyWorkflow, 'utf8');
+  const triggerBlock = source.slice(source.indexOf('on:'), source.indexOf('permissions:'));
+  assert.match(triggerBlock, /workflow_dispatch:/, `${legacyWorkflow} must remain available as manual fallback`);
+  assert.doesNotMatch(triggerBlock, /\bpush:/, `${legacyWorkflow} must not race the atomic production release`);
+}
