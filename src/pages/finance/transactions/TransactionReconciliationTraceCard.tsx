@@ -16,6 +16,7 @@ type Copy = {
   dateLabel: string;
   evidenceLabel: string;
   openEvidence: string;
+  sourceValue: string;
 };
 
 const COPY: Record<Language, Copy> = {
@@ -25,6 +26,7 @@ const COPY: Record<Language, Copy> = {
     dateLabel: 'Conferida em',
     evidenceLabel: 'Fonte',
     openEvidence: 'Abrir extrato usado na conferência',
+    sourceValue: 'Extrato bancário',
   },
   EN: {
     title: 'Checked against statement',
@@ -32,6 +34,7 @@ const COPY: Record<Language, Copy> = {
     dateLabel: 'Checked on',
     evidenceLabel: 'Source',
     openEvidence: 'Open statement used for this check',
+    sourceValue: 'Bank statement',
   },
   ES: {
     title: 'Revisada con extracto',
@@ -39,6 +42,7 @@ const COPY: Record<Language, Copy> = {
     dateLabel: 'Revisada el',
     evidenceLabel: 'Fuente',
     openEvidence: 'Abrir extracto usado en la revisión',
+    sourceValue: 'Extracto bancario',
   },
 };
 
@@ -87,7 +91,7 @@ export function TransactionReconciliationTraceCard({
               </p>
               <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-text-primary">
                 <FileText className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                {reconciliationEvidenceId ? copy.title : '—'}
+                {reconciliationEvidenceId ? copy.sourceValue : '—'}
               </p>
             </div>
           </div>
