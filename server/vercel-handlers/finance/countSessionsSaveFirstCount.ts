@@ -112,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'counting_a',
             version: nextVersion,
             stage: 'first_count_saved',
-            entryTypes: normalizedEntries.map((entry) => entry.type),
+            entryCount: normalizedEntries.length,
           },
           sourceRefs: [
             { kind: 'record', ref: sessionRef.path, version: nextVersion },
