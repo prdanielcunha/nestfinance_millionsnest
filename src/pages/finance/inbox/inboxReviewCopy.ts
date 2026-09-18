@@ -11,6 +11,7 @@ type ReviewCopy = {
   pendingReview: string;
   reviewed: string;
   notClassified: string;
+  classifierRequired: string;
   reviewerRequired: string;
   noteLabel: string;
   notePlaceholder: string;
@@ -34,6 +35,7 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     pendingReview: 'Para conferir',
     reviewed: 'Conferido',
     notClassified: 'Ainda não identificado',
+    classifierRequired: 'Seu acesso é somente para consulta. Peça a alguém com permissão de registro financeiro para identificar este documento.',
     reviewerRequired: 'A identificação pode ser feita agora. A conclusão da conferência exige permissão de revisão financeira.',
     noteLabel: 'Observação da conferência (opcional)',
     notePlaceholder: 'Ex.: conferido com o extrato de 18/09.',
@@ -62,6 +64,7 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     pendingReview: 'Needs review',
     reviewed: 'Reviewed',
     notClassified: 'Not identified yet',
+    classifierRequired: 'Your access is view-only. Ask someone with finance entry permission to identify this document.',
     reviewerRequired: 'The document can be identified now. Completing the review requires finance review permission.',
     noteLabel: 'Review note (optional)',
     notePlaceholder: 'Example: checked against the Sep 18 bank statement.',
@@ -90,6 +93,7 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     pendingReview: 'Para revisar',
     reviewed: 'Revisado',
     notClassified: 'Aún no identificado',
+    classifierRequired: 'Tu acceso es solo de consulta. Pide a alguien con permiso de registro financiero que identifique este documento.',
     reviewerRequired: 'La identificación puede hacerse ahora. Completar la revisión requiere permiso de revisión financiera.',
     noteLabel: 'Observación de la revisión (opcional)',
     notePlaceholder: 'Ej.: revisado con el extracto del 18/09.',
