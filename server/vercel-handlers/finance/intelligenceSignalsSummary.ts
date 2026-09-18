@@ -56,26 +56,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const byType = emptyCounts();
     const items: NeedsAttentionSignalSummaryItem[] = [];
 
-    for (const doc of snapshot.docs) {
-      const data = doc.data() || {};
-      if (
-        data.sourceApp !== 'NESTFINANCE' ||
-        data.version !== 1 ||
-        !NESTFINANCE_SIGNAL_TYPES.includes(data.signalType) ||
-        !canActOnSignal(sessionList, data.requiredCapability)
-      ) {
-        continue;
-      }
+    const candidates = snapshot.docs
+      .map((doc) => ({ doc, data: doc.data() || {} }))
+      .filter(
+        ({ data }) =>
+          data.sourceApp === 'NESTFINANCE' &&
+          data.version === 1 &&
+          NESTFINANCE_SIGNAL_TYPES.includes(data.signalType) &&
+          canActOnSignal(sessionList, data.requiredCapability),
+      );
 
-      const signalType = data.signalType as NestFinanceSignalType;
-      const currentStateVerified = await isFinanceSignalCurrent({
-        db,
-        organizationId,
-        financeEntityId,
-        signalType,
-        entityType: String(data.entityType || ''),
-        entityId: String(data.entityId || ''),
-      });
+    const verifiedCandidates = await Promise.all(
+      candidates.map(async ({ doc, data }) => {
+        const signalType = data.signalType as NestFinanceSignalType;
+        const currentStateVerified = await isFinanceSignalCurrent({
+          db,
+          organizationId,
+          financeEntityId,
+          signalType,
+          entityType: String(data.entityType || ''),
+          entityId: String(data.entityId || ''),
+        });
+        return { doc, data, signalType, currentStateVerified };
+      }),
+    );
+
+    for (const { doc, data, signalType, currentStateVerified } of verifiedCandidates) {
       if (!currentStateVerified) continue;
 
       byType[signalType] += 1;
