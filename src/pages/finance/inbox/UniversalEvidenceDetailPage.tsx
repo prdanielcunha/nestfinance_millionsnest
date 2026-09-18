@@ -35,6 +35,7 @@ import {
   normalizeInboxEvidenceState,
 } from './inboxModel';
 import { UniversalEvidencePdfReadinessCard } from './UniversalEvidencePdfReadinessCard';
+import { UniversalEvidenceHumanReviewCard } from './UniversalEvidenceHumanReviewCard';
 
 const VALID_EVIDENCE_ID = /^evd_[a-f0-9]{32}$/;
 const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -77,6 +78,12 @@ function EvidenceDetailContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = INBOX_COPY[language];
+  const canClassify =
+    hasEffectiveCapability(accessState, 'finance.create_drafts') ||
+    hasEffectiveCapability(accessState, 'finance.manage');
+  const canResolve =
+    hasEffectiveCapability(accessState, 'finance.review') ||
+    hasEffectiveCapability(accessState, 'finance.manage');
 
   const [evidence, setEvidence] = useState<UniversalEvidenceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -316,6 +323,13 @@ function EvidenceDetailContent() {
               </div>
             </div>
           </Surface>
+
+          <UniversalEvidenceHumanReviewCard
+            evidence={evidence}
+            canClassify={canClassify}
+            canResolve={canResolve}
+            onChanged={() => loadDetail(epochRef.current)}
+          />
 
           {previewErrorDetails ? (
             <Surface variant="elevated" radius="xl" role="alert" className="border border-semantic-danger/20 p-5 sm:p-6">
