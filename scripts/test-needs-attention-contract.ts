@@ -19,10 +19,31 @@ const verify = (condition: unknown, message: string) => {
 verify(
   summarySource.includes("mode: 'partial_projection'") &&
     summarySource.includes('canDeclareAllClear: false') &&
+    summarySource.includes('canTrustSignalAbsence: false') &&
     summarySource.includes("reason: 'PRE_P5_BACKFILL_NOT_CERTIFIED'"),
-  'summary refuses false all-clear claims before certified backfill',
+  'summary refuses trusted absence and false all-clear claims before certified backfill',
+);
+verify(
+  summarySource.includes("mode: 'certified_projection'") &&
+    summarySource.includes('canTrustSignalAbsence: true') &&
+    summarySource.includes("reason: 'BACKFILL_CERTIFIED_SIGNAL_SCOPE'") &&
+    summarySource.includes('coveredSignalTypes: [...NESTFINANCE_SIGNAL_TYPES]'),
+  'certified coverage is explicitly limited to the canonical signal scope',
+);
+verify(
+  (summarySource.match(/canDeclareAllClear:\s*false/g) || []).length >= 2 &&
+    !summarySource.includes('canDeclareAllClear: true'),
+  'even certified signal coverage never claims the whole Today surface is clear',
 );
 
+verify(
+  summarySource.includes("collection('intelligenceCoverage')") &&
+    summarySource.includes('buildAttentionCoverageId') &&
+    summarySource.includes("coverageData.status === 'certified'") &&
+    summarySource.includes('coverageData.missingSignalCount === 0') &&
+    summarySource.includes('coverageData.financialMutation === false'),
+  'summary trusts only the deterministic server-side certification for the same entity and schema',
+);
 verify(
   summarySource.includes("where('organizationId', '==', organizationId)") &&
     summarySource.includes("where('financeEntityId', '==', financeEntityId)") &&

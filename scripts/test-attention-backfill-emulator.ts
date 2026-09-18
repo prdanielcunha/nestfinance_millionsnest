@@ -5,6 +5,7 @@ import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/fireba
 import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
 import attentionBackfillApply from '../server/vercel-handlers/finance/attentionBackfillApply.js';
 import attentionBackfillVerify from '../server/vercel-handlers/finance/attentionBackfillVerify.js';
+import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
 import { buildAttentionCoverageId } from '../server/vercel-handlers/finance/attentionBackfill.js';
 
 class MockRes {
@@ -260,6 +261,17 @@ try {
       coverage?.coverageKind === 'needs_attention' &&
       coverage?.financialMutation === false,
     'certification is stored server-side with explicit tenant/entity scope',
+  );
+
+  const certifiedSummary = await call(intelligenceSignalsSummary, { financeEntityId: entityId });
+  verify(
+    certifiedSummary.statusCode === 200 &&
+      certifiedSummary.body.coverage.mode === 'certified_projection' &&
+      certifiedSummary.body.coverage.canTrustSignalAbsence === true &&
+      certifiedSummary.body.coverage.canDeclareAllClear === false &&
+      certifiedSummary.body.coverage.coverageId === coverageId &&
+      certifiedSummary.body.coverage.coveredSignalTypes.length === 5,
+    'verified backfill immediately becomes trusted signal-scope coverage without claiming global all-clear',
   );
 
   const afterReviewTx = (await db.collection('organizations').doc(orgId).collection('financeTransactions').doc(reviewTxId).get()).data();

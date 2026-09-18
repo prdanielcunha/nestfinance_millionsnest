@@ -5,6 +5,10 @@ import {
   type NestFinanceSignalType,
 } from '../../../shared/intelligence/canonicalSignal.js';
 import { isFinanceSignalCurrent } from './signalCurrentState.js';
+import {
+  ATTENTION_BACKFILL_VERSION,
+  buildAttentionCoverageId,
+} from './attentionBackfill.js';
 import type {
   NeedsAttentionSignalSummary,
   NeedsAttentionSignalSummaryItem,
@@ -46,12 +50,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { db, organizationId, sessionList } =
       await resolveFinanceRequestContext(req, 'finance.view');
 
-    const snapshot = await db
-      .collection('intelligenceSignals')
-      .where('organizationId', '==', organizationId)
-      .where('financeEntityId', '==', financeEntityId)
-      .where('status', '==', 'open')
-      .get();
+    const coverageId = buildAttentionCoverageId(organizationId, financeEntityId);
+    const [snapshot, coverageSnapshot] = await Promise.all([
+      db
+        .collection('intelligenceSignals')
+        .where('organizationId', '==', organizationId)
+        .where('financeEntityId', '==', financeEntityId)
+        .where('status', '==', 'open')
+        .get(),
+      db.collection('intelligenceCoverage').doc(coverageId).get(),
+    ]);
+
+    const coverageData = coverageSnapshot.data() || {};
+    const coverageCertified =
+      coverageSnapshot.exists &&
+      coverageData.organizationId === organizationId &&
+      coverageData.financeEntityId === financeEntityId &&
+      coverageData.sourceApp === 'NESTFINANCE' &&
+      coverageData.coverageKind === 'needs_attention' &&
+      coverageData.status === 'certified' &&
+      coverageData.factSchemaVersion === 1 &&
+      coverageData.signalSchemaVersion === 1 &&
+      coverageData.backfillVersion === ATTENTION_BACKFILL_VERSION &&
+      coverageData.missingSignalCount === 0 &&
+      coverageData.financialMutation === false;
 
     const byType = emptyCounts();
     const items: NeedsAttentionSignalSummaryItem[] = [];
@@ -106,12 +128,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const result: NeedsAttentionSignalSummary = {
-      coverage: {
-        mode: 'partial_projection',
-        canDeclareAllClear: false,
-        reason: 'PRE_P5_BACKFILL_NOT_CERTIFIED',
-        signalSchemaVersion: 1,
-      },
+      coverage: coverageCertified
+        ? {
+            mode: 'certified_projection',
+            canDeclareAllClear: false,
+            canTrustSignalAbsence: true,
+            reason: 'BACKFILL_CERTIFIED_SIGNAL_SCOPE',
+            signalSchemaVersion: 1,
+            factSchemaVersion: 1,
+            backfillVersion: ATTENTION_BACKFILL_VERSION,
+            coverageId,
+            certifiedAt: toIso(coverageData.verifiedAt),
+            coveredSignalTypes: [...NESTFINANCE_SIGNAL_TYPES],
+          }
+        : {
+            mode: 'partial_projection',
+            canDeclareAllClear: false,
+            canTrustSignalAbsence: false,
+            reason: 'PRE_P5_BACKFILL_NOT_CERTIFIED',
+            signalSchemaVersion: 1,
+          },
       actionableOpenTotal: items.length,
       byType,
       items,
