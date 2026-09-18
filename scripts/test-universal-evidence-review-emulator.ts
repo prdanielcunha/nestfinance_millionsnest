@@ -6,6 +6,7 @@ import universalEvidenceClassify from '../server/vercel-handlers/finance/univers
 import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
 import universalEvidenceList from '../server/vercel-handlers/finance/universalEvidenceList.js';
 import { buildFinanceFactEventId } from '../server/vercel-handlers/finance/factStream.js';
+import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
 
 class MockRes {
   statusCode = 200;
@@ -168,6 +169,32 @@ try {
       classificationFact.sourceRefs.length === 2,
     'classification emits a source-backed canonical fact without financial recognition',
   );
+  const identificationSignalId = buildFinanceSignalId({
+    organizationId: orgId,
+    signalType: 'INBOX_IDENTIFICATION_REQUIRED',
+    entityType: 'universal_evidence',
+    entityId: evidenceId,
+  });
+  const reviewSignalId = buildFinanceSignalId({
+    organizationId: orgId,
+    signalType: 'INBOX_REVIEW_REQUIRED',
+    entityType: 'universal_evidence',
+    entityId: evidenceId,
+  });
+  const identificationSignal = (await db.collection('intelligenceSignals').doc(identificationSignalId).get()).data();
+  const reviewSignal = (await db.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+  verify(
+    identificationSignal?.status === 'resolved' &&
+      identificationSignal?.resolvedByFactId === classificationFactId,
+    'classification resolves identification signal even for pre-P5 accepted evidence',
+  );
+  verify(
+    reviewSignal?.status === 'open' &&
+      reviewSignal?.openedByFactId === classificationFactId &&
+      reviewSignal?.requiredCapability === 'finance.review' &&
+      reviewSignal?.actionCode === 'REVIEW_INBOX_DOCUMENT',
+    'classification opens a finance-review signal',
+  );
   const classifiedList = await call(universalEvidenceList as any, { pageSize: 25 });
   verify(
     classifiedList.statusCode === 200 &&
@@ -224,6 +251,13 @@ try {
       resolutionFact?.payload?.financialRecognition === false,
     'review resolution emits a canonical fact without posting',
   );
+  const resolvedReviewSignal = (await db.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+  verify(
+    resolvedReviewSignal?.status === 'resolved' &&
+      resolvedReviewSignal?.resolvedByFactId === resolutionFactId &&
+      resolvedReviewSignal?.lastFactId === resolutionFactId,
+    'review resolution closes the same deterministic signal',
+  );
 
   const reviewedList = await call(universalEvidenceList as any, { pageSize: 25 });
   const reviewedItem = reviewedList.body.items.find((item: any) => item.evidenceId === evidenceId);
@@ -260,6 +294,14 @@ try {
       live.review?.status === 'pending' &&
       live.review?.reviewedAt === null,
     'reclassification removes stale reviewed state',
+  );
+  const reopenedReviewSignal = (await db.collection('intelligenceSignals').doc(reviewSignalId).get()).data();
+  verify(
+    reopenedReviewSignal?.status === 'open' &&
+      typeof reopenedReviewSignal?.openedByFactId === 'string' &&
+      reopenedReviewSignal?.resolvedAt === null &&
+      reopenedReviewSignal?.resolvedByFactId === null,
+    'reclassification reopens review work and clears stale resolution metadata',
   );
 
   const pendingList = await call(universalEvidenceList as any, { pageSize: 25 });
