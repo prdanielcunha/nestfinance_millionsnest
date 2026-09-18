@@ -1,0 +1,63 @@
+name: NestFinance Period Close Readiness Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "api/finance-gateway.ts"
+      - "server/vercel-handlers/finance/periodCloseReadiness.ts"
+      - "shared/finance/periodCloseReadiness.ts"
+      - "src/pages/finance/ReportsPage.tsx"
+      - "src/services/periodCloseService.ts"
+      - "scripts/test-period-close-readiness.ts"
+      - "scripts/test-period-close-readiness-emulator.ts"
+      - "scripts/check-api-contracts.mjs"
+      - ".github/workflows/nestfinance-period-close-quality.yml"
+
+jobs:
+  period-close-readiness:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-period-close-emulator
+      GCLOUD_PROJECT: nestfinance-period-close-emulator
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Period close authority and UX
+        run: npx tsx scripts/test-period-close-readiness.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Period close Firestore Emulator
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-period-close-emulator "npx tsx scripts/test-period-close-readiness-emulator.ts"
