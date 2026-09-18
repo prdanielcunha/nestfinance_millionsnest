@@ -69,6 +69,7 @@ import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelli
 import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
 import attentionBackfillApply from '../server/vercel-handlers/finance/attentionBackfillApply.js';
 import attentionBackfillVerify from '../server/vercel-handlers/finance/attentionBackfillVerify.js';
+import reconciliationReadiness from '../server/vercel-handlers/finance/reconciliationReadiness.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -150,6 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'attention-backfill-preview': return attentionBackfillPreview(req, res);
     case 'attention-backfill-apply': return attentionBackfillApply(req, res);
     case 'attention-backfill-verify': return attentionBackfillVerify(req, res);
+    case 'reconciliation-readiness': return reconciliationReadiness(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }

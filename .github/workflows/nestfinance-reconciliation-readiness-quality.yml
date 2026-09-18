@@ -1,0 +1,75 @@
+name: NestFinance Reconciliation Readiness Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/reconciliation.ts'
+      - 'server/vercel-handlers/finance/reconciliationReadiness.ts'
+      - 'src/services/reconciliationService.ts'
+      - 'src/pages/finance/BalancePage.tsx'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-readiness-emulator.ts'
+      - 'scripts/test-reconciliation-readiness-ui.ts'
+      - '.github/workflows/nestfinance-reconciliation-readiness-quality.yml'
+  push:
+    branches:
+      - 'architecture/p9-*'
+    paths:
+      - 'shared/finance/reconciliation.ts'
+      - 'server/vercel-handlers/finance/reconciliationReadiness.ts'
+      - 'src/services/reconciliationService.ts'
+      - 'src/pages/finance/BalancePage.tsx'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-readiness-emulator.ts'
+      - 'scripts/test-reconciliation-readiness-ui.ts'
+      - '.github/workflows/nestfinance-reconciliation-readiness-quality.yml'
+
+jobs:
+  reconciliation-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-reconciliation-readiness-emulator
+      GCLOUD_PROJECT: nestfinance-reconciliation-readiness-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Balance readiness UI and authority contract
+        run: npx tsx scripts/test-reconciliation-readiness-ui.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Reconciliation readiness Firestore Emulator
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-reconciliation-readiness-emulator
+          "npx tsx scripts/test-reconciliation-readiness-emulator.ts"
