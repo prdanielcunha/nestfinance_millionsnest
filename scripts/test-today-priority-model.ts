@@ -42,6 +42,39 @@ function run() {
     countSessionId: 'cnt_recount',
   });
 
+
+  const inboxReview = chooseTodayPriority(
+    emptySummary,
+    [{ id: 'cnt_done', status: 'matched' }],
+    { needsClassification: 4, pendingReview: 2, canClassify: true, canReview: true },
+  );
+  assert.deepStrictEqual(inboxReview, { kind: 'inbox_review', count: 2 });
+
+  const inboxIdentification = chooseTodayPriority(
+    emptySummary,
+    [{ id: 'cnt_done', status: 'matched' }],
+    { needsClassification: 3, pendingReview: 2, canClassify: true, canReview: false },
+  );
+  assert.deepStrictEqual(inboxIdentification, { kind: 'inbox_identification', count: 3 });
+
+  const permissionScoped = chooseTodayPriority(
+    { ...emptySummary, readyForReview: 1, totalOpen: 1 },
+    [{ id: 'cnt_done', status: 'matched' }],
+    { needsClassification: 3, pendingReview: 2, canClassify: false, canReview: false },
+  );
+  assert.deepStrictEqual(permissionScoped, { kind: 'review', count: 1 });
+
+  const countStillWins = chooseTodayPriority(
+    emptySummary,
+    [{ id: 'cnt_active', status: 'counting_b' }],
+    { needsClassification: 5, pendingReview: 5, canClassify: true, canReview: true },
+  );
+  assert.deepStrictEqual(countStillWins, {
+    kind: 'count_check',
+    count: 1,
+    countSessionId: 'cnt_active',
+  });
+
   const review = chooseTodayPriority(
     { ...emptySummary, readyForReview: 2, totalOpen: 2 },
     [{ id: 'cnt_done', status: 'matched' }],
@@ -54,7 +87,7 @@ function run() {
   ]);
   assert.deepStrictEqual(clear, { kind: 'clear', count: 0 });
 
-  console.log('✅ Today priority model keeps Count attention simple, deterministic and source-driven');
+  console.log('✅ Today priority model keeps Count and Inbox attention simple, permission-scoped and deterministic');
 }
 
 run();
