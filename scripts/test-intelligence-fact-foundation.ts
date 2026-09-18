@@ -21,5 +21,6 @@ assert.notEqual(first, anotherRequest, 'a distinct correlated operation must pro
 assert.notEqual(first, anotherTenant, 'tenant scope must participate in the event id');
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('COUNT_OPENED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('DOCUMENT_ATTACHED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('ATTENTION_STATE_OBSERVED'));
 
 console.log('Fact Foundation contract checks passed.');
