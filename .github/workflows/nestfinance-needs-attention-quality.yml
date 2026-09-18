@@ -5,6 +5,7 @@ on:
     paths:
       - 'shared/intelligence/needsAttention.ts'
       - 'server/vercel-handlers/finance/intelligenceSignals*.ts'
+      - 'server/vercel-handlers/finance/signalCurrentState.ts'
       - 'src/services/needsAttentionService.ts'
       - 'api/finance-gateway.ts'
       - 'scripts/check-api-contracts.mjs'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'shared/intelligence/needsAttention.ts'
       - 'server/vercel-handlers/finance/intelligenceSignals*.ts'
+      - 'server/vercel-handlers/finance/signalCurrentState.ts'
       - 'src/services/needsAttentionService.ts'
       - 'api/finance-gateway.ts'
       - 'scripts/check-api-contracts.mjs'
