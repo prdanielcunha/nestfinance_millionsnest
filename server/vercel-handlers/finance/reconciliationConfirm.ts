@@ -544,6 +544,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (
       code === 'FORBIDDEN_FINANCE_ACCESS' ||
+      code === 'FINANCE_ENTITY_MISMATCH' ||
       code === 'Session not granted'
     ) {
       return res.status(403).json({ error: 'FORBIDDEN' });
