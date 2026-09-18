@@ -62,6 +62,8 @@ import universalEvidenceDetail from '../server/vercel-handlers/finance/universal
 import universalEvidencePreview from '../server/vercel-handlers/finance/universalEvidencePreview.js';
 import universalEvidencePdfInspect from '../server/vercel-handlers/finance/universalEvidencePdfInspect.js';
 import universalEvidencePdfText from '../server/vercel-handlers/finance/universalEvidencePdfText.js';
+import universalEvidenceClassify from '../server/vercel-handlers/finance/universalEvidenceClassify.js';
+import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -136,6 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'universal-evidence-preview': return universalEvidencePreview(req, res);
     case 'universal-evidence-pdf-inspect': return universalEvidencePdfInspect(req, res);
     case 'universal-evidence-pdf-text': return universalEvidencePdfText(req, res);
+    case 'universal-evidence-classify': return universalEvidenceClassify(req, res);
+    case 'universal-evidence-review': return universalEvidenceReview(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
