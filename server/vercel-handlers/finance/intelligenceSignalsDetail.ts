@@ -89,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !factSnapshot.exists ||
       fact.organizationId !== organizationId ||
       fact.entityId !== signal.entityId ||
+      fact.payload?.financeEntityId !== financeEntityId ||
       fact.sourceApp !== 'NESTFINANCE'
     ) {
       return res.status(409).json({ error: 'SIGNAL_SOURCE_UNAVAILABLE' });
