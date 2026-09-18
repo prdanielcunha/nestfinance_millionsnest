@@ -57,6 +57,7 @@ async function runEmulatorTests() {
   const entId = 'ent_' + crypto.randomBytes(4).toString('hex');
   const uid = 'usr_' + crypto.randomBytes(4).toString('hex');
   const accountId = 'acc_' + crypto.randomBytes(4).toString('hex');
+  const completeAccountId = 'acc_complete_' + crypto.randomBytes(4).toString('hex');
   const category1Id = 'cat_' + crypto.randomBytes(4).toString('hex');
   const category2Id = 'cat_' + crypto.randomBytes(4).toString('hex');
 
@@ -81,6 +82,14 @@ async function runEmulatorTests() {
     name: 'Conta Teste',
     active: true,
     kind: 'asset:current'
+  });
+  await firestore.collection('organizations').doc(orgId).collection('financeAccounts').doc(completeAccountId).set({
+    financeEntityId: entId,
+    name: 'Conta Canônica Completa',
+    active: true,
+    type: 'asset:bank',
+    nature: 'asset',
+    configurationStatus: 'complete'
   });
 
   await firestore.collection('organizations').doc(orgId).collection('financeCategories').doc(category1Id).set({
@@ -324,7 +333,7 @@ async function runEmulatorTests() {
           amountCents: 5000,
           occurredAt: new Date().toISOString(),
           description: 'Entrada criada e enviada no mesmo passo',
-          accountId,
+          accountId: completeAccountId,
           allocations: [
             { amountCents: 5000, categoryId: category1Id, description: 'Dízimos' }
           ]
