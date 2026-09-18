@@ -1,0 +1,107 @@
+name: NestFinance Statement Preparation Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/reconciliationStatementLines.ts'
+      - 'shared/finance/reconciliationStatementPreparation.ts'
+      - 'server/vercel-handlers/finance/reconciliationStatementPrepare.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePreview.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePdfInspect.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePdfText.ts'
+      - 'src/pages/finance/BalancePage.tsx'
+      - 'src/pages/finance/balance/**'
+      - 'src/pages/finance/inbox/UniversalEvidenceDetailPage.tsx'
+      - 'src/pages/finance/inbox/UniversalEvidencePdfReadinessCard.tsx'
+      - 'src/services/reconciliationService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-statement-lines.ts'
+      - 'scripts/test-reconciliation-statement-prepare-emulator.ts'
+      - 'scripts/test-reconciliation-statement-preparation-ui.ts'
+      - 'scripts/test-universal-evidence-pdf-text-emulator-i2g.ts'
+      - 'scripts/test-universal-evidence-preview-emulator.ts'
+      - 'scripts/test-universal-evidence-pdf-text-ui-i2h.ts'
+      - 'scripts/test-universal-evidence-inbox-i2c.ts'
+      - '.github/workflows/nestfinance-statement-preparation-quality.yml'
+  push:
+    branches:
+      - 'architecture/p9b-*'
+    paths:
+      - 'shared/finance/reconciliationStatementLines.ts'
+      - 'shared/finance/reconciliationStatementPreparation.ts'
+      - 'server/vercel-handlers/finance/reconciliationStatementPrepare.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePreview.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePdfInspect.ts'
+      - 'server/vercel-handlers/finance/universalEvidencePdfText.ts'
+      - 'src/pages/finance/BalancePage.tsx'
+      - 'src/pages/finance/balance/**'
+      - 'src/pages/finance/inbox/UniversalEvidenceDetailPage.tsx'
+      - 'src/pages/finance/inbox/UniversalEvidencePdfReadinessCard.tsx'
+      - 'src/services/reconciliationService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-statement-lines.ts'
+      - 'scripts/test-reconciliation-statement-prepare-emulator.ts'
+      - 'scripts/test-reconciliation-statement-preparation-ui.ts'
+      - 'scripts/test-universal-evidence-pdf-text-emulator-i2g.ts'
+      - 'scripts/test-universal-evidence-preview-emulator.ts'
+      - 'scripts/test-universal-evidence-pdf-text-ui-i2h.ts'
+      - 'scripts/test-universal-evidence-inbox-i2c.ts'
+      - '.github/workflows/nestfinance-statement-preparation-quality.yml'
+
+jobs:
+  statement-preparation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-statement-preparation-emulator
+      GCLOUD_PROJECT: nestfinance-statement-preparation-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Deterministic statement parser
+        run: npx tsx scripts/test-reconciliation-statement-lines.ts
+
+      - name: Statement preparation UI and authority
+        run: npx tsx scripts/test-reconciliation-statement-preparation-ui.ts
+
+      - name: Existing reviewed-evidence UX contracts
+        run: |
+          npx tsx scripts/test-universal-evidence-pdf-text-ui-i2h.ts
+          npx tsx scripts/test-universal-evidence-inbox-i2c.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Statement preparation Firestore Emulator
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-statement-preparation-emulator
+          "npx tsx scripts/test-reconciliation-statement-prepare-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts"
