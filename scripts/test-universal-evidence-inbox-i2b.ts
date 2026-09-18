@@ -43,10 +43,10 @@ for (const forbidden of ['generateContent', 'GEMINI', 'OCR', 'PostingPlan', 'fin
 }
 check(detail.includes('copy.noAccountingActionBody'), 'detail renders the localized inactive-intelligence boundary copy');
 check(
-  copy.includes('OCR, IA, classificação') &&
-    copy.includes('OCR, AI, classification') &&
-    copy.includes('OCR, IA, clasificación'),
-  'localized UI copy does not imply intelligence that is not active in PT/EN/ES',
+  copy.includes('Identificação e conferência registram somente metadados e auditoria') &&
+    copy.includes('Identification and review record metadata and audit history only') &&
+    copy.includes('La identificación y la revisión registran solo metadatos y auditoría'),
+  'localized UI copy allows human review while preserving the no-posting boundary in PT/EN/ES',
 );
 
 console.log(`\nUniversal Evidence Inbox I2B totals: ${passed} Passed`);
