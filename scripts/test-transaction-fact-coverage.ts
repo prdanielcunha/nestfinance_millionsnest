@@ -76,8 +76,7 @@ for (const [key, source] of Object.entries(sources)) {
     source.includes("{ kind: 'record', ref: txRef.path") &&
     source.includes("{ kind: 'audit', ref: auditRef.path");
   const hasSharedRefs =
-    key === 'createAndSubmit' &&
-    source.includes('const factSourceRefs = [') &&
+    (source.includes('const factSourceRefs = [') || source.includes('const sourceRefs = [')) &&
     source.includes("kind: 'record' as const") &&
     source.includes("kind: 'audit' as const");
   verify(
