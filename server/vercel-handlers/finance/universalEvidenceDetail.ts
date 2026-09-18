@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { isUniversalEvidenceDocumentType } from '../../../shared/finance/universalEvidenceReview.js';
 
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
@@ -71,6 +72,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const byteSize = Number.isFinite(Number(data.byteSize)) ? Number(data.byteSize) : 0;
     const original = data.original && typeof data.original === 'object' ? data.original : {};
     const verifiedByteSize = Number(original.verifiedByteSize);
+    const classificationData =
+      data.classification && typeof data.classification === 'object' ? data.classification : null;
+    const reviewData = data.review && typeof data.review === 'object' ? data.review : null;
+    const classification =
+      classificationData && isUniversalEvidenceDocumentType(classificationData.documentType)
+        ? {
+            documentType: classificationData.documentType,
+            source: 'human' as const,
+            confirmedAt: toIso(classificationData.confirmedAt),
+          }
+        : null;
+    const reviewStatus =
+      reviewData?.status === 'reviewed' ? 'reviewed' : reviewData?.status === 'pending' ? 'pending' : null;
+    const review = reviewStatus
+      ? {
+          status: reviewStatus,
+          reviewedAt: toIso(reviewData.reviewedAt),
+          note: typeof reviewData.note === 'string' && reviewData.note.trim() ? reviewData.note.trim() : null,
+        }
+      : null;
 
     return res.status(200).json({
       evidence: {
@@ -87,6 +108,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: toIso(data.createdAt),
         validatedAt: toIso(data.validatedAt),
         version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
+        classification,
+        review,
         verification: {
           immutableOriginal: original.immutable === true,
           mimeVerified: Boolean(verifiedMimeType),
