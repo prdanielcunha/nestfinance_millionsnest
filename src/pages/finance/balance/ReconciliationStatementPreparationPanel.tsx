@@ -79,7 +79,7 @@ const COPY: Record<Language, Copy> = {
     retry: 'Organizar novamente',
     errorTitle: 'Não foi possível organizar o extrato',
     errorBody: 'Tente novamente. Nenhuma movimentação, saldo ou conciliação foi alterada.',
-    safeNote: 'O NestFinance usa apenas informações verificáveis do próprio PDF. Nada é lançado, conciliado ou salvo como decisão contábil nesta etapa.',
+    safeNote: 'O NestFinance usa apenas informações verificáveis do próprio PDF. A conta escolhida vale apenas para esta análise e não fica vinculada ao extrato. Nada é lançado ou conciliado nesta etapa.',
     noAccount: 'Configure pelo menos uma conta bancária pronta antes de preparar este extrato.',
     unavailableTitle: 'Este PDF ainda não pode ser organizado com segurança',
     unavailable: {
@@ -126,7 +126,7 @@ const COPY: Record<Language, Copy> = {
     retry: 'Organize again',
     errorTitle: 'Unable to organize this statement',
     errorBody: 'Try again. No transaction, balance, or reconciliation was changed.',
-    safeNote: 'NestFinance uses only verifiable information from the PDF. Nothing is posted, reconciled, or saved as an accounting decision at this stage.',
+    safeNote: 'NestFinance uses only verifiable information from the PDF. The selected account is used only for this analysis and is not linked to the statement. Nothing is posted or reconciled at this stage.',
     noAccount: 'Configure at least one ready bank account before preparing this statement.',
     unavailableTitle: 'This PDF text is not available for safe preparation',
     unavailable: {
@@ -173,7 +173,7 @@ const COPY: Record<Language, Copy> = {
     retry: 'Organizar de nuevo',
     errorTitle: 'No fue posible organizar este extracto',
     errorBody: 'Inténtalo de nuevo. Ningún movimiento, saldo o conciliación fue modificado.',
-    safeNote: 'NestFinance usa solo información verificable del PDF. Nada se registra, concilia ni guarda como decisión contable en esta etapa.',
+    safeNote: 'NestFinance usa solo información verificable del PDF. La cuenta elegida se usa solo para este análisis y no queda vinculada al extracto. Nada se registra ni concilia en esta etapa.',
     noAccount: 'Configura al menos una cuenta bancaria lista antes de preparar este extracto.',
     unavailableTitle: 'El texto de este PDF no está disponible para una preparación segura',
     unavailable: {
