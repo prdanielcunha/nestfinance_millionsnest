@@ -41,6 +41,14 @@ jobs:
           workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
           service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
 
+      - name: Ensure least-privilege Firestore deploy roles
+        shell: bash
+        run: |
+          set -euo pipefail
+          MEMBER="serviceAccount:mn-web-deployer@millionsnest.iam.gserviceaccount.com"
+          gcloud projects add-iam-policy-binding "$PROJECT_ID"             --member="$MEMBER"             --role="roles/firebaserules.admin"             --condition=None             --quiet
+          gcloud projects add-iam-policy-binding "$PROJECT_ID"             --member="$MEMBER"             --role="roles/datastore.indexAdmin"             --condition=None             --quiet
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
