@@ -7,9 +7,12 @@ on:
       - "src/pages/finance/FinancePage.ts"
       - "src/pages/finance/FinancePage.tsx"
       - "src/pages/finance/TodayActionCenter.tsx"
+      - "src/pages/finance/todayPriorityModel.ts"
       - "src/services/transactionsService.ts"
+      - "src/services/countService.ts"
       - "src/app/**"
       - "scripts/test-today-route-resolution.ts"
+      - "scripts/test-today-priority-model.ts"
       - ".github/workflows/nestfinance-today-quality.yml"
   push:
     branches:
@@ -18,9 +21,12 @@ on:
       - "src/pages/finance/FinancePage.ts"
       - "src/pages/finance/FinancePage.tsx"
       - "src/pages/finance/TodayActionCenter.tsx"
+      - "src/pages/finance/todayPriorityModel.ts"
       - "src/services/transactionsService.ts"
+      - "src/services/countService.ts"
       - "src/app/**"
       - "scripts/test-today-route-resolution.ts"
+      - "scripts/test-today-priority-model.ts"
       - ".github/workflows/nestfinance-today-quality.yml"
 
 jobs:
@@ -41,6 +47,9 @@ jobs:
 
       - name: Verify Finance landing resolves to Today 2.0
         run: npx tsx scripts/test-today-route-resolution.ts
+
+      - name: Verify Today priority ordering
+        run: npx tsx scripts/test-today-priority-model.ts
 
       - name: TypeScript lint and typecheck
         run: npm run lint
