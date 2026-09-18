@@ -5,6 +5,10 @@ import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/fireba
 import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
 import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelligenceSignalsDetail.js';
 import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
+import {
+  ATTENTION_BACKFILL_VERSION,
+  buildAttentionCoverageId,
+} from '../server/vercel-handlers/finance/attentionBackfill.js';
 
 class MockRes {
   statusCode = 200;
@@ -293,8 +297,39 @@ try {
   verify(
     empty.statusCode === 200 &&
       empty.body.actionableOpenTotal === 0 &&
-      empty.body.coverage.canDeclareAllClear === false,
-    'zero projected signals never becomes a false all-clear claim',
+      empty.body.coverage.mode === 'partial_projection' &&
+      empty.body.coverage.canDeclareAllClear === false &&
+      empty.body.coverage.canTrustSignalAbsence === false,
+    'zero projected signals without certification never becomes a trusted absence or false all-clear',
+  );
+
+  const emptyCoverageId = buildAttentionCoverageId(orgId, emptyEntity);
+  await db.collection('intelligenceCoverage').doc(emptyCoverageId).set({
+    coverageId: emptyCoverageId,
+    organizationId: orgId,
+    financeEntityId: emptyEntity,
+    sourceApp: 'NESTFINANCE',
+    coverageKind: 'needs_attention',
+    status: 'certified',
+    factSchemaVersion: 1,
+    signalSchemaVersion: 1,
+    backfillVersion: ATTENTION_BACKFILL_VERSION,
+    expectedActionableCount: 0,
+    verifiedSignalCount: 0,
+    missingSignalCount: 0,
+    verifiedAt: now,
+    financialMutation: false,
+  });
+  const certifiedEmpty = await call(intelligenceSignalsSummary, { financeEntityId: emptyEntity });
+  verify(
+    certifiedEmpty.statusCode === 200 &&
+      certifiedEmpty.body.actionableOpenTotal === 0 &&
+      certifiedEmpty.body.coverage.mode === 'certified_projection' &&
+      certifiedEmpty.body.coverage.canTrustSignalAbsence === true &&
+      certifiedEmpty.body.coverage.canDeclareAllClear === false &&
+      certifiedEmpty.body.coverage.coverageId === emptyCoverageId &&
+      certifiedEmpty.body.coverage.coveredSignalTypes.length === 5,
+    'certified backfill makes signal absence trustworthy only inside the covered signal scope',
   );
 
   const detail = await call(intelligenceSignalsDetail, {
