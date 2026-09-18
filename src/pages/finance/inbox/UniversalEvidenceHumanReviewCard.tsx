@@ -13,6 +13,7 @@ import {
   type UniversalEvidenceDocumentType,
 } from '../../../../shared/finance/universalEvidenceReview.js';
 import { INBOX_REVIEW_COPY } from './inboxReviewCopy';
+import { generateLedgerId } from '../../../../shared/finance/ledger/ids.js';
 
 type Props = {
   evidence: UniversalEvidenceDetail;
@@ -22,10 +23,9 @@ type Props = {
 };
 
 function operationIds() {
-  const raw = globalThis.crypto.randomUUID().replaceAll('-', '');
   return {
-    idempotencyKey: `inbox_review_${raw}`,
-    requestId: `req_${raw}`,
+    idempotencyKey: generateLedgerId('idem'),
+    requestId: generateLedgerId('req'),
   };
 }
 
@@ -150,7 +150,7 @@ export function UniversalEvidenceHumanReviewCard({
           {UNIVERSAL_EVIDENCE_DOCUMENT_TYPES.map((type) => (
             <Button
               key={type}
-              variant={selectedType === type ? undefined : 'secondary'}
+              variant={selectedType === type ? 'primary' : 'secondary'}
               fullWidth
               disabled={!canClassify || Boolean(saving)}
               onClick={() => setSelectedType(type)}
