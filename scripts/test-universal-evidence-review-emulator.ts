@@ -211,6 +211,8 @@ try {
   verify(
     reviewedList.statusCode === 200 &&
       reviewedList.body.summary.reviewed === 1 &&
+      reviewedList.body.summary.needsClassification === 0 &&
+      reviewedList.body.summary.pendingReview === 0 &&
       reviewedList.body.summary.needsReview === 0,
     'Inbox summary moves reviewed accepted evidence out of the attention count',
   );
@@ -245,6 +247,8 @@ try {
   verify(
     pendingList.statusCode === 200 &&
       pendingList.body.summary.reviewed === 0 &&
+      pendingList.body.summary.needsClassification === 0 &&
+      pendingList.body.summary.pendingReview === 1 &&
       pendingList.body.summary.needsReview === 1,
     'reclassification immediately returns the item to the Inbox attention count',
   );
