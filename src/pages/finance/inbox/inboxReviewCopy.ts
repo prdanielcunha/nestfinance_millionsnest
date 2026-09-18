@@ -7,6 +7,7 @@ type ReviewCopy = {
   chooseType: string;
   saveType: string;
   changeType: string;
+  needsIdentification: string;
   pendingReview: string;
   reviewed: string;
   notClassified: string;
@@ -29,7 +30,8 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     chooseType: 'Que documento é este?',
     saveType: 'Salvar tipo',
     changeType: 'Atualizar tipo',
-    pendingReview: 'Aguardando conferência',
+    needsIdentification: 'Para identificar',
+    pendingReview: 'Para conferir',
     reviewed: 'Conferido',
     notClassified: 'Ainda não identificado',
     reviewerRequired: 'A identificação pode ser feita agora. A conclusão da conferência exige permissão de revisão financeira.',
@@ -56,7 +58,8 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     chooseType: 'What kind of document is this?',
     saveType: 'Save type',
     changeType: 'Update type',
-    pendingReview: 'Waiting for review',
+    needsIdentification: 'Needs identification',
+    pendingReview: 'Needs review',
     reviewed: 'Reviewed',
     notClassified: 'Not identified yet',
     reviewerRequired: 'The document can be identified now. Completing the review requires finance review permission.',
@@ -83,7 +86,8 @@ export const INBOX_REVIEW_COPY: Record<Language, ReviewCopy> = {
     chooseType: '¿Qué documento es este?',
     saveType: 'Guardar tipo',
     changeType: 'Actualizar tipo',
-    pendingReview: 'Esperando revisión',
+    needsIdentification: 'Para identificar',
+    pendingReview: 'Para revisar',
     reviewed: 'Revisado',
     notClassified: 'Aún no identificado',
     reviewerRequired: 'La identificación puede hacerse ahora. Completar la revisión requiere permiso de revisión financiera.',
