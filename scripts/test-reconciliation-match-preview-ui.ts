@@ -68,14 +68,19 @@ verify(
 for (const forbiddenAction of [
   'Conciliar automaticamente',
   'Auto reconcile',
-  'Confirmar correspondência',
-  'confirmMatch',
   'saveMatch',
   'applyReconciliation',
   'setReconciliationStatus',
 ]) {
-  verify(!panel.includes(forbiddenAction), 'P9c UI exposes no premature action: ' + forbiddenAction);
+  verify(!panel.includes(forbiddenAction), 'match preview exposes no automatic or hidden reconciliation action: ' + forbiddenAction);
 }
+verify(
+  panel.includes('reconciliationService.confirmMatch') &&
+    panel.includes("hasEffectiveCapability(accessState, 'finance.review')") &&
+    panel.includes('candidate.reconciliationEligible') &&
+    panel.includes('pendingConfirmation'),
+  'human confirmation may extend the preview only when permission-gated, eligibility-gated and explicitly staged',
+);
 
 verify(
   service.includes('operation=reconciliation-match-preview') &&
