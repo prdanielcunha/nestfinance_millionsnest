@@ -90,8 +90,6 @@ verify(
 for (const forbidden of [
   'stageFinanceFact',
   'stageFinanceSignal',
-  't.update(',
-  't.set(',
   'financeJournalEntries',
   'financeBalances',
   'financeAggregates',
@@ -101,6 +99,14 @@ for (const forbidden of [
 ]) {
   verify(!handler.includes(forbidden), 'progress handler has no mutation/dependency on ' + forbidden);
 }
+verify(
+  !/\bt\.update\s*\(/u.test(handler),
+  'progress handler has no Firestore transaction update call',
+);
+verify(
+  !/\bt\.set\s*\(/u.test(handler),
+  'progress handler has no Firestore transaction set call',
+);
 verify(
   builder.includes("state = 'confirmed'") &&
     builder.includes("state = 'needs_recheck'") &&
