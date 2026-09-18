@@ -274,8 +274,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const statementLineNumber = line.lineNumber;
-    const statementDate = line.selectedDate;
-    const statementAmountCents = line.selectedAmountCents;
+    const statementDate = line.selectedDate as string;
+    const statementAmountCents = line.selectedAmountCents as number;
     const statementDirection = line.selectedDirection as 'inflow' | 'outflow';
     const statementDescription = line.descriptionCandidate;
 
@@ -283,14 +283,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       organizationId,
       financeEntityId,
       evidenceId,
-      evidenceVersion,
       line,
     });
     const reconciliationId = buildReconciliationId({
       organizationId,
       financeEntityId,
       evidenceId,
-      evidenceVersion,
       statementLineFingerprint,
     });
 
