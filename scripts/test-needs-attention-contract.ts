@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [summarySource, detailSource, serviceSource, indexSource] = await Promise.all([
+const [summarySource, detailSource, currentStateSource, serviceSource, indexSource] = await Promise.all([
   readFile('server/vercel-handlers/finance/intelligenceSignalsSummary.ts', 'utf8'),
   readFile('server/vercel-handlers/finance/intelligenceSignalsDetail.ts', 'utf8'),
+  readFile('server/vercel-handlers/finance/signalCurrentState.ts', 'utf8'),
   readFile('src/services/needsAttentionService.ts', 'utf8'),
   readFile('firestore.indexes.json', 'utf8'),
 ]);
@@ -47,6 +48,19 @@ verify(
   detailSource.includes("return res.status(409).json({ error: 'SIGNAL_SOURCE_UNAVAILABLE' })"),
   'detail fails closed when canonical fact evidence is unavailable',
 );
+verify(
+  summarySource.includes('isFinanceSignalCurrent') &&
+    detailSource.includes('isFinanceSignalCurrent') &&
+    detailSource.includes("return res.status(409).json({ error: 'SIGNAL_STALE' })"),
+  'summary and detail both require authoritative current-state verification',
+);
+verify(
+  currentStateSource.includes("data.status === 'ready_for_review'") &&
+    currentStateSource.includes("data.status === 'draft'") &&
+    currentStateSource.includes("data.processingState !== 'accepted'") &&
+    currentStateSource.includes("data.status === 'divergent' || data.status === 'recounting'"),
+  'current-state verifier covers transaction, Inbox and Count attention states',
+);
 
 for (const forbidden of ['amountCents', 'comment', 'sourceHash', 'description']) {
   verify(
@@ -63,7 +77,7 @@ verify(
   'Needs Attention reads contain no LLM dependency',
 );
 
-for (const source of [summarySource, detailSource]) {
+for (const source of [summarySource, detailSource, currentStateSource]) {
   verify(
     !source.includes('financeJournalEntries') &&
       !source.includes('financeBalances') &&
