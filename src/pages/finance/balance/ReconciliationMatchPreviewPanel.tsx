@@ -375,7 +375,7 @@ export function ReconciliationMatchPreviewPanel({
                                   {candidate.description || copy.transactionFallback}
                                 </span>
                                 <span className="rounded-full border border-border-subtle bg-surface-secondary px-2 py-0.5 text-[10px] font-semibold text-text-muted">
-                                  {copy.statuses[candidate.transactionStatus] || candidate.transactionStatus}
+                                  {copy.statuses[candidate.transactionStatus]}
                                 </span>
                               </div>
                               <p className="mt-1 text-xs text-text-muted">
