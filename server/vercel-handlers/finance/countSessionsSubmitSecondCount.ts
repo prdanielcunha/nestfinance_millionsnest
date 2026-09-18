@@ -130,7 +130,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             stage: 'second_count_sealed',
             matched: comparison.matched,
             divergenceCount: comparison.differences.length,
-            differenceEntryTypes: comparison.differences.map((difference) => difference.type),
           },
           sourceRefs: [
             { kind: 'record', ref: sessionRef.path, version: nextVersion },
