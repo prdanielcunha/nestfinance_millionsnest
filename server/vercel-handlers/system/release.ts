@@ -9,10 +9,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     app: 'nestfinance',
-    releaseMarker: 'accounts-actions-r3-20260618',
-    gitCommitSha: 
-      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? 
+    releaseMarker: 'architecture-p9f-audit-20260918',
+    gitCommitSha:
+      process.env.NESTFINANCE_RELEASE_SHA?.slice(0, 12) ??
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
       process.env.GITHUB_SHA?.slice(0, 12) ?? null,
-    environment: process.env.VERCEL_ENV ?? null
+    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null
   });
 }
