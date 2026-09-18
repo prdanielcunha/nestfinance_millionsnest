@@ -10,6 +10,7 @@ import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/li
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 import { computeApprovalSourceHash, buildApprovalMaterial } from '../../../shared/finance/ledger/approvalSourceHash.js';
+import { stageFinanceFact } from './factStream.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -150,7 +151,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       const auditId = generateAuditId();
-      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
+      const auditRef = context.repository.getAuditRef().doc(auditId);
+      t.set(auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
@@ -163,6 +165,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: FieldValue.serverTimestamp(),
         details: { comment, approvedVersion: txData.version, sourceHash }
       }));
+
+      stageFinanceFact(t, db, {
+        organizationId,
+        eventType: 'TRANSACTION_APPROVED',
+        entityType: 'finance_transaction',
+        entityId: transactionId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          status: 'approved_for_posting',
+          transactionKind,
+          version: newVersion,
+          approvedVersion: txData.version,
+          postingExecuted: false,
+        },
+        sourceRefs: [
+          { kind: 'record', ref: txRef.path, version: newVersion },
+          { kind: 'audit', ref: auditRef.path },
+        ],
+      });
 
       t.set(db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).collection('events').doc(eventId), sanitizeFirestoreObject({
         eventId,
