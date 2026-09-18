@@ -69,6 +69,7 @@ verify(PERIOD_CLOSE_MAX_COUNT_SESSIONS === 500, 'count scope is explicitly bound
 verify(PERIOD_CLOSE_MAX_EVIDENCE === 500, 'evidence scope is explicitly bounded');
 
 const handler = readFileSync('server/vercel-handlers/finance/periodCloseReadiness.ts', 'utf8');
+const readModel = readFileSync('server/vercel-handlers/finance/periodCloseReadModel.ts', 'utf8');
 const page = readFileSync('src/pages/finance/ReportsPage.tsx', 'utf8');
 const service = readFileSync('src/services/periodCloseService.ts', 'utf8');
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
@@ -76,9 +77,9 @@ const contracts = readFileSync('scripts/check-api-contracts.mjs', 'utf8');
 
 verify(handler.includes("resolveFinanceRequestContext(req, 'finance.view')"), 'endpoint requires finance.view');
 verify(handler.includes("Cache-Control', 'private, no-store"), 'endpoint disables shared caching');
-verify(handler.includes('PERIOD_CLOSE_MAX_TRANSACTIONS + 1'), 'endpoint fails closed instead of silently truncating transactions');
-verify(handler.includes('PERIOD_CLOSE_MAX_COUNT_SESSIONS + 1'), 'endpoint fails closed instead of silently truncating counts');
-verify(handler.includes('PERIOD_CLOSE_MAX_EVIDENCE + 1'), 'endpoint fails closed instead of silently truncating documents');
+verify(readModel.includes('PERIOD_CLOSE_MAX_TRANSACTIONS + 1'), 'endpoint fails closed instead of silently truncating transactions');
+verify(readModel.includes('PERIOD_CLOSE_MAX_COUNT_SESSIONS + 1'), 'endpoint fails closed instead of silently truncating counts');
+verify(readModel.includes('PERIOD_CLOSE_MAX_EVIDENCE + 1'), 'endpoint fails closed instead of silently truncating documents');
 
 for (const forbidden of [
   'stageFinanceFact',
@@ -88,11 +89,11 @@ for (const forbidden of [
   'financeAggregates',
   '.delete(',
 ]) {
-  verify(!handler.includes(forbidden), 'period close handler has no mutation dependency on ' + forbidden);
+  verify(!readModel.includes(forbidden), 'period close handler has no mutation dependency on ' + forbidden);
 }
-verify(!/\b(?:t|transaction)\.set\s*\(/u.test(handler), 'period close handler has no Firestore transaction set call');
-verify(!/\b(?:t|transaction)\.update\s*\(/u.test(handler), 'period close handler has no Firestore transaction update call');
-verify(!/\b(?:t|transaction)\.delete\s*\(/u.test(handler), 'period close handler has no Firestore transaction delete call');
+verify(!/\b(?:t|transaction)\.set\s*\(/u.test(readModel), 'period close handler has no Firestore transaction set call');
+verify(!/\b(?:t|transaction)\.update\s*\(/u.test(readModel), 'period close handler has no Firestore transaction update call');
+verify(!/\b(?:t|transaction)\.delete\s*\(/u.test(readModel), 'period close handler has no Firestore transaction delete call');
 
 verify(page.includes("PT: {") && page.includes("EN: {") && page.includes("ES: {"), 'Reports workspace is localized in PT/EN/ES');
 verify(page.includes('type="month"'), 'Reports workspace provides a native month selector');
