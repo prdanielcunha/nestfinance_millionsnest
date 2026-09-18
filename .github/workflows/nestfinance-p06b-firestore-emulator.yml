@@ -37,6 +37,8 @@ on:
       - "scripts/test-attention-backfill-emulator.ts"
       - "scripts/test-attention-backfill-contract.ts"
       - "scripts/test-intelligence-coverage-firestore-rules.ts"
+      - "scripts/test-reconciliation-readiness-emulator.ts"
+      - "scripts/test-reconciliation-readiness-ui.ts"
       - "scripts/test-universal-evidence-inbox-emulator.ts"
       - "scripts/test-universal-evidence-inbox-i2a.ts"
       - "scripts/test-universal-evidence-inbox-i2b.ts"
@@ -112,7 +114,7 @@ jobs:
             exit 1
           fi
 
-          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts scripts/test-attention-backfill-emulator.ts; then
+          if grep -q "firestore.googleapis.com" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts scripts/test-attention-backfill-emulator.ts scripts/test-reconciliation-readiness-emulator.ts; then
              echo "Security Error: firestore.googleapis.com detected in tests."
              exit 1
           fi
@@ -138,7 +140,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-review-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts && npx tsx scripts/test-needs-attention-read-model-emulator.ts && npx tsx scripts/test-attention-backfill-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-transactions-firestore-emulator.ts && npx tsx scripts/test-count-firestore-emulator.ts && npx tsx scripts/test-count-paper-firestore-emulator.ts && npx tsx scripts/test-count-capture-firestore-emulator.ts && npx tsx scripts/test-count-capture-extraction-emulator.ts && npx tsx scripts/test-count-capture-denomination-emulator.ts && npx tsx scripts/test-universal-evidence-firestore-emulator.ts && npx tsx scripts/test-universal-evidence-review-emulator.ts && npx tsx scripts/test-universal-evidence-inbox-emulator.ts && npx tsx scripts/test-universal-evidence-detail-emulator.ts && npx tsx scripts/test-universal-evidence-preview-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-inspect-emulator.ts && npx tsx scripts/test-universal-evidence-pdf-text-emulator-i2g.ts && npx tsx scripts/test-needs-attention-read-model-emulator.ts && npx tsx scripts/test-attention-backfill-emulator.ts && npx tsx scripts/test-reconciliation-readiness-emulator.ts" | tee artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Client-side Rules Tests
         env:
@@ -158,6 +160,7 @@ jobs:
           npx tsx scripts/test-finance-request-context.ts
           npx tsx scripts/test-transaction-fact-coverage.ts
           npx tsx scripts/test-attention-backfill-contract.ts
+          npx tsx scripts/test-reconciliation-readiness-ui.ts
           npx tsx scripts/test-universal-evidence-review-model.ts
           npx tsx scripts/test-posting-plan-entity-isolation.ts
           npx tsx scripts/test-transactions-p06b-journey.ts
