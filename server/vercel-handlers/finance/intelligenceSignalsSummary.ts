@@ -4,6 +4,7 @@ import {
   NESTFINANCE_SIGNAL_TYPES,
   type NestFinanceSignalType,
 } from '../../../shared/intelligence/canonicalSignal.js';
+import { isFinanceSignalCurrent } from './signalCurrentState.js';
 import type {
   NeedsAttentionSignalSummary,
   NeedsAttentionSignalSummaryItem,
@@ -67,6 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const signalType = data.signalType as NestFinanceSignalType;
+      const currentStateVerified = await isFinanceSignalCurrent({
+        db,
+        organizationId,
+        financeEntityId,
+        signalType,
+        entityType: String(data.entityType || ''),
+        entityId: String(data.entityId || ''),
+      });
+      if (!currentStateVerified) continue;
+
       byType[signalType] += 1;
       items.push({
         signalId: doc.id,
@@ -79,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         openedAt: toIso(data.openedAt),
         updatedAt: toIso(data.updatedAt),
         explainable: true,
+        currentStateVerified: true,
       });
     }
 
