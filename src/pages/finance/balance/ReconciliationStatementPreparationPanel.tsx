@@ -24,6 +24,7 @@ import type {
 } from '../../../../shared/finance/reconciliationStatementLines.js';
 import { reconciliationService } from '@/src/services/reconciliationService';
 import { ReconciliationMatchPreviewPanel } from './ReconciliationMatchPreviewPanel';
+import { ReconciliationProgressPanel } from './ReconciliationProgressPanel';
 
 type Props = {
   organizationId: string;
@@ -462,6 +463,14 @@ export function ReconciliationStatementPreparationPanel({
               <p className="rounded-lg border border-border-subtle bg-surface-secondary px-3 py-2 text-xs leading-relaxed text-text-muted">
                 {copy.humanReview}
               </p>
+
+              <ReconciliationProgressPanel
+                organizationId={organizationId}
+                financeEntityId={financeEntityId}
+                evidenceId={statement.evidenceId}
+                accountId={accountId}
+                language={language}
+              />
 
               <ReconciliationMatchPreviewPanel
                 organizationId={organizationId}
