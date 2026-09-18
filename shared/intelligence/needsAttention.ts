@@ -23,6 +23,7 @@ export type NeedsAttentionSignalSummaryItem = {
   openedAt: string | null;
   updatedAt: string | null;
   explainable: true;
+  currentStateVerified: true;
 };
 
 export type NeedsAttentionSignalSummary = {

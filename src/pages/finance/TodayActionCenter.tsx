@@ -15,6 +15,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { LedgerTransaction } from '../../../shared/finance/ledger/transaction';
+import type {
+  NeedsAttentionSignalDetail,
+  NeedsAttentionSignalSummary,
+} from '../../../shared/intelligence/needsAttention.js';
 import { Button, Surface } from '@/src/components/foundation';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -29,6 +33,7 @@ import {
   universalEvidenceInboxService,
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
+import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
@@ -93,6 +98,12 @@ type TodayCopy = {
   incomeLabel: string;
   expenseLabel: string;
   transferLabel: string;
+  why: string;
+  hideWhy: string;
+  verifiedReason: string;
+  verifiedReasonText: string;
+  sourceUnavailable: string;
+  sourceRecorded: (date: string) => string;
 };
 
 const COPY: Record<Language, TodayCopy> = {
@@ -156,6 +167,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Entrada',
     expenseLabel: 'Saída',
     transferLabel: 'Transferência',
+    why: 'Por que isso aparece?',
+    hideWhy: 'Ocultar explicação',
+    verifiedReason: 'Fonte verificada',
+    verifiedReasonText: 'Esta prioridade está ligada a um fato canônico do NestFinance, com referências ao registro original e à auditoria. O estado atual continua sendo confirmado pelas fontes financeiras.',
+    sourceUnavailable: 'A explicação verificável não está disponível agora. A prioridade continua baseada no estado financeiro atual.',
+    sourceRecorded: (date) => `Registrado ${date}`,
   },
   EN: {
     eyebrow: 'Today',
@@ -217,6 +234,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Income',
     expenseLabel: 'Expense',
     transferLabel: 'Transfer',
+    why: 'Why is this showing?',
+    hideWhy: 'Hide explanation',
+    verifiedReason: 'Verified source',
+    verifiedReasonText: 'This priority is linked to a canonical NestFinance fact with references to the original record and audit trail. Current state is still confirmed by the financial sources.',
+    sourceUnavailable: 'The verifiable explanation is not available right now. The priority still comes from current financial state.',
+    sourceRecorded: (date) => `Recorded ${date}`,
   },
   ES: {
     eyebrow: 'Hoy',
@@ -278,6 +301,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Ingreso',
     expenseLabel: 'Egreso',
     transferLabel: 'Transferencia',
+    why: '¿Por qué aparece esto?',
+    hideWhy: 'Ocultar explicación',
+    verifiedReason: 'Fuente verificada',
+    verifiedReasonText: 'Esta prioridad está vinculada a un hecho canónico de NestFinance, con referencias al registro original y a la auditoría. El estado actual sigue confirmado por las fuentes financieras.',
+    sourceUnavailable: 'La explicación verificable no está disponible ahora. La prioridad sigue basada en el estado financiero actual.',
+    sourceRecorded: (date) => `Registrado ${date}`,
   },
 };
 
@@ -352,6 +381,11 @@ export function TodayActionCenter() {
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
   const [inboxSummary, setInboxSummary] = useState<UniversalEvidenceInboxSummary | null>(null);
+  const [signalSummary, setSignalSummary] = useState<NeedsAttentionSignalSummary | null>(null);
+  const [explanation, setExplanation] = useState<NeedsAttentionSignalDetail | null>(null);
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationFailed, setExplanationFailed] = useState(false);
   const [recent, setRecent] = useState<LedgerTransaction[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [countLoading, setCountLoading] = useState(false);
@@ -409,6 +443,18 @@ export function TodayActionCenter() {
     }
   }, [activeFinanceEntityId, organizationId]);
 
+  const loadSignals = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    try {
+      const result = await needsAttentionService.summary(organizationId, activeFinanceEntityId);
+      setSignalSummary(result);
+    } catch {
+      // Signals are an additive projection while coverage is partial.
+      // Authoritative legacy readers remain responsible for completeness.
+      setSignalSummary(null);
+    }
+  }, [activeFinanceEntityId, organizationId]);
+
   const loadRecent = useCallback(async () => {
     if (!organizationId || !activeFinanceEntityId) return;
     setRecentLoading(true);
@@ -428,26 +474,35 @@ export function TodayActionCenter() {
       setSummary(null);
       setCountItems([]);
       setInboxSummary(null);
+      setSignalSummary(null);
+      setExplanation(null);
+      setExplanationOpen(false);
       setRecent([]);
       return;
     }
     void loadSummary();
     void loadCounts();
     void loadInbox();
+    void loadSignals();
     void loadRecent();
-  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSummary, organizationId]);
+  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
 
   const priority = useMemo(
     () =>
-      chooseTodayPriority(effectiveSummary, countItems, {
-        needsClassification: effectiveInboxSummary.needsClassification,
-        pendingReview: effectiveInboxSummary.pendingReview,
-        canClassify: canClassifyInbox,
-        canReview: canReviewInbox,
-      }),
+      chooseTodayPriority(
+        effectiveSummary,
+        countItems,
+        {
+          needsClassification: effectiveInboxSummary.needsClassification,
+          pendingReview: effectiveInboxSummary.pendingReview,
+          canClassify: canClassifyInbox,
+          canReview: canReviewInbox,
+        },
+        signalSummary ? { items: signalSummary.items } : undefined,
+      ),
     [
       canClassifyInbox,
       canReviewInbox,
@@ -455,8 +510,58 @@ export function TodayActionCenter() {
       effectiveInboxSummary.needsClassification,
       effectiveInboxSummary.pendingReview,
       effectiveSummary,
+      signalSummary,
     ],
   );
+
+  useEffect(() => {
+    setExplanation(null);
+    setExplanationOpen(false);
+    setExplanationLoading(false);
+    setExplanationFailed(false);
+  }, [activeFinanceEntityId, priority.signalId]);
+
+  const toggleExplanation = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId || !priority.signalId) return;
+
+    if (explanationOpen) {
+      setExplanationOpen(false);
+      return;
+    }
+
+    setExplanationOpen(true);
+    setExplanationFailed(false);
+
+    if (explanation?.signal.signalId === priority.signalId) return;
+
+    const requestedSignalId = priority.signalId;
+    setExplanationLoading(true);
+    try {
+      const result = await needsAttentionService.detail(
+        organizationId,
+        activeFinanceEntityId,
+        requestedSignalId,
+      );
+      if (
+        result.signal.signalId === requestedSignalId &&
+        result.signal.currentStateVerified === true
+      ) {
+        setExplanation(result);
+      } else {
+        setExplanationFailed(true);
+      }
+    } catch {
+      setExplanationFailed(true);
+    } finally {
+      setExplanationLoading(false);
+    }
+  }, [
+    activeFinanceEntityId,
+    explanation,
+    explanationOpen,
+    organizationId,
+    priority.signalId,
+  ]);
 
   const priorityPresentation = useMemo(() => {
     switch (priority.kind) {
@@ -474,7 +579,9 @@ export function TodayActionCenter() {
           title: copy.correctionTitle(priority.count),
           text: copy.correctionText,
           action: copy.fixNow,
-          route: APP_ROUTES.transactions,
+          route: priority.signalEntityId
+            ? APP_ROUTES.transactionEdit.replace(':transactionId', priority.signalEntityId)
+            : APP_ROUTES.transactions,
           icon: AlertTriangle,
           iconClass: 'bg-semantic-warning/10 text-semantic-warning',
         };
@@ -492,7 +599,9 @@ export function TodayActionCenter() {
           title: copy.inboxReviewTitle(priority.count),
           text: copy.inboxReviewText,
           action: copy.openInbox,
-          route: APP_ROUTES.inbox,
+          route: priority.signalEntityId
+            ? APP_ROUTES.inboxEvidenceDetail.replace(':evidenceId', priority.signalEntityId)
+            : APP_ROUTES.inbox,
           icon: Inbox,
           iconClass: 'bg-accent-primary/10 text-accent-primary',
         };
@@ -501,7 +610,9 @@ export function TodayActionCenter() {
           title: copy.inboxIdentificationTitle(priority.count),
           text: copy.inboxIdentificationText,
           action: copy.openInbox,
-          route: APP_ROUTES.inbox,
+          route: priority.signalEntityId
+            ? APP_ROUTES.inboxEvidenceDetail.replace(':evidenceId', priority.signalEntityId)
+            : APP_ROUTES.inbox,
           icon: Inbox,
           iconClass: 'bg-surface-elevated text-text-secondary',
         };
@@ -510,7 +621,9 @@ export function TodayActionCenter() {
           title: copy.reviewTitle(priority.count),
           text: copy.reviewText,
           action: copy.reviewNow,
-          route: APP_ROUTES.review,
+          route: priority.signalEntityId
+            ? APP_ROUTES.transactionReviewDetail.replace(':transactionId', priority.signalEntityId)
+            : APP_ROUTES.review,
           icon: FileCheck2,
           iconClass: 'bg-accent-primary/10 text-accent-primary',
         };
@@ -601,11 +714,13 @@ export function TodayActionCenter() {
                 void loadSummary();
                 void loadCounts();
                 void loadInbox();
+                void loadSignals();
               }}
             >
               {copy.retry}
             </Button>
           </div>
+
         </Surface>
       ) : prioritiesLoading ? (
         <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
@@ -627,6 +742,16 @@ export function TodayActionCenter() {
                 </p>
                 <h2 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:text-xl">{priorityPresentation.title}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">{priorityPresentation.text}</p>
+                {priority.sourceBacked && priority.signalId ? (
+                  <button
+                    type="button"
+                    className="nf-interactive mt-2 rounded-lg px-1 py-1 text-xs font-medium text-accent-primary hover:text-accent-primary/80"
+                    onClick={() => void toggleExplanation()}
+                    aria-expanded={explanationOpen}
+                  >
+                    {explanationOpen ? copy.hideWhy : copy.why}
+                  </button>
+                ) : null}
               </div>
             </div>
             <Button
@@ -639,6 +764,38 @@ export function TodayActionCenter() {
               {priorityPresentation.action}
             </Button>
           </div>
+
+          {explanationOpen && priority.signalId ? (
+            <div className="mt-5 border-t border-border-subtle pt-4" aria-live="polite">
+              {explanationLoading ? (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <RefreshCw className="h-4 w-4 animate-spin text-accent-primary" aria-hidden="true" />
+                  {copy.loading}
+                </div>
+              ) : explanationFailed ? (
+                <p className="text-xs leading-relaxed text-text-muted">{copy.sourceUnavailable}</p>
+              ) : explanation?.signal.signalId === priority.signalId ? (
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-semantic-success/10 text-semantic-success">
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-text-primary">{copy.verifiedReason}</p>
+                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-text-secondary">
+                      {copy.verifiedReasonText}
+                    </p>
+                    {explanation.explanation.recordedAt ? (
+                      <p className="mt-2 text-[11px] font-medium text-text-muted">
+                        {copy.sourceRecorded(
+                          formatRelativeDate(explanation.explanation.recordedAt, language, copy),
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </Surface>
       )}
 
@@ -649,7 +806,10 @@ export function TodayActionCenter() {
             <button
               type="button"
               className="nf-interactive nf-touch-target rounded-xl px-3 text-xs font-medium text-text-muted hover:bg-surface-secondary hover:text-text-primary"
-              onClick={() => void loadSummary()}
+              onClick={() => {
+                void loadSummary();
+                void loadSignals();
+              }}
               aria-label={copy.retry}
             >
               <RefreshCw className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hasFinanceCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 import { NESTFINANCE_SIGNAL_TYPES } from '../../../shared/intelligence/canonicalSignal.js';
 import type { NeedsAttentionSignalDetail } from '../../../shared/intelligence/needsAttention.js';
+import { isFinanceSignalCurrent } from './signalCurrentState.js';
 
 const validSignalId = (value: unknown): value is string =>
   typeof value === 'string' && /^signal_[a-f0-9]{64}$/.test(value);
@@ -86,6 +87,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
+    const currentStateVerified = await isFinanceSignalCurrent({
+      db,
+      organizationId,
+      financeEntityId,
+      signalType: signal.signalType,
+      entityType: String(signal.entityType || ''),
+      entityId: String(signal.entityId || ''),
+    });
+    if (!currentStateVerified) {
+      return res.status(409).json({ error: 'SIGNAL_STALE' });
+    }
+
     const factId = String(signal.lastFactId || '');
     if (!/^fact_[a-f0-9]{64}$/.test(factId)) {
       return res.status(409).json({ error: 'SIGNAL_SOURCE_UNAVAILABLE' });
@@ -115,6 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         openedAt: toIso(signal.openedAt),
         updatedAt: toIso(signal.updatedAt),
         explainable: true,
+        currentStateVerified: true,
         status: signal.status === 'resolved' ? 'resolved' : 'open',
         resolvedAt: toIso(signal.resolvedAt),
       },
