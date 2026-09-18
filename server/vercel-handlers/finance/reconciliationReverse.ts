@@ -260,6 +260,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         t.update(transactionRef, sanitizeFirestoreObject({
           reconciliationStatus: 'unreconciled',
           lastReconciliationId: reconciliationId,
+          lastReconciliationEvidenceId: evidenceId,
           lastReconciliationReversalId: reversalId,
           lastReconciliationReversedAt: reversedAt,
           lastReconciliationReversedByUid: uid,
