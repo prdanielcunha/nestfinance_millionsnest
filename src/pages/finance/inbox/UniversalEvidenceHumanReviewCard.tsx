@@ -152,6 +152,7 @@ export function UniversalEvidenceHumanReviewCard({
               key={type}
               variant={selectedType === type ? 'primary' : 'secondary'}
               fullWidth
+              aria-pressed={selectedType === type}
               disabled={!canClassify || Boolean(saving)}
               onClick={() => setSelectedType(type)}
               className="!min-h-12 !justify-start"
@@ -160,6 +161,10 @@ export function UniversalEvidenceHumanReviewCard({
             </Button>
           ))}
         </div>
+
+        {!canClassify ? (
+          <p className="mt-3 text-sm leading-relaxed text-text-muted">{copy.classifierRequired}</p>
+        ) : null}
 
         {canClassify ? (
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
