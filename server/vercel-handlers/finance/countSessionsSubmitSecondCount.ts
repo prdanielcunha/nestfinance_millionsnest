@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageFinanceSignalOpen } from './signalProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
   calculateCountEntriesTotalCents,
@@ -116,7 +117,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        stageFinanceFact(transaction, db, {
+        const sourceRefs = [
+          { kind: 'record' as const, ref: sessionRef.path, version: nextVersion },
+          { kind: 'audit' as const, ref: auditRef.path },
+        ];
+        const factId = stageFinanceFact(transaction, db, {
           organizationId,
           eventType: comparison.matched ? 'COUNT_COMPLETED' : 'COUNT_DIVERGENCE_FOUND',
           entityType: 'count_session',
@@ -131,11 +136,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             matched: comparison.matched,
             divergenceCount: comparison.differences.length,
           },
-          sourceRefs: [
-            { kind: 'record', ref: sessionRef.path, version: nextVersion },
-            { kind: 'audit', ref: auditRef.path },
-          ],
+          sourceRefs,
         });
+
+        if (!comparison.matched) {
+          stageFinanceSignalOpen(transaction, db, {
+            organizationId,
+            financeEntityId,
+            signalType: 'COUNT_DIVERGENCE_REVIEW_REQUIRED',
+            entityType: 'count_session',
+            entityId: countSessionId,
+            sourceFactId: factId,
+            sourceRefs,
+          });
+        }
 
         // Material stays only on the Count session. The idempotency result is
         // deliberately redacted so a retry cannot reveal A/B values during a
