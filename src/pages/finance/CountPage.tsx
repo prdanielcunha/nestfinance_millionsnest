@@ -310,7 +310,13 @@ function CountHomeContent() {
                               {formatReviewMoney(item.firstCountTotalCents, language, 'BRL')}
                             </p>
                           )}
-                          <span className="text-sm font-semibold text-accent-primary">{copy.continueSession}</span>
+                          <span className="text-sm font-semibold text-accent-primary">
+                            {item.status === 'matched'
+                              ? copy.viewResult
+                              : item.status === 'divergent'
+                                ? copy.resolveDifference
+                                : copy.continueSession}
+                          </span>
                         </div>
                       </Surface>
                     </button>
