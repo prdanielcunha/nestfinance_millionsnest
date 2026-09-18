@@ -514,6 +514,55 @@ export function TodayActionCenter() {
     ],
   );
 
+  useEffect(() => {
+    setExplanation(null);
+    setExplanationOpen(false);
+    setExplanationLoading(false);
+    setExplanationFailed(false);
+  }, [activeFinanceEntityId, priority.signalId]);
+
+  const toggleExplanation = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId || !priority.signalId) return;
+
+    if (explanationOpen) {
+      setExplanationOpen(false);
+      return;
+    }
+
+    setExplanationOpen(true);
+    setExplanationFailed(false);
+
+    if (explanation?.signal.signalId === priority.signalId) return;
+
+    const requestedSignalId = priority.signalId;
+    setExplanationLoading(true);
+    try {
+      const result = await needsAttentionService.detail(
+        organizationId,
+        activeFinanceEntityId,
+        requestedSignalId,
+      );
+      if (
+        result.signal.signalId === requestedSignalId &&
+        result.signal.currentStateVerified === true
+      ) {
+        setExplanation(result);
+      } else {
+        setExplanationFailed(true);
+      }
+    } catch {
+      setExplanationFailed(true);
+    } finally {
+      setExplanationLoading(false);
+    }
+  }, [
+    activeFinanceEntityId,
+    explanation,
+    explanationOpen,
+    organizationId,
+    priority.signalId,
+  ]);
+
   const priorityPresentation = useMemo(() => {
     switch (priority.kind) {
       case 'count_divergence':
