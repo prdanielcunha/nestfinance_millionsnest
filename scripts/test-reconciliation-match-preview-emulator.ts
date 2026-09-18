@@ -191,7 +191,7 @@ await evidenceRef.set({
 const txRef = db.collection('organizations').doc(orgId).collection('financeTransactions');
 
 async function seedTx(id: string, data: Record<string, unknown>) {
-  await txRef.doc(id).set({
+  const document: Record<string, unknown> = {
     organizationId: orgId,
     financeEntityId: entityA,
     transactionKind: 'income',
@@ -206,7 +206,9 @@ async function seedTx(id: string, data: Record<string, unknown>) {
     description: id,
     version: 1,
     ...data,
-  });
+  };
+  if (document.reconciliationStatus === undefined) delete document.reconciliationStatus;
+  await txRef.doc(id).set(document);
 }
 
 await seedTx('tx_exact_' + suffix, {});
