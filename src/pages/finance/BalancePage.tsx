@@ -29,6 +29,7 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { reconciliationService } from '@/src/services/reconciliationService';
+import { ReconciliationStatementPreparationPanel } from './balance/ReconciliationStatementPreparationPanel';
 
 type BalanceCopy = {
   area: string;
@@ -330,6 +331,10 @@ function BalanceContent() {
 
   const organizationId = accessState.organizationId || '';
   const canCapture = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const eligibleAccounts = useMemo(
+    () => readiness?.accounts.filter((account) => account.eligible) || [],
+    [readiness],
+  );
 
   const load = async () => {
     if (!organizationId || !activeFinanceEntityId) return;
@@ -589,6 +594,16 @@ function BalanceContent() {
                               <ChevronRight className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </div>
+
+                          {statement.state === 'ready_for_native_text_check' && activeFinanceEntityId ? (
+                            <ReconciliationStatementPreparationPanel
+                              organizationId={organizationId}
+                              financeEntityId={activeFinanceEntityId}
+                              statement={statement}
+                              eligibleAccounts={eligibleAccounts}
+                              language={language}
+                            />
+                          ) : null}
                         </Surface>
                       );
                     })}
