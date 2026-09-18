@@ -10,6 +10,7 @@ import {
   Clock3,
   FileCheck2,
   FilePenLine,
+  Inbox,
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
@@ -24,6 +25,10 @@ import {
   type TransactionsActionSummary,
 } from '@/src/services/transactionsService';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
+import {
+  universalEvidenceInboxService,
+  type UniversalEvidenceInboxSummary,
+} from '@/src/services/universalEvidenceInboxService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
@@ -42,6 +47,11 @@ type TodayCopy = {
   countCheckTitle: (count: number) => string;
   countCheckText: string;
   openCount: string;
+  inboxIdentificationTitle: (count: number) => string;
+  inboxIdentificationText: string;
+  inboxReviewTitle: (count: number) => string;
+  inboxReviewText: string;
+  openInbox: string;
   correctionTitle: (count: number) => string;
   correctionText: string;
   reviewTitle: (count: number) => string;
@@ -100,6 +110,11 @@ const COPY: Record<Language, TodayCopy> = {
     countCheckTitle: (count) => count === 1 ? 'Uma conferência de contagem precisa ser concluída' : `${count} conferências de contagem precisam ser concluídas`,
     countCheckText: 'Conclua a contagem independente. Os valores anteriores continuam protegidos enquanto você conta.',
     openCount: 'Abrir contagem',
+    inboxIdentificationTitle: (count) => count === 1 ? 'Um documento precisa ser identificado' : `${count} documentos precisam ser identificados`,
+    inboxIdentificationText: 'Diga que tipo de documento é. Isso organiza a fila sem criar lançamento nem alterar saldo.',
+    inboxReviewTitle: (count) => count === 1 ? 'Um documento está pronto para conferência' : `${count} documentos estão prontos para conferência`,
+    inboxReviewText: 'Confira o documento e marque como conferido quando estiver tudo certo. A evidência e a auditoria continuam preservadas.',
+    openInbox: 'Abrir documentos',
     correctionTitle: (count) => `${count} ${count === 1 ? 'movimentação voltou para correção' : 'movimentações voltaram para correção'}`,
     correctionText: 'Esses itens já foram conferidos e precisam de um ajuste antes de seguir.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'movimentação está pronta para conferência' : 'movimentações estão prontas para conferência'}`,
@@ -156,6 +171,11 @@ const COPY: Record<Language, TodayCopy> = {
     countCheckTitle: (count) => count === 1 ? 'One count check needs to be completed' : `${count} count checks need to be completed`,
     countCheckText: 'Finish the independent count. Previous amounts stay hidden while you count.',
     openCount: 'Open count',
+    inboxIdentificationTitle: (count) => count === 1 ? 'One document needs identification' : `${count} documents need identification`,
+    inboxIdentificationText: 'Choose the document type. This organizes the queue without creating a transaction or changing balances.',
+    inboxReviewTitle: (count) => count === 1 ? 'One document is ready for review' : `${count} documents are ready for review`,
+    inboxReviewText: 'Check the document and mark it reviewed when everything is correct. Evidence and audit history remain preserved.',
+    openInbox: 'Open documents',
     correctionTitle: (count) => `${count} ${count === 1 ? 'transaction needs a correction' : 'transactions need corrections'}`,
     correctionText: 'These items were already checked and need an adjustment before they can continue.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'transaction is ready to be checked' : 'transactions are ready to be checked'}`,
@@ -212,6 +232,11 @@ const COPY: Record<Language, TodayCopy> = {
     countCheckTitle: (count) => count === 1 ? 'Una revisión de conteo necesita completarse' : `${count} revisiones de conteo necesitan completarse`,
     countCheckText: 'Completa el conteo independiente. Los valores anteriores permanecen ocultos mientras cuentas.',
     openCount: 'Abrir conteo',
+    inboxIdentificationTitle: (count) => count === 1 ? 'Un documento necesita ser identificado' : `${count} documentos necesitan ser identificados`,
+    inboxIdentificationText: 'Indica qué tipo de documento es. Esto organiza la fila sin crear asientos ni modificar saldos.',
+    inboxReviewTitle: (count) => count === 1 ? 'Un documento está listo para revisión' : `${count} documentos están listos para revisión`,
+    inboxReviewText: 'Revisa el documento y márcalo como revisado cuando todo esté correcto. La evidencia y la auditoría permanecen preservadas.',
+    openInbox: 'Abrir documentos',
     correctionTitle: (count) => `${count} ${count === 1 ? 'movimiento volvió para corrección' : 'movimientos volvieron para corrección'}`,
     correctionText: 'Estos elementos ya fueron revisados y necesitan un ajuste antes de continuar.',
     reviewTitle: (count) => `${count} ${count === 1 ? 'movimiento está listo para revisión' : 'movimientos están listos para revisión'}`,
@@ -264,6 +289,17 @@ const EMPTY_SUMMARY: TransactionsActionSummary = {
   totalOpen: 0,
 };
 
+const EMPTY_INBOX_SUMMARY: UniversalEvidenceInboxSummary = {
+  total: 0,
+  accepted: 0,
+  duplicate: 0,
+  awaitingUpload: 0,
+  needsClassification: 0,
+  pendingReview: 0,
+  needsReview: 0,
+  reviewed: 0,
+};
+
 function localeFor(language: Language) {
   if (language === 'EN') return 'en-US';
   if (language === 'ES') return 'es-ES';
@@ -306,15 +342,24 @@ export function TodayActionCenter() {
 
   const organizationId = accessState.organization?.id || '';
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canClassifyInbox =
+    hasEffectiveCapability(accessState, 'finance.create_drafts') ||
+    hasEffectiveCapability(accessState, 'finance.manage');
+  const canReviewInbox =
+    hasEffectiveCapability(accessState, 'finance.review') ||
+    hasEffectiveCapability(accessState, 'finance.manage');
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
+  const [inboxSummary, setInboxSummary] = useState<UniversalEvidenceInboxSummary | null>(null);
   const [recent, setRecent] = useState<LedgerTransaction[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [countLoading, setCountLoading] = useState(false);
+  const [inboxLoading, setInboxLoading] = useState(false);
   const [recentLoading, setRecentLoading] = useState(false);
   const [summaryFailed, setSummaryFailed] = useState(false);
   const [countFailed, setCountFailed] = useState(false);
+  const [inboxFailed, setInboxFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
 
   const loadSummary = useCallback(async () => {
@@ -345,6 +390,25 @@ export function TodayActionCenter() {
     }
   }, [activeFinanceEntityId, organizationId]);
 
+  const loadInbox = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    setInboxLoading(true);
+    setInboxFailed(false);
+    try {
+      const result = await universalEvidenceInboxService.list(
+        organizationId,
+        activeFinanceEntityId,
+        undefined,
+        1,
+      );
+      setInboxSummary(result.summary);
+    } catch {
+      setInboxFailed(true);
+    } finally {
+      setInboxLoading(false);
+    }
+  }, [activeFinanceEntityId, organizationId]);
+
   const loadRecent = useCallback(async () => {
     if (!organizationId || !activeFinanceEntityId) return;
     setRecentLoading(true);
@@ -363,19 +427,35 @@ export function TodayActionCenter() {
     if (!organizationId || !activeFinanceEntityId) {
       setSummary(null);
       setCountItems([]);
+      setInboxSummary(null);
       setRecent([]);
       return;
     }
     void loadSummary();
     void loadCounts();
+    void loadInbox();
     void loadRecent();
-  }, [activeFinanceEntityId, loadCounts, loadRecent, loadSummary, organizationId]);
+  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSummary, organizationId]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
+  const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
 
   const priority = useMemo(
-    () => chooseTodayPriority(effectiveSummary, countItems),
-    [countItems, effectiveSummary],
+    () =>
+      chooseTodayPriority(effectiveSummary, countItems, {
+        needsClassification: effectiveInboxSummary.needsClassification,
+        pendingReview: effectiveInboxSummary.pendingReview,
+        canClassify: canClassifyInbox,
+        canReview: canReviewInbox,
+      }),
+    [
+      canClassifyInbox,
+      canReviewInbox,
+      countItems,
+      effectiveInboxSummary.needsClassification,
+      effectiveInboxSummary.pendingReview,
+      effectiveSummary,
+    ],
   );
 
   const priorityPresentation = useMemo(() => {
@@ -406,6 +486,24 @@ export function TodayActionCenter() {
           route: APP_ROUTES.countSession.replace(':sessionId', priority.countSessionId || ''),
           icon: Clock3,
           iconClass: 'bg-accent-primary/10 text-accent-primary',
+        };
+      case 'inbox_review':
+        return {
+          title: copy.inboxReviewTitle(priority.count),
+          text: copy.inboxReviewText,
+          action: copy.openInbox,
+          route: APP_ROUTES.inbox,
+          icon: Inbox,
+          iconClass: 'bg-accent-primary/10 text-accent-primary',
+        };
+      case 'inbox_identification':
+        return {
+          title: copy.inboxIdentificationTitle(priority.count),
+          text: copy.inboxIdentificationText,
+          action: copy.openInbox,
+          route: APP_ROUTES.inbox,
+          icon: Inbox,
+          iconClass: 'bg-surface-elevated text-text-secondary',
         };
       case 'review':
         return {
@@ -446,9 +544,11 @@ export function TodayActionCenter() {
     }
   }, [copy, priority]);
 
-  const prioritiesFailed = summaryFailed || countFailed;
+  const prioritiesFailed = summaryFailed || countFailed || inboxFailed;
   const prioritiesLoading =
-    (summaryLoading && !summary) || (countLoading && countItems.length === 0);
+    (summaryLoading && !summary) ||
+    (countLoading && countItems.length === 0) ||
+    (inboxLoading && !inboxSummary);
 
   if (!activeFinanceEntityId) {
     return (
@@ -500,6 +600,7 @@ export function TodayActionCenter() {
               onClick={() => {
                 void loadSummary();
                 void loadCounts();
+                void loadInbox();
               }}
             >
               {copy.retry}
