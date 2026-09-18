@@ -381,6 +381,11 @@ export function TodayActionCenter() {
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
   const [inboxSummary, setInboxSummary] = useState<UniversalEvidenceInboxSummary | null>(null);
+  const [signalSummary, setSignalSummary] = useState<NeedsAttentionSignalSummary | null>(null);
+  const [explanation, setExplanation] = useState<NeedsAttentionSignalDetail | null>(null);
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationFailed, setExplanationFailed] = useState(false);
   const [recent, setRecent] = useState<LedgerTransaction[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [countLoading, setCountLoading] = useState(false);
@@ -438,6 +443,18 @@ export function TodayActionCenter() {
     }
   }, [activeFinanceEntityId, organizationId]);
 
+  const loadSignals = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    try {
+      const result = await needsAttentionService.summary(organizationId, activeFinanceEntityId);
+      setSignalSummary(result);
+    } catch {
+      // Signals are an additive projection while coverage is partial.
+      // Authoritative legacy readers remain responsible for completeness.
+      setSignalSummary(null);
+    }
+  }, [activeFinanceEntityId, organizationId]);
+
   const loadRecent = useCallback(async () => {
     if (!organizationId || !activeFinanceEntityId) return;
     setRecentLoading(true);
@@ -457,26 +474,35 @@ export function TodayActionCenter() {
       setSummary(null);
       setCountItems([]);
       setInboxSummary(null);
+      setSignalSummary(null);
+      setExplanation(null);
+      setExplanationOpen(false);
       setRecent([]);
       return;
     }
     void loadSummary();
     void loadCounts();
     void loadInbox();
+    void loadSignals();
     void loadRecent();
-  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSummary, organizationId]);
+  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
 
   const priority = useMemo(
     () =>
-      chooseTodayPriority(effectiveSummary, countItems, {
-        needsClassification: effectiveInboxSummary.needsClassification,
-        pendingReview: effectiveInboxSummary.pendingReview,
-        canClassify: canClassifyInbox,
-        canReview: canReviewInbox,
-      }),
+      chooseTodayPriority(
+        effectiveSummary,
+        countItems,
+        {
+          needsClassification: effectiveInboxSummary.needsClassification,
+          pendingReview: effectiveInboxSummary.pendingReview,
+          canClassify: canClassifyInbox,
+          canReview: canReviewInbox,
+        },
+        signalSummary ? { items: signalSummary.items } : undefined,
+      ),
     [
       canClassifyInbox,
       canReviewInbox,
@@ -484,6 +510,7 @@ export function TodayActionCenter() {
       effectiveInboxSummary.needsClassification,
       effectiveInboxSummary.pendingReview,
       effectiveSummary,
+      signalSummary,
     ],
   );
 
@@ -503,7 +530,9 @@ export function TodayActionCenter() {
           title: copy.correctionTitle(priority.count),
           text: copy.correctionText,
           action: copy.fixNow,
-          route: APP_ROUTES.transactions,
+          route: priority.signalEntityId
+            ? APP_ROUTES.transactionEdit.replace(':transactionId', priority.signalEntityId)
+            : APP_ROUTES.transactions,
           icon: AlertTriangle,
           iconClass: 'bg-semantic-warning/10 text-semantic-warning',
         };
@@ -521,7 +550,9 @@ export function TodayActionCenter() {
           title: copy.inboxReviewTitle(priority.count),
           text: copy.inboxReviewText,
           action: copy.openInbox,
-          route: APP_ROUTES.inbox,
+          route: priority.signalEntityId
+            ? APP_ROUTES.inboxEvidenceDetail.replace(':evidenceId', priority.signalEntityId)
+            : APP_ROUTES.inbox,
           icon: Inbox,
           iconClass: 'bg-accent-primary/10 text-accent-primary',
         };
@@ -530,7 +561,9 @@ export function TodayActionCenter() {
           title: copy.inboxIdentificationTitle(priority.count),
           text: copy.inboxIdentificationText,
           action: copy.openInbox,
-          route: APP_ROUTES.inbox,
+          route: priority.signalEntityId
+            ? APP_ROUTES.inboxEvidenceDetail.replace(':evidenceId', priority.signalEntityId)
+            : APP_ROUTES.inbox,
           icon: Inbox,
           iconClass: 'bg-surface-elevated text-text-secondary',
         };
@@ -539,7 +572,9 @@ export function TodayActionCenter() {
           title: copy.reviewTitle(priority.count),
           text: copy.reviewText,
           action: copy.reviewNow,
-          route: APP_ROUTES.review,
+          route: priority.signalEntityId
+            ? APP_ROUTES.transactionReviewDetail.replace(':transactionId', priority.signalEntityId)
+            : APP_ROUTES.review,
           icon: FileCheck2,
           iconClass: 'bg-accent-primary/10 text-accent-primary',
         };
