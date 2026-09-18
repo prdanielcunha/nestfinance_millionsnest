@@ -119,7 +119,7 @@ jobs:
              exit 1
           fi
 
-          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts scripts/test-attention-backfill-emulator.ts; then
+          if grep -q "FakeFirestore" scripts/test-transactions-firestore-emulator.ts scripts/test-count-firestore-emulator.ts scripts/test-count-paper-firestore-emulator.ts scripts/test-count-capture-firestore-emulator.ts scripts/test-count-capture-extraction-emulator.ts scripts/test-count-capture-denomination-emulator.ts scripts/test-universal-evidence-firestore-emulator.ts scripts/test-universal-evidence-review-emulator.ts scripts/test-universal-evidence-inbox-emulator.ts scripts/test-universal-evidence-detail-emulator.ts scripts/test-universal-evidence-preview-emulator.ts scripts/test-universal-evidence-pdf-inspect-emulator.ts scripts/test-universal-evidence-pdf-text-emulator-i2g.ts scripts/test-attention-backfill-emulator.ts scripts/test-reconciliation-readiness-emulator.ts; then
              echo "Security Error: FakeFirestore detected in tests."
              exit 1
           fi
