@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -16,8 +16,15 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import type { Language } from '@/src/contexts/LanguageContext';
 import { reconciliationService } from '@/src/services/reconciliationService';
+import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { generateLedgerId } from '../../../../shared/finance/ledger/ids.js';
 import type { ReconciliationMatchPreviewResponse } from '../../../../shared/finance/reconciliationMatchPreviewApi.js';
-import type { ReconciliationLineMatchPreview } from '../../../../shared/finance/reconciliationMatchPreview.js';
+import type {
+  ReconciliationLineMatchPreview,
+  ReconciliationMatchCandidate,
+} from '../../../../shared/finance/reconciliationMatchPreview.js';
+import type { ReconciliationConfirmResponse } from '../../../../shared/finance/reconciliationConfirmation.js';
 
 type Props = {
   organizationId: string;
@@ -62,6 +69,19 @@ type Copy = {
   reconciliationEligible: string;
   reconciliationNotEligible: string;
   humanDecision: string;
+  confirmAction: string;
+  confirmTitle: string;
+  confirmBody: string;
+  confirmYes: string;
+  confirmCancel: string;
+  confirming: string;
+  confirmSuccessTitle: string;
+  confirmSuccessBody: string;
+  confirmErrorTitle: string;
+  confirmErrorBody: string;
+  confirmChanged: string;
+  reviewPermission: string;
+  tooManyToConfirm: string;
 };
 
 const COPY: Record<Language, Copy> = {
@@ -107,6 +127,19 @@ const COPY: Record<Language, Copy> = {
     reconciliationEligible: 'Lançada e disponível para uma futura confirmação de conciliação',
     reconciliationNotEligible: 'Esta movimentação ainda não está pronta para conciliação',
     humanDecision: 'Mesmo quando há apenas uma possibilidade, o NestFinance não decide sozinho. A confirmação será feita por uma pessoa e ficará registrada no histórico.',
+    confirmAction: 'Confirmar que é a mesma movimentação',
+    confirmTitle: 'Confirmar esta conferência?',
+    confirmBody: 'Você está dizendo que esta movimentação registrada é o mesmo item que aparece no extrato. Isso não muda o valor nem o saldo; apenas registra que os dois conferem.',
+    confirmYes: 'Sim, confirmar',
+    confirmCancel: 'Cancelar',
+    confirming: 'Confirmando…',
+    confirmSuccessTitle: 'Conferência registrada',
+    confirmSuccessBody: 'O extrato e a movimentação foram ligados com registro de quem confirmou e quando. Nenhum valor ou saldo foi alterado.',
+    confirmErrorTitle: 'Não foi possível confirmar',
+    confirmErrorBody: 'Atualize a comparação e tente novamente. Nenhum valor, saldo ou lançamento foi alterado.',
+    confirmChanged: 'Essa movimentação ou o extrato mudou desde a comparação. Compare novamente antes de confirmar.',
+    reviewPermission: 'Somente quem tem permissão para revisar o financeiro pode confirmar esta conferência.',
+    tooManyToConfirm: 'Há possibilidades demais para confirmar com segurança nesta tela. Revise as movimentações antes de escolher uma.',
   },
   EN: {
     title: 'Compare with recorded transactions',
@@ -150,6 +183,19 @@ const COPY: Record<Language, Copy> = {
     reconciliationEligible: 'Posted and available for a future reconciliation confirmation',
     reconciliationNotEligible: 'This transaction is not ready for reconciliation yet',
     humanDecision: 'Even when there is only one possibility, NestFinance does not decide by itself. A person will confirm it and that decision will be recorded in history.',
+    confirmAction: 'Confirm this is the same transaction',
+    confirmTitle: 'Confirm this check?',
+    confirmBody: 'You are saying this recorded transaction is the same item shown on the statement. This does not change the amount or balance; it only records that they match.',
+    confirmYes: 'Yes, confirm',
+    confirmCancel: 'Cancel',
+    confirming: 'Confirming…',
+    confirmSuccessTitle: 'Check recorded',
+    confirmSuccessBody: 'The statement and transaction are now linked with who confirmed it and when. No amount or balance was changed.',
+    confirmErrorTitle: 'Unable to confirm',
+    confirmErrorBody: 'Refresh the comparison and try again. No amount, balance, or posting was changed.',
+    confirmChanged: 'This transaction or statement changed after the comparison. Compare again before confirming.',
+    reviewPermission: 'Only someone with finance review permission can confirm this check.',
+    tooManyToConfirm: 'There are too many possibilities to confirm safely on this screen. Review the transactions before choosing one.',
   },
   ES: {
     title: 'Comparar con los movimientos registrados',
@@ -193,6 +239,19 @@ const COPY: Record<Language, Copy> = {
     reconciliationEligible: 'Registrada y disponible para una futura confirmación de conciliación',
     reconciliationNotEligible: 'Este movimiento todavía no está listo para conciliación',
     humanDecision: 'Incluso cuando hay una sola posibilidad, NestFinance no decide solo. Una persona la confirmará y esa decisión quedará registrada en el historial.',
+    confirmAction: 'Confirmar que es el mismo movimiento',
+    confirmTitle: '¿Confirmar esta revisión?',
+    confirmBody: 'Estás indicando que este movimiento registrado es el mismo elemento que aparece en el extracto. Esto no cambia el valor ni el saldo; solo registra que ambos coinciden.',
+    confirmYes: 'Sí, confirmar',
+    confirmCancel: 'Cancelar',
+    confirming: 'Confirmando…',
+    confirmSuccessTitle: 'Revisión registrada',
+    confirmSuccessBody: 'El extracto y el movimiento quedaron vinculados con quién confirmó y cuándo. Ningún valor ni saldo fue modificado.',
+    confirmErrorTitle: 'No fue posible confirmar',
+    confirmErrorBody: 'Actualiza la comparación e inténtalo de nuevo. Ningún valor, saldo o registro fue modificado.',
+    confirmChanged: 'Este movimiento o el extracto cambió después de la comparación. Compara de nuevo antes de confirmar.',
+    reviewPermission: 'Solo quien tiene permiso para revisar el financiero puede confirmar esta revisión.',
+    tooManyToConfirm: 'Hay demasiadas posibilidades para confirmar con seguridad en esta pantalla. Revisa los movimientos antes de elegir uno.',
   },
 };
 
@@ -229,14 +288,31 @@ export function ReconciliationMatchPreviewPanel({
 }: Props) {
   const copy = COPY[language];
   const navigate = useNavigate();
+  const { accessState } = useAuth();
+  const canConfirm = hasEffectiveCapability(accessState, 'finance.review');
   const [result, setResult] = useState<ReconciliationMatchPreviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    line: ReconciliationLineMatchPreview;
+    candidate: ReconciliationMatchCandidate;
+  } | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [confirmationSuccess, setConfirmationSuccess] = useState<ReconciliationConfirmResponse | null>(null);
+  const confirmationIdempotencyKey = useRef<string | null>(null);
+  const confirmationRequestId = useRef<string | null>(null);
 
   useEffect(() => {
     setResult(null);
     setFailed(false);
     setLoading(false);
+    setPendingConfirmation(null);
+    setConfirming(false);
+    setConfirmationError(null);
+    setConfirmationSuccess(null);
+    confirmationIdempotencyKey.current = null;
+    confirmationRequestId.current = null;
   }, [organizationId, financeEntityId, evidenceId, accountId]);
 
   const load = async () => {
@@ -257,6 +333,68 @@ export function ReconciliationMatchPreviewPanel({
       setFailed(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const beginConfirmation = (
+    line: ReconciliationLineMatchPreview,
+    candidate: ReconciliationMatchCandidate,
+  ) => {
+    setPendingConfirmation({ line, candidate });
+    setConfirmationError(null);
+    setConfirmationSuccess(null);
+    confirmationIdempotencyKey.current = null;
+    confirmationRequestId.current = null;
+  };
+
+  const cancelConfirmation = () => {
+    if (confirming) return;
+    setPendingConfirmation(null);
+    setConfirmationError(null);
+    confirmationIdempotencyKey.current = null;
+    confirmationRequestId.current = null;
+  };
+
+  const confirmMatch = async () => {
+    if (!pendingConfirmation || confirming || !canConfirm) return;
+
+    if (!confirmationIdempotencyKey.current) {
+      confirmationIdempotencyKey.current = generateLedgerId('idem');
+    }
+    if (!confirmationRequestId.current) {
+      confirmationRequestId.current = generateLedgerId('req');
+    }
+
+    setConfirming(true);
+    setConfirmationError(null);
+    try {
+      const confirmed = await reconciliationService.confirmMatch(organizationId, {
+        financeEntityId,
+        evidenceId,
+        accountId,
+        transactionId: pendingConfirmation.candidate.transactionId,
+        lineNumber: pendingConfirmation.line.lineNumber,
+        idempotencyKey: confirmationIdempotencyKey.current,
+        requestId: confirmationRequestId.current,
+      });
+      setConfirmationSuccess(confirmed);
+      setPendingConfirmation(null);
+      confirmationIdempotencyKey.current = null;
+      confirmationRequestId.current = null;
+      await load();
+    } catch (error: any) {
+      const code = String(error?.code || '');
+      setConfirmationError(
+        code === 'RECONCILIATION_MATCH_NO_LONGER_VALID' ||
+        code === 'RECONCILIATION_TRANSACTION_NOT_AVAILABLE' ||
+        code === 'RECONCILIATION_LINE_ALREADY_CONFIRMED' ||
+        code === 'RECONCILIATION_SOURCE_CHANGED' ||
+        code === 'RECONCILIATION_TOO_MANY_CANDIDATES'
+          ? copy.confirmChanged
+          : copy.confirmErrorBody,
+      );
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -311,6 +449,16 @@ export function ReconciliationMatchPreviewPanel({
         <p className="mt-4 rounded-xl border border-semantic-warning/20 bg-semantic-warning/10 p-4 text-xs leading-relaxed text-text-muted">
           {copy.unavailable}
         </p>
+      ) : null}
+
+      {confirmationSuccess ? (
+        <div className="mt-4 flex gap-3 rounded-xl border border-semantic-success/20 bg-semantic-success/10 p-4" role="status">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-semantic-success" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-text-primary">{copy.confirmSuccessTitle}</p>
+            <p className="mt-1 text-xs leading-relaxed text-text-secondary">{copy.confirmSuccessBody}</p>
+          </div>
+        </div>
       ) : null}
 
       {result?.state === 'preview' ? (
@@ -399,14 +547,75 @@ export function ReconciliationMatchPreviewPanel({
                                     : copy.reconciliationNotEligible}
                               </p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', candidate.transactionId))}
-                            >
-                              {copy.openRecord}
-                              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                            </Button>
+                            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                              {candidate.reconciliationEligible &&
+                              canConfirm &&
+                              !line.candidateLimitReached ? (
+                                <Button
+                                  onClick={() => beginConfirmation(line, candidate)}
+                                >
+                                  {copy.confirmAction}
+                                </Button>
+                              ) : null}
+                              <Button
+                                variant="ghost"
+                                onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', candidate.transactionId))}
+                              >
+                                {copy.openRecord}
+                                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                              </Button>
+                              {line.candidateLimitReached ? (
+                                <p className="max-w-56 text-right text-[11px] leading-relaxed text-semantic-warning">
+                                  {copy.tooManyToConfirm}
+                                </p>
+                              ) : candidate.reconciliationEligible && !canConfirm ? (
+                                <p className="max-w-48 text-right text-[11px] leading-relaxed text-text-muted">
+                                  {copy.reviewPermission}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
+
+                          {pendingConfirmation?.line.lineNumber === line.lineNumber &&
+                          pendingConfirmation.candidate.transactionId === candidate.transactionId ? (
+                            <div className="mt-4 rounded-xl border border-accent-primary/20 bg-accent-primary/5 p-4">
+                              <p className="text-sm font-semibold text-text-primary">{copy.confirmTitle}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-text-secondary">{copy.confirmBody}</p>
+                              <div className="mt-3 rounded-lg border border-border-subtle bg-surface-base p-3">
+                                <p className="text-sm font-semibold text-text-primary">
+                                  {formatMoney(line.sourceAmountCents, language)} · {formatDate(line.sourceDate, language)}
+                                </p>
+                                <p className="mt-1 text-xs text-text-muted">
+                                  {candidate.description || copy.transactionFallback}
+                                </p>
+                              </div>
+                              {confirmationError ? (
+                                <p className="mt-3 text-xs leading-relaxed text-semantic-danger" role="alert">
+                                  {confirmationError}
+                                </p>
+                              ) : null}
+                              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                <Button
+                                  variant="secondary"
+                                  disabled={confirming}
+                                  onClick={cancelConfirmation}
+                                >
+                                  {copy.confirmCancel}
+                                </Button>
+                                <Button
+                                  disabled={confirming}
+                                  onClick={() => void confirmMatch()}
+                                >
+                                  {confirming ? (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                      {copy.confirming}
+                                    </>
+                                  ) : copy.confirmYes}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                       {line.candidateLimitReached ? (

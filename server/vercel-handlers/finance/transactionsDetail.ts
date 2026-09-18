@@ -288,6 +288,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         description: txData.description,
         counterparty: txData.counterparty,
         reconciliationStatus: txData.reconciliationStatus,
+        reconciliationId: txData.reconciliationId || null,
+        reconciliationEvidenceId: txData.reconciliationEvidenceId || null,
+        reconciliationLineFingerprint: txData.reconciliationLineFingerprint || null,
+        reconciledAt: txData.reconciledAt
+          ? (txData.reconciledAt.toDate ? txData.reconciledAt.toDate().toISOString() : txData.reconciledAt)
+          : null,
+        reconciledByUid: txData.reconciledByUid || null,
         accountId: txData.accountId,
         accountSnapshot,
         version: txData.version,

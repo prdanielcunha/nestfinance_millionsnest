@@ -24,6 +24,7 @@ import { FinanceContextGuard } from "@/src/components/finance/FinanceContextGuar
 import { FinanceEntityContextBar } from "@/src/components/finance/FinanceEntityContextBar";
 import { hasEffectiveCapability } from "@/src/lib/permissions";
 import { TransactionActionPanel, TransactionNextStep } from "@/src/components/finance/TransactionActionPanel";
+import { TransactionReconciliationTraceCard } from "./TransactionReconciliationTraceCard";
 import { validateSubmissionReadiness } from "@/shared/finance/smartLogic";
 
 const formatBRLCents = (cents: number) => {
@@ -930,6 +931,12 @@ function TransactionDetailContent() {
                     </div>
                   </div>
 
+                  <TransactionReconciliationTraceCard
+                    reconciliationStatus={tx.reconciliationStatus}
+                    reconciliationEvidenceId={tx.reconciliationEvidenceId}
+                    reconciledAt={tx.reconciledAt}
+                  />
+
                   <div className="flex flex-col gap-3">
                     <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">
                       {allocs.length === 1
@@ -1372,6 +1379,16 @@ function TransactionDetailContent() {
                                       </details>
                                     </div>
                                   )}
+                                </div>
+                              );
+                              break;
+                            case 'reconciled':
+                              title = "Conferida com extrato";
+                              details = `Uma pessoa confirmou que esta movimentação corresponde a um item do extrato (v${evt.versionBefore} → v${evt.versionAfter})`;
+                              dotColor = "bg-emerald-500";
+                              extraContent = (
+                                <div className="mt-2 rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-xs text-emerald-700">
+                                  A conferência não alterou valor nem saldo. Ela registrou a correspondência com o extrato.
                                 </div>
                               );
                               break;

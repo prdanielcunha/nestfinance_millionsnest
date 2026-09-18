@@ -3,6 +3,10 @@ import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { ReconciliationReadiness } from '../../shared/finance/reconciliation.js';
 import type { ReconciliationStatementPreparationResponse } from '../../shared/finance/reconciliationStatementPreparation.js';
 import type { ReconciliationMatchPreviewResponse } from '../../shared/finance/reconciliationMatchPreviewApi.js';
+import type {
+  ReconciliationConfirmRequest,
+  ReconciliationConfirmResponse,
+} from '../../shared/finance/reconciliationConfirmation.js';
 
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
@@ -92,6 +96,27 @@ export const reconciliationService = {
 
     if (!response.ok) {
       throw await parseError(response, 'RECONCILIATION_MATCH_PREVIEW_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async confirmMatch(
+    organizationId: string,
+    request: ReconciliationConfirmRequest,
+  ): Promise<ReconciliationConfirmResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(
+      `${FINANCE_GATEWAY_PATH}?operation=reconciliation-confirm`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      },
+    );
+
+    if (!response.ok) {
+      throw await parseError(response, 'RECONCILIATION_CONFIRM_FAILED');
     }
 
     return response.json();

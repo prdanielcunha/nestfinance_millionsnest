@@ -1,0 +1,97 @@
+name: NestFinance Reconciliation Confirmation Quality
+
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/reconciliationConfirmation.ts'
+      - 'shared/finance/ledger/transaction.ts'
+      - 'server/vercel-handlers/finance/reconciliationConfirm.ts'
+      - 'server/vercel-handlers/finance/reconciliationConfirmationIds.ts'
+      - 'server/vercel-handlers/finance/transactionsDetail.ts'
+      - 'server/vercel-handlers/finance/accessHelpers.ts'
+      - 'src/pages/finance/balance/ReconciliationMatchPreviewPanel.tsx'
+      - 'src/pages/finance/transactions/TransactionDetailPage.tsx'
+      - 'src/pages/finance/transactions/TransactionReconciliationTraceCard.tsx'
+      - 'src/services/reconciliationService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-confirm-emulator.ts'
+      - 'scripts/test-reconciliation-confirm-firestore-rules.ts'
+      - 'scripts/test-reconciliation-confirmation-ui.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-reconciliation-confirmation-quality.yml'
+  push:
+    branches:
+      - 'architecture/p9d-*'
+    paths:
+      - 'shared/finance/reconciliationConfirmation.ts'
+      - 'shared/finance/ledger/transaction.ts'
+      - 'server/vercel-handlers/finance/reconciliationConfirm.ts'
+      - 'server/vercel-handlers/finance/reconciliationConfirmationIds.ts'
+      - 'server/vercel-handlers/finance/transactionsDetail.ts'
+      - 'server/vercel-handlers/finance/accessHelpers.ts'
+      - 'src/pages/finance/balance/ReconciliationMatchPreviewPanel.tsx'
+      - 'src/pages/finance/transactions/TransactionDetailPage.tsx'
+      - 'src/pages/finance/transactions/TransactionReconciliationTraceCard.tsx'
+      - 'src/services/reconciliationService.ts'
+      - 'api/finance-gateway.ts'
+      - 'scripts/check-api-contracts.mjs'
+      - 'scripts/test-reconciliation-confirm-emulator.ts'
+      - 'scripts/test-reconciliation-confirm-firestore-rules.ts'
+      - 'scripts/test-reconciliation-confirmation-ui.ts'
+      - 'firestore.rules'
+      - '.github/workflows/nestfinance-reconciliation-confirmation-quality.yml'
+
+jobs:
+  reconciliation-confirmation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-reconciliation-confirm-emulator
+      GCLOUD_PROJECT: nestfinance-reconciliation-confirm-emulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+
+      - name: Confirmation UX and authority contract
+        run: npx tsx scripts/test-reconciliation-confirmation-ui.ts
+
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+
+      - name: Reconciliation confirmation Firestore Emulator
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-reconciliation-confirm-emulator
+          "npx tsx scripts/test-reconciliation-confirm-emulator.ts"
+
+      - name: Reconciliation record browser Rules
+        run: >
+          npx firebase-tools emulators:exec --only firestore
+          --project nestfinance-reconciliation-confirm-emulator
+          "npx tsx scripts/test-reconciliation-confirm-firestore-rules.ts"
