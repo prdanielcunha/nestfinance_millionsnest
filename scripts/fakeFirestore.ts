@@ -58,6 +58,15 @@ class FakeDoc {
     };
   }
 
+  create(data: any) {
+    if (this.db.data[this.path] !== undefined) {
+      const error = new Error('ALREADY_EXISTS');
+      (error as any).code = 'already-exists';
+      throw error;
+    }
+    this.db.data[this.path] = data;
+  }
+
   async set(data: any, options?: any) {
     if (options?.merge && this.db.data[this.path]) {
       this.db.data[this.path] = { ...this.db.data[this.path], ...data };
@@ -142,6 +151,17 @@ class FakeTransaction {
 
   async get(queryOrRef: any) {
     return queryOrRef.get();
+  }
+
+  create(ref: any, data: any) {
+    const d = { ...data };
+    for (const key in d) {
+      if (d[key] && typeof d[key] === 'object' && d[key].isEqual) {
+        d[key] = new Date().toISOString();
+      }
+    }
+    ref.create(d);
+    return this;
   }
 
   set(ref: any, data: any, options?: any) {
