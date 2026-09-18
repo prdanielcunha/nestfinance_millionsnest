@@ -284,6 +284,39 @@ async function run() {
     const secondAuditMetadata = auditByAction.get('count.second_count_sealed')?.metadata || {};
     verify(firstAuditMetadata.materialRedacted === true && firstAuditMetadata.totalCents === undefined, 'first-count audit metadata does not expose Count A amounts');
     verify(secondAuditMetadata.materialRedacted === true && secondAuditMetadata.differenceEntryTypes === undefined && secondAuditMetadata.totalCents === undefined, 'second-count audit metadata does not expose comparison material to a later blind recount');
+
+    const factSnapshot = await db.collection('intelligenceFacts').get();
+    const countFacts = factSnapshot.docs
+      .map((doc: any) => doc.data())
+      .filter((fact: any) => fact.organizationId === orgId && fact.entityType === 'count_session' && fact.entityId === sessionId);
+    const factTypes = countFacts.map((fact: any) => fact.eventType);
+    verify(countFacts.length === 6, 'Count lifecycle emits one canonical fact per committed business transition despite retries');
+    verify(factTypes.filter((type: string) => type === 'COUNT_OPENED').length === 1, 'Count lifecycle preserves a single COUNT_OPENED fact');
+    verify(factTypes.filter((type: string) => type === 'COUNT_UPDATED').length === 3, 'Count lifecycle records first-save, second-check start and recount start as progress facts');
+    verify(factTypes.filter((type: string) => type === 'COUNT_DIVERGENCE_FOUND').length === 1, 'Count divergence becomes a canonical attention fact');
+    verify(factTypes.filter((type: string) => type === 'COUNT_COMPLETED').length === 1, 'resolved recount becomes a canonical completion fact');
+
+    const divergenceFact = countFacts.find((fact: any) => fact.eventType === 'COUNT_DIVERGENCE_FOUND');
+    verify(
+      divergenceFact?.payload?.matched === false &&
+        divergenceFact?.payload?.divergenceCount === 1 &&
+        Array.isArray(divergenceFact?.payload?.differenceEntryTypes) &&
+        divergenceFact.payload.differenceEntryTypes[0] === 'offering',
+      'divergence fact carries safe operational context without monetary values',
+    );
+    verify(
+      divergenceFact?.payload?.totalCents === undefined &&
+        divergenceFact?.payload?.totalDeltaCents === undefined &&
+        divergenceFact?.payload?.countATotalCents === undefined &&
+        divergenceFact?.payload?.countBTotalCents === undefined,
+      'canonical Count facts do not duplicate sensitive count amounts',
+    );
+    verify(
+      Array.isArray(divergenceFact?.sourceRefs) &&
+        divergenceFact.sourceRefs.some((source: any) => source.kind === 'record' && source.version === 4) &&
+        divergenceFact.sourceRefs.some((source: any) => source.kind === 'audit'),
+      'divergence fact remains traceable to the authoritative Count record and audit event',
+    );
   } finally {
     admin.auth.verifyIdToken = originalVerify;
   }
