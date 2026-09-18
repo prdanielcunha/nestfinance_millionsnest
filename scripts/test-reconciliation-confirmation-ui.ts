@@ -147,11 +147,12 @@ verify(
   'client confirmation uses only the certified finance gateway',
 );
 verify(
-  traceCard.includes("title: 'Conferida com extrato'") &&
+  traceCard.includes("activeTitle: 'Conferida com extrato'") &&
+    traceCard.includes("reversedTitle: 'Conferência desfeita'") &&
     traceCard.includes("sourceValue: 'Extrato bancário'") &&
     traceCard.includes("EN: {") &&
     traceCard.includes("ES: {"),
-  'transaction trace is plain-language and localized while preserving evidence drill-down',
+  'transaction trace is plain-language and localized for active and reversed states while preserving evidence drill-down',
 );
 verify(
   detail.includes('reconciliationId:') &&
