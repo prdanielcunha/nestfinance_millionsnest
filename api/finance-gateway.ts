@@ -66,6 +66,9 @@ import universalEvidenceClassify from '../server/vercel-handlers/finance/univers
 import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
 import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
 import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelligenceSignalsDetail.js';
+import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
+import attentionBackfillApply from '../server/vercel-handlers/finance/attentionBackfillApply.js';
+import attentionBackfillVerify from '../server/vercel-handlers/finance/attentionBackfillVerify.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -144,6 +147,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'universal-evidence-review': return universalEvidenceReview(req, res);
     case 'intelligence-signals-summary': return intelligenceSignalsSummary(req, res);
     case 'intelligence-signals-detail': return intelligenceSignalsDetail(req, res);
+    case 'attention-backfill-preview': return attentionBackfillPreview(req, res);
+    case 'attention-backfill-apply': return attentionBackfillApply(req, res);
+    case 'attention-backfill-verify': return attentionBackfillVerify(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
