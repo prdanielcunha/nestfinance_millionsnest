@@ -96,9 +96,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           confidence: 'verified' as const,
         };
 
-        const factId = await ensureFinanceFact(transaction, db, factInput);
-        const factRef = db.collection('intelligenceFacts').doc(factId);
-        const factAlreadyExisted = (await transaction.get(factRef)).exists;
+        const ensuredFact = await ensureFinanceFact(transaction, db, factInput);
+        const factId = ensuredFact.eventId;
 
         stageFinanceSignalOpen(transaction, db, {
           organizationId,
@@ -110,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           sourceRefs,
         });
 
-        return { applied: true, reusedFact: factAlreadyExisted };
+        return { applied: true, reusedFact: !ensuredFact.created };
       });
 
       if (outcome.applied) {
