@@ -393,6 +393,8 @@ try {
       txAfter.reconciliationEvidenceId === source.evidenceId &&
       typeof txAfter.reconciliationLineFingerprint === 'string' &&
       txAfter.reconciliationLineFingerprint.startsWith('line_') &&
+      typeof txAfter.reconciliationLineLockId === 'string' &&
+      txAfter.reconciliationLineLockId.startsWith('rlock_') &&
       txAfter.reconciledByUid === uid &&
       txAfter.reconciledAt,
     'transaction stores accountant-grade reconciliation trace metadata',
@@ -411,6 +413,7 @@ try {
       rec.financeEntityId === entityA &&
       rec.accountId === accountA &&
       rec.transactionId === selectedTxId &&
+      rec.lineLockId === txAfter.reconciliationLineLockId &&
       rec.evidenceId === source.evidenceId &&
       rec.evidenceVersion === 4 &&
       rec.statementLineNumber === 1 &&
@@ -420,8 +423,25 @@ try {
       rec.status === 'confirmed' &&
       rec.confirmedByUid === uid &&
       rec.balanceChanged === false &&
-      rec.journalChanged === false,
-    'immutable reconciliation record preserves source line, evidence, actor and non-balance semantics',
+      rec.journalChanged === false &&
+      rec.schemaVersion === 2,
+    'immutable reconciliation attempt preserves line lock, source, actor and non-balance semantics',
+  );
+
+  const lineLockSnapshot = await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeReconciliationLineLocks')
+    .doc(txAfter.reconciliationLineLockId)
+    .get();
+  const lineLock = lineLockSnapshot.data()!;
+  verify(
+    lineLockSnapshot.exists &&
+      lineLock.status === 'active' &&
+      lineLock.activeReconciliationId === confirmed.body.reconciliationId &&
+      lineLock.activeTransactionId === selectedTxId &&
+      lineLock.statementLineFingerprint === txAfter.reconciliationLineFingerprint,
+    'statement line has one separate active lock pointing to the immutable confirmation attempt',
   );
   verify(
     rec.matchEvidence?.amount === 'exact' &&
@@ -455,8 +475,8 @@ try {
       facts.docs[0].data().actorUserId === uid &&
       facts.docs[0].data().payload?.transactionId === selectedTxId &&
       facts.docs[0].data().payload?.balanceChanged === false &&
-      facts.docs[0].data().sourceRefs?.length === 4,
-    'canonical RECONCILIATION_MATCHED fact is source-backed by reconciliation, transaction, evidence and audit',
+      facts.docs[0].data().sourceRefs?.length === 5,
+    'canonical RECONCILIATION_MATCHED fact is source-backed by confirmation, active lock, transaction, evidence and audit',
   );
 
   const events = await db
