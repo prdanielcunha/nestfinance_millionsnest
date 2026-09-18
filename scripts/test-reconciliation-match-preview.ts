@@ -206,7 +206,7 @@ for (const forbidden of [
   verify(!engineSource.includes(forbidden), 'matching engine has no dependency on ' + forbidden);
 }
 verify(
-  !engineSource.includes('reconciliationStatus =') &&
+  !/reconciliationStatus\s*=(?!=)/u.test(engineSource) &&
     !engineSource.includes('financeJournalEntries') &&
     !engineSource.includes('financeBalances'),
   'matching engine has no reconciliation or accounting mutation path',
