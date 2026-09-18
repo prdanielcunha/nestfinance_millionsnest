@@ -16,6 +16,7 @@ on:
   push:
     branches:
       - 'architecture/p6-*'
+      - 'architecture/p8-*'
     paths:
       - 'shared/intelligence/needsAttention.ts'
       - 'server/vercel-handlers/finance/intelligenceSignals*.ts'
