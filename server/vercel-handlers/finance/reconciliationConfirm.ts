@@ -9,6 +9,7 @@ import { normalizeAccountType } from '../../../shared/finance/smartLogic.js';
 import { prepareStatementLines } from '../../../shared/finance/reconciliationStatementLines.js';
 import {
   buildReconciliationMatchPreview,
+  RECONCILIATION_MATCH_MAX_TRANSACTIONS,
   type ReconciliationMatchTransactionStatus,
   type ReconciliationMatchableTransaction,
 } from '../../../shared/finance/reconciliationMatchPreview.js';
@@ -270,6 +271,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       line.selectedDirection === 'unknown'
     ) {
       return res.status(409).json({ error: 'RECONCILIATION_LINE_NOT_CONFIRMABLE' });
+    }
+
+    const allTransactionsSnapshot = await context.repository
+      .getTransactionsQuery()
+      .limit(RECONCILIATION_MATCH_MAX_TRANSACTIONS + 1)
+      .get();
+
+    if (allTransactionsSnapshot.size > RECONCILIATION_MATCH_MAX_TRANSACTIONS) {
+      return res.status(409).json({
+        error: 'RECONCILIATION_MATCH_SCOPE_TOO_LARGE',
+        limit: RECONCILIATION_MATCH_MAX_TRANSACTIONS,
+      });
+    }
+
+    const accountName =
+      typeof account.name === 'string' && account.name.trim() ? account.name.trim() : null;
+    const allTransactions: ReconciliationMatchableTransaction[] = [];
+    for (const doc of allTransactionsSnapshot.docs) {
+      const data = doc.data() || {};
+      context.repository.assertEntityIsolation(data);
+      const normalized = matchableTransaction(doc.id, data, accountName);
+      if (normalized) allTransactions.push(normalized);
+    }
+
+    const canonicalPreview = buildReconciliationMatchPreview(
+      [line],
+      allTransactions,
+      accountId,
+    );
+    const canonicalLine = canonicalPreview.lines[0];
+    if (!canonicalLine || canonicalLine.candidateLimitReached) {
+      return res.status(409).json({
+        error: canonicalLine?.candidateLimitReached
+          ? 'RECONCILIATION_TOO_MANY_CANDIDATES'
+          : 'RECONCILIATION_MATCH_NO_LONGER_VALID',
+      });
+    }
+
+    const canonicalCandidate = canonicalLine.candidates.find(
+      (candidate) => candidate.transactionId === transactionId,
+    );
+    if (!canonicalCandidate || canonicalCandidate.reconciliationEligible !== true) {
+      return res.status(409).json({ error: 'RECONCILIATION_MATCH_NO_LONGER_VALID' });
     }
 
     const statementLineFingerprint = buildStatementLineFingerprint({
