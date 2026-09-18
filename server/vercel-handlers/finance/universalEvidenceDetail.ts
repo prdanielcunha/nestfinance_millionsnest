@@ -76,7 +76,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       data.classification && typeof data.classification === 'object' ? data.classification : null;
     const reviewData = data.review && typeof data.review === 'object' ? data.review : null;
     const classification =
-      classificationData && isUniversalEvidenceDocumentType(classificationData.documentType)
+      classificationData &&
+      classificationData.source === 'human' &&
+      isUniversalEvidenceDocumentType(classificationData.documentType)
         ? {
             documentType: classificationData.documentType,
             source: 'human' as const,
