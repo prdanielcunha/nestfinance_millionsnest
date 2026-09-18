@@ -1,22 +1,6 @@
 name: Firebase Hosting Deploy
 
 on:
-  push:
-    branches: [ production ]
-    paths:
-      - ".github/workflows/firebase-hosting-deploy.yml"
-      - "src/**"
-      - "components/**"
-      - "services/**"
-      - "lib/**"
-      - "App.tsx"
-      - "main.tsx"
-      - "index.html"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.*"
-      - "firebase.json"
-      - ".firebaserc"
   workflow_dispatch:
 
 permissions:
