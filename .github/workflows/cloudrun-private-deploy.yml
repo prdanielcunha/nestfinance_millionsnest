@@ -1,10 +1,6 @@
 name: Cloud Run Private Deploy
 
 on:
-  push:
-    branches: [ production ]
-    paths:
-      - ".github/workflows/cloudrun-private-deploy.yml"
   workflow_dispatch:
 
 permissions:
