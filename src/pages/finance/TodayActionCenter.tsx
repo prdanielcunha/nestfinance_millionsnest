@@ -15,6 +15,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { LedgerTransaction } from '../../../shared/finance/ledger/transaction';
+import type {
+  NeedsAttentionSignalDetail,
+  NeedsAttentionSignalSummary,
+} from '../../../shared/intelligence/needsAttention.js';
 import { Button, Surface } from '@/src/components/foundation';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -29,6 +33,7 @@ import {
   universalEvidenceInboxService,
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
+import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
@@ -93,6 +98,12 @@ type TodayCopy = {
   incomeLabel: string;
   expenseLabel: string;
   transferLabel: string;
+  why: string;
+  hideWhy: string;
+  verifiedReason: string;
+  verifiedReasonText: string;
+  sourceUnavailable: string;
+  sourceRecorded: (date: string) => string;
 };
 
 const COPY: Record<Language, TodayCopy> = {
@@ -156,6 +167,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Entrada',
     expenseLabel: 'Saída',
     transferLabel: 'Transferência',
+    why: 'Por que isso aparece?',
+    hideWhy: 'Ocultar explicação',
+    verifiedReason: 'Fonte verificada',
+    verifiedReasonText: 'Esta prioridade está ligada a um fato canônico do NestFinance, com referências ao registro original e à auditoria. O estado atual continua sendo confirmado pelas fontes financeiras.',
+    sourceUnavailable: 'A explicação verificável não está disponível agora. A prioridade continua baseada no estado financeiro atual.',
+    sourceRecorded: (date) => `Registrado ${date}`,
   },
   EN: {
     eyebrow: 'Today',
@@ -217,6 +234,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Income',
     expenseLabel: 'Expense',
     transferLabel: 'Transfer',
+    why: 'Why is this showing?',
+    hideWhy: 'Hide explanation',
+    verifiedReason: 'Verified source',
+    verifiedReasonText: 'This priority is linked to a canonical NestFinance fact with references to the original record and audit trail. Current state is still confirmed by the financial sources.',
+    sourceUnavailable: 'The verifiable explanation is not available right now. The priority still comes from current financial state.',
+    sourceRecorded: (date) => `Recorded ${date}`,
   },
   ES: {
     eyebrow: 'Hoy',
@@ -278,6 +301,12 @@ const COPY: Record<Language, TodayCopy> = {
     incomeLabel: 'Ingreso',
     expenseLabel: 'Egreso',
     transferLabel: 'Transferencia',
+    why: '¿Por qué aparece esto?',
+    hideWhy: 'Ocultar explicación',
+    verifiedReason: 'Fuente verificada',
+    verifiedReasonText: 'Esta prioridad está vinculada a un hecho canónico de NestFinance, con referencias al registro original y a la auditoría. El estado actual sigue confirmado por las fuentes financieras.',
+    sourceUnavailable: 'La explicación verificable no está disponible ahora. La prioridad sigue basada en el estado financiero actual.',
+    sourceRecorded: (date) => `Registrado ${date}`,
   },
 };
 
