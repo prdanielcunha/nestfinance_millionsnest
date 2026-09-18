@@ -59,7 +59,13 @@ verify(
 );
 verify(
   !model.includes('actionableOpenTotal') && !model.includes('byType['),
-  'priority ordering never derives work counts from the partial signal projection',
+  'priority ordering never derives work counts from the signal projection',
+);
+verify(
+  !today.includes('canTrustSignalAbsence') &&
+    !today.includes('canDeclareAllClear') &&
+    !model.includes('canTrustSignalAbsence'),
+  'Today does not yet replace authoritative readers based on coverage certification',
 );
 
 console.log(`\nToday hybrid signal integration totals: ${passed} Passed`);
