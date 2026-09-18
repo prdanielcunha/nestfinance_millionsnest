@@ -4,166 +4,91 @@
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "accountId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "occurredAt",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "accountId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.direction",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.direction", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.direction",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.direction", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.status",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.status",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.status",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.status", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.directionStatus",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.directionStatus", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.directionStatus",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.directionStatus", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.all",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.all", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "financeTransactions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "listQueryKeys.all",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "listQueryKeys.all", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "intelligenceSignals",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "financeEntityId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "organizationId", "order": "ASCENDING" },
+        { "fieldPath": "financeEntityId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     }
   ],
