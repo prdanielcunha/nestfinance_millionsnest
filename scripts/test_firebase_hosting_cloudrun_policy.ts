@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { NESTFINANCE_CLOUD_RUN_ROUTES } from '../cloudrunRoutes.js';
+import { NESTFINANCE_CLOUD_RUN_ROUTES, NESTFINANCE_DIRECT_GATEWAY_ROUTES } from '../cloudrunRoutes.js';
 
 const firebase = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
 assert.equal(firebase?.firestore?.rules, 'firestore.rules', 'Firestore Rules contract must remain untouched');
@@ -34,6 +34,20 @@ for (const rewrite of vercel.rewrites ?? []) {
 }
 assert.deepEqual(NESTFINANCE_CLOUD_RUN_ROUTES, expectedRoutes, 'Cloud Run must expose exactly the current public Vercel API contract');
 assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 27, 'Unexpected public API surface change');
+assert.deepEqual(
+  NESTFINANCE_DIRECT_GATEWAY_ROUTES,
+  {
+    '/api/auth-gateway': 'auth',
+    '/api/finance-gateway': 'finance',
+    '/api/system-gateway': 'system',
+  },
+  'Cloud Run must preserve the direct gateway URLs already used by the SPA and Vercel runtime',
+);
+
+const cloudRunSource = fs.readFileSync('cloudrun.ts', 'utf8');
+for (const gatewayPath of Object.keys(NESTFINANCE_DIRECT_GATEWAY_ROUTES)) {
+  assert.ok(cloudRunSource.includes(gatewayPath), `Cloud Run adapter missing direct gateway route: ${gatewayPath}`);
+}
 
 const dockerfile = fs.readFileSync('Dockerfile', 'utf8');
 assert.match(dockerfile, /node:22-bookworm-slim/);
