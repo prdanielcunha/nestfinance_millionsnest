@@ -714,11 +714,44 @@ export function TodayActionCenter() {
                 void loadSummary();
                 void loadCounts();
                 void loadInbox();
+                void loadSignals();
               }}
             >
               {copy.retry}
             </Button>
           </div>
+
+          {explanationOpen && priority.signalId ? (
+            <div className="mt-5 border-t border-border-subtle pt-4" aria-live="polite">
+              {explanationLoading ? (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <RefreshCw className="h-4 w-4 animate-spin text-accent-primary" aria-hidden="true" />
+                  {copy.loading}
+                </div>
+              ) : explanationFailed ? (
+                <p className="text-xs leading-relaxed text-text-muted">{copy.sourceUnavailable}</p>
+              ) : explanation?.signal.signalId === priority.signalId ? (
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-semantic-success/10 text-semantic-success">
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-text-primary">{copy.verifiedReason}</p>
+                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-text-secondary">
+                      {copy.verifiedReasonText}
+                    </p>
+                    {explanation.explanation.recordedAt ? (
+                      <p className="mt-2 text-[11px] font-medium text-text-muted">
+                        {copy.sourceRecorded(
+                          formatRelativeDate(explanation.explanation.recordedAt, language, copy),
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </Surface>
       ) : prioritiesLoading ? (
         <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
@@ -740,6 +773,16 @@ export function TodayActionCenter() {
                 </p>
                 <h2 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:text-xl">{priorityPresentation.title}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">{priorityPresentation.text}</p>
+                {priority.sourceBacked && priority.signalId ? (
+                  <button
+                    type="button"
+                    className="nf-interactive mt-2 rounded-lg px-1 py-1 text-xs font-medium text-accent-primary hover:text-accent-primary/80"
+                    onClick={() => void toggleExplanation()}
+                    aria-expanded={explanationOpen}
+                  >
+                    {explanationOpen ? copy.hideWhy : copy.why}
+                  </button>
+                ) : null}
               </div>
             </div>
             <Button
@@ -762,7 +805,10 @@ export function TodayActionCenter() {
             <button
               type="button"
               className="nf-interactive nf-touch-target rounded-xl px-3 text-xs font-medium text-text-muted hover:bg-surface-secondary hover:text-text-primary"
-              onClick={() => void loadSummary()}
+              onClick={() => {
+                void loadSummary();
+                void loadSignals();
+              }}
               aria-label={copy.retry}
             >
               <RefreshCw className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
