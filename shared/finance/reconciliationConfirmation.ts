@@ -1,9 +1,10 @@
 import type { ReconciliationMatchEvidence } from './reconciliationMatchPreview.js';
 
-export const RECONCILIATION_CONFIRMATION_SCHEMA_VERSION = 1 as const;
+export const RECONCILIATION_CONFIRMATION_SCHEMA_VERSION = 2 as const;
 
 export type ReconciliationConfirmationRecord = {
   reconciliationId: string;
+  lineLockId: string;
   organizationId: string;
   financeEntityId: string;
   accountId: string;
