@@ -89,7 +89,8 @@ for (const forbidden of ['financeTransactions', 'financeJournalEntries', 'financ
 }
 
 verify(home.includes('Contar no celular') && home.includes('Use paper') && home.includes('Usar papel'), 'simple entry mode is localized and explicit');
-verify(home.includes('Já tenho uma folha preenchida'), 'Count home offers direct completed-sheet capture');
+verify(home.includes('Tenho uma Folha Count oficial preenchida'), 'Count home keeps direct official completed-sheet capture');
+verify(home.includes('Fotografar meu papel') && home.includes("creationMode === 'free_form'"), 'Count home distinguishes free-form paper from the official Count Sheet');
 verify(home.includes("creationMode === 'paper'"), 'paper-first creation is a first-class path');
 verify(paper.includes('Fotografar folha preenchida'), 'print screen connects directly back to photo capture');
 verify(extraction.includes('void run()'), 'safe assisted top-level reading can start automatically');
