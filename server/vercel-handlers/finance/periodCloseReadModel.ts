@@ -7,6 +7,7 @@ import {
   PERIOD_CLOSE_MAX_EVIDENCE,
   PERIOD_CLOSE_MAX_TRANSACTIONS,
   type PeriodCloseReadinessResponse,
+  type PeriodCloseReviewChangedArea,
 } from '../../../shared/finance/periodCloseReadiness.js';
 import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { normalizeAccountType } from '../../../shared/finance/smartLogic.js';
@@ -75,6 +76,40 @@ async function queryGet(query: any, tx?: firestore.Transaction) {
 
 async function docGet(ref: any, tx?: firestore.Transaction) {
   return tx ? tx.get(ref) : ref.get();
+}
+
+function sameJson(a: unknown, b: unknown) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function detectChangedAreas(previousSnapshot: any, current: PeriodCloseReadinessResponse): PeriodCloseReviewChangedArea[] {
+  if (!previousSnapshot || typeof previousSnapshot !== 'object') return ['unknown'];
+
+  const areas: PeriodCloseReviewChangedArea[] = [];
+
+  const previousTransactions =
+    previousSnapshot.transactions && typeof previousSnapshot.transactions === 'object'
+      ? previousSnapshot.transactions
+      : {
+          total: previousSnapshot.transactionTotal,
+          statusCounts: previousSnapshot.transactionStatusCounts,
+        };
+
+  const currentTransactions = {
+    total: current.transactions.total,
+    capturedIncomeCents: current.transactions.capturedIncomeCents,
+    capturedExpenseCents: current.transactions.capturedExpenseCents,
+    postedIncomeCents: current.transactions.postedIncomeCents,
+    postedExpenseCents: current.transactions.postedExpenseCents,
+    statusCounts: current.transactions.statusCounts,
+  };
+
+  if (!sameJson(previousTransactions, currentTransactions)) areas.push('transactions');
+  if (!sameJson(previousSnapshot.countSessions, current.countSessions)) areas.push('counts');
+  if (!sameJson(previousSnapshot.documents, current.documents)) areas.push('documents');
+  if (!sameJson(previousSnapshot.reconciliation, current.reconciliation)) areas.push('reconciliation');
+
+  return areas.length ? areas : ['unknown'];
 }
 
 export async function loadPeriodCloseReadModel(args: {
@@ -272,7 +307,39 @@ export async function loadPeriodCloseReadModel(args: {
           ? reviewData.reviewedByDisplayName.slice(0, 120)
           : null,
       sourceSnapshotMatches: true,
+      changedAreas: [],
     };
+  } else {
+    const latestReviewQuery = context.repository
+      .getPeriodCloseReviewsQuery()
+      .where('periodKey', '==', period.key)
+      .orderBy('reviewedAt', 'desc')
+      .limit(1);
+    const latestReviewSnapshot = await queryGet(latestReviewQuery, transaction);
+    const latestReviewDoc = latestReviewSnapshot.docs?.[0];
+
+    if (latestReviewDoc) {
+      const latestReview = latestReviewDoc.data() || {};
+      context.repository.assertEntityIsolation(latestReview);
+      if (
+        latestReview.organizationId !== organizationId ||
+        latestReview.periodKey !== period.key
+      ) {
+        throw new Error('PERIOD_CLOSE_REVIEW_INTEGRITY_MISMATCH');
+      }
+
+      response.humanReview = {
+        state: 'review_outdated',
+        reviewId: latestReviewDoc.id,
+        reviewedAt: toIso(latestReview.reviewedAt),
+        reviewedByDisplayName:
+          typeof latestReview.reviewedByDisplayName === 'string'
+            ? latestReview.reviewedByDisplayName.slice(0, 120)
+            : null,
+        sourceSnapshotMatches: false,
+        changedAreas: detectChangedAreas(latestReview.snapshot, response),
+      };
+    }
   }
 
   return { response, sourceFingerprint, expectedReviewId };
