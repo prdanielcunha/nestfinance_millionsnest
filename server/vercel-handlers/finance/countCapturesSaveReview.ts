@@ -11,7 +11,7 @@ import {
   type CountCaptureReviewedField,
 } from '../../../shared/finance/countCapture.js';
 import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
-import { resolveCountCaptureContext } from './countCaptureContext.js';
+import { assertCountCaptureStageOpen, resolveCountCaptureContext } from './countCaptureContext.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!['captured', 'reviewed'].includes(capture.status) || capture.version !== expectedVersion) return res.status(409).json({ error: 'COUNT_CAPTURE_VERSION_CONFLICT' });
 
     const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture });
+    if (resolved.provenance === 'free_form_note') assertCountCaptureStageOpen(resolved.identity.stage, resolved.session.status);
     if (isCountCaptureMaterialHidden(resolved.identity.stage, resolved.session.status)) {
       return res.status(409).json({ error: 'COUNT_CAPTURE_MATERIAL_HIDDEN' });
     }
