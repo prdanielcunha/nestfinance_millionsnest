@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? data.transactionAnalysis
         : null;
     const transactionAnalysis =
-      transactionAnalysisData?.analysis?.schemaVersion === 1 &&
+      transactionAnalysisData?.analysis?.schemaVersion === 2 &&
       transactionAnalysisData?.analysis?.source === 'ai_assisted'
         ? {
             analysis: transactionAnalysisData.analysis,
