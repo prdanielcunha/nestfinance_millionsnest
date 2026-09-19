@@ -12,7 +12,12 @@ export type EcosystemAccessState = {
   organizationId?: string;
   isGlobalAccess?: boolean;
   accessSource?: 'global_system_role' | 'global_role' | 'organization_membership';
+  systemRole?: string;
+  organizationRole?: string;
+  roles?: string[];
+  permissions?: string[];
   capabilities?: string[];
+  scopes?: Record<string, string[]>;
   organization?: {
     id: string;
     name: string;
