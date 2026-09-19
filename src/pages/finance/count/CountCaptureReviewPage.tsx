@@ -17,9 +17,54 @@ import { COUNT_CAPTURE_COPY } from './countCaptureCopy';
 import { CountCaptureExtractionPanel } from './CountCaptureExtractionPanel';
 
 const HUMAN_COPY = {
-  PT: { verified: 'Conferi este campo na imagem', suggested: 'Sugestão da leitura assistida', uncertain: 'A leitura ficou incerta. Confira manualmente.', unresolved: 'Sem sugestão segura. Confira manualmente.', verificationRequired: 'Confira todos os campos sugeridos ou faça uma correção antes de salvar.' },
-  EN: { verified: 'I checked this field against the image', suggested: 'Assisted-reading suggestion', uncertain: 'The reading is uncertain. Check it manually.', unresolved: 'No safe suggestion. Check it manually.', verificationRequired: 'Check every suggested field or correct it before saving.' },
-  ES: { verified: 'Revisé este campo en la imagen', suggested: 'Sugerencia de lectura asistida', uncertain: 'La lectura es incierta. Revísala manualmente.', unresolved: 'Sin sugerencia segura. Revísalo manualmente.', verificationRequired: 'Revisa cada campo sugerido o corrígelo antes de guardar.' },
+  PT: {
+    verified: 'Conferi este campo na imagem',
+    suggested: 'Sugestão da leitura assistida',
+    uncertain: 'A leitura ficou incerta. Confira manualmente.',
+    unresolved: 'Sem sugestão segura. Confira manualmente.',
+    verificationRequired: 'Confira os quatro valores sugeridos ou faça uma correção antes de salvar.',
+    useValuesTitle: 'Levar estes valores para a contagem',
+    useValuesBody: 'O NestFinance vai preencher a contagem deste culto com os valores que você acabou de conferir. Isso não cria lançamento, não posta movimentação e não altera saldo.',
+    useValues: 'Usar estes valores na contagem',
+    usingValues: 'Preenchendo a contagem…',
+    applied: 'Estes valores já foram usados nesta contagem.',
+    openCount: 'Abrir contagem',
+    applyConflict: 'Esta contagem já tem valores ou mudou depois da emissão da folha. Abra a contagem para conferir antes de continuar.',
+    applyMismatch: 'O total escrito e o detalhamento de cédulas/moedas não conferem. Corrija a conferência antes de usar estes valores.',
+    applyError: 'Não foi possível levar estes valores para a contagem. Nada financeiro foi lançado.',
+  },
+  EN: {
+    verified: 'I checked this field against the image',
+    suggested: 'Assisted-reading suggestion',
+    uncertain: 'The reading is uncertain. Check it manually.',
+    unresolved: 'No safe suggestion. Check it manually.',
+    verificationRequired: 'Check all four suggested values or correct them before saving.',
+    useValuesTitle: 'Use these values in the count',
+    useValuesBody: 'NestFinance will fill this service count with the values you just reviewed. This does not create a posting, post a transaction, or change a balance.',
+    useValues: 'Use these values in the count',
+    usingValues: 'Filling the count…',
+    applied: 'These values have already been used in this count.',
+    openCount: 'Open count',
+    applyConflict: 'This count already has values or changed after the sheet was issued. Open the count and review it before continuing.',
+    applyMismatch: 'The written total and banknote/coin detail do not match. Fix the review before using these values.',
+    applyError: 'These values could not be moved into the count. Nothing financial was posted.',
+  },
+  ES: {
+    verified: 'Revisé este campo en la imagen',
+    suggested: 'Sugerencia de lectura asistida',
+    uncertain: 'La lectura es incierta. Revísala manualmente.',
+    unresolved: 'Sin sugerencia segura. Revísalo manualmente.',
+    verificationRequired: 'Revisa los cuatro valores sugeridos o corrígelos antes de guardar.',
+    useValuesTitle: 'Usar estos valores en el conteo',
+    useValuesBody: 'NestFinance completará el conteo de este culto con los valores que acabas de revisar. Esto no crea un asiento, no registra un movimiento ni cambia el saldo.',
+    useValues: 'Usar estos valores en el conteo',
+    usingValues: 'Completando el conteo…',
+    applied: 'Estos valores ya fueron usados en este conteo.',
+    openCount: 'Abrir conteo',
+    applyConflict: 'Este conteo ya tiene valores o cambió después de emitir la hoja. Abre el conteo para revisarlo antes de continuar.',
+    applyMismatch: 'El total escrito y el detalle de billetes/monedas no coinciden. Corrige la revisión antes de usar estos valores.',
+    applyError: 'No fue posible llevar estos valores al conteo. No se registró nada financiero.',
+  },
 } as const;
 
 function token(prefix: string) {
@@ -72,8 +117,11 @@ function CountCaptureReviewContent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<'conflict' | 'mismatch' | 'error' | null>(null);
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const applyAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const hydrateRows = (next: CountCaptureDetail) => {
     const reviewFields = next.review?.fields || [];
@@ -101,7 +149,7 @@ function CountCaptureReviewContent() {
   };
 
   useEffect(() => {
-    setCapture(null); setRows(blankRows()); saveAttemptRef.current = null; void load();
+    setCapture(null); setRows(blankRows()); saveAttemptRef.current = null; applyAttemptRef.current = null; setApplyMessage(null); void load();
     return () => { epochRef.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId, captureId]);
@@ -142,6 +190,38 @@ function CountCaptureReviewContent() {
     finally { setSaving(false); }
   };
 
+  const applyToCount = async () => {
+    if (!capture || capture.status !== 'reviewed' || !canEdit || applying || !activeFinanceEntityId) return;
+    const fingerprint = capture.id + '|' + capture.version + '|apply';
+    if (!applyAttemptRef.current || applyAttemptRef.current.fingerprint !== fingerprint) {
+      applyAttemptRef.current = { fingerprint, key: token('idcountcapture_apply') };
+    }
+    setApplying(true);
+    setApplyMessage(null);
+    try {
+      const result = await countCaptureService.applyToCount(organizationId, activeFinanceEntityId, {
+        captureId: capture.id,
+        expectedCaptureVersion: capture.version,
+        idempotencyKey: applyAttemptRef.current.key,
+        requestId: token('req'),
+      });
+      applyAttemptRef.current = null;
+      navigate(APP_ROUTES.countSession.replace(':sessionId', result.countSessionId));
+    } catch (error: any) {
+      const code = String(error?.code || error?.message || '');
+      if (code === 'COUNT_CAPTURE_DENOMINATION_TOTAL_MISMATCH') setApplyMessage('mismatch');
+      else if (
+        code === 'COUNT_CAPTURE_APPLY_FIRST_COUNT_ALREADY_EXISTS' ||
+        code === 'COUNT_CAPTURE_APPLY_SECOND_COUNT_ALREADY_EXISTS' ||
+        code === 'COUNT_INVALID_STATE' ||
+        code === 'COUNT_CAPTURE_VERSION_CONFLICT'
+      ) setApplyMessage('conflict');
+      else setApplyMessage('error');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const inspectRegion = inspectKey ? regionFor(inspectKey) : null;
   const normalizedWidth = capture?.normalization?.normalizedWidth || 1940;
   const normalizedHeight = capture?.normalization?.normalizedHeight || 2810;
@@ -159,7 +239,45 @@ function CountCaptureReviewContent() {
           const statusText = candidate?.state === 'recognized' ? humanCopy.suggested : candidate?.state === 'uncertain' ? humanCopy.uncertain : humanCopy.unresolved;
           return <fieldset key={key} className="rounded-xl border border-border-subtle p-4"><legend className="px-1 text-sm font-semibold text-text-primary">{copy.fields[key]}</legend>{hasRegion ? <Button variant="ghost" className="mb-2" onClick={() => setInspectKey(key)}><Focus className="h-4 w-4" aria-hidden="true" />{copy.inspectField}</Button> : null}{capture.extraction ? <p className="mb-2 text-xs leading-relaxed text-text-muted">{statusText}</p> : null}<label className="mt-2 block"><span className="text-xs font-medium text-text-muted">{copy.amount}</span><input inputMode="decimal" value={row.amount} disabled={row.unreadable || !canEdit} onChange={(event) => { setRows((current) => ({ ...current, [key]: { ...current[key], amount: event.target.value, verified: false } })); saveAttemptRef.current = null; setSaved(false); }} className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base tabular-nums text-text-primary outline-none focus:border-accent-primary disabled:opacity-50" /></label><label className="mt-3 flex min-h-12 items-center gap-3 text-sm text-text-secondary"><input type="checkbox" checked={row.unreadable} disabled={!canEdit} onChange={(event) => { setRows((current) => ({ ...current, [key]: { ...current[key], unreadable: event.target.checked, amount: event.target.checked ? '' : current[key].amount, verified: false } })); saveAttemptRef.current = null; setSaved(false); }} className="h-5 w-5" />{copy.unreadable}</label><label className="mt-2 flex min-h-12 items-center gap-3 text-sm font-medium text-text-primary"><input type="checkbox" checked={row.verified} disabled={!canEdit || (!row.unreadable && inputToCents(row.amount) === null)} onChange={(event) => { setRows((current) => ({ ...current, [key]: { ...current[key], verified: event.target.checked } })); saveAttemptRef.current = null; setSaved(false); }} className="h-5 w-5" />{humanCopy.verified}</label>{!capture.extraction ? <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.unresolvedHint}</p> : null}</fieldset>;
         })}</div>
-        {!preparedFields ? <p className="mt-4 text-sm text-semantic-warning">{capture.extraction ? humanCopy.verificationRequired : copy.allFieldsRequired}</p> : null}{saved ? <p className="mt-4 flex items-center gap-2 text-sm font-medium text-semantic-success"><CheckCircle2 className="h-4 w-4" />{copy.saved}</p> : null}<Button className="mt-5" size="lg" fullWidth disabled={!preparedFields || !canEdit || saving} onClick={() => void save()}>{saving ? copy.saving : copy.saveReview}</Button>
+        {!preparedFields ? <p className="mt-4 text-sm text-semantic-warning">{capture.extraction ? humanCopy.verificationRequired : copy.allFieldsRequired}</p> : null}
+        {saved ? <p className="mt-4 flex items-center gap-2 text-sm font-medium text-semantic-success"><CheckCircle2 className="h-4 w-4" />{copy.saved}</p> : null}
+        <Button className="mt-5" size="lg" fullWidth disabled={!preparedFields || !canEdit || saving} onClick={() => void save()}>{saving ? copy.saving : copy.saveReview}</Button>
+
+        {capture.status === 'reviewed' ? (
+          <Surface variant="secondary" radius="lg" className="mt-5 border-accent-primary/20 bg-accent-primary/5 p-4">
+            <h2 className="text-sm font-semibold text-text-primary">{humanCopy.useValuesTitle}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">{humanCopy.useValuesBody}</p>
+            {applyMessage ? (
+              <p className="mt-3 text-xs font-medium text-semantic-warning" role="alert">
+                {applyMessage === 'mismatch'
+                  ? humanCopy.applyMismatch
+                  : applyMessage === 'conflict'
+                    ? humanCopy.applyConflict
+                    : humanCopy.applyError}
+              </p>
+            ) : null}
+            {capture.appliedToCount ? (
+              <>
+                <p className="mt-3 flex items-center gap-2 text-sm font-medium text-semantic-success">
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  {humanCopy.applied}
+                </p>
+                <Button
+                  className="mt-3"
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', capture.appliedToCount!.countSessionId))}
+                >
+                  {humanCopy.openCount}
+                </Button>
+              </>
+            ) : (
+              <Button className="mt-4" size="lg" fullWidth disabled={!canEdit || applying} onClick={() => void applyToCount()}>
+                {applying ? humanCopy.usingValues : humanCopy.useValues}
+              </Button>
+            )}
+          </Surface>
+        ) : null}
       </Surface>
     </div>}
   </div></div></div>;
