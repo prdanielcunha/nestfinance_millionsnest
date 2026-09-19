@@ -301,8 +301,24 @@ export function buildDocumentTransactionAnalysis(input: {
   const occurredAt = dateCandidate(field(input.provider, 'occurred_at'));
   const paymentMethod = enumCandidate(field(input.provider, 'payment_method'), DOCUMENT_TRANSACTION_PAYMENT_METHODS);
   const description = stringCandidate(field(input.provider, 'description'), 180);
-  const categoryId = categoryCandidate(field(input.provider, 'category_id'), input.categories);
+  let categoryId = categoryCandidate(field(input.provider, 'category_id'), input.categories);
   const documentMultiplicity = enumCandidate(field(input.provider, 'document_multiplicity'), DOCUMENT_TRANSACTION_MULTIPLICITY);
+
+  const selectedCategory = categoryId.value
+    ? input.categories.find((candidate) => candidate.id === categoryId.value) || null
+    : null;
+  if (
+    selectedCategory &&
+    transactionKind.value &&
+    transactionKind.value !== 'unknown' &&
+    selectedCategory.kind !== transactionKind.value
+  ) {
+    categoryId = {
+      state: 'uncertain',
+      value: null,
+      observation: categoryId.observation,
+    };
+  }
 
   const normalizedEntityTaxId = normalizeCnpj(input.entityTaxId || '');
   let entityTaxIdCheck: DocumentTransactionEntityTaxIdCheck;
