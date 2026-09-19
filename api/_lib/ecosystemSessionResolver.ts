@@ -194,7 +194,7 @@ export async function resolveEcosystemSession(uid: string, orgId: string): Promi
     };
   }
 
-  // Kept aligned with the Hub contract for the moment the development gate is widened.
+  // Canonical organization membership is the only non-global authorization source.
   // Legacy /users membership and root organization_members are deliberately not authorization sources.
   const memberDoc = await db.collection('organizations').doc(orgId).collection('members').doc(uid).get();
   if (!memberDoc.exists) {
