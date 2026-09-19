@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScanText, ShieldCheck } from 'lucide-react';
 import { Button, Surface } from '@/src/components/foundation';
 import type { Language } from '@/src/contexts/LanguageContext';
@@ -6,7 +6,7 @@ import { countCaptureService, type CountCaptureDetail } from '@/src/services/cou
 import { prepareCountCaptureExtractionRegions } from './countCaptureExtractionImage';
 import { CountCaptureDenominationReviewPanel } from './CountCaptureDenominationReviewPanel';
 
-const COPY: Record<Language, { title: string; body: string; action: string; working: string; unavailable: string; failed: string }> = {
+const COPY: Record<Language, { title: string; body: string; action: string; working: string; unavailable: string; failed: string; details: string; detailsBody: string; hideDetails: string }> = {
   PT: {
     title: 'Leitura assistida',
     body: 'O NestFinance pode sugerir os quatro valores usando somente os trechos necessários da folha. Nada é aprovado ou lançado: você continua responsável por conferir cada campo.',
@@ -14,6 +14,9 @@ const COPY: Record<Language, { title: string; body: string; action: string; work
     working: 'Lendo trechos da folha…',
     unavailable: 'A leitura assistida ainda não está habilitada neste ambiente. Você pode continuar a conferência manual normalmente.',
     failed: 'Não foi possível gerar sugestões agora. A imagem e os valores existentes não foram alterados.',
+    details: 'Conferir cédulas e moedas',
+    detailsBody: 'Opcional: abra o detalhamento se quiser guardar também as quantidades de cada cédula e moeda.',
+    hideDetails: 'Ocultar detalhamento',
   },
   EN: {
     title: 'Assisted reading',
@@ -22,6 +25,9 @@ const COPY: Record<Language, { title: string; body: string; action: string; work
     working: 'Reading sheet regions…',
     unavailable: 'Assisted reading is not enabled in this environment yet. You can continue the manual review normally.',
     failed: 'Suggestions could not be generated now. The image and existing values were not changed.',
+    details: 'Review banknotes and coins',
+    detailsBody: 'Optional: open the detail if you also want to keep every banknote and coin quantity.',
+    hideDetails: 'Hide detail',
   },
   ES: {
     title: 'Lectura asistida',
@@ -30,6 +36,9 @@ const COPY: Record<Language, { title: string; body: string; action: string; work
     working: 'Leyendo regiones de la hoja…',
     unavailable: 'La lectura asistida todavía no está habilitada en este entorno. Puedes continuar la revisión manual normalmente.',
     failed: 'No fue posible generar sugerencias ahora. La imagen y los valores existentes no fueron modificados.',
+    details: 'Revisar billetes y monedas',
+    detailsBody: 'Opcional: abre el detalle si también deseas guardar las cantidades de cada billete y moneda.',
+    hideDetails: 'Ocultar detalle',
   },
 };
 
@@ -56,7 +65,9 @@ export function CountCaptureExtractionPanel({
   const copy = COPY[language];
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<'unavailable' | 'failed' | null>(null);
+  const [showDenominations, setShowDenominations] = useState(Boolean(capture.denominationReview));
   const attemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const autoAttemptRef = useRef<string | null>(null);
 
   const eligible = canEdit && capture.status === 'captured' && !capture.materialHidden && !capture.extraction &&
     capture.normalization?.geometry?.mode !== 'full_frame' && Boolean(capture.normalizedUrl && capture.normalizedSha256);
@@ -89,6 +100,16 @@ export function CountCaptureExtractionPanel({
     }
   };
 
+  useEffect(() => {
+    if (!eligible || !capture.normalizedSha256) return;
+    const identity = capture.id + '|' + capture.version + '|' + capture.normalizedSha256;
+    if (autoAttemptRef.current === identity) return;
+    autoAttemptRef.current = identity;
+    void run();
+    // Automatic reading only prepares suggestions; it never verifies or applies financial values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligible, capture.id, capture.version, capture.normalizedSha256]);
+
   return (
     <>
       {eligible ? (
@@ -106,14 +127,28 @@ export function CountCaptureExtractionPanel({
           </div>
         </Surface>
       ) : null}
-      <CountCaptureDenominationReviewPanel
-        capture={capture}
-        organizationId={organizationId}
-        financeEntityId={financeEntityId}
-        language={language}
-        canEdit={canEdit}
-        onUpdated={onExtracted}
-      />
+      <Surface variant="subtle" radius="lg" className="mt-5 p-4">
+        <p className="text-sm font-semibold text-text-primary">{copy.details}</p>
+        <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.detailsBody}</p>
+        <Button
+          className="mt-3"
+          variant="ghost"
+          fullWidth
+          onClick={() => setShowDenominations((current) => !current)}
+        >
+          {showDenominations ? copy.hideDetails : copy.details}
+        </Button>
+      </Surface>
+      {showDenominations ? (
+        <CountCaptureDenominationReviewPanel
+          capture={capture}
+          organizationId={organizationId}
+          financeEntityId={financeEntityId}
+          language={language}
+          canEdit={canEdit}
+          onUpdated={onExtracted}
+        />
+      ) : null}
     </>
   );
 }
