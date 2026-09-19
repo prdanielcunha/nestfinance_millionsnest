@@ -1,0 +1,55 @@
+name: NestFinance Auth Quality Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "api/_lib/ecosystemSessionResolver.ts"
+      - "server/vercel-handlers/auth/**"
+      - "src/pages/auth/**"
+      - "src/services/directEntryService.ts"
+      - "src/services/sessionResolutionService.ts"
+      - "scripts/test-ecosystem-session-resolver.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/nestfinance-auth-quality.yml"
+  push:
+    branches: [main]
+    paths:
+      - "api/_lib/ecosystemSessionResolver.ts"
+      - "server/vercel-handlers/auth/**"
+      - "src/pages/auth/**"
+      - "src/services/directEntryService.ts"
+      - "src/services/sessionResolutionService.ts"
+      - "scripts/test-ecosystem-session-resolver.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/nestfinance-auth-quality.yml"
+
+jobs:
+  auth-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+
+      - name: Verify canonical session authorization
+        run: npm run test:auth-session
+
+      - name: Verify public auth contracts
+        run: npm run check:api-contracts
+
+      - name: Verify SaaS isolation
+        run: npm run check:saas-isolation
