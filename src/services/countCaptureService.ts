@@ -49,6 +49,13 @@ export type CountCaptureDetail = {
     subtotalsCents?: Record<string, number | null>;
   } | null;
   evidenceReviewComplete?: boolean;
+  appliedToCount?: {
+    countSessionId: string;
+    stage: 'count_a' | 'count_b';
+    sessionVersion: number;
+    resultingStatus: string;
+    appliedAt?: string | null;
+  } | null;
   originalUrl: string | null;
   normalizedUrl: string | null;
 };
@@ -114,5 +121,21 @@ export const countCaptureService = {
 
   async saveDenominationReview(organizationId: string, financeEntityId: string, input: { captureId: string; expectedVersion: number; denominations: CountCaptureDenominationReviewInput[]; idempotencyKey: string; requestId: string }) {
     return post<{ captureId: string; version: number; status: 'captured' | 'reviewed'; denominationReviewSaved: true }>(organizationId, 'count-captures-save-denomination-review', { financeEntityId, ...input });
+  },
+
+  async applyToCount(organizationId: string, financeEntityId: string, input: {
+    captureId: string;
+    expectedCaptureVersion: number;
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{
+      captureId: string;
+      countSessionId: string;
+      stage: 'count_a' | 'count_b';
+      status: string;
+      replayed: boolean;
+      requestId?: string;
+    }>(organizationId, 'count-captures-apply-to-count', { financeEntityId, ...input });
   },
 };

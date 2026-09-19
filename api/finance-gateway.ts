@@ -55,6 +55,7 @@ import countCapturesExtractCandidates from '../server/vercel-handlers/finance/co
 import countCapturesExtractDenominations from '../server/vercel-handlers/finance/countCapturesExtractDenominations.js';
 import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
 import countCapturesSaveDenominationReview from '../server/vercel-handlers/finance/countCapturesSaveDenominationReview.js';
+import countCapturesApplyToCount from '../server/vercel-handlers/finance/countCapturesApplyToCount.js';
 import universalEvidenceStart from '../server/vercel-handlers/finance/universalEvidenceStart.js';
 import universalEvidenceFinalize from '../server/vercel-handlers/finance/universalEvidenceFinalize.js';
 import universalEvidenceList from '../server/vercel-handlers/finance/universalEvidenceList.js';
@@ -146,6 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-captures-extract-denominations': return countCapturesExtractDenominations(req, res);
     case 'count-captures-save-review': return countCapturesSaveReview(req, res);
     case 'count-captures-save-denomination-review': return countCapturesSaveDenominationReview(req, res);
+    case 'count-captures-apply-to-count': return countCapturesApplyToCount(req, res);
     case 'universal-evidence-start': return universalEvidenceStart(req, res);
     case 'universal-evidence-finalize': return universalEvidenceFinalize(req, res);
     case 'universal-evidence-list': return universalEvidenceList(req, res);
