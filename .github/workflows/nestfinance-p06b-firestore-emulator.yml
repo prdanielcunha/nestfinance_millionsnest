@@ -173,8 +173,7 @@ jobs:
           FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
         run: |
           set -o pipefail
-          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts && npx tsx scripts/test-count-paper-firestore-rules.ts && npx tsx scripts/test-count-capture-firestore-rules.ts && npx tsx scripts/test-universal-evidence-firestore-rules.ts && npx tsx scripts/test-intelligence-coverage-firestore-rules.ts && npx tsx scripts/test-reconciliation-confirm-firestore-rules.ts
-          npx tsx scripts/test-period-close-human-review-rules.ts && npx tsx scripts/test-reconciliation-reversal-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
+          npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-firestore-rules-emulator.ts && npx tsx scripts/test-count-firestore-rules.ts && npx tsx scripts/test-count-paper-firestore-rules.ts && npx tsx scripts/test-count-capture-firestore-rules.ts && npx tsx scripts/test-universal-evidence-firestore-rules.ts && npx tsx scripts/test-intelligence-coverage-firestore-rules.ts && npx tsx scripts/test-reconciliation-confirm-firestore-rules.ts && npx tsx scripts/test-period-close-human-review-rules.ts && npx tsx scripts/test-reconciliation-reversal-firestore-rules.ts" | tee -a artifacts/p06b-firestore-emulator-report.txt
 
       - name: Run Additional Checks
         env:

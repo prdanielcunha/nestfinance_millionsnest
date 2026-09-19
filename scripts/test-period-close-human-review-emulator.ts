@@ -161,7 +161,9 @@ try {
 
   const changed = await call(periodCloseReadiness, { financeEntityId: entityId, period: '2026-09' });
   verify(changed.body.readiness.state === 'attention_required', 'source mutation immediately restores objective blockers');
-  verify(changed.body.humanReview.state === 'not_reviewed', 'previous review is not treated as current after source mutation');
+  verify(changed.body.humanReview.state === 'review_outdated', 'previous review remains visible but is no longer treated as current');
+  verify(changed.body.humanReview.sourceSnapshotMatches === false, 'stale review explicitly fails current-source match');
+  verify(changed.body.humanReview.changedAreas.includes('transactions'), 'stale review identifies transaction drift');
 
   const blocked = await call(periodCloseReviewConfirm, {
     financeEntityId: entityId,
@@ -170,8 +172,35 @@ try {
   });
   verify(blocked.statusCode === 409 && blocked.body.error === 'PERIOD_CLOSE_REVIEW_BLOCKED', 'changed blocked period cannot be reviewed as clean');
 
+  await txRef.update({
+    status: 'posted',
+    amountCents: 16000,
+    version: 5,
+    listQueryKeys: buildTransactionListQueryKeys(entityId, txId, 'income', 'posted', occurredAt as any),
+  });
+
+  const cleanAgain = await call(periodCloseReadiness, { financeEntityId: entityId, period: '2026-09' });
+  verify(cleanAgain.body.readiness.state === 'ready_for_review', 'period can become clean again after blockers are resolved');
+  verify(cleanAgain.body.humanReview.state === 'review_outdated', 'old human review remains stale after cleanup until reviewed again');
+  verify(cleanAgain.body.humanReview.changedAreas.includes('transactions'), 'clean-again state still explains transaction drift from prior review');
+
+  const third = await call(periodCloseReviewConfirm, {
+    financeEntityId: entityId,
+    period: '2026-09',
+    requestId: 'pcr-new-snapshot-' + suffix,
+  });
+  verify(third.statusCode === 200 && third.body.replayed === false, 'new clean source snapshot can receive a new human review');
+  verify(third.body.reviewId !== first.body.reviewId, 'changed source snapshot receives a new deterministic review identity');
+
+  const reviewsAfterNewSnapshot = await reviewsRef.where('financeEntityId', '==', entityId).get();
+  verify(reviewsAfterNewSnapshot.size === 2, 'review history preserves both source snapshots instead of overwriting');
+
+  const currentAgain = await call(periodCloseReadiness, { financeEntityId: entityId, period: '2026-09' });
+  verify(currentAgain.body.humanReview.state === 'reviewed_current_snapshot', 'new review becomes current for the new source snapshot');
+  verify(currentAgain.body.humanReview.changedAreas.length === 0, 'current review has no stale drift areas');
+
   const finalTx = await txRef.get();
-  verify(finalTx.data()?.amountCents === txData.amountCents, 'review journey never changes transaction amount');
+  verify(finalTx.data()?.amountCents === 16000, 'review journey preserves the user-originated transaction amount change');
   verify(finalTx.data()?.accountId === txData.accountId, 'review journey never changes transaction account');
 } finally {
   admin.auth.verifyIdToken = originalVerify;

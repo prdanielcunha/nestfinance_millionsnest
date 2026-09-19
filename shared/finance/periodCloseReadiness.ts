@@ -5,6 +5,13 @@ export const PERIOD_CLOSE_MAX_EVIDENCE = 500;
 
 export type PeriodCloseReadinessState = 'attention_required' | 'ready_for_review';
 
+export type PeriodCloseReviewChangedArea =
+  | 'transactions'
+  | 'counts'
+  | 'documents'
+  | 'reconciliation'
+  | 'unknown';
+
 export type PeriodCloseBlockerCode =
   | 'draft_transactions'
   | 'transactions_waiting_review'
@@ -70,11 +77,12 @@ export type PeriodCloseReadinessResponse = {
     blockers: PeriodCloseBlocker[];
   };
   humanReview: {
-    state: 'not_reviewed' | 'reviewed_current_snapshot';
+    state: 'not_reviewed' | 'reviewed_current_snapshot' | 'review_outdated';
     reviewId: string | null;
     reviewedAt: string | null;
     reviewedByDisplayName: string | null;
     sourceSnapshotMatches: boolean;
+    changedAreas: PeriodCloseReviewChangedArea[];
   };
   transactions: {
     total: number;
@@ -243,6 +251,7 @@ export function buildPeriodCloseReadiness(input: {
       reviewedAt: null,
       reviewedByDisplayName: null,
       sourceSnapshotMatches: false,
+      changedAreas: [],
     },
     transactions: {
       total: input.transactions.length,
