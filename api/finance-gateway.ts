@@ -18,6 +18,7 @@ import categoriesUpdate from '../server/vercel-handlers/finance/categoriesUpdate
 import entitiesCnpjLookup from '../server/vercel-handlers/finance/entitiesCnpjLookup.js';
 import entitiesCreate from '../server/vercel-handlers/finance/entitiesCreate.js';
 import entitiesList from '../server/vercel-handlers/finance/entitiesList.js';
+import entitiesAccessible from '../server/vercel-handlers/finance/entitiesAccessible.js';
 import entitiesDetail from '../server/vercel-handlers/finance/entitiesDetail.js';
 import entitiesUpdate from '../server/vercel-handlers/finance/entitiesUpdate.js';
 import entitiesBootstrapStatus from '../server/vercel-handlers/finance/entitiesBootstrapStatus.js';
@@ -115,6 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'entities-create': return entitiesCreate(req, res);
     case 'entities-detail': return entitiesDetail(req, res);
     case 'entities-list': return entitiesList(req, res);
+    case 'entities-accessible': return entitiesAccessible(req, res);
     case 'entities-update': return entitiesUpdate(req, res);
     case 'entities-bootstrap-status': return entitiesBootstrapStatus(req, res);
     case 'entities-bootstrap-preview': return entitiesBootstrapPreview(req, res);
