@@ -88,6 +88,10 @@
       "destination": "/api/finance-gateway?operation=entities-list"
     },
     {
+      "source": "/api/finance/entities/accessible",
+      "destination": "/api/finance-gateway?operation=entities-accessible"
+    },
+    {
       "source": "/api/finance/entities/detail",
       "destination": "/api/finance-gateway?operation=entities-detail"
     },
