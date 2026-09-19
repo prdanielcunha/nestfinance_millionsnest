@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Must be global access or have finance.accounts.manage
-    const hasManageAccess = sessionList.isGlobalAccess === true || sessionList.capabilities?.includes('finance.accounts.manage');
+    const hasManageAccess = hasEffectiveCapability(sessionList, 'finance.accounts.manage');
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
