@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { hasEffectiveCapability } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
@@ -89,9 +90,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FINANCE_ACCOUNT_CONFIGURE_FORBIDDEN', message: 'Acesso negado.' });
     }
 
-    const hasManageAccess = sessionList.isGlobalAccess || 
-                            sessionList.capabilities?.includes('finance.accounts.repair') || 
-                            sessionList.capabilities?.includes('finance.accounts.manage');
+    const hasManageAccess =
+      hasEffectiveCapability(sessionList, 'finance.accounts.repair') ||
+      hasEffectiveCapability(sessionList, 'finance.accounts.manage');
 
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FINANCE_ACCOUNT_CONFIGURE_FORBIDDEN', message: 'Você não tem permissão para configurar contas.' });
