@@ -12,6 +12,10 @@
       "destination": "/api/auth-gateway?operation=session-resolve"
     },
     {
+      "source": "/api/auth/direct-entry",
+      "destination": "/api/auth-gateway?operation=direct-entry"
+    },
+    {
       "source": "/api/finance/setup/initialize",
       "destination": "/api/finance-gateway?operation=setup-initialize"
     },

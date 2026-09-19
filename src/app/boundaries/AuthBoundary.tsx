@@ -1,42 +1,24 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
+import { APP_ROUTES } from '@/src/app/router/routes';
 
 interface Props {
   children: ReactNode;
 }
 
-const HUB_LAUNCH_URL = 'https://www.millionsnest.com/apps/nestfinance/launch';
-
 function safeCurrentPath(): string {
-  const candidate = String(window.location.pathname || '/finance').trim();
+  const candidate = `${window.location.pathname || APP_ROUTES.finance}${window.location.search || ''}`;
   return candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://') && !candidate.includes('\\')
     ? candidate
-    : '/finance';
-}
-
-function DirectEntryRedirect() {
-  useEffect(() => {
-    const url = new URL(HUB_LAUNCH_URL);
-    url.searchParams.set('returnTo', safeCurrentPath());
-    window.location.replace(url.toString());
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 selection:bg-accent-primary/20">
-      <div className="max-w-md w-full flex flex-col items-center text-center space-y-6 fade-in">
-        <NestFinanceLogo layout="horizontal" surface="dark" className="w-[512px] max-w-full mb-2 opacity-95" />
-        <div className="w-full h-px bg-zinc-800 my-2" />
-        <p className="text-sm text-zinc-400">Conectando sua sessão do MillionsNest...</p>
-        <div className="w-6 h-6 rounded-full border-2 border-zinc-800 border-t-white animate-spin" />
-      </div>
-    </div>
-  );
+    : APP_ROUTES.finance;
 }
 
 export function AuthBoundary({ children }: Props) {
   const { authState } = useAuth();
-  const isHandoffRoute = window.location.pathname.startsWith('/auth/handoff');
+  const isHandoffRoute = window.location.pathname.startsWith(APP_ROUTES.handoff);
+  const isLoginRoute = window.location.pathname.startsWith(APP_ROUTES.login);
 
   if (authState === 'initializing') {
     return (
@@ -55,8 +37,9 @@ export function AuthBoundary({ children }: Props) {
     );
   }
 
-  if (authState === 'unauthenticated' && !isHandoffRoute) {
-    return <DirectEntryRedirect />;
+  if (authState === 'unauthenticated' && !isHandoffRoute && !isLoginRoute) {
+    const destination = `${APP_ROUTES.login}?returnTo=${encodeURIComponent(safeCurrentPath())}`;
+    return <Navigate to={destination} replace />;
   }
 
   return <>{children}</>;

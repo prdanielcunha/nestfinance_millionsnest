@@ -1,6 +1,7 @@
 export const APP_ROUTES = {
   root: '/',
   handoff: '/auth/handoff',
+  login: '/auth/login',
   finance: '/finance',
   financeSetup: '/finance/setup',
   financeSettings: '/finance/settings',
