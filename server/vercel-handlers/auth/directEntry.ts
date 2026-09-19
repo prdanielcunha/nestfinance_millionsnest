@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 
-const DIRECT_ENTRY_GLOBAL_ROLES = new Set(['ceo', 'global_admin', 'ecosystem_owner']);
 const MAX_ORGANIZATIONS = 50;
 
 function cleanString(value: unknown): string {
@@ -93,15 +92,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userData = userDoc.data() || {};
   if (isInactive(userData)) return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
 
-  const systemRole = cleanString(userData.systemRole);
-  const isDevelopmentGlobal = DIRECT_ENTRY_GLOBAL_ROLES.has(systemRole);
   const candidateIds = new Set<string>(collectCandidateOrganizationIds(userData));
 
-  if (isDevelopmentGlobal) {
-    const organizationsSnapshot = await admin.firestore.collection('organizations').limit(MAX_ORGANIZATIONS).get();
-    for (const doc of organizationsSnapshot.docs) {
-      if (!isInactive(doc.data())) candidateIds.add(doc.id);
-    }
+  // Candidate discovery is intentionally broader than authorization. This keeps
+  // direct/PWA entry usable even when the user profile has no denormalized
+  // organization hints. No organization is returned or token issued until the
+  // canonical MillionsNest resolver grants access for that exact tenant.
+  const organizationsSnapshot = await admin.firestore.collection('organizations').limit(MAX_ORGANIZATIONS).get();
+  for (const doc of organizationsSnapshot.docs) {
+    if (!isInactive(doc.data())) candidateIds.add(doc.id);
   }
 
   const eligible: Array<{ id: string; name: string; slug: string; accessSource: string }> = [];

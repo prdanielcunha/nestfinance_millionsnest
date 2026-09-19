@@ -59,18 +59,19 @@ async function run() {
     assert.strictEqual(result.granted, true);
   });
 
-  await check('founder é global canônico mas permanece fora do gate de desenvolvimento', async () => {
+  await check('founder canônico recebe acesso global', async () => {
     await setUser('u_founder', { systemRole: 'founder' });
     const result: any = await resolveEcosystemSession('u_founder', orgId);
-    assert.strictEqual(result.granted, false);
-    assert.strictEqual(result.denialReason, 'NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED');
+    assert.strictEqual(result.granted, true);
+    assert.strictEqual(result.isGlobalAccess, true);
+    assert.strictEqual(result.accessSource, 'global_system_role');
   });
 
-  await check('admin legado não recebe acesso global', async () => {
+  await check('admin de sistema não vira global sem membership canônico', async () => {
     await setUser('u_admin', { systemRole: 'admin' });
     const result: any = await resolveEcosystemSession('u_admin', orgId);
     assert.strictEqual(result.granted, false);
-    assert.strictEqual(result.denialReason, 'NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED');
+    assert.strictEqual(result.denialReason, 'MEMBERSHIP_NOT_FOUND');
   });
 
   await check('appRole não pode promover usuário a global', async () => {
@@ -85,10 +86,11 @@ async function run() {
     assert.strictEqual(result.granted, false);
   });
 
-  await check('ecosystem_support não entra no gate de desenvolvimento', async () => {
+  await check('ecosystem_support não recebe autoridade global implícita', async () => {
     await setUser('u_support', { systemRole: 'ecosystem_support' });
     const result: any = await resolveEcosystemSession('u_support', orgId);
     assert.strictEqual(result.granted, false);
+    assert.strictEqual(result.denialReason, 'MEMBERSHIP_NOT_FOUND');
   });
 
   await check('usuário inativo falha fechado antes da autorização', async () => {
@@ -120,7 +122,58 @@ async function run() {
     await setUser('u_owner_only', { systemRole: 'user' });
     const result: any = await resolveEcosystemSession('u_owner_only', ownerOrg);
     assert.strictEqual(result.granted, false);
-    assert.strictEqual(result.denialReason, 'NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED');
+    assert.strictEqual(result.denialReason, 'MEMBERSHIP_NOT_FOUND');
+  });
+
+  await check('membro canônico com entitlement e appAccess recebe somente as permissões concedidas', async () => {
+    await setUser('u_member', { displayName: 'Finance Admin', systemRole: 'user' });
+    await db.collection('organizations').doc(orgId).collection('members').doc('u_member').set({
+      status: 'active',
+      role: 'admin',
+      appAccess: {
+        nestFinance: {
+          enabled: true,
+          roles: ['finance_admin'],
+          permissions: ['finance.view', 'finance.create_drafts', 'finance.review'],
+          scopes: { financeEntityIds: ['entity_a'] }
+        }
+      }
+    });
+
+    const result: any = await resolveEcosystemSession('u_member', orgId);
+    assert.strictEqual(result.granted, true);
+    assert.strictEqual(result.isGlobalAccess, false);
+    assert.strictEqual(result.accessSource, 'organization_membership');
+    assert.strictEqual(result.organizationRole, 'admin');
+    assert.deepStrictEqual(result.roles, ['finance_admin']);
+    assert.deepStrictEqual(result.permissions, ['finance.view', 'finance.create_drafts', 'finance.review']);
+    assert.deepStrictEqual(result.capabilities, result.permissions);
+    assert.deepStrictEqual(result.scopes, { financeEntityIds: ['entity_a'] });
+  });
+
+  await check('membership inativo falha fechado', async () => {
+    await setUser('u_inactive_member', { systemRole: 'user' });
+    await db.collection('organizations').doc(orgId).collection('members').doc('u_inactive_member').set({
+      status: 'inactive',
+      appAccess: { nestFinance: { enabled: true, permissions: ['finance.view'] } }
+    });
+
+    const result: any = await resolveEcosystemSession('u_inactive_member', orgId);
+    assert.strictEqual(result.granted, false);
+    assert.strictEqual(result.denialReason, 'MEMBERSHIP_INACTIVE');
+  });
+
+  await check('appAccess do NestFinance é obrigatório para membership comum', async () => {
+    await setUser('u_no_app_access', { systemRole: 'user' });
+    await db.collection('organizations').doc(orgId).collection('members').doc('u_no_app_access').set({
+      status: 'active',
+      role: 'member',
+      appAccess: { nestFinance: { enabled: false, permissions: ['finance.view'] } }
+    });
+
+    const result: any = await resolveEcosystemSession('u_no_app_access', orgId);
+    assert.strictEqual(result.granted, false);
+    assert.strictEqual(result.denialReason, 'MEMBER_APP_ACCESS_DISABLED');
   });
 
   await check('membership legado organizations/{org}/users não é fonte de autorização', async () => {
