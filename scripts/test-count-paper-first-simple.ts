@@ -97,7 +97,7 @@ verify(extraction.includes('Opcional: abra o detalhamento'), '33-cell denominati
 verify(review.includes('Usar estes valores na contagem'), 'reviewed paper values have one explicit apply action');
 verify(review.includes('Isso não cria lançamento, não posta movimentação e não altera saldo'), 'apply CTA explains its authority boundary');
 verify(!review.includes('applyToCount(organizationId') || review.includes('onClick={() => void applyToCount()}'), 'application remains an explicit human action');
-verify(service.includes('operation=count-captures-apply-to-count'), 'client calls certified paper apply operation');
+verify(service.includes("'count-captures-apply-to-count'"), 'client calls certified paper apply operation');
 verify(gateway.includes("case 'count-captures-apply-to-count'"), 'gateway exposes paper apply operation');
 
 console.log('\nCount Paper-First Simple Mode totals: ' + passed + ' Passed');
