@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { PeriodCloseReadinessResponse } from '../../shared/finance/periodCloseReadiness.js';
 import type { PeriodCloseReviewConfirmResponse } from '../../shared/finance/periodCloseReview.js';
+import type { ReportsIntelligenceResponse } from '../../shared/finance/reportsIntelligence.js';
 
 async function headers(organizationId: string) {
   const auth = getAuth();
@@ -27,6 +28,31 @@ export const periodCloseService = {
     if (!response.ok) {
       const details = await response.json().catch(() => ({}));
       const error = new Error(details.error || 'PERIOD_CLOSE_READINESS_FAILED') as Error & {
+        code?: string;
+        status?: number;
+      };
+      error.code = details.error;
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  async intelligence(
+    organizationId: string,
+    financeEntityId: string,
+    period: string,
+  ): Promise<ReportsIntelligenceResponse> {
+    const response = await fetch(FINANCE_GATEWAY_PATH + '?operation=reports-intelligence', {
+      method: 'POST',
+      headers: await headers(organizationId),
+      body: JSON.stringify({ financeEntityId, period }),
+    });
+
+    if (!response.ok) {
+      const details = await response.json().catch(() => ({}));
+      const error = new Error(details.error || 'REPORTS_INTELLIGENCE_FAILED') as Error & {
         code?: string;
         status?: number;
       };

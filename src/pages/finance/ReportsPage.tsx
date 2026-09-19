@@ -31,6 +31,11 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { periodCloseService } from '@/src/services/periodCloseService';
+import type {
+  ReportMetricComparison,
+  ReportRateComparison,
+  ReportsIntelligenceResponse,
+} from '../../../shared/finance/reportsIntelligence.js';
 
 type ReportsCopy = {
   area: string;
@@ -49,6 +54,19 @@ type ReportsCopy = {
   transactions: string;
   posted: string;
   capturedHint: string;
+  comparisonTitle: string;
+  comparisonBody: (period: string) => string;
+  comparisonPrevious: string;
+  comparisonNoBase: string;
+  comparisonSame: string;
+  qualityTitle: string;
+  qualityBody: string;
+  postingRate: string;
+  countMatchedRate: string;
+  documentReviewedRate: string;
+  reconciliationRate: string;
+  deterministicNote: string;
+  notApplicable: string;
   statusAttention: string;
   statusReady: string;
   statusAttentionBody: (count: number) => string;
@@ -116,6 +134,19 @@ const COPY: Record<Language, ReportsCopy> = {
     transactions: 'Movimentações',
     posted: 'Postadas',
     capturedHint: 'Valores registrados no período; não são um demonstrativo contábil oficial.',
+    comparisonTitle: 'Leitura comparativa',
+    comparisonBody: (period) => `Comparação objetiva com ${period}, usando o mesmo escopo e as mesmas fontes canônicas.`,
+    comparisonPrevious: 'Mês anterior',
+    comparisonNoBase: 'Sem base comparável',
+    comparisonSame: 'Sem variação',
+    qualityTitle: 'Qualidade operacional',
+    qualityBody: 'Taxas de conclusão e conferência. Elas mostram a qualidade do processo, não desempenho contábil.',
+    postingRate: 'Movimentações postadas',
+    countMatchedRate: 'Contagens conferidas',
+    documentReviewedRate: 'Documentos conferidos',
+    reconciliationRate: 'Conciliação bancária',
+    deterministicNote: 'As comparações descrevem diferenças observadas. O NestFinance não atribui causa, previsão ou julgamento a essas variações.',
+    notApplicable: 'Não se aplica',
     statusAttention: 'Este mês ainda precisa de atenção',
     statusReady: 'Operação pronta para revisão de fechamento',
     statusAttentionBody: (count) => count === 1 ? 'Há 1 pendência objetiva antes da revisão final.' : 'Há ' + count + ' pendências objetivas antes da revisão final.',
@@ -196,6 +227,19 @@ const COPY: Record<Language, ReportsCopy> = {
     transactions: 'Transactions',
     posted: 'Posted',
     capturedHint: 'Amounts recorded in the period; they are not an official accounting statement.',
+    comparisonTitle: 'Comparative view',
+    comparisonBody: (period) => `Objective comparison with ${period}, using the same scope and canonical sources.`,
+    comparisonPrevious: 'Previous month',
+    comparisonNoBase: 'No comparable baseline',
+    comparisonSame: 'No change',
+    qualityTitle: 'Operational quality',
+    qualityBody: 'Completion and review rates. They describe process quality, not accounting performance.',
+    postingRate: 'Transactions posted',
+    countMatchedRate: 'Counts matched',
+    documentReviewedRate: 'Documents reviewed',
+    reconciliationRate: 'Bank reconciliation',
+    deterministicNote: 'Comparisons describe observed differences. NestFinance does not assign cause, forecast, or judgment to these changes.',
+    notApplicable: 'Not applicable',
     statusAttention: 'This month still needs attention',
     statusReady: 'Operations ready for close review',
     statusAttentionBody: (count) => count === 1 ? 'There is 1 objective item to resolve before final review.' : 'There are ' + count + ' objective items to resolve before final review.',
@@ -276,6 +320,19 @@ const COPY: Record<Language, ReportsCopy> = {
     transactions: 'Movimientos',
     posted: 'Contabilizadas',
     capturedHint: 'Valores registrados en el período; no son un estado contable oficial.',
+    comparisonTitle: 'Vista comparativa',
+    comparisonBody: (period) => `Comparación objetiva con ${period}, usando el mismo alcance y las mismas fuentes canónicas.`,
+    comparisonPrevious: 'Mes anterior',
+    comparisonNoBase: 'Sin base comparable',
+    comparisonSame: 'Sin variación',
+    qualityTitle: 'Calidad operativa',
+    qualityBody: 'Tasas de finalización y revisión. Describen la calidad del proceso, no el desempeño contable.',
+    postingRate: 'Movimientos contabilizados',
+    countMatchedRate: 'Conteos comprobados',
+    documentReviewedRate: 'Documentos revisados',
+    reconciliationRate: 'Conciliación bancaria',
+    deterministicNote: 'Las comparaciones describen diferencias observadas. NestFinance no atribuye causa, previsión ni juicio a estas variaciones.',
+    notApplicable: 'No aplica',
     statusAttention: 'Este mes todavía necesita atención',
     statusReady: 'Operación lista para revisión de cierre',
     statusAttentionBody: (count) => count === 1 ? 'Hay 1 pendiente objetiva antes de la revisión final.' : 'Hay ' + count + ' pendientes objetivas antes de la revisión final.',
@@ -368,6 +425,63 @@ function formatDateTime(value: string | null, language: Language) {
   }).format(date);
 }
 
+function formatBasisPoints(value: number, language: Language) {
+  return new Intl.NumberFormat(localeFor(language), {
+    style: 'percent',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(value / 10000);
+}
+
+function comparisonChange(
+  metric: ReportMetricComparison,
+  language: Language,
+  noBase: string,
+  same: string,
+  formatter: (value: number) => string,
+) {
+  if (metric.delta === 0) return same;
+  const delta = formatter(Math.abs(metric.delta));
+  const sign = metric.delta > 0 ? '+' : '−';
+  if (metric.percentChangeBasisPoints === null) return sign + delta + ' · ' + noBase;
+  return sign + delta + ' · ' + formatBasisPoints(Math.abs(metric.percentChangeBasisPoints), language);
+}
+
+function ComparisonCard({
+  label,
+  metric,
+  current,
+  previous,
+  change,
+  previousLabel,
+}: {
+  label: string;
+  metric: ReportMetricComparison;
+  current: string;
+  previous: string;
+  change: string;
+  previousLabel: string;
+}) {
+  const Icon = metric.direction === 'higher' ? TrendingUp : metric.direction === 'lower' ? TrendingDown : CheckCircle2;
+  return (
+    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{label}</p>
+          <p className="mt-2 break-words text-xl font-semibold tracking-tight text-text-primary">{current}</p>
+        </div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-secondary text-accent-primary">
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-3 text-xs">
+        <span className="text-text-muted">{previousLabel}: <strong className="font-semibold text-text-secondary">{previous}</strong></span>
+        <span className="font-semibold text-text-secondary">{change}</span>
+      </div>
+    </div>
+  );
+}
+
 function blockerRoute(blocker: PeriodCloseBlocker) {
   if (blocker.routeHint === 'review') return APP_ROUTES.financeReview;
   if (blocker.routeHint === 'count') return APP_ROUTES.count;
@@ -421,6 +535,7 @@ function ReportsContent() {
 
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState<PeriodCloseReadinessResponse | null>(null);
+  const [intelligence, setIntelligence] = useState<ReportsIntelligenceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reviewConfirmOpen, setReviewConfirmOpen] = useState(false);
@@ -432,8 +547,9 @@ function ReportsContent() {
     setLoading(true);
     setFailed(false);
     try {
-      const response = await periodCloseService.readiness(organizationId, activeFinanceEntityId, period);
-      setData(response);
+      const response = await periodCloseService.intelligence(organizationId, activeFinanceEntityId, period);
+      setIntelligence(response);
+      setData(response.currentSnapshot);
     } catch {
       setFailed(true);
     } finally {
@@ -443,6 +559,7 @@ function ReportsContent() {
 
   useEffect(() => {
     setData(null);
+    setIntelligence(null);
     setFailed(false);
     setReviewConfirmOpen(false);
     setReviewFailed(false);
@@ -620,6 +737,114 @@ function ReportsContent() {
                 })}
               </section>
               <p className="-mt-3 text-xs text-text-muted">{copy.capturedHint}</p>
+
+              {intelligence ? (
+                <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]" aria-label={copy.comparisonTitle}>
+                  <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
+                    <div>
+                      <h2 className="text-lg font-semibold text-text-primary">{copy.comparisonTitle}</h2>
+                      <p className="mt-1 text-sm leading-relaxed text-text-muted">
+                        {copy.comparisonBody(intelligence.comparisonPeriodKey)}
+                      </p>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <ComparisonCard
+                        label={copy.capturedIncome}
+                        metric={intelligence.metrics.recordedIncomeCents}
+                        current={formatMoney(intelligence.metrics.recordedIncomeCents.current, language)}
+                        previous={formatMoney(intelligence.metrics.recordedIncomeCents.previous, language)}
+                        previousLabel={copy.comparisonPrevious}
+                        change={comparisonChange(
+                          intelligence.metrics.recordedIncomeCents,
+                          language,
+                          copy.comparisonNoBase,
+                          copy.comparisonSame,
+                          (value) => formatMoney(value, language),
+                        )}
+                      />
+                      <ComparisonCard
+                        label={copy.capturedExpense}
+                        metric={intelligence.metrics.recordedExpenseCents}
+                        current={formatMoney(intelligence.metrics.recordedExpenseCents.current, language)}
+                        previous={formatMoney(intelligence.metrics.recordedExpenseCents.previous, language)}
+                        previousLabel={copy.comparisonPrevious}
+                        change={comparisonChange(
+                          intelligence.metrics.recordedExpenseCents,
+                          language,
+                          copy.comparisonNoBase,
+                          copy.comparisonSame,
+                          (value) => formatMoney(value, language),
+                        )}
+                      />
+                      <ComparisonCard
+                        label={copy.transactions}
+                        metric={intelligence.metrics.transactionCount}
+                        current={String(intelligence.metrics.transactionCount.current)}
+                        previous={String(intelligence.metrics.transactionCount.previous)}
+                        previousLabel={copy.comparisonPrevious}
+                        change={comparisonChange(
+                          intelligence.metrics.transactionCount,
+                          language,
+                          copy.comparisonNoBase,
+                          copy.comparisonSame,
+                          (value) => new Intl.NumberFormat(localeFor(language)).format(value),
+                        )}
+                      />
+                      <ComparisonCard
+                        label={copy.nextActions}
+                        metric={intelligence.metrics.blockerCount}
+                        current={String(intelligence.metrics.blockerCount.current)}
+                        previous={String(intelligence.metrics.blockerCount.previous)}
+                        previousLabel={copy.comparisonPrevious}
+                        change={comparisonChange(
+                          intelligence.metrics.blockerCount,
+                          language,
+                          copy.comparisonNoBase,
+                          copy.comparisonSame,
+                          (value) => new Intl.NumberFormat(localeFor(language)).format(value),
+                        )}
+                      />
+                    </div>
+                    <p className="mt-4 text-[11px] leading-relaxed text-text-muted">{copy.deterministicNote}</p>
+                  </Surface>
+
+                  <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
+                    <h2 className="text-lg font-semibold text-text-primary">{copy.qualityTitle}</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.qualityBody}</p>
+                    <div className="mt-5 flex flex-col gap-4">
+                      {[
+                        [copy.postingRate, intelligence.quality.postingRateBasisPoints],
+                        [copy.countMatchedRate, intelligence.quality.countMatchedRateBasisPoints],
+                        [copy.documentReviewedRate, intelligence.quality.documentReviewedRateBasisPoints],
+                        [copy.reconciliationRate, intelligence.quality.reconciliationRateBasisPoints],
+                      ].map(([label, metric]) => {
+                        const item = metric as ReportRateComparison;
+                        const current = item.current === null ? copy.notApplicable : formatBasisPoints(item.current, language);
+                        const previous = item.previous === null ? copy.notApplicable : formatBasisPoints(item.previous, language);
+                        return (
+                          <div key={label as string}>
+                            <div className="flex items-end justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-medium text-text-muted">{label as string}</p>
+                                <p className="mt-1 text-base font-semibold text-text-primary">{current}</p>
+                              </div>
+                              <p className="text-right text-xs text-text-muted">
+                                {copy.comparisonPrevious}: {previous}
+                              </p>
+                            </div>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-secondary">
+                              <div
+                                className="h-full rounded-full bg-accent-primary transition-[width]"
+                                style={{ width: item.current === null ? '0%' : Math.max(0, Math.min(100, item.current / 100)) + '%' }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Surface>
+                </section>
+              ) : null}
 
               <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
