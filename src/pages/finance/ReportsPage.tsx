@@ -33,6 +33,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { periodCloseService } from '@/src/services/periodCloseService';
 import type {
   ReportMetricComparison,
+  ReportRateComparison,
   ReportsIntelligenceResponse,
 } from '../../../shared/finance/reportsIntelligence.js';
 
@@ -65,6 +66,7 @@ type ReportsCopy = {
   documentReviewedRate: string;
   reconciliationRate: string;
   deterministicNote: string;
+  notApplicable: string;
   statusAttention: string;
   statusReady: string;
   statusAttentionBody: (count: number) => string;
@@ -144,6 +146,7 @@ const COPY: Record<Language, ReportsCopy> = {
     documentReviewedRate: 'Documentos conferidos',
     reconciliationRate: 'Conciliação bancária',
     deterministicNote: 'As comparações descrevem diferenças observadas. O NestFinance não atribui causa, previsão ou julgamento a essas variações.',
+    notApplicable: 'Não se aplica',
     statusAttention: 'Este mês ainda precisa de atenção',
     statusReady: 'Operação pronta para revisão de fechamento',
     statusAttentionBody: (count) => count === 1 ? 'Há 1 pendência objetiva antes da revisão final.' : 'Há ' + count + ' pendências objetivas antes da revisão final.',
@@ -236,6 +239,7 @@ const COPY: Record<Language, ReportsCopy> = {
     documentReviewedRate: 'Documents reviewed',
     reconciliationRate: 'Bank reconciliation',
     deterministicNote: 'Comparisons describe observed differences. NestFinance does not assign cause, forecast, or judgment to these changes.',
+    notApplicable: 'Not applicable',
     statusAttention: 'This month still needs attention',
     statusReady: 'Operations ready for close review',
     statusAttentionBody: (count) => count === 1 ? 'There is 1 objective item to resolve before final review.' : 'There are ' + count + ' objective items to resolve before final review.',
@@ -328,6 +332,7 @@ const COPY: Record<Language, ReportsCopy> = {
     documentReviewedRate: 'Documentos revisados',
     reconciliationRate: 'Conciliación bancaria',
     deterministicNote: 'Las comparaciones describen diferencias observadas. NestFinance no atribuye causa, previsión ni juicio a estas variaciones.',
+    notApplicable: 'No aplica',
     statusAttention: 'Este mes todavía necesita atención',
     statusReady: 'Operación lista para revisión de cierre',
     statusAttentionBody: (count) => count === 1 ? 'Hay 1 pendiente objetiva antes de la revisión final.' : 'Hay ' + count + ' pendientes objetivas antes de la revisión final.',
@@ -813,24 +818,24 @@ function ReportsContent() {
                         [copy.documentReviewedRate, intelligence.quality.documentReviewedRateBasisPoints],
                         [copy.reconciliationRate, intelligence.quality.reconciliationRateBasisPoints],
                       ].map(([label, metric]) => {
-                        const item = metric as ReportMetricComparison;
+                        const item = metric as ReportRateComparison;
+                        const current = item.current === null ? copy.notApplicable : formatBasisPoints(item.current, language);
+                        const previous = item.previous === null ? copy.notApplicable : formatBasisPoints(item.previous, language);
                         return (
                           <div key={label as string}>
                             <div className="flex items-end justify-between gap-3">
                               <div>
                                 <p className="text-xs font-medium text-text-muted">{label as string}</p>
-                                <p className="mt-1 text-base font-semibold text-text-primary">
-                                  {formatBasisPoints(item.current, language)}
-                                </p>
+                                <p className="mt-1 text-base font-semibold text-text-primary">{current}</p>
                               </div>
                               <p className="text-right text-xs text-text-muted">
-                                {copy.comparisonPrevious}: {formatBasisPoints(item.previous, language)}
+                                {copy.comparisonPrevious}: {previous}
                               </p>
                             </div>
                             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-secondary">
                               <div
                                 className="h-full rounded-full bg-accent-primary transition-[width]"
-                                style={{ width: Math.max(0, Math.min(100, item.current / 100)) + '%' }}
+                                style={{ width: item.current === null ? '0%' : Math.max(0, Math.min(100, item.current / 100)) + '%' }}
                               />
                             </div>
                           </div>
