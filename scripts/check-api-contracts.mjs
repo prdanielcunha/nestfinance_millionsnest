@@ -89,6 +89,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'audit-list', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-readiness', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-review-confirm', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'reports-intelligence', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
