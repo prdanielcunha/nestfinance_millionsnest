@@ -66,6 +66,20 @@ async function run() {
     'categoriesReactivate.ts': 'finance.categories.manage',
   };
 
+
+  const directScopedHandlers = new Set([
+    'accountsCreate.ts',
+    'accountsConfigureCustom.ts',
+    'accountsRepairCanonical.ts',
+    'fundsCreate.ts',
+    'fundsArchive.ts',
+    'fundsReactivate.ts',
+    'categoriesCreate.ts',
+    'categoriesUpdate.ts',
+    'categoriesArchive.ts',
+    'categoriesReactivate.ts',
+  ]);
+
   const root = path.join(process.cwd(), 'server', 'vercel-handlers', 'finance');
   for (const [file, capability] of Object.entries(structuralHandlers)) {
     const source = await fs.readFile(path.join(root, file), 'utf8');
@@ -75,9 +89,27 @@ async function run() {
       !source.includes('sessionList.isGlobalAccess !== true'),
       `${file} still contains a global-only authorization gate`,
     );
+
+    if (directScopedHandlers.has(file)) {
+      assert.ok(
+        source.includes('hasFinanceEntityScope'),
+        `${file} does not enforce explicit financeEntity scope`,
+      );
+    } else {
+      assert.ok(
+        source.includes('requireScopedFinanceAccount'),
+        `${file} does not route account mutation through scoped access`,
+      );
+    }
   }
 
-  console.log('✅ Canonical owner/admin and finance management authority is aligned across structural finance handlers');
+  const bootstrapSource = await fs.readFile(
+    path.join(root, 'bootstrapAvailabilityHelper.ts'),
+    'utf8',
+  );
+  assert.ok(bootstrapSource.includes("permissions.some((permission) => permission.startsWith('finance.'))"));
+
+  console.log('✅ Canonical owner/admin authority and financeEntity scope are aligned across structural finance handlers');
 }
 
 run().catch((error) => {
