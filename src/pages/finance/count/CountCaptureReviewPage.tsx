@@ -222,12 +222,24 @@ function CountCaptureReviewContent() {
     }
   };
 
+  const freeForm = capture?.provenance === 'free_form_note';
+  const reviewTitle = freeForm
+    ? (language === 'PT' ? 'Conferir meu papel' : language === 'ES' ? 'Revisar mi papel' : 'Review my paper')
+    : copy.reviewTitle;
+  const reviewSubtitle = freeForm
+    ? (language === 'PT'
+        ? 'Confira os quatro valores olhando a foto. A leitura é apenas uma sugestão; número sem rótulo não deve ser adivinhado.'
+        : language === 'ES'
+          ? 'Revisa los cuatro valores mirando la foto. La lectura es solo una sugerencia; un número sin etiqueta no debe adivinarse.'
+          : 'Check all four values against the photo. Reading is only a suggestion; an unlabeled number must not be guessed.')
+    : copy.reviewSubtitle;
+
   const inspectRegion = inspectKey ? regionFor(inspectKey) : null;
   const normalizedWidth = capture?.normalization?.normalizedWidth || 1940;
   const normalizedHeight = capture?.normalization?.normalizedHeight || 2810;
 
   return <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8"><FinanceEntityContextBar areaName={copy.reviewTitle} /><div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8"><div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-    <header className="flex items-start gap-3"><Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.countCapture)}><ArrowLeft className="h-5 w-5" /></Button><div className="pt-1"><h1 className="text-2xl font-semibold text-text-primary">{copy.reviewTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">{copy.reviewSubtitle}</p></div></header>
+    <header className="flex items-start gap-3"><Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.countCapture)}><ArrowLeft className="h-5 w-5" /></Button><div className="pt-1"><h1 className="text-2xl font-semibold text-text-primary">{reviewTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">{reviewSubtitle}</p></div></header>
     {loading ? <Surface variant="elevated" radius="xl" className="h-72 animate-pulse" /> : error || !capture ? <Surface variant="secondary" radius="xl" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-5 text-sm text-text-primary">{copy.safeError}</Surface> : capture.status === 'duplicate' ? <Surface variant="elevated" radius="xl" className="p-6 text-center"><Files className="mx-auto h-8 w-8 text-accent-primary" /><h2 className="mt-4 text-lg font-semibold text-text-primary">{copy.duplicateTitle}</h2><p className="mt-2 text-sm text-text-muted">{copy.duplicateBody}</p>{capture.duplicateOfCaptureId ? <Button className="mt-5" onClick={() => navigate(APP_ROUTES.countCaptureReview.replace(':captureId', capture.duplicateOfCaptureId || ''))}>{copy.openOriginal}</Button> : null}</Surface> : capture.materialHidden ? <Surface variant="elevated" radius="xl" className="p-6 text-center"><EyeOff className="mx-auto h-8 w-8 text-accent-primary" /><h2 className="mt-4 text-lg font-semibold text-text-primary">{copy.hiddenTitle}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-muted">{copy.hiddenBody}</p></Surface> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
       <Surface variant="elevated" radius="xl" className="overflow-hidden p-4 sm:p-5">{capture.normalizedUrl && inspectRegion && inspectKey ? <div className="mb-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-text-primary">{copy.inspectRegionTitle}: {copy.fields[inspectKey]}</p><Button variant="ghost" onClick={() => setInspectKey(null)}>{copy.fullImage}</Button></div><EvidenceRegionCrop url={capture.normalizedUrl} region={inspectRegion} label={`${copy.inspectRegionTitle}: ${copy.fields[inspectKey]}`} width={normalizedWidth} height={normalizedHeight} /></div> : null}{capture.normalizedUrl ? <img src={capture.normalizedUrl} alt={copy.normalizedEvidence} className="max-h-[72vh] w-full rounded-xl bg-white object-contain" /> : null}{capture.originalUrl ? <a className="mt-3 inline-flex text-sm font-medium text-accent-primary underline-offset-4 hover:underline" href={capture.originalUrl} target="_blank" rel="noreferrer">{copy.originalEvidence}</a> : null}</Surface>
       <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
