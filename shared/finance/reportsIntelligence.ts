@@ -17,6 +17,7 @@ export type ReportsIntelligenceResponse = {
   financeEntityId: string;
   currentPeriodKey: string;
   comparisonPeriodKey: string;
+  currentSnapshot: PeriodCloseReadinessResponse;
   authority: {
     readOnly: true;
     financialMutation: false;
@@ -106,6 +107,7 @@ export function buildReportsIntelligence(args: {
     financeEntityId: args.current.financeEntityId,
     currentPeriodKey: args.current.period.key,
     comparisonPeriodKey: args.previous.period.key,
+    currentSnapshot: args.current,
     authority: {
       readOnly: true,
       financialMutation: false,
