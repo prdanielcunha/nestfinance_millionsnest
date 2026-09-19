@@ -115,3 +115,14 @@ Uma mudança só está pronta quando:
 ## Quando houver dúvida
 
 Investigue código, testes e documentação. Se ainda não houver evidência suficiente, marque como não confirmado. Não preencha lacunas com suposição.
+
+
+## Canonical app entry and authentication
+
+The ecosystem-wide source of truth is `prdanielcunha/millionsnest/docs/ECOSYSTEM_APP_ENTRY_AUTH_STANDARD.md`.
+
+Permanent rule: this standalone app must be usable from its own domain/PWA without requiring a manual Hub round-trip just to restore authentication. When unauthenticated it must offer a product-native Google entry (unless a documented security exception exists), while Hub handoff remains supported.
+
+Google/Firebase authenticates identity only. MillionsNest canonical organization, membership, entitlement and RBAC data authorizes access. Never use client-provided organization IDs, local/session storage, e-mail, UID aliases or UI roles as authorization. Direct entry and Hub handoff must converge on the same authorization truth, support wrong-account recovery, multi-organization handling, safe return paths and PT/EN/ES.
+
+Current conformance: NestFinance supports native Google entry plus Hub handoff. Both paths must converge on the canonical NestFinance server-side session resolver.
