@@ -16,6 +16,7 @@ const service = readFileSync('src/services/periodCloseService.ts', 'utf8');
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 const rules = readFileSync('firestore.rules', 'utf8');
 const auditModel = readFileSync('shared/finance/auditReadModel.ts', 'utf8');
+const indexes = readFileSync('firestore.indexes.json', 'utf8');
 
 verify(handler.includes("resolveFinanceRequestContext(req, 'finance.review')"), 'human review requires finance.review authority');
 verify(handler.includes("loaded.response.readiness.state !== 'ready_for_review'"), 'human review fails closed unless fresh readiness is clean');
@@ -36,6 +37,9 @@ verify(readModel.includes("expectedReviewId = 'pcr_'"), 'review identity is dete
 verify(readModel.includes('sourceSnapshotMatches: true'), 'a current review is only surfaced when exact source state matches');
 verify(readModel.includes('version: Number(data.version || 0)'), 'source fingerprint includes mutable source versions');
 verify(readModel.includes('reconciliationStatus'), 'source fingerprint includes reconciliation state');
+verify(readModel.includes("'review_outdated'"), 'read model explicitly surfaces stale human reviews');
+verify(readModel.includes('detectChangedAreas'), 'read model explains drift by operational area');
+verify(readModel.includes("orderBy('reviewedAt', 'desc')"), 'read model uses latest prior review as stale-review reference');
 
 verify(page.includes("hasEffectiveCapability(accessState, 'finance.review')"), 'Reports only offers review action to finance reviewers');
 verify(page.includes('Registrar revisão do período'), 'PT UX has explicit review action');
@@ -45,6 +49,10 @@ verify(page.includes('Isso não fecha o mês'), 'PT confirmation explains that r
 verify(page.includes('This does not close the month'), 'EN confirmation explains that review is not closing');
 verify(page.includes('Esto no cierra el mes'), 'ES confirmation explains that review is not closing');
 verify(page.includes('reviewed_current_snapshot'), 'Reports renders current-snapshot review state');
+verify(page.includes('review_outdated'), 'Reports renders stale-review state explicitly');
+verify(page.includes('A revisão anterior não representa mais o estado atual'), 'PT UX explains stale review without erasing history');
+verify(page.includes('The previous review no longer represents the current state'), 'EN UX explains stale review without erasing history');
+verify(page.includes('La revisión anterior ya no representa el estado actual'), 'ES UX explains stale review without erasing history');
 
 verify(service.includes('operation=period-close-review-confirm'), 'client calls the certified review operation');
 verify(gateway.includes("case 'period-close-review-confirm'"), 'gateway exposes review confirmation');
@@ -61,5 +69,7 @@ const safe = buildSafeAuditMetadata({
 verify(safe.periodKey === '2026-09', 'audit read model exposes safe period context');
 verify(JSON.stringify(safe).includes('must-not-leak') === false, 'audit read model never exposes source fingerprint');
 verify(auditModel.includes('periodKey?: string'), 'audit metadata contract includes safe period key');
+verify(indexes.includes('"collectionGroup": "financePeriodCloseReviews"'), 'review history query has an explicit Firestore index');
+verify(indexes.includes('"fieldPath": "reviewedAt"'), 'review history index supports newest-review lookup');
 
 console.log('\nPeriod Close Human Review totals: ' + passed + ' Passed');
