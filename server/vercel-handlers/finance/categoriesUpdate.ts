@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { hasEffectiveCapability } from './accessHelpers.js';
+import { hasEffectiveCapability, hasFinanceEntityScope } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { 
@@ -78,6 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
+
+    if (!hasFinanceEntityScope(sessionList, financeEntityId)) {
+      return res.status(403).json({ error: 'FORBIDDEN_FINANCE_ENTITY_SCOPE' });
     }
 
     if (!categoryId || typeof categoryId !== 'string') {
