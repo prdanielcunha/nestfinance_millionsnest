@@ -51,6 +51,8 @@ jobs:
           npm run check:api-contracts
           npm run check:saas-isolation
           npm run test:auth-session
+          npm run test:role-workspace
+          npm run test:finance-role-policy
           npm run test:firebase-infra
           npm run test:certification-gates
           npm run build
