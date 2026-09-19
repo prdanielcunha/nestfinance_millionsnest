@@ -9,7 +9,7 @@ import {
   generateUniqueKeyId,
   isValidAccountId
 } from '../../../api/_lib/financeIdentity.js';
-import { requireScopedFinanceAccount } from './accessHelpers.js';
+import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
