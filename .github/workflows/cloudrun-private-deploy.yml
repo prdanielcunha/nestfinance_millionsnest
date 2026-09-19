@@ -63,7 +63,7 @@ jobs:
             --concurrency 80 \
             --timeout 60 \
             --no-allow-unauthenticated \
-            --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production" \
+            --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_SESSION_RESOLVE_ENABLED=true,NESTFINANCE_HANDOFF_REDEEM_ENABLED=true" \
             --quiet
       - name: Verify Cloud Run readiness
         run: |
