@@ -189,3 +189,60 @@ export async function updateFinanceEntity(payload: any): Promise<any> {
   
     return res.json();
 }
+
+
+export type AccessibleFinanceEntity = {
+  id: string;
+  displayName: string;
+};
+
+export type AccessibleFinanceEntitiesResult = {
+  organizationId: string;
+  entities: AccessibleFinanceEntity[];
+};
+
+export async function listAccessibleFinanceEntities(): Promise<AccessibleFinanceEntitiesResult> {
+  const user = firebaseAuth.currentUser;
+  if (!user) throw new Error('NOT_AUTHENTICATED');
+
+  const token = await user.getIdToken();
+  const res = await fetch('/api/finance/entities/accessible', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error('SESSION_EXPIRED');
+    if (res.status === 403) throw new Error('NO_ACCESSIBLE_FINANCE_ENTITY');
+    throw new Error(errorData.error || 'FINANCE_ENTITY_SELECTOR_UNAVAILABLE');
+  }
+
+  const data = await res.json();
+  if (
+    !data ||
+    typeof data.organizationId !== 'string' ||
+    !Array.isArray(data.entities)
+  ) {
+    throw new Error('INVALID_ACCESSIBLE_FINANCE_ENTITY_RESPONSE');
+  }
+
+  return {
+    organizationId: data.organizationId,
+    entities: data.entities
+      .filter(
+        (entity: any) =>
+          entity &&
+          typeof entity.id === 'string' &&
+          typeof entity.displayName === 'string',
+      )
+      .map((entity: any) => ({
+        id: entity.id,
+        displayName: entity.displayName,
+      })),
+  };
+}
