@@ -18,6 +18,7 @@ export interface CountCaptureStorageAdapter {
   createUploadUrl(path: string, contentType: string, ttlMs: number): Promise<CountCaptureUploadGrant>;
   createReadUrl(path: string, ttlMs: number): Promise<string>;
   inspectAndHash(path: string): Promise<CountCaptureStoredObject>;
+  readVerifiedBytes(path: string, maxBytes: number): Promise<{ bytes: Buffer; contentType: string; size: number; sha256: string }>;
 }
 
 const TEST_STORAGE_SYMBOL = Symbol.for('TEST_COUNT_CAPTURE_STORAGE');
@@ -72,6 +73,36 @@ function productionAdapter(): CountCaptureStorageAdapter {
         size,
         sha256: hash.digest('hex'),
       };
+    },
+
+    async readVerifiedBytes(path, maxBytes) {
+      const file = bucket.file(path);
+      const [metadata] = await file.getMetadata();
+      const contentType = String(metadata.contentType || '');
+      const size = Number(metadata.size || 0);
+      if (!Number.isSafeInteger(size) || size <= 0) throw new Error('COUNT_CAPTURE_UPLOAD_MISSING');
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || size > maxBytes) throw new Error('COUNT_CAPTURE_NORMALIZED_TOO_LARGE');
+
+      const chunks: Buffer[] = [];
+      let total = 0;
+      const hash = createHash('sha256');
+      await new Promise<void>((resolve, reject) => {
+        const stream = file.createReadStream();
+        stream.on('data', (chunk: Buffer) => {
+          total += chunk.length;
+          if (total > maxBytes) {
+            stream.destroy(new Error('COUNT_CAPTURE_NORMALIZED_TOO_LARGE'));
+            return;
+          }
+          const copy = Buffer.from(chunk);
+          chunks.push(copy);
+          hash.update(copy);
+        });
+        stream.on('error', reject);
+        stream.on('end', resolve);
+      });
+      if (total !== size) throw new Error('COUNT_CAPTURE_NORMALIZED_MISMATCH');
+      return { bytes: Buffer.concat(chunks), contentType, size, sha256: hash.digest('hex') };
     },
   };
 }
