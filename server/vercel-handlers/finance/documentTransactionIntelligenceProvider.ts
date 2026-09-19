@@ -116,7 +116,7 @@ function extractInteractionsText(payload: any) {
 function mediaInput(bytes: Buffer, mimeType: string) {
   return mimeType === 'application/pdf'
     ? { type: 'document', data: bytes.toString('base64'), mime_type: mimeType }
-    : { type: 'image', data: bytes.toString('base64'), mime_type: mimeType, resolution: 'high' };
+    : { type: 'image', data: bytes.toString('base64'), mime_type: mimeType };
 }
 
 async function callGeminiDeveloperApi(input: {
