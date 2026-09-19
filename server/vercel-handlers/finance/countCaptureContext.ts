@@ -73,10 +73,11 @@ export async function resolveCountCaptureContext(input: {
   }
   const stage = input.capture?.stage;
   if (stage !== 'count_a' && stage !== 'count_b') throw new Error('COUNT_CAPTURE_FREE_FORM_INTEGRITY_FAILED');
-  const expectedStage = deriveOpenCountStage(String(session.status || ''));
-  if (stage !== expectedStage) {
-    if (isCountCaptureMaterialHidden(stage, session.status)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
-    throw new Error('COUNT_CAPTURE_INVALID_STAGE_STATE');
+  const status = String(session.status || '');
+  // Historical evidence remains resolvable after a count is matched/divergent.
+  // Mutation handlers separately enforce whether the captured stage is currently open.
+  if (stage === 'count_b' && status === 'counting_a') {
+    throw new Error('COUNT_CAPTURE_FREE_FORM_INTEGRITY_FAILED');
   }
 
   return {
