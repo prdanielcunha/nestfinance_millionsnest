@@ -160,7 +160,11 @@ function LanguageSwitcher({ language, setLanguage, compact = false }: { language
 
 function ShellLayoutInner() {
   const { accessState } = useAuth();
-  const { activeFinanceEntityName, setActiveFinanceEntityId } = useFinanceEntity();
+  const {
+    activeFinanceEntityName,
+    setActiveFinanceEntityId,
+    refreshAccessibleFinanceEntities,
+  } = useFinanceEntity();
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -219,6 +223,7 @@ function ShellLayoutInner() {
       } else if (result.status === 'ready') {
         if (result.organization.id !== accessState.organizationId) {
           setActiveFinanceEntityId(null);
+          await refreshAccessibleFinanceEntities();
           navigate(APP_ROUTES.finance, { replace: true });
         }
       } else {
@@ -240,6 +245,7 @@ function ShellLayoutInner() {
       const result = await chooseCurrentSessionOrganization(organizationId);
       if (result.status !== 'ready') throw new Error('ORGANIZATION_SWITCH_NOT_READY');
       setActiveFinanceEntityId(null);
+      await refreshAccessibleFinanceEntities();
       setOrganizationSwitcherOpen(false);
       navigate(APP_ROUTES.finance, { replace: true });
     } catch {
