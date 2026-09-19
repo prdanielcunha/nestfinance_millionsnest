@@ -49,6 +49,9 @@ import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countS
 import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
 import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
 import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
+import countFreeFormCapturesStart from '../server/vercel-handlers/finance/countFreeFormCapturesStart.js';
+import countFreeFormCapturesFinalize from '../server/vercel-handlers/finance/countFreeFormCapturesFinalize.js';
+import countFreeFormCapturesExtractCandidates from '../server/vercel-handlers/finance/countFreeFormCapturesExtractCandidates.js';
 import countCapturesFinalize from '../server/vercel-handlers/finance/countCapturesFinalize.js';
 import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
 import countCapturesExtractCandidates from '../server/vercel-handlers/finance/countCapturesExtractCandidates.js';
@@ -142,6 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-paper-forms-generate': return countPaperFormsGenerate(req, res);
     case 'count-paper-forms-detail': return countPaperFormsDetail(req, res);
     case 'count-captures-start': return countCapturesStart(req, res);
+    case 'count-free-form-captures-start': return countFreeFormCapturesStart(req, res);
+    case 'count-free-form-captures-finalize': return countFreeFormCapturesFinalize(req, res);
+    case 'count-free-form-captures-extract-candidates': return countFreeFormCapturesExtractCandidates(req, res);
     case 'count-captures-finalize': return countCapturesFinalize(req, res);
     case 'count-captures-detail': return countCapturesDetail(req, res);
     case 'count-captures-extract-candidates': return countCapturesExtractCandidates(req, res);
