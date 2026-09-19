@@ -1,8 +1,11 @@
 import { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
 import { ShieldAlert, LogIn, AlertTriangle, CloudOff } from 'lucide-react';
 import { config } from '@/src/config/env';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
+import { firebaseAuth } from '@/src/lib/firebase';
+import { APP_ROUTES } from '@/src/app/router/routes';
 
 interface Props {
   children: ReactNode;
@@ -10,6 +13,14 @@ interface Props {
 
 export function EcosystemAccessBoundary({ children }: Props) {
   const { accessState } = useAuth();
+  const navigate = useNavigate();
+
+  const switchAccount = async () => {
+    await firebaseAuth.signOut().catch(() => undefined);
+    navigate(APP_ROUTES.login, { replace: true });
+  };
+
+  const openHub = () => window.location.assign('https://www.millionsnest.com/apps/nestfinance/launch');
   
   const isPreview = import.meta.env.DEV && window.location.pathname === '/__preview/foundation';
 
@@ -53,6 +64,14 @@ export function EcosystemAccessBoundary({ children }: Props) {
         <p className="text-sm text-text-secondary max-w-sm">
           Você não possui permissão para acessar o NestFinance com esta conta.
         </p>
+        <div className="mt-6 flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+          <button onClick={switchAccount} className="px-5 py-2.5 bg-text-primary text-background-base rounded-lg text-sm font-semibold">
+            Usar outra conta
+          </button>
+          <button onClick={openHub} className="px-5 py-2.5 bg-surface-elevated border border-border-strong rounded-lg text-sm font-medium text-text-primary">
+            Abrir MillionsNest
+          </button>
+        </div>
       </div>
     );
   }

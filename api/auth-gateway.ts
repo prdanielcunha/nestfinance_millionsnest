@@ -23,6 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const module = await import('../server/vercel-handlers/auth/sessionResolve.js');
         return await module.default(req, res);
       }
+      case 'direct-entry': {
+        const module = await import('../server/vercel-handlers/auth/directEntry.js');
+        return await module.default(req, res);
+      }
       default:
         return res.status(404).json({ error: 'ROUTE_NOT_FOUND', requestId });
     }

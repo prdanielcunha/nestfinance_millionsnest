@@ -5,6 +5,7 @@ import { pathToFileURL } from 'url';
 export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/auth-gateway', operation: 'handoff-redeem', exposure: 'rewrite', url: '/api/auth/handoff/redeem' },
   { method: 'POST', gateway: '/api/auth-gateway', operation: 'session-resolve', exposure: 'rewrite', url: '/api/auth/session/resolve' },
+  { method: 'POST', gateway: '/api/auth-gateway', operation: 'direct-entry', exposure: 'rewrite', url: '/api/auth/direct-entry' },
 
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'setup-initialize', exposure: 'rewrite', url: '/api/finance/setup/initialize' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-list', exposure: 'rewrite', url: '/api/finance/accounts/list' },

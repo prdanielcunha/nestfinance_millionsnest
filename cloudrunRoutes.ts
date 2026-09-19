@@ -16,6 +16,10 @@ export const NESTFINANCE_CLOUD_RUN_ROUTES = {
     "gateway": "auth",
     "operation": "session-resolve"
   },
+  "/api/auth/direct-entry": {
+    "gateway": "auth",
+    "operation": "direct-entry"
+  },
   "/api/finance/setup/initialize": {
     "gateway": "finance",
     "operation": "setup-initialize"
