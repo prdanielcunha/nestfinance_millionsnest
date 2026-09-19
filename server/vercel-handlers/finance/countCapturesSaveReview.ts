@@ -64,7 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!liveDoc.exists || !liveSessionDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const live = liveDoc.data() || {};
       if (!['captured', 'reviewed'].includes(live.status) || live.version !== expectedVersion) throw new Error('COUNT_CAPTURE_VERSION_CONFLICT');
-      if (isCountCaptureMaterialHidden(resolved.identity.stage, liveSessionDoc.data()?.status)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
+      const liveSessionStatus = liveSessionDoc.data()?.status;
+      if (resolved.provenance === 'free_form_note') assertCountCaptureStageOpen(resolved.identity.stage, liveSessionStatus);
+      if (isCountCaptureMaterialHidden(resolved.identity.stage, liveSessionStatus)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
 
       const liveCandidates = Array.isArray(live.candidates) ? (live.candidates as CountCaptureCandidateField[]) : [];
       // Candidate fields are immutable evidence for this review version. Fail closed
