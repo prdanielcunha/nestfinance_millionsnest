@@ -9,6 +9,7 @@ import { validateAllocation, FinanceAllocation } from '../../../shared/finance/l
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
+import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -70,6 +71,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const txData = txDoc.data() as LedgerTransaction;
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
+      if (payload.evidenceIds !== undefined) {
+        const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
+        await assertTransactionEvidenceReferences({
+          transaction: t,
+          evidenceIds: payload.evidenceIds,
+          organizationId,
+          financeEntityId,
+          entityRef,
+        });
+      }
       if (txData.version !== expectedVersion) throw { code: 'FINANCE_VERSION_CONFLICT', message: 'Version conflict' };
       
       // Update only draft.

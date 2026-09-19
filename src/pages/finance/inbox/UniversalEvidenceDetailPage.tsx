@@ -36,6 +36,7 @@ import {
 } from './inboxModel';
 import { UniversalEvidencePdfReadinessCard } from './UniversalEvidencePdfReadinessCard';
 import { UniversalEvidenceHumanReviewCard } from './UniversalEvidenceHumanReviewCard';
+import { DocumentTransactionAnalysisCard } from './DocumentTransactionAnalysisCard';
 
 const VALID_EVIDENCE_ID = /^evd_[a-f0-9]{32}$/;
 const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -323,6 +324,12 @@ function EvidenceDetailContent() {
               </div>
             </div>
           </Surface>
+
+          <DocumentTransactionAnalysisCard
+            evidence={evidence}
+            canCreateDraft={canClassify}
+            onChanged={() => loadDetail(epochRef.current)}
+          />
 
           <UniversalEvidenceHumanReviewCard
             evidence={evidence}

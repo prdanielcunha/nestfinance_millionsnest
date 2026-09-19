@@ -9,6 +9,7 @@ import { validateAllocation, assertAllocationsTotal, FinanceAllocation } from '.
 import { validateTransactionCore, LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { stageFinanceFact } from './factStream.js';
+import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -64,6 +65,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const actorDisplayName = await getActorDisplayName(db, uid);
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
+      const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
+      await assertTransactionEvidenceReferences({
+        transaction: t,
+        evidenceIds: payload.evidenceIds || [],
+        organizationId,
+        financeEntityId,
+        entityRef,
+      });
+
       // Precedence of transactionKind over legacy direction
       if (payload.direction && payload.direction !== transactionKind) {
         throw { code: 'FINANCE_TRANSACTION_KIND_DIRECTION_CONFLICT', message: 'transactionKind and legacy direction conflict' };

@@ -94,6 +94,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           note: typeof reviewData.note === 'string' && reviewData.note.trim() ? reviewData.note.trim() : null,
         }
       : null;
+    const transactionAnalysisData =
+      data.transactionAnalysis && typeof data.transactionAnalysis === 'object'
+        ? data.transactionAnalysis
+        : null;
+    const transactionAnalysis =
+      transactionAnalysisData?.analysis?.schemaVersion === 2 &&
+      transactionAnalysisData?.analysis?.source === 'ai_assisted'
+        ? {
+            analysis: transactionAnalysisData.analysis,
+            provider: typeof transactionAnalysisData.provider === 'string' ? transactionAnalysisData.provider : null,
+            model: typeof transactionAnalysisData.model === 'string' ? transactionAnalysisData.model : null,
+            revision: typeof transactionAnalysisData.revision === 'string' ? transactionAnalysisData.revision : null,
+            generatedAt: toIso(transactionAnalysisData.generatedAt),
+          }
+        : null;
 
     return res.status(200).json({
       evidence: {
@@ -112,6 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
         classification,
         review,
+        transactionAnalysis,
         verification: {
           immutableOriginal: original.immutable === true,
           mimeVerified: Boolean(verifiedMimeType),

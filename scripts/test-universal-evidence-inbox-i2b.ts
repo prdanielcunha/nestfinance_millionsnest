@@ -33,7 +33,7 @@ check(gateway.includes("case 'universal-evidence-detail'") && contracts.includes
 check(detail.includes('epochRef') && detail.includes('epoch !== epochRef.current'), 'stale detail responses are ignored after context changes');
 check(detail.includes('role="alert"') && detail.includes('copy.retry') && detail.includes('copy.supportCode'), 'detail has recoverable human-safe error state');
 check(copy.includes("fileSize: 'Tamanho'") && copy.includes("fileSize: 'Size'") && copy.includes("fileSize: 'Tamaño'"), 'file metadata labels are localized in PT/EN/ES');
-check(copy.includes('Nenhuma ação contábil foi executada') && copy.includes('No accounting action was performed') && copy.includes('No se realizó ninguna acción contable'), 'read-only accounting boundary is explicit in all three languages');
+check(copy.includes('Nenhuma ação contábil acontece sozinha') && copy.includes('No accounting action happens automatically') && copy.includes('Ninguna acción contable ocurre automáticamente'), 'non-automatic accounting boundary is explicit in all three languages');
 check(handler.includes('verification: {') && handler.includes('contentHashVerified'), 'server returns verification results as booleans');
 check(!/originalSha256\s*:/.test(handler) && !/duplicateOfEvidenceId\s*:/.test(handler), 'detail DTO does not expose private hash or canonical duplicate id');
 check(!handler.includes('getUniversalEvidenceStorageAdapter') && !handler.includes('createReadStream') && !handler.includes('getSignedUrl'), 'detail does not read binaries or generate Storage URLs');
@@ -43,10 +43,10 @@ for (const forbidden of ['generateContent', 'GEMINI', 'OCR', 'PostingPlan', 'fin
 }
 check(detail.includes('copy.noAccountingActionBody'), 'detail renders the localized inactive-intelligence boundary copy');
 check(
-  copy.includes('Identificação e conferência registram somente metadados e auditoria') &&
-    copy.includes('Identification and review record metadata and audit history only') &&
-    copy.includes('La identificación y la revisión registran solo metadatos y auditoría'),
-  'localized UI copy allows human review while preserving the no-posting boundary in PT/EN/ES',
+  copy.includes('Um rascunho só é criado quando você confirma explicitamente') &&
+    copy.includes('A draft is created only after your explicit confirmation') &&
+    copy.includes('Un borrador solo se crea cuando lo confirmas explícitamente'),
+  'localized UI copy allows explicit draft confirmation while preserving separate posting/balance authority in PT/EN/ES',
 );
 
 console.log(`\nUniversal Evidence Inbox I2B totals: ${passed} Passed`);

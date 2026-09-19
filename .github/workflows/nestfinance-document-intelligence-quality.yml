@@ -1,0 +1,63 @@
+name: NestFinance Document Intelligence Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "api/finance-gateway.ts"
+      - "server/vercel-handlers/finance/documentTransactionIntelligenceProvider.ts"
+      - "server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.ts"
+      - "server/vercel-handlers/finance/universalEvidenceDetail.ts"
+      - "server/vercel-handlers/finance/transactionEvidenceValidation.ts"
+      - "server/vercel-handlers/finance/transactionsCreateDraft.ts"
+      - "server/vercel-handlers/finance/transactionsUpdateDraft.ts"
+      - "shared/finance/documentTransactionIntelligence.ts"
+      - "src/pages/finance/capture/UniversalCapturePage.tsx"
+      - "src/pages/finance/capture/universalCaptureCopy.ts"
+      - "src/pages/finance/inbox/DocumentTransactionAnalysisCard.tsx"
+      - "src/pages/finance/inbox/UniversalEvidenceDetailPage.tsx"
+      - "src/pages/finance/inbox/documentAnalysisCopy.ts"
+      - "src/pages/finance/inbox/inboxCopy.ts"
+      - "src/services/universalEvidenceInboxService.ts"
+      - "scripts/test-document-transaction-intelligence.ts"
+      - "scripts/test-document-transaction-intelligence-emulator.ts"
+      - "scripts/check-api-contracts.mjs"
+      - ".github/workflows/nestfinance-document-intelligence-quality.yml"
+
+jobs:
+  document-intelligence:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-p06b-emulator
+      GCLOUD_PROJECT: nestfinance-p06b-emulator
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Certified API contracts
+        run: npm run check:api-contracts
+      - name: Document intelligence authority and UX
+        run: npx tsx scripts/test-document-transaction-intelligence.ts
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+      - name: Document intelligence Firestore Emulator
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-p06b-emulator "npx tsx scripts/test-document-transaction-intelligence-emulator.ts"
