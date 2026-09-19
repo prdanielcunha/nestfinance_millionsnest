@@ -6,6 +6,7 @@ import { ShellLayout } from '../layouts/ShellLayout';
 import { RouteErrorBoundary } from '../boundaries/RouteErrorBoundary';
 import { OrganizationalAccessBoundary } from '../boundaries/OrganizationalAccessBoundary';
 import HandoffPage from '@/src/pages/auth/HandoffPage';
+import LoginPage from '@/src/pages/auth/LoginPage';
 
 // Lazy loaded pages to keep initial bundle small
 const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
@@ -57,6 +58,10 @@ const routes: RouteObject[] = [
       {
         path: APP_ROUTES.handoff,
         element: <HandoffPage />,
+      },
+      {
+        path: APP_ROUTES.login,
+        element: <LoginPage />,
       },
       {
         element: <ShellLayout />,
