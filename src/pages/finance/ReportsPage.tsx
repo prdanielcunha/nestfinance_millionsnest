@@ -20,6 +20,7 @@ import type {
   PeriodCloseBlocker,
   PeriodCloseBlockerCode,
   PeriodCloseReadinessResponse,
+  PeriodCloseReviewChangedArea,
 } from '../../../shared/finance/periodCloseReadiness.js';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -68,6 +69,10 @@ type ReportsCopy = {
   reviewRegisteredTitle: string;
   reviewRegisteredBody: (name: string, date: string) => string;
   reviewSourceBound: string;
+  reviewOutdatedTitle: string;
+  reviewOutdatedBody: (name: string, date: string) => string;
+  reviewChangedLabel: string;
+  reviewChangedAreas: Record<PeriodCloseReviewChangedArea, string>;
   operationalTitle: string;
   operationalBody: string;
   transactionPipeline: string;
@@ -131,6 +136,16 @@ const COPY: Record<Language, ReportsCopy> = {
     reviewRegisteredTitle: 'Revisão humana registrada',
     reviewRegisteredBody: (name, date) => `${name} conferiu este estado do período em ${date}.`,
     reviewSourceBound: 'A revisão vale somente enquanto as fontes permanecerem exatamente neste estado.',
+    reviewOutdatedTitle: 'A revisão anterior não representa mais o estado atual',
+    reviewOutdatedBody: (name, date) => `${name} havia conferido este período em ${date}, mas fontes do mês mudaram depois disso.`,
+    reviewChangedLabel: 'O que mudou desde aquela revisão',
+    reviewChangedAreas: {
+      transactions: 'Movimentações',
+      counts: 'Contagens',
+      documents: 'Documentos',
+      reconciliation: 'Conciliação',
+      unknown: 'Outra fonte do período',
+    },
     operationalTitle: 'Raio-X do período',
     operationalBody: 'A leitura abaixo vem das fontes canônicas da entidade atual e é somente leitura.',
     transactionPipeline: 'Fluxo das movimentações',
@@ -201,6 +216,16 @@ const COPY: Record<Language, ReportsCopy> = {
     reviewRegisteredTitle: 'Human review recorded',
     reviewRegisteredBody: (name, date) => `${name} reviewed this period state on ${date}.`,
     reviewSourceBound: 'This review only remains current while the underlying sources stay exactly in this state.',
+    reviewOutdatedTitle: 'The previous review no longer represents the current state',
+    reviewOutdatedBody: (name, date) => `${name} reviewed this period on ${date}, but period sources changed afterwards.`,
+    reviewChangedLabel: 'What changed since that review',
+    reviewChangedAreas: {
+      transactions: 'Transactions',
+      counts: 'Counts',
+      documents: 'Documents',
+      reconciliation: 'Reconciliation',
+      unknown: 'Another period source',
+    },
     operationalTitle: 'Period snapshot',
     operationalBody: 'The view below comes from canonical sources for the current entity and is read-only.',
     transactionPipeline: 'Transaction flow',
@@ -271,6 +296,16 @@ const COPY: Record<Language, ReportsCopy> = {
     reviewRegisteredTitle: 'Revisión humana registrada',
     reviewRegisteredBody: (name, date) => `${name} revisó este estado del período el ${date}.`,
     reviewSourceBound: 'La revisión solo vale mientras las fuentes permanezcan exactamente en este estado.',
+    reviewOutdatedTitle: 'La revisión anterior ya no representa el estado actual',
+    reviewOutdatedBody: (name, date) => `${name} revisó este período el ${date}, pero las fuentes del mes cambiaron después.`,
+    reviewChangedLabel: 'Qué cambió desde esa revisión',
+    reviewChangedAreas: {
+      transactions: 'Movimientos',
+      counts: 'Conteos',
+      documents: 'Documentos',
+      reconciliation: 'Conciliación',
+      unknown: 'Otra fuente del período',
+    },
     operationalTitle: 'Radiografía del período',
     operationalBody: 'La lectura siguiente proviene de fuentes canónicas de la entidad actual y es de solo lectura.',
     transactionPipeline: 'Flujo de movimientos',
@@ -537,6 +572,38 @@ function ReportsContent() {
                   </div>
                 </div>
               </Surface>
+
+              {data.humanReview.state === 'review_outdated' ? (
+                <Surface variant="elevated" radius="xl" className="border border-semantic-warning/20 p-5 sm:p-6" role="status">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-semantic-warning/10 text-semantic-warning">
+                      <RefreshCw className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-base font-semibold text-text-primary">{copy.reviewOutdatedTitle}</h2>
+                      <p className="mt-1 text-sm leading-relaxed text-text-muted">
+                        {copy.reviewOutdatedBody(
+                          data.humanReview.reviewedByDisplayName || '—',
+                          formatDateTime(data.humanReview.reviewedAt, language),
+                        )}
+                      </p>
+                      <div className="mt-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.reviewChangedLabel}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {data.humanReview.changedAreas.map((area) => (
+                            <span
+                              key={area}
+                              className="rounded-full border border-border-subtle bg-surface-secondary px-3 py-1.5 text-xs font-medium text-text-secondary"
+                            >
+                              {copy.reviewChangedAreas[area]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Surface>
+              ) : null}
 
               <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={copy.operationalTitle}>
                 {metrics.map((metric) => {
