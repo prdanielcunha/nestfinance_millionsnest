@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronRight,
   FileText,
-  Plus,
   ShieldCheck,
   ShieldX,
   Smartphone,
