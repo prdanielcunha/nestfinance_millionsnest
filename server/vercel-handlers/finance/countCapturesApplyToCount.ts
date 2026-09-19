@@ -9,7 +9,8 @@ import { calculateCountEntriesTotalCents, compareCountEntries } from '../../../s
 import { isCountCaptureMaterialHidden, isValidCountCaptureId } from '../../../shared/finance/countCapture.js';
 import { buildCountCaptureApplyPlan } from '../../../shared/finance/countCaptureApply.js';
 import { hasActiveCountCaptureExtractionLease } from '../../../shared/finance/countCaptureExtraction.js';
-import { generateCountCaptureAuditId, resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
+import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
+import { resolveCountCaptureContext } from './countCaptureContext.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
@@ -52,28 +53,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'COUNT_CAPTURE_VERSION_CONFLICT' });
     }
 
-    const canonical = await resolveCanonicalCountPaperForm({ db, organizationId, financeEntityId, formId: capture.formId });
-    if (
-      canonical.form.countSessionId !== capture.countSessionId ||
-      canonical.form.stage !== capture.stage ||
-      canonical.form.checksum !== capture.checksum ||
-      canonical.form.templateVersion !== capture.templateVersion
-    ) throw new Error('COUNT_CAPTURE_FORM_INTEGRITY_FAILED');
-
-    if (isCountCaptureMaterialHidden(canonical.form.stage, canonical.session.status)) {
+    const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture });
+    const { identity, provenance } = resolved;
+    if (isCountCaptureMaterialHidden(identity.stage, resolved.session.status)) {
       return res.status(409).json({ error: 'COUNT_CAPTURE_MATERIAL_HIDDEN' });
     }
 
     const applyPlan = buildCountCaptureApplyPlan({
       reviewedFields: capture.review?.fields,
-      reviewedDenominations: capture.denominationReview?.fields,
+      reviewedDenominations: provenance === 'free_form_note' ? undefined : capture.denominationReview?.fields,
     });
     const totalCents = calculateCountEntriesTotalCents(applyPlan.entries);
     const payloadHash = hashPayload({
       captureId,
       expectedCaptureVersion,
-      countSessionId: canonical.form.countSessionId,
-      stage: canonical.form.stage,
+      countSessionId: identity.countSessionId,
+      stage: identity.stage,
       entries: applyPlan.entries,
       sources: applyPlan.sources,
     });
@@ -81,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       organizationId,
       financeEntityId,
       uid,
-      'count_capture_apply_' + canonical.form.stage,
+      'count_capture_apply_' + identity.stage,
       idempotencyKey,
     );
 
@@ -93,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       async (transaction) => {
         const [liveCaptureDoc, liveSessionDoc] = await Promise.all([
           transaction.get(captureRef),
-          transaction.get(canonical.sessionRef),
+          transaction.get(resolved.sessionRef),
         ]);
         if (!liveCaptureDoc.exists || !liveSessionDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
         const liveCapture = liveCaptureDoc.data() || {};
@@ -117,13 +112,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
-        if (isCountCaptureMaterialHidden(canonical.form.stage, session.status)) {
+        if (isCountCaptureMaterialHidden(identity.stage, session.status)) {
           throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
         }
 
         const livePlan = buildCountCaptureApplyPlan({
           reviewedFields: liveCapture.review?.fields,
-          reviewedDenominations: liveCapture.denominationReview?.fields,
+          reviewedDenominations: provenance === 'free_form_note' ? undefined : liveCapture.denominationReview?.fields,
         });
         if (hashPayload(livePlan) !== hashPayload(applyPlan)) throw new Error('COUNT_CAPTURE_VERSION_CONFLICT');
 
@@ -133,26 +128,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const nextCaptureVersion = expectedCaptureVersion + 1;
         let resultingStatus = String(session.status || '');
 
-        const sessionAuditId = 'audit_' + canonical.form.countSessionId.slice(4) + '_' + nextSessionVersion;
+        const sessionAuditId = 'audit_' + identity.countSessionId.slice(4) + '_' + nextSessionVersion;
         const sessionAuditRef = context.repository.getAuditRef().doc(sessionAuditId);
         const captureAuditId = generateCountCaptureAuditId();
         const captureAuditRef = context.repository.getAuditRef().doc(captureAuditId);
 
-        if (canonical.form.stage === 'count_a') {
+        if (identity.stage === 'count_a') {
           if (session.status !== 'counting_a') throw new Error('COUNT_INVALID_STATE');
           if (Array.isArray(session.countA?.entries) && session.countA.entries.length > 0) {
             throw new Error('COUNT_CAPTURE_APPLY_FIRST_COUNT_ALREADY_EXISTS');
           }
           resultingStatus = 'counting_a';
-          transaction.update(canonical.sessionRef, {
+          transaction.update(resolved.sessionRef, {
             countA: {
               entries: applyPlan.entries,
               totalCents,
               countedByUid: null,
               enteredByUid: uid,
               source: 'count_capture',
+              sourceProvenance: provenance,
               sourceCaptureId: captureId,
-              sourceFormId: canonical.form.id,
+              sourceFormId: identity.formId,
               savedAt: FieldValue.serverTimestamp(),
             },
             updatedByUid: uid,
@@ -165,8 +161,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             financeEntityId,
             actor: uid,
             resource: 'count_session',
-            resourceId: canonical.form.countSessionId,
-            action: 'count.first_count_imported_from_reviewed_sheet',
+            resourceId: identity.countSessionId,
+            action: provenance === 'free_form_note'
+              ? 'count.first_count_imported_from_reviewed_note'
+              : 'count.first_count_imported_from_reviewed_sheet',
             requestId,
             idempotencyKey,
             afterHash: payloadHash,
@@ -176,7 +174,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               stage: 'count_a',
               entryTypes: applyPlan.entries.map((entry) => entry.type),
               sourceCaptureId: captureId,
-              sourceFormId: canonical.form.id,
+              sourceFormId: identity.formId,
+              provenance,
               materialRedacted: true,
             },
             createdAt: FieldValue.serverTimestamp(),
@@ -185,23 +184,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             organizationId,
             eventType: 'COUNT_UPDATED',
             entityType: 'count_session',
-            entityId: canonical.form.countSessionId,
+            entityId: identity.countSessionId,
             actorUserId: uid,
             correlationId: requestId,
             payload: {
               financeEntityId,
               status: resultingStatus,
               version: nextSessionVersion,
-              stage: 'first_count_imported_from_reviewed_sheet',
+              stage: provenance === 'free_form_note'
+                ? 'first_count_imported_from_reviewed_note'
+                : 'first_count_imported_from_reviewed_sheet',
               entryCount: applyPlan.entries.length,
             },
             sourceRefs: [
-              { kind: 'record', ref: canonical.sessionRef.path, version: nextSessionVersion },
+              { kind: 'record', ref: resolved.sessionRef.path, version: nextSessionVersion },
               { kind: 'record', ref: captureRef.path, version: nextCaptureVersion },
               { kind: 'audit', ref: sessionAuditRef.path },
             ],
           });
-        } else if (canonical.form.stage === 'count_b') {
+        } else if (identity.stage === 'count_b') {
           if (session.status !== 'counting_b') throw new Error('COUNT_INVALID_STATE');
           if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {
             throw new Error('COUNT_FIRST_COUNT_REQUIRED');
@@ -211,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const comparison = compareCountEntries(session.countA.entries, applyPlan.entries);
           resultingStatus = comparison.matched ? 'matched' : 'divergent';
-          transaction.update(canonical.sessionRef, {
+          transaction.update(resolved.sessionRef, {
             status: resultingStatus,
             countB: {
               entries: applyPlan.entries,
@@ -219,8 +220,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               countedByUid: null,
               enteredByUid: uid,
               source: 'count_capture',
+              sourceProvenance: provenance,
               sourceCaptureId: captureId,
-              sourceFormId: canonical.form.id,
+              sourceFormId: identity.formId,
               sealedAt: FieldValue.serverTimestamp(),
             },
             comparison: {
@@ -238,8 +240,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             financeEntityId,
             actor: uid,
             resource: 'count_session',
-            resourceId: canonical.form.countSessionId,
-            action: 'count.second_count_imported_from_reviewed_sheet',
+            resourceId: identity.countSessionId,
+            action: provenance === 'free_form_note'
+              ? 'count.second_count_imported_from_reviewed_note'
+              : 'count.second_count_imported_from_reviewed_sheet',
             requestId,
             idempotencyKey,
             afterHash: payloadHash,
@@ -250,13 +254,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               status: resultingStatus,
               matched: comparison.matched,
               sourceCaptureId: captureId,
-              sourceFormId: canonical.form.id,
+              sourceFormId: identity.formId,
               materialRedacted: true,
             },
             createdAt: FieldValue.serverTimestamp(),
           });
           const sourceRefs = [
-            { kind: 'record' as const, ref: canonical.sessionRef.path, version: nextSessionVersion },
+            { kind: 'record' as const, ref: resolved.sessionRef.path, version: nextSessionVersion },
             { kind: 'record' as const, ref: captureRef.path, version: nextCaptureVersion },
             { kind: 'audit' as const, ref: sessionAuditRef.path },
           ];
@@ -264,14 +268,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             organizationId,
             eventType: comparison.matched ? 'COUNT_COMPLETED' : 'COUNT_DIVERGENCE_FOUND',
             entityType: 'count_session',
-            entityId: canonical.form.countSessionId,
+            entityId: identity.countSessionId,
             actorUserId: uid,
             correlationId: requestId,
             payload: {
               financeEntityId,
               status: resultingStatus,
               version: nextSessionVersion,
-              stage: 'second_count_imported_from_reviewed_sheet',
+              stage: provenance === 'free_form_note'
+                ? 'second_count_imported_from_reviewed_note'
+                : 'second_count_imported_from_reviewed_sheet',
               matched: comparison.matched,
               divergenceCount: comparison.differences.length,
             },
@@ -283,7 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               financeEntityId,
               signalType: 'COUNT_DIVERGENCE_REVIEW_REQUIRED',
               entityType: 'count_session',
-              entityId: canonical.form.countSessionId,
+              entityId: identity.countSessionId,
               sourceFactId: factId,
               sourceRefs,
             });
@@ -294,8 +300,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         transaction.update(captureRef, {
           appliedToCount: {
-            countSessionId: canonical.form.countSessionId,
-            stage: canonical.form.stage,
+            countSessionId: identity.countSessionId,
+            stage: identity.stage,
             sessionVersion: nextSessionVersion,
             resultingStatus,
             appliedByUid: uid,
@@ -311,15 +317,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           financeEntityId,
           actor: uid,
           resource: 'count_capture',
+              sourceProvenance: provenance,
           resourceId: captureId,
           action: 'count.capture_applied_to_count',
           requestId,
           idempotencyKey,
           afterHash: payloadHash,
           metadata: {
-            countSessionId: canonical.form.countSessionId,
-            stage: canonical.form.stage,
+            countSessionId: identity.countSessionId,
+            stage: identity.stage,
             resultingStatus,
+            provenance,
             materialRedacted: true,
           },
           createdAt: FieldValue.serverTimestamp(),
@@ -327,8 +335,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return {
           captureId,
-          countSessionId: canonical.form.countSessionId,
-          stage: canonical.form.stage,
+          countSessionId: identity.countSessionId,
+          stage: identity.stage,
           status: resultingStatus,
           replayed: false,
         };
