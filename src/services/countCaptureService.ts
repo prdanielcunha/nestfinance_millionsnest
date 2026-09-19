@@ -29,9 +29,10 @@ async function post<T>(organizationId: string, operation: string, body: Record<s
 
 export type CountCaptureDetail = {
   id: string;
+  provenance?: 'official_count_sheet' | 'free_form_note';
   status: 'awaiting_upload' | 'captured' | 'duplicate' | 'reviewed';
   version: number;
-  formId: string;
+  formId: string | null;
   countSessionId: string;
   stage: 'count_a' | 'count_b';
   templateVersion?: number;
@@ -76,6 +77,53 @@ export const countCaptureService = {
     requestId: string;
   }) {
     return post<{ captureId: string; version: number; status: 'awaiting_upload'; originalUpload: UploadGrant; normalizedUpload: UploadGrant; expiresInMs: number }>(organizationId, 'count-captures-start', { financeEntityId, ...input });
+  },
+
+  async startFreeForm(organizationId: string, financeEntityId: string, input: {
+    countSessionId: string;
+    locale: 'PT' | 'EN' | 'ES';
+    originalContentType: string;
+    originalSize: number;
+    originalSha256: string;
+    normalizedContentType: string;
+    normalizedSize: number;
+    normalizedSha256: string;
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{ captureId: string; version: number; status: 'awaiting_upload'; originalUpload: UploadGrant; normalizedUpload: UploadGrant; expiresInMs: number }>(
+      organizationId,
+      'count-free-form-captures-start',
+      { financeEntityId, ...input },
+    );
+  },
+
+  async finalizeFreeForm(organizationId: string, financeEntityId: string, input: {
+    captureId: string;
+    expectedVersion: number;
+    normalization: CountCaptureNormalization;
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{ captureId: string; canonicalCaptureId: string; version: number; status: 'captured' | 'duplicate'; duplicate: boolean }>(
+      organizationId,
+      'count-free-form-captures-finalize',
+      { financeEntityId, ...input },
+    );
+  },
+
+  async extractFreeFormCandidates(organizationId: string, financeEntityId: string, input: {
+    captureId: string;
+    expectedVersion: number;
+    normalizedSha256: string;
+    idempotencyKey: string;
+    requestId: string;
+  }) {
+    return post<{ captureId: string; version: number; status: 'captured'; extracted: true }>(
+      organizationId,
+      'count-free-form-captures-extract-candidates',
+      { financeEntityId, ...input },
+    );
   },
 
   async upload(grant: UploadGrant, body: Blob) {

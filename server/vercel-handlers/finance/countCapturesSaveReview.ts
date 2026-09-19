@@ -10,7 +10,8 @@ import {
   type CountCaptureCandidateField,
   type CountCaptureReviewedField,
 } from '../../../shared/finance/countCapture.js';
-import { generateCountCaptureAuditId, resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
+import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
+import { assertCountCaptureStageOpen, resolveCountCaptureContext } from './countCaptureContext.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -30,9 +31,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (capture.organizationId !== organizationId || capture.financeEntityId !== financeEntityId) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
     if (!['captured', 'reviewed'].includes(capture.status) || capture.version !== expectedVersion) return res.status(409).json({ error: 'COUNT_CAPTURE_VERSION_CONFLICT' });
 
-    const canonical = await resolveCanonicalCountPaperForm({ db, organizationId, financeEntityId, formId: capture.formId });
-    if (canonical.form.countSessionId !== capture.countSessionId || canonical.form.stage !== capture.stage || canonical.form.checksum !== capture.checksum) throw new Error('COUNT_CAPTURE_FORM_INTEGRITY_FAILED');
-    if (isCountCaptureMaterialHidden(canonical.form.stage, canonical.session.status)) return res.status(409).json({ error: 'COUNT_CAPTURE_MATERIAL_HIDDEN' });
+    const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture });
+    if (resolved.provenance === 'free_form_note') assertCountCaptureStageOpen(resolved.identity.stage, resolved.session.status);
+    if (isCountCaptureMaterialHidden(resolved.identity.stage, resolved.session.status)) {
+      return res.status(409).json({ error: 'COUNT_CAPTURE_MATERIAL_HIDDEN' });
+    }
 
     const candidates = Array.isArray(capture.candidates) ? (capture.candidates as CountCaptureCandidateField[]) : [];
     const reviewedFields: CountCaptureReviewedField[] = reviewInput.map((input) => {
@@ -57,11 +60,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (transaction) => {
       const liveDoc = await transaction.get(captureRef);
-      const liveSessionDoc = await transaction.get(canonical.sessionRef);
+      const liveSessionDoc = await transaction.get(resolved.sessionRef);
       if (!liveDoc.exists || !liveSessionDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const live = liveDoc.data() || {};
       if (!['captured', 'reviewed'].includes(live.status) || live.version !== expectedVersion) throw new Error('COUNT_CAPTURE_VERSION_CONFLICT');
-      if (isCountCaptureMaterialHidden(canonical.form.stage, liveSessionDoc.data()?.status)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
+      const liveSessionStatus = liveSessionDoc.data()?.status;
+      if (resolved.provenance === 'free_form_note') assertCountCaptureStageOpen(resolved.identity.stage, liveSessionStatus);
+      if (isCountCaptureMaterialHidden(resolved.identity.stage, liveSessionStatus)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
 
       const liveCandidates = Array.isArray(live.candidates) ? (live.candidates as CountCaptureCandidateField[]) : [];
       // Candidate fields are immutable evidence for this review version. Fail closed
@@ -87,7 +92,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         requestId,
         idempotencyKey,
         afterHash: payloadHash,
-        metadata: { decisions: reviewedFields.map((field) => ({ key: field.key, decision: field.decision })), materialRedacted: true },
+        metadata: {
+          decisions: reviewedFields.map((field) => ({ key: field.key, decision: field.decision })),
+          provenance: resolved.provenance,
+          officialPaperIdentity: resolved.provenance === 'official_count_sheet',
+          materialRedacted: true,
+        },
         createdAt: FieldValue.serverTimestamp(),
       });
       return { captureId, version: nextVersion, status: 'reviewed' as const };

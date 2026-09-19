@@ -58,7 +58,7 @@ assert.ok(start.includes("'finance.create_drafts'"));
 assert.ok(detail.includes("resolveFinanceRequestContext(req, 'finance.view')"));
 assert.ok(start.includes('transaction.get(canonical.sessionRef)'), 'capture start re-checks Count stage transactionally');
 assert.ok(finalize.includes('transaction.get(canonical.sessionRef)'), 'finalize re-checks Count stage transactionally');
-assert.ok(review.includes('transaction.get(canonical.sessionRef)'), 'review save re-checks blind state transactionally');
+assert.ok(review.includes('transaction.get(resolved.sessionRef)') && review.includes('liveSessionStatus'), 'review save re-checks canonical session state transactionally');
 assert.ok(detail.includes('isCountCaptureMaterialHidden'));
 assert.ok(detail.includes('let originalUrl: string | null = null') && detail.includes('let normalizedUrl: string | null = null'));
 assert.ok(review.includes('candidateValueCents') && review.includes('materialRedacted: true'));

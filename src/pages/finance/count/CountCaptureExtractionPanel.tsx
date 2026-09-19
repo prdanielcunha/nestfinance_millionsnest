@@ -6,12 +6,14 @@ import { countCaptureService, type CountCaptureDetail } from '@/src/services/cou
 import { prepareCountCaptureExtractionRegions } from './countCaptureExtractionImage';
 import { CountCaptureDenominationReviewPanel } from './CountCaptureDenominationReviewPanel';
 
-const COPY: Record<Language, { title: string; body: string; action: string; working: string; unavailable: string; failed: string; details: string; detailsBody: string; hideDetails: string }> = {
+const COPY: Record<Language, { title: string; body: string; freeFormBody: string; action: string; freeFormWorking: string; working: string; unavailable: string; failed: string; details: string; detailsBody: string; hideDetails: string }> = {
   PT: {
     title: 'Leitura assistida',
     body: 'O NestFinance pode sugerir os quatro valores usando somente os trechos necessários da folha. Nada é aprovado ou lançado: você continua responsável por conferir cada campo.',
+    freeFormBody: 'O NestFinance lê a imagem inteira do seu papel e procura apenas totais claramente ligados a Dízimos, Ofertas, Outras entradas e Pix. Ele não soma números soltos. Confira cada campo.',
     action: 'Sugerir valores da imagem',
     working: 'Lendo trechos da folha…',
+    freeFormWorking: 'Lendo seu papel…',
     unavailable: 'A leitura assistida ainda não está habilitada neste ambiente. Você pode continuar a conferência manual normalmente.',
     failed: 'Não foi possível gerar sugestões agora. A imagem e os valores existentes não foram alterados.',
     details: 'Conferir cédulas e moedas',
@@ -21,8 +23,10 @@ const COPY: Record<Language, { title: string; body: string; action: string; work
   EN: {
     title: 'Assisted reading',
     body: 'NestFinance can suggest the four values using only the required sheet regions. Nothing is approved or posted: you remain responsible for checking every field.',
+    freeFormBody: 'NestFinance reads the whole image and looks only for totals clearly tied to Tithes, Offerings, Other income and Pix. It does not add loose numbers. Check every field.',
     action: 'Suggest values from image',
     working: 'Reading sheet regions…',
+    freeFormWorking: 'Reading your paper…',
     unavailable: 'Assisted reading is not enabled in this environment yet. You can continue the manual review normally.',
     failed: 'Suggestions could not be generated now. The image and existing values were not changed.',
     details: 'Review banknotes and coins',
@@ -32,8 +36,10 @@ const COPY: Record<Language, { title: string; body: string; action: string; work
   ES: {
     title: 'Lectura asistida',
     body: 'NestFinance puede sugerir los cuatro valores usando solo las regiones necesarias de la hoja. Nada se aprueba ni registra: tú sigues siendo responsable de revisar cada campo.',
+    freeFormBody: 'NestFinance lee toda la imagen y busca solo totales claramente vinculados a Diezmos, Ofrendas, Otros ingresos y Pix. No suma números sueltos. Revisa cada campo.',
     action: 'Sugerir valores de la imagen',
     working: 'Leyendo regiones de la hoja…',
+    freeFormWorking: 'Leyendo tu papel…',
     unavailable: 'La lectura asistida todavía no está habilitada en este entorno. Puedes continuar la revisión manual normalmente.',
     failed: 'No fue posible generar sugerencias ahora. La imagen y los valores existentes no fueron modificados.',
     details: 'Revisar billetes y monedas',
@@ -63,6 +69,7 @@ export function CountCaptureExtractionPanel({
   onExtracted: () => Promise<void> | void;
 }) {
   const copy = COPY[language];
+  const freeForm = capture.provenance === 'free_form_note';
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<'unavailable' | 'failed' | null>(null);
   const [showDenominations, setShowDenominations] = useState(Boolean(capture.denominationReview));
@@ -70,7 +77,8 @@ export function CountCaptureExtractionPanel({
   const autoAttemptRef = useRef<string | null>(null);
 
   const eligible = canEdit && capture.status === 'captured' && !capture.materialHidden && !capture.extraction &&
-    capture.normalization?.geometry?.mode !== 'full_frame' && Boolean(capture.normalizedUrl && capture.normalizedSha256);
+    Boolean(capture.normalizedUrl && capture.normalizedSha256) &&
+    (freeForm || capture.normalization?.geometry?.mode !== 'full_frame');
 
   const run = async () => {
     if (!eligible || working || !capture.normalizedSha256) return;
@@ -81,15 +89,25 @@ export function CountCaptureExtractionPanel({
     setWorking(true);
     setMessage(null);
     try {
-      const regions = await prepareCountCaptureExtractionRegions(capture);
-      await countCaptureService.extractCandidates(organizationId, financeEntityId, {
-        captureId: capture.id,
-        expectedVersion: capture.version,
-        normalizedSha256: capture.normalizedSha256,
-        regions,
-        idempotencyKey: attemptRef.current.key,
-        requestId: token('req'),
-      });
+      if (freeForm) {
+        await countCaptureService.extractFreeFormCandidates(organizationId, financeEntityId, {
+          captureId: capture.id,
+          expectedVersion: capture.version,
+          normalizedSha256: capture.normalizedSha256,
+          idempotencyKey: attemptRef.current.key,
+          requestId: token('req'),
+        });
+      } else {
+        const regions = await prepareCountCaptureExtractionRegions(capture);
+        await countCaptureService.extractCandidates(organizationId, financeEntityId, {
+          captureId: capture.id,
+          expectedVersion: capture.version,
+          normalizedSha256: capture.normalizedSha256,
+          regions,
+          idempotencyKey: attemptRef.current.key,
+          requestId: token('req'),
+        });
+      }
       attemptRef.current = null;
       await onExtracted();
     } catch (error: any) {
@@ -118,16 +136,16 @@ export function CountCaptureExtractionPanel({
             <ScanText className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2"><h2 className="text-sm font-semibold text-text-primary">{copy.title}</h2><ShieldCheck className="h-4 w-4 text-text-muted" aria-hidden="true" /></div>
-              <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.body}</p>
+              <p className="mt-1 text-xs leading-relaxed text-text-muted">{freeForm ? copy.freeFormBody : copy.body}</p>
               {message ? <p className="mt-3 text-xs leading-relaxed text-text-secondary" role="status">{copy[message]}</p> : null}
               <Button className="mt-4" variant="secondary" fullWidth disabled={working} onClick={() => void run()}>
-                {working ? copy.working : copy.action}
+                {working ? (freeForm ? copy.freeFormWorking : copy.working) : copy.action}
               </Button>
             </div>
           </div>
         </Surface>
       ) : null}
-      <Surface variant="subtle" radius="lg" className="mt-5 p-4">
+      {!freeForm ? <Surface variant="subtle" radius="lg" className="mt-5 p-4">
         <p className="text-sm font-semibold text-text-primary">{copy.details}</p>
         <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.detailsBody}</p>
         <Button
@@ -138,8 +156,8 @@ export function CountCaptureExtractionPanel({
         >
           {showDenominations ? copy.hideDetails : copy.details}
         </Button>
-      </Surface>
-      {showDenominations ? (
+      </Surface> : null}
+      {!freeForm && showDenominations ? (
         <CountCaptureDenominationReviewPanel
           capture={capture}
           organizationId={organizationId}

@@ -10,7 +10,7 @@ import {
   COUNT_CAPTURE_DENOMINATION_CELL_KEYS,
   buildUnresolvedCountCaptureDenominationCandidates,
 } from '../../../shared/finance/countCaptureDenominations.js';
-import { resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
+import { resolveCountCaptureContext } from './countCaptureContext.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
 import { toOptionalIso } from './countPaperHelpers.js';
 
@@ -36,36 +36,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
     }
 
-    const canonical = await resolveCanonicalCountPaperForm({
+    const resolved = await resolveCountCaptureContext({
       db,
       organizationId,
       financeEntityId,
-      formId: capture.formId,
+      capture,
     });
-    if (
-      canonical.form.countSessionId !== capture.countSessionId ||
-      canonical.form.stage !== capture.stage ||
-      canonical.form.templateVersion !== capture.templateVersion ||
-      canonical.form.checksum !== capture.checksum
-    ) {
-      throw new Error('COUNT_CAPTURE_FORM_INTEGRITY_FAILED');
-    }
-
-    const materialHidden = isCountCaptureMaterialHidden(
-      canonical.form.stage,
-      canonical.session.status,
-    );
+    const { identity, provenance } = resolved;
+    const materialHidden = isCountCaptureMaterialHidden(identity.stage, resolved.session.status);
 
     if (capture.status === 'duplicate') {
       return res.status(200).json({
         capture: {
           id: captureId,
+          provenance,
           status: 'duplicate',
           version: Number(capture.version || 0),
-          formId: canonical.form.id,
-          countSessionId: canonical.form.countSessionId,
-          stage: canonical.form.stage,
-          templateVersion: canonical.form.templateVersion,
+          formId: identity.formId,
+          countSessionId: identity.countSessionId,
+          stage: identity.stage,
+          templateVersion: identity.templateVersion,
           materialHidden: true,
           duplicateOfCaptureId: String(capture.duplicateOfCaptureId || ''),
           normalization: null,
@@ -102,27 +92,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
     }
 
-    const denominationCandidates = Array.isArray(capture.denominationCandidates) && capture.denominationCandidates.length > 0
-      ? capture.denominationCandidates
-      : buildUnresolvedCountCaptureDenominationCandidates(canonical.form.templateVersion).map((field) =>
-          capture.normalization?.geometry?.mode === 'full_frame' ? { ...field, region: null } : field,
-        );
+    const denominationCandidates = provenance === 'free_form_note'
+      ? []
+      : Array.isArray(capture.denominationCandidates) && capture.denominationCandidates.length > 0
+        ? capture.denominationCandidates
+        : buildUnresolvedCountCaptureDenominationCandidates(identity.templateVersion || undefined).map((field) =>
+            capture.normalization?.geometry?.mode === 'full_frame' ? { ...field, region: null } : field,
+          );
     const topLevelReviewComplete = Array.isArray(capture.review?.fields) && capture.review.fields.length === COUNT_CAPTURE_FIELD_KEYS.length;
-    const denominationReviewComplete = Array.isArray(capture.denominationReview?.fields) && capture.denominationReview.fields.length === COUNT_CAPTURE_DENOMINATION_CELL_KEYS.length;
+    const denominationReviewComplete = provenance === 'free_form_note'
+      ? true
+      : Array.isArray(capture.denominationReview?.fields) && capture.denominationReview.fields.length === COUNT_CAPTURE_DENOMINATION_CELL_KEYS.length;
 
     return res.status(200).json({
       capture: {
         id: captureId,
+        provenance,
         status: capture.status,
         version: Number(capture.version || 0),
-        formId: canonical.form.id,
-        countSessionId: canonical.form.countSessionId,
-        stage: canonical.form.stage,
-        locale: canonical.form.locale,
-        serviceLabel: canonical.form.serviceLabel,
-        serviceDate: canonical.form.serviceDate,
-        templateVersion: canonical.form.templateVersion,
-        checksum: canonical.form.checksum,
+        formId: identity.formId,
+        countSessionId: identity.countSessionId,
+        stage: identity.stage,
+        locale: identity.locale,
+        serviceLabel: identity.serviceLabel,
+        serviceDate: identity.serviceDate,
+        templateVersion: identity.templateVersion,
+        checksum: identity.checksum,
         materialHidden,
         duplicateOfCaptureId: capture.duplicateOfCaptureId || null,
         normalization: materialHidden ? null : capture.normalization || null,
