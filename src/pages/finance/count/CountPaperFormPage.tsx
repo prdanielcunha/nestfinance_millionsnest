@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Printer, ShieldX } from 'lucide-react';
+import { ArrowLeft, Camera, Printer, ShieldX } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -165,15 +165,21 @@ function CountPaperFormContent() {
   return (
     <div className="min-h-full flex-1 bg-surface-base px-4 py-5 sm:px-6 lg:px-8">
       <style>{PRINT_STYLES}</style>
-      <div className="count-paper-screen-only mx-auto mb-5 flex w-full max-w-5xl items-center justify-between gap-3">
+      <div className="count-paper-screen-only mx-auto mb-5 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
         <Button variant="secondary" onClick={() => navigate(APP_ROUTES.countPaperForms)}>
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           {screenCopy.back}
         </Button>
-        <Button onClick={() => window.print()}>
-          <Printer className="h-4 w-4" aria-hidden="true" />
-          {screenCopy.print}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => navigate(APP_ROUTES.countCapture)}>
+            <Camera className="h-4 w-4" aria-hidden="true" />
+            {language === 'PT' ? 'Fotografar folha preenchida' : language === 'EN' ? 'Photograph completed sheet' : 'Fotografiar hoja completada'}
+          </Button>
+          <Button onClick={() => window.print()}>
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            {screenCopy.print}
+          </Button>
+        </div>
       </div>
 
       <article className="count-paper-print mx-auto w-full max-w-[194mm] bg-white p-5 text-black shadow-lg sm:p-8">
