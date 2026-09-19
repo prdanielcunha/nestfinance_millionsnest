@@ -19,7 +19,7 @@ const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
 
 function safeStoredAnalysis(value: any): DocumentTransactionAnalysis | null {
-  if (!value || typeof value !== 'object' || value.schemaVersion !== 1 || value.source !== 'ai_assisted') return null;
+  if (!value || typeof value !== 'object' || value.schemaVersion !== 2 || value.source !== 'ai_assisted') return null;
   if (!value.authority || value.authority.humanConfirmationRequired !== true || value.authority.createsTransaction !== false) return null;
   return value as DocumentTransactionAnalysis;
 }
