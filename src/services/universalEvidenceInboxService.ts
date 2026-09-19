@@ -1,6 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { UniversalEvidenceDocumentType } from '../../shared/finance/universalEvidenceReview.js';
+import type { DocumentTransactionAnalysis } from '../../shared/finance/documentTransactionIntelligence.js';
 
 export interface UniversalEvidenceInboxItem {
   evidenceId: string;
@@ -56,6 +57,13 @@ export interface UniversalEvidenceDetail extends UniversalEvidenceInboxItem {
   } | null;
   declaredMimeType: string | null;
   verifiedMimeType: string | null;
+  transactionAnalysis: {
+    analysis: DocumentTransactionAnalysis;
+    provider: string | null;
+    model: string | null;
+    revision: string | null;
+    generatedAt: string | null;
+  } | null;
   verification: {
     immutableOriginal: boolean;
     mimeVerified: boolean;
@@ -285,6 +293,40 @@ export const universalEvidenceInboxService = {
 
     if (!response.ok) {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_REVIEW_FAILED');
+    }
+
+    return response.json();
+  },
+
+  async analyzeTransaction(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      evidenceId: string;
+      expectedVersion: number;
+      locale: 'PT' | 'EN' | 'ES';
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ): Promise<{
+    evidenceId: string;
+    version: number;
+    analysis: DocumentTransactionAnalysis;
+    provider: string | null;
+    model: string | null;
+    revision: string | null;
+    replayed: boolean;
+    requestId?: string;
+  }> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-analyze-transaction`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, ...input }),
+    });
+
+    if (!response.ok) {
+      throw await parseError(response, 'UNIVERSAL_EVIDENCE_TRANSACTION_ANALYSIS_FAILED');
     }
 
     return response.json();
