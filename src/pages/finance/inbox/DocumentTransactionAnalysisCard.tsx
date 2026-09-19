@@ -115,7 +115,7 @@ export function DocumentTransactionAnalysisCard({
         : '',
     );
     setOccurredAt(analysis.occurredAt.value || '');
-    setCounterparty(analysis.merchantName.value || '');
+    setCounterparty(analysis.counterpartyName.value || '');
     setDescription(analysis.description.value || '');
     setAckTax(false);
     setDraftError(false);
@@ -161,7 +161,10 @@ export function DocumentTransactionAnalysisCard({
     analysis &&
     (
       analysis.entityTaxIdCheck === 'mismatch' ||
-      analysis.documentMultiplicity.value === 'multiple'
+      analysis.documentMultiplicity.value === 'multiple' ||
+      analysis.analysisStatus === 'not_settled' ||
+      analysis.analysisStatus === 'unsupported_currency' ||
+      analysis.analysisStatus === 'unsupported_transaction_kind'
     ),
   );
   const ready = Boolean(
@@ -170,6 +173,8 @@ export function DocumentTransactionAnalysisCard({
     direction &&
     amountCents > 0 &&
     occurredAt &&
+    analysis.currency.value === 'BRL' &&
+    analysis.settlementState.value === 'paid' &&
     (!taxNeedsAcknowledgement || ackTax),
   );
 
@@ -306,13 +311,16 @@ export function DocumentTransactionAnalysisCard({
         </div>
 
         {analysis.documentMultiplicity.value === 'multiple' ? (
-          <div className="mt-3 flex items-start gap-3 rounded-xl border border-semantic-danger/25 bg-semantic-danger/10 p-4 text-semantic-danger">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-semibold">{copy.multipleDocs}</p>
-              <p className="mt-1 text-xs leading-relaxed">{copy.multipleDocsBody}</p>
-            </div>
-          </div>
+          <WarningBlock title={copy.multipleDocs} body={copy.multipleDocsBody} />
+        ) : null}
+        {analysis.analysisStatus === 'not_settled' ? (
+          <WarningBlock title={copy.unpaidTitle} body={copy.unpaidBody} />
+        ) : null}
+        {analysis.analysisStatus === 'unsupported_currency' ? (
+          <WarningBlock title={copy.currencyTitle} body={copy.currencyBody} />
+        ) : null}
+        {analysis.analysisStatus === 'unsupported_transaction_kind' ? (
+          <WarningBlock title={copy.unsupportedKindTitle} body={copy.unsupportedKindBody} />
         ) : null}
       </div>
 
@@ -396,13 +404,22 @@ export function DocumentTransactionAnalysisCard({
           <InfoRow label={copy.category} value={analysis.suggestedCategoryName || copy.categoryPending} />
           <InfoRow label={copy.paymentMethod} value={paymentLabel} />
           <InfoRow
-            label={copy.issuerTaxId}
-            value={analysis.issuerTaxId.value ? formatCnpj(analysis.issuerTaxId.value) : copy.noValue}
+            label={copy.settlement}
+            value={
+              analysis.settlementState.value === 'paid'
+                ? copy.settledPaid
+                : analysis.settlementState.value === 'unpaid'
+                  ? copy.settledUnpaid
+                  : copy.settledUnknown
+            }
           />
-          <InfoRow
-            label={copy.recipientTaxId}
-            value={analysis.recipientTaxId.value ? formatCnpj(analysis.recipientTaxId.value) : copy.noValue}
-          />
+          <InfoRow label={copy.currency} value={analysis.currency.value || copy.noValue} />
+          {analysis.documentNumber.value ? <InfoRow label={copy.documentNumber} value={analysis.documentNumber.value} /> : null}
+          {analysis.dueDate.value ? <InfoRow label={copy.dueDate} value={analysis.dueDate.value} /> : null}
+          {analysis.issuerTaxId.value ? <InfoRow label={copy.issuerTaxId} value={formatCnpj(analysis.issuerTaxId.value)} /> : null}
+          {analysis.recipientTaxId.value ? <InfoRow label={copy.recipientTaxId} value={formatCnpj(analysis.recipientTaxId.value)} /> : null}
+          {analysis.payerTaxId.value ? <InfoRow label={copy.payerTaxId} value={formatCnpj(analysis.payerTaxId.value)} /> : null}
+          {analysis.payeeTaxId.value ? <InfoRow label={copy.payeeTaxId} value={formatCnpj(analysis.payeeTaxId.value)} /> : null}
         </div>
 
         {taxNeedsAcknowledgement ? (
@@ -442,6 +459,18 @@ export function DocumentTransactionAnalysisCard({
         <p className="mt-4 text-xs leading-relaxed text-text-muted">{copy.sourceNote}</p>
       </div>
     </Surface>
+  );
+}
+
+function WarningBlock({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="mt-3 flex items-start gap-3 rounded-xl border border-semantic-danger/25 bg-semantic-danger/10 p-4 text-semantic-danger">
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-1 text-xs leading-relaxed">{body}</p>
+      </div>
+    </div>
   );
 }
 
