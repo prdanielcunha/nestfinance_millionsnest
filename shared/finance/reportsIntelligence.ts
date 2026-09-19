@@ -12,6 +12,13 @@ export type ReportMetricComparison = {
   percentChangeBasisPoints: number | null;
 };
 
+export type ReportRateComparison = {
+  current: number | null;
+  previous: number | null;
+  delta: number | null;
+  direction: ReportTrendDirection | 'not_comparable';
+};
+
 export type ReportsIntelligenceResponse = {
   version: typeof REPORTS_INTELLIGENCE_VERSION;
   financeEntityId: string;
@@ -32,10 +39,10 @@ export type ReportsIntelligenceResponse = {
     blockerCount: ReportMetricComparison;
   };
   quality: {
-    postingRateBasisPoints: ReportMetricComparison;
-    countMatchedRateBasisPoints: ReportMetricComparison;
-    documentReviewedRateBasisPoints: ReportMetricComparison;
-    reconciliationRateBasisPoints: ReportMetricComparison;
+    postingRateBasisPoints: ReportRateComparison;
+    countMatchedRateBasisPoints: ReportRateComparison;
+    documentReviewedRateBasisPoints: ReportRateComparison;
+    reconciliationRateBasisPoints: ReportRateComparison;
   };
 };
 
@@ -55,9 +62,22 @@ function comparison(current: number, previous: number): ReportMetricComparison {
   };
 }
 
-function rateBasisPoints(numerator: number, denominator: number) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return 0;
+function rateBasisPoints(numerator: number, denominator: number): number | null {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return null;
   return Math.max(0, Math.min(10000, Math.round((numerator / denominator) * 10000)));
+}
+
+function rateComparison(current: number | null, previous: number | null): ReportRateComparison {
+  if (current === null || previous === null) {
+    return { current, previous, delta: null, direction: 'not_comparable' };
+  }
+  const delta = current - previous;
+  return {
+    current,
+    previous,
+    delta,
+    direction: delta > 0 ? 'higher' : delta < 0 ? 'lower' : 'same',
+  };
 }
 
 export function previousPeriodKey(periodKey: string) {
@@ -134,19 +154,19 @@ export function buildReportsIntelligence(args: {
       ),
     },
     quality: {
-      postingRateBasisPoints: comparison(
+      postingRateBasisPoints: rateComparison(
         currentQuality.postingRateBasisPoints,
         previousQuality.postingRateBasisPoints,
       ),
-      countMatchedRateBasisPoints: comparison(
+      countMatchedRateBasisPoints: rateComparison(
         currentQuality.countMatchedRateBasisPoints,
         previousQuality.countMatchedRateBasisPoints,
       ),
-      documentReviewedRateBasisPoints: comparison(
+      documentReviewedRateBasisPoints: rateComparison(
         currentQuality.documentReviewedRateBasisPoints,
         previousQuality.documentReviewedRateBasisPoints,
       ),
-      reconciliationRateBasisPoints: comparison(
+      reconciliationRateBasisPoints: rateComparison(
         currentQuality.reconciliationRateBasisPoints,
         previousQuality.reconciliationRateBasisPoints,
       ),
