@@ -34,7 +34,9 @@ async function run() {
     capabilities: ['finance.view'],
   });
   assert.strictEqual(getFinanceExperienceMode(orgAdmin), 'organization_admin');
-  assert.strictEqual(hasEffectiveCapability(orgAdmin, 'finance.review'), false);
+  assert.strictEqual(hasEffectiveCapability(orgAdmin, 'finance.review'), true);
+  assert.strictEqual(hasEffectiveCapability(orgAdmin, 'finance.accounts.manage'), true);
+  assert.strictEqual(hasEffectiveCapability(orgAdmin, 'organization.manage_entities'), true);
 
   const reviewer = granted({
     organizationRole: 'member',
