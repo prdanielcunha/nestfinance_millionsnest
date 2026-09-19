@@ -3,10 +3,16 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
+import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
+import {
+  chooseCurrentSessionOrganization,
+  resolveCurrentSessionOrganizations,
+  type DirectEntryOrganization,
+} from '@/src/services/directEntryService';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { Button } from '@/src/components/foundation';
 
@@ -17,26 +23,44 @@ export type NavigationItem = {
   route: string;
   order: number;
   group: 'primary' | 'more';
-  requiredCapability?: string;
+  requiredAnyCapabilities?: readonly string[];
 };
 
 export const CANONICAL_NAVIGATION: NavigationItem[] = [
   { id: 'finance', labelKey: 'nav_hoje', icon: LayoutDashboard, route: APP_ROUTES.finance, order: 1, group: 'primary' },
-  { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 2, group: 'primary' },
-  { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 3, group: 'primary' },
-  { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 4, group: 'primary' },
-  { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 5, group: 'more' },
-  { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 6, group: 'more' },
-  { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more' },
+  { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 2, group: 'primary', requiredAnyCapabilities: ['finance.view'] },
+  { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 3, group: 'primary', requiredAnyCapabilities: ['finance.view', 'finance.create_drafts', 'finance.review'] },
+  { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 4, group: 'primary', requiredAnyCapabilities: ['finance.view'] },
+  { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 5, group: 'more', requiredAnyCapabilities: ['finance.view'] },
+  { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 6, group: 'more', requiredAnyCapabilities: ['finance.view'] },
+  { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more', requiredAnyCapabilities: ['finance.manage', 'organization.manage_entities'] },
 ];
 
-const SHELL_COPY: Record<Language, { profile: string; language: string; selectLanguage: string; closeActions: string; capture: string }> = {
+const SHELL_COPY: Record<Language, {
+  profile: string;
+  language: string;
+  selectLanguage: string;
+  closeActions: string;
+  capture: string;
+  workspace: string;
+  switchOrganization: string;
+  switchOrganizationTitle: string;
+  switchOrganizationText: string;
+  switchOrganizationFailed: string;
+  close: string;
+}> = {
   PT: {
     profile: 'Perfil',
     language: 'Idioma',
     selectLanguage: 'Selecionar idioma',
     closeActions: 'Fechar atalhos de registro',
     capture: 'Capturar comprovante',
+    workspace: 'Experiência',
+    switchOrganization: 'Trocar organização',
+    switchOrganizationTitle: 'Escolher organização',
+    switchOrganizationText: 'Você continuará no NestFinance. O acesso será validado novamente antes da troca.',
+    switchOrganizationFailed: 'Não foi possível carregar suas organizações agora.',
+    close: 'Fechar',
   },
   EN: {
     profile: 'Profile',
@@ -44,6 +68,12 @@ const SHELL_COPY: Record<Language, { profile: string; language: string; selectLa
     selectLanguage: 'Select language',
     closeActions: 'Close record shortcuts',
     capture: 'Capture receipt',
+    workspace: 'Experience',
+    switchOrganization: 'Switch organization',
+    switchOrganizationTitle: 'Choose organization',
+    switchOrganizationText: 'You will stay in NestFinance. Access is revalidated before switching.',
+    switchOrganizationFailed: 'Your organizations could not be loaded right now.',
+    close: 'Close',
   },
   ES: {
     profile: 'Perfil',
@@ -51,6 +81,37 @@ const SHELL_COPY: Record<Language, { profile: string; language: string; selectLa
     selectLanguage: 'Seleccionar idioma',
     closeActions: 'Cerrar accesos de registro',
     capture: 'Capturar comprobante',
+    workspace: 'Experiencia',
+    switchOrganization: 'Cambiar organización',
+    switchOrganizationTitle: 'Elegir organización',
+    switchOrganizationText: 'Seguirás en NestFinance. El acceso se vuelve a validar antes del cambio.',
+    switchOrganizationFailed: 'No fue posible cargar tus organizaciones ahora.',
+    close: 'Cerrar',
+  },
+};
+
+
+const EXPERIENCE_LABELS: Record<Language, Record<FinanceExperienceMode, string>> = {
+  PT: {
+    ecosystem: 'Visão do ecossistema',
+    organization_admin: 'Administração da organização',
+    review: 'Conferência e aprovação',
+    operation: 'Operação financeira',
+    read_only: 'Consulta',
+  },
+  EN: {
+    ecosystem: 'Ecosystem view',
+    organization_admin: 'Organization administration',
+    review: 'Review and approval',
+    operation: 'Finance operations',
+    read_only: 'Read only',
+  },
+  ES: {
+    ecosystem: 'Visión del ecosistema',
+    organization_admin: 'Administración de la organización',
+    review: 'Revisión y aprobación',
+    operation: 'Operación financiera',
+    read_only: 'Consulta',
   },
 };
 
@@ -99,7 +160,7 @@ function LanguageSwitcher({ language, setLanguage, compact = false }: { language
 
 function ShellLayoutInner() {
   const { accessState } = useAuth();
-  const { activeFinanceEntityName } = useFinanceEntity();
+  const { activeFinanceEntityName, setActiveFinanceEntityId } = useFinanceEntity();
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -108,8 +169,13 @@ function ShellLayoutInner() {
   const orgName = accessState.organization?.name || t('shell_waiting');
   const profileName = accessState.profile?.displayName || copy.profile;
   const profilePhoto = accessState.profile?.photoURL;
+  const experienceMode = getFinanceExperienceMode(accessState);
 
   const [fabOpen, setFabOpen] = useState(false);
+  const [organizationSwitcherOpen, setOrganizationSwitcherOpen] = useState(false);
+  const [organizationSwitcherLoading, setOrganizationSwitcherLoading] = useState(false);
+  const [organizationSwitcherError, setOrganizationSwitcherError] = useState(false);
+  const [organizationOptions, setOrganizationOptions] = useState<DirectEntryOrganization[]>([]);
   const fabButtonRef = useRef<HTMLButtonElement>(null);
   const fabMenuId = 'nestfinance-global-capture-menu';
 
@@ -142,8 +208,52 @@ function ShellLayoutInner() {
     navigate(APP_ROUTES.universalCapture);
   };
 
-  const primaryNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'primary');
-  const moreNavigation = CANONICAL_NAVIGATION.filter((item) => item.group === 'more');
+  const openOrganizationSwitcher = async () => {
+    setOrganizationSwitcherError(false);
+    setOrganizationSwitcherLoading(true);
+    try {
+      const result = await resolveCurrentSessionOrganizations();
+      if (result.status === 'choose_organization') {
+        setOrganizationOptions(result.organizations);
+        setOrganizationSwitcherOpen(true);
+      } else if (result.status === 'ready') {
+        if (result.organization.id !== accessState.organizationId) {
+          setActiveFinanceEntityId(null);
+          navigate(APP_ROUTES.finance, { replace: true });
+        }
+      } else {
+        setOrganizationSwitcherError(true);
+        setOrganizationSwitcherOpen(true);
+      }
+    } catch {
+      setOrganizationSwitcherError(true);
+      setOrganizationSwitcherOpen(true);
+    } finally {
+      setOrganizationSwitcherLoading(false);
+    }
+  };
+
+  const selectOrganization = async (organizationId: string) => {
+    setOrganizationSwitcherError(false);
+    setOrganizationSwitcherLoading(true);
+    try {
+      const result = await chooseCurrentSessionOrganization(organizationId);
+      if (result.status !== 'ready') throw new Error('ORGANIZATION_SWITCH_NOT_READY');
+      setActiveFinanceEntityId(null);
+      setOrganizationSwitcherOpen(false);
+      navigate(APP_ROUTES.finance, { replace: true });
+    } catch {
+      setOrganizationSwitcherError(true);
+    } finally {
+      setOrganizationSwitcherLoading(false);
+    }
+  };
+
+  const visibleNavigation = CANONICAL_NAVIGATION.filter(
+    (item) => !item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities),
+  );
+  const primaryNavigation = visibleNavigation.filter((item) => item.group === 'primary');
+  const moreNavigation = visibleNavigation.filter((item) => item.group === 'more');
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -163,6 +273,17 @@ function ShellLayoutInner() {
                   {activeFinanceEntityName}
                 </p>
               </div>
+            ) : null}
+            {accessState.isGlobalAccess ? (
+              <button
+                type="button"
+                onClick={openOrganizationSwitcher}
+                disabled={organizationSwitcherLoading}
+                className="nf-interactive mt-3 flex min-h-10 w-full items-center justify-between rounded-lg border border-border-subtle bg-background-base px-3 text-xs font-medium text-text-secondary hover:border-border-strong hover:text-text-primary disabled:opacity-60"
+              >
+                <span>{copy.switchOrganization}</span>
+                <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
             ) : null}
           </div>
 
@@ -225,6 +346,9 @@ function ShellLayoutInner() {
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium" title={profileName}>{profileName}</p>
+              <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wider text-text-muted">
+                {copy.workspace}: {EXPERIENCE_LABELS[language][experienceMode]}
+              </p>
             </div>
           </div>
 
@@ -245,6 +369,17 @@ function ShellLayoutInner() {
             ) : null}
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-2">
+            {accessState.isGlobalAccess ? (
+              <button
+                type="button"
+                onClick={openOrganizationSwitcher}
+                disabled={organizationSwitcherLoading}
+                aria-label={copy.switchOrganization}
+                className="nf-interactive flex h-11 w-11 items-center justify-center rounded-xl border border-border-subtle bg-background-base text-text-secondary disabled:opacity-60"
+              >
+                <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ) : null}
             <LanguageSwitcher language={language} setLanguage={setLanguage} compact />
             <div className="hidden max-w-[76px] truncate text-[10px] font-medium text-text-secondary min-[390px]:block" title={orgName}>
               {orgName}
@@ -356,6 +491,61 @@ function ShellLayoutInner() {
           <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t('nav_mais')}</span>
         </NavLink>
       </nav>
+
+      {organizationSwitcherOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-background-base/80 p-4 backdrop-blur-sm sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.switchOrganizationTitle}
+            className="w-full max-w-md overflow-hidden rounded-[24px] border border-border-subtle bg-surface-elevated shadow-2xl"
+          >
+            <div className="p-6">
+              <div className="mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-primary">{copy.workspace}</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-text-primary">{copy.switchOrganizationTitle}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-text-secondary">{copy.switchOrganizationText}</p>
+              </div>
+
+              {organizationSwitcherError ? (
+                <div className="mb-4 rounded-xl border border-semantic-danger/20 bg-semantic-danger/10 p-3 text-sm text-semantic-danger">
+                  {copy.switchOrganizationFailed}
+                </div>
+              ) : null}
+
+              <div className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto">
+                {organizationOptions.map((organization) => (
+                  <button
+                    key={organization.id}
+                    type="button"
+                    disabled={organizationSwitcherLoading}
+                    onClick={() => selectOrganization(organization.id)}
+                    className={`nf-interactive flex min-h-12 items-center justify-between rounded-xl border px-4 text-left text-sm font-medium disabled:opacity-60 ${
+                      organization.id === accessState.organizationId
+                        ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                        : 'border-border-subtle bg-background-base text-text-primary hover:border-border-strong'
+                    }`}
+                  >
+                    <span className="truncate">{organization.name}</span>
+                    {organization.id === accessState.organizationId ? (
+                      <span className="ml-3 text-[10px] font-semibold uppercase tracking-wider">{language === 'PT' ? 'Atual' : language === 'EN' ? 'Current' : 'Actual'}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOrganizationSwitcherOpen(false)}
+                disabled={organizationSwitcherLoading}
+                className="nf-interactive mt-5 min-h-12 w-full rounded-xl border border-border-subtle bg-background-base text-sm font-medium text-text-primary hover:bg-surface-secondary disabled:opacity-60"
+              >
+                {copy.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
