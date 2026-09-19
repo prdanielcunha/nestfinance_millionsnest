@@ -77,7 +77,8 @@ async function run() {
     taxId: '33000167000101',
     active: true,
   });
-  await entityARef.collection('categories').doc('cat_fuel').set({
+  const categoriesRef = db.collection('organizations').doc(orgId).collection('financeCategories');
+  await categoriesRef.doc('cat_fuel').set({
     id: 'cat_fuel',
     organizationId: orgId,
     financeEntityId: entityA,
@@ -86,7 +87,7 @@ async function run() {
     kind: 'expense',
     active: true,
   });
-  await entityARef.collection('categories').doc('cat_income').set({
+  await categoriesRef.doc('cat_income').set({
     id: 'cat_income',
     organizationId: orgId,
     financeEntityId: entityA,
