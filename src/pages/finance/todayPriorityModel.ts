@@ -29,6 +29,12 @@ export type TodaySignalAttention = {
   items: NeedsAttentionSignalSummaryItem[];
 };
 
+export type TodayTransactionAuthority = {
+  canCreate: boolean;
+  canReview: boolean;
+  canApprove: boolean;
+};
+
 export type TodayPriority = {
   kind: TodayPriorityKind;
   count: number;
@@ -82,6 +88,11 @@ export function chooseTodayPriority(
     canReview: false,
   },
   signals?: TodaySignalAttention,
+  transactionAuthority: TodayTransactionAuthority = {
+    canCreate: true,
+    canReview: true,
+    canApprove: true,
+  },
 ): TodayPriority {
   const divergent = counts.filter((item) => item.status === 'divergent');
   if (divergent.length > 0) {
@@ -96,7 +107,7 @@ export function chooseTodayPriority(
     );
   }
 
-  if (summary.returnedCorrections > 0) {
+  if (transactionAuthority.canCreate && summary.returnedCorrections > 0) {
     return withSignal(
       { kind: 'correction', count: summary.returnedCorrections },
       firstSignal(signals, 'TRANSACTION_CORRECTION_REQUIRED'),
@@ -128,18 +139,21 @@ export function chooseTodayPriority(
     );
   }
 
-  if (summary.readyForReview > 0) {
+  if (transactionAuthority.canReview && summary.readyForReview > 0) {
     return withSignal(
       { kind: 'review', count: summary.readyForReview },
       firstSignal(signals, 'TRANSACTION_REVIEW_REQUIRED'),
     );
   }
 
-  if (summary.approvedForPosting > 0) {
+  if (
+    (transactionAuthority.canReview || transactionAuthority.canApprove) &&
+    summary.approvedForPosting > 0
+  ) {
     return { kind: 'approved', count: summary.approvedForPosting };
   }
 
-  if (summary.simpleDrafts > 0) {
+  if (transactionAuthority.canCreate && summary.simpleDrafts > 0) {
     return { kind: 'draft', count: summary.simpleDrafts };
   }
 
