@@ -35,7 +35,11 @@ export type DirectEntryResult =
   | { status: 'choose_organization'; organizations: DirectEntryOrganization[] }
   | { status: 'no_access' };
 
-async function exchange(user: User, organizationId?: string): Promise<DirectEntryResult> {
+async function exchange(
+  user: User,
+  organizationId?: string,
+  source: 'direct_identity' | 'current_session' = 'direct_identity',
+): Promise<DirectEntryResult> {
   const idToken = await user.getIdToken(true);
   const response = await fetch('/api/auth/direct-entry', {
     method: 'POST',
@@ -50,8 +54,12 @@ async function exchange(user: User, organizationId?: string): Promise<DirectEntr
 
   if (response.status === 403) return { status: 'no_access' };
   if (response.status === 401) {
-    await signOut(directAuth).catch(() => undefined);
-    throw new Error('DIRECT_IDENTITY_EXPIRED');
+    if (source === 'direct_identity') {
+      await signOut(directAuth).catch(() => undefined);
+      throw new Error('DIRECT_IDENTITY_EXPIRED');
+    }
+    await signOut(firebaseAuth).catch(() => undefined);
+    throw new Error('CURRENT_SESSION_EXPIRED');
   }
   if (!response.ok) throw new Error('DIRECT_ENTRY_UNAVAILABLE');
 
@@ -74,7 +82,9 @@ async function exchange(user: User, organizationId?: string): Promise<DirectEntr
     typeof data.organization.name === 'string'
   ) {
     await signInWithCustomToken(firebaseAuth, data.customToken);
-    await signOut(directAuth).catch(() => undefined);
+    if (source === 'direct_identity') {
+      await signOut(directAuth).catch(() => undefined);
+    }
     return {
       status: 'ready',
       organization: {
@@ -128,4 +138,17 @@ export async function chooseDirectEntryOrganization(organizationId: string): Pro
 
 export async function clearDirectEntryIdentity() {
   await signOut(directAuth).catch(() => undefined);
+}
+
+
+export async function resolveCurrentSessionOrganizations(): Promise<DirectEntryResult> {
+  const user = firebaseAuth.currentUser;
+  if (!user) throw new Error('CURRENT_SESSION_EXPIRED');
+  return exchange(user, undefined, 'current_session');
+}
+
+export async function chooseCurrentSessionOrganization(organizationId: string): Promise<DirectEntryResult> {
+  const user = firebaseAuth.currentUser;
+  if (!user) throw new Error('CURRENT_SESSION_EXPIRED');
+  return exchange(user, organizationId, 'current_session');
 }
