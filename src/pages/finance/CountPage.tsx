@@ -5,9 +5,11 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  FileText,
   Plus,
   ShieldCheck,
   ShieldX,
+  Smartphone,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -18,6 +20,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
+import { countPaperService } from '@/src/services/countPaperService';
 import { COUNT_COPY } from './count/countCopy';
 import { formatReviewDate, formatReviewMoney } from './transactions/transactionReviewModel';
 
@@ -31,6 +34,36 @@ function localDateInputValue() {
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 }
+
+const SIMPLE_MODE_COPY = {
+  PT: {
+    title: 'Como você quer registrar a contagem?',
+    body: 'Escolha o jeito mais confortável. O NestFinance faz as contas e mantém a conferência protegida.',
+    digitalTitle: 'Contar no celular',
+    digitalBody: 'Informe as quantidades de cédulas e moedas ou digite o total. O NestFinance soma tudo.',
+    paperTitle: 'Usar papel',
+    paperBody: 'Crie uma folha simples para imprimir. Depois de preencher, basta fotografar para o NestFinance ajudar a lançar.',
+    paperCreate: 'Criar folha para imprimir',
+  },
+  EN: {
+    title: 'How do you want to record the count?',
+    body: 'Choose the most comfortable way. NestFinance does the math and keeps verification protected.',
+    digitalTitle: 'Count on the phone',
+    digitalBody: 'Enter banknote and coin quantities or type the total. NestFinance adds everything.',
+    paperTitle: 'Use paper',
+    paperBody: 'Create a simple sheet to print. After filling it out, photograph it and NestFinance helps enter the values.',
+    paperCreate: 'Create printable sheet',
+  },
+  ES: {
+    title: '¿Cómo quieres registrar el conteo?',
+    body: 'Elige la forma más cómoda. NestFinance hace las cuentas y mantiene protegida la revisión.',
+    digitalTitle: 'Contar en el celular',
+    digitalBody: 'Ingresa cantidades de billetes y monedas o escribe el total. NestFinance suma todo.',
+    paperTitle: 'Usar papel',
+    paperBody: 'Crea una hoja simple para imprimir. Después de llenarla, basta fotografiarla y NestFinance ayuda a registrar los valores.',
+    paperCreate: 'Crear hoja para imprimir',
+  },
+} as const;
 
 function makeToken(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -80,6 +113,7 @@ function CountHomeContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const simpleCopy = SIMPLE_MODE_COPY[language];
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
 
@@ -87,6 +121,7 @@ function CountHomeContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [creationMode, setCreationMode] = useState<'digital' | 'paper'>('digital');
   const [serviceLabel, setServiceLabel] = useState('');
   const [serviceDate, setServiceDate] = useState(localDateInputValue());
   const [creating, setCreating] = useState(false);
@@ -142,7 +177,22 @@ function CountHomeContent() {
         },
       );
       createAttemptRef.current = null;
-      navigate(APP_ROUTES.countSession.replace(':sessionId', result.sessionId));
+      if (creationMode === 'paper') {
+        try {
+          const form = await countPaperService.generate(organizationId, activeFinanceEntityId || '', {
+            countSessionId: result.sessionId,
+            stage: 'count_a',
+            locale: language,
+            idempotencyKey: makeToken('idcountpaper'),
+            requestId: makeToken('req'),
+          });
+          navigate(APP_ROUTES.countPaperForm.replace(':formId', form.formId));
+        } catch {
+          navigate(APP_ROUTES.countPaperForms);
+        }
+      } else {
+        navigate(APP_ROUTES.countSession.replace(':sessionId', result.sessionId));
+      }
     } catch {
       setCreateError(true);
     } finally {
@@ -167,13 +217,57 @@ function CountHomeContent() {
                 {copy.homeSubtitle}
               </p>
             </div>
-            {canCreate ? (
-              <Button size="lg" onClick={() => setShowCreate(true)}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                {copy.newSession}
-              </Button>
-            ) : null}
           </header>
+
+          {canCreate ? (
+            <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">{simpleCopy.title}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-muted">{simpleCopy.body}</p>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreationMode('digital');
+                    setShowCreate(true);
+                    setCreateError(false);
+                  }}
+                  className="group rounded-2xl border border-border-subtle bg-surface-elevated p-5 text-left transition hover:border-accent-primary/30 hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
+                    <Smartphone className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold text-text-primary">{simpleCopy.digitalTitle}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{simpleCopy.digitalBody}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent-primary">
+                    {copy.newSession}
+                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreationMode('paper');
+                    setShowCreate(true);
+                    setCreateError(false);
+                  }}
+                  className="group rounded-2xl border border-border-subtle bg-surface-elevated p-5 text-left transition hover:border-accent-primary/30 hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
+                    <FileText className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold text-text-primary">{simpleCopy.paperTitle}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{simpleCopy.paperBody}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent-primary">
+                    {simpleCopy.paperCreate}
+                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </span>
+                </button>
+              </div>
+            </Surface>
+          ) : null}
 
           <Surface variant="secondary" radius="xl" className="border-accent-primary/15 bg-accent-primary/5 p-5 sm:p-6">
             <div className="flex gap-3">
@@ -230,7 +324,7 @@ function CountHomeContent() {
                   {copy.cancel}
                 </Button>
                 <Button size="lg" fullWidth onClick={() => void handleCreate()} disabled={creating || !serviceLabel.trim() || !serviceDate}>
-                  {creating ? copy.creating : copy.create}
+                  {creating ? copy.creating : creationMode === 'paper' ? simpleCopy.paperCreate : copy.create}
                 </Button>
               </div>
             </Surface>
