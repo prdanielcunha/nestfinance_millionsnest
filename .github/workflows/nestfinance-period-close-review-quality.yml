@@ -20,6 +20,7 @@ on:
       - "scripts/test-period-close-human-review-rules.ts"
       - "scripts/check-api-contracts.mjs"
       - "firestore.rules"
+      - "firestore.indexes.json"
       - ".github/workflows/nestfinance-period-close-review-quality.yml"
 
 jobs:
