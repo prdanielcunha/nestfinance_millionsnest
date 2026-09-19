@@ -14,7 +14,7 @@ import {
   buildCountCaptureCandidatesFromProvider,
   hasActiveCountCaptureExtractionLease,
 } from '../../../shared/finance/countCaptureExtraction.js';
-import { resolveCountCaptureContext } from './countCaptureContext.js';
+import { assertCountCaptureStageOpen, resolveCountCaptureContext } from './countCaptureContext.js';
 import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
 import { getCountFreeFormExtractionProvider } from './countFreeFormExtractionProvider.js';
@@ -49,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
 
     const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture: preflight });
+    assertCountCaptureStageOpen(resolved.identity.stage, resolved.session.status);
     if (isCountCaptureMaterialHidden(resolved.identity.stage, resolved.session.status)) {
       return res.status(409).json({ error: 'COUNT_CAPTURE_MATERIAL_HIDDEN' });
     }
