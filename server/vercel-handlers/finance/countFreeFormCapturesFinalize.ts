@@ -13,7 +13,7 @@ import {
   validateCountCaptureNormalization,
 } from '../../../shared/finance/countCapture.js';
 import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
-import { resolveCountCaptureContext } from './countCaptureContext.js';
+import { assertCountCaptureStageOpen, resolveCountCaptureContext } from './countCaptureContext.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture });
+    assertCountCaptureStageOpen(resolved.identity.stage, resolved.session.status);
     const storage = getCountCaptureStorageAdapter();
     const [original, normalized] = await Promise.all([
       storage.inspectAndHash(String(capture.original?.path || '')),
