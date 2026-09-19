@@ -51,8 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const session = await resolveEcosystemSession(uid, organizationId);
-    if (!canUseFinanceEntitySelector(session)) {
+    if (!session.granted) {
       return res.status(403).json({ error: 'FORBIDDEN' });
+    }
+    if (!canUseFinanceEntitySelector(session)) {
+      return res.status(200).json({ organizationId, entities: [] });
     }
 
     const snapshot = await admin.firestore
