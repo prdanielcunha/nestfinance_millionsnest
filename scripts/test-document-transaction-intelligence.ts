@@ -161,10 +161,10 @@ verify(batch.includes('const MAX_BATCH = 20'), 'multi-upload is safely bounded t
 verify(batch.includes('for (const item of current)'), 'batch processing is sequential and isolated');
 verify(batch.includes("status: 'analysis_unavailable'"), 'analysis failure preserves the accepted document instead of failing the batch');
 verify(batch.includes('inputRef.current.multiple = true'), 'photo/file chooser supports multiple documents');
-verify(service.includes("'universal-evidence-analyze-transaction'"), 'client calls certified evidence analysis operation');
+verify(service.includes('universal-evidence-analyze-transaction'), 'client calls certified evidence analysis operation');
 verify(gateway.includes("case 'universal-evidence-analyze-transaction'"), 'gateway exposes evidence analysis');
 verify(createDraft.includes('assertTransactionEvidenceReferences'), 'draft creation now validates evidence entity scope');
-verify(detailCard.includes('PT') === false || true, 'document analysis card compiles against centralized localized copy');
+verify(detailCard.includes("from './documentAnalysisCopy'"), 'document analysis card uses centralized localized copy');
 const copy = readFileSync('src/pages/finance/inbox/documentAnalysisCopy.ts', 'utf8');
 verify(copy.includes('Leitura inteligente do documento') && copy.includes('Smart document reading') && copy.includes('Lectura inteligente del documento'), 'analysis UX is PT/EN/ES');
 verify(copy.includes('CNPJ confere com esta igreja') && copy.includes('Tax ID matches this church') && copy.includes('El CNPJ coincide con esta iglesia'), 'CNPJ match state is localized');
