@@ -5,6 +5,7 @@ import {
   Banknote,
   CheckCircle2,
   ChevronRight,
+  Camera,
   Minus,
   Plus,
   RotateCcw,
@@ -223,6 +224,18 @@ export function CountBlindWorkspace({
               </div>
             </div>
           </Surface>
+
+          {!isRecount && canEdit ? (
+            <Button
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onClick={() => navigate(APP_ROUTES.countFreeFormCapture.replace(':sessionId', session.id))}
+            >
+              <Camera className="h-5 w-5" aria-hidden="true" />
+              {language === 'PT' ? 'Fotografar meu papel' : language === 'ES' ? 'Fotografiar mi papel' : 'Photograph my paper'}
+            </Button>
+          ) : null}
 
           {conflict ? (
             <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-warning/20 bg-semantic-warning/10 p-4">
