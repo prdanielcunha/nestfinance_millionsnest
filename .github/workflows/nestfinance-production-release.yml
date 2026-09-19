@@ -92,6 +92,13 @@ jobs:
             exit 1
           fi
 
+          HANDOFF_STATUS="$(curl --silent --output /tmp/local-handoff.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/auth/handoff/redeem'             -H 'content-type: application/json'             --data '{"code":"invalid"}')"
+          if [ "$HANDOFF_STATUS" != "400" ]; then
+            echo "Expected enabled handoff redeem to reject invalid code with 400, got $HANDOFF_STATUS"
+            cat /tmp/local-handoff.json || true
+            exit 1
+          fi
+
           echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
 
       - name: Deploy Firestore indexes
@@ -150,6 +157,13 @@ jobs:
           if [ "$AUTH_STATUS" != "401" ]; then
             echo "Expected enabled session resolver to reject missing auth with 401, got $AUTH_STATUS"
             cat /tmp/nf-auth.json || true
+            exit 1
+          fi
+
+          HANDOFF_STATUS="$(curl --silent --show-error --location --output /tmp/nf-handoff.json --write-out '%{http_code}'             -X POST "$BASE/api/auth/handoff/redeem"             -H 'content-type: application/json'             --data '{"code":"invalid"}')"
+          if [ "$HANDOFF_STATUS" != "400" ]; then
+            echo "Expected enabled handoff redeem to reject invalid code with 400, got $HANDOFF_STATUS"
+            cat /tmp/nf-handoff.json || true
             exit 1
           fi
 
