@@ -1,7 +1,6 @@
 import { getFirebaseAdmin } from './firebaseAdmin.js';
 
 const CANONICAL_GLOBAL_ROLES = ['ceo', 'global_admin', 'ecosystem_owner', 'founder'] as const;
-const NESTFINANCE_DEVELOPMENT_SYSTEM_ROLES = ['ceo', 'global_admin', 'ecosystem_owner'] as const;
 
 export const ECOSYSTEM_SESSION_DENIAL_REASONS = {
   USER_NOT_FOUND: 'USER_NOT_FOUND',
@@ -13,7 +12,6 @@ export const ECOSYSTEM_SESSION_DENIAL_REASONS = {
   APP_NOT_ENABLED: 'APP_NOT_ENABLED',
   ENTITLEMENT_NOT_CONFIGURED: 'ENTITLEMENT_NOT_CONFIGURED',
   MEMBER_APP_ACCESS_DISABLED: 'MEMBER_APP_ACCESS_DISABLED',
-  NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED: 'NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED',
 } as const;
 
 export interface EcosystemOrganizationSummary {
@@ -78,9 +76,6 @@ function isCanonicalGlobalRole(systemRole: unknown): boolean {
   return typeof systemRole === 'string' && (CANONICAL_GLOBAL_ROLES as readonly string[]).includes(systemRole);
 }
 
-function canAccessNestFinanceDevelopment(systemRole: unknown): boolean {
-  return typeof systemRole === 'string' && (NESTFINANCE_DEVELOPMENT_SYSTEM_ROLES as readonly string[]).includes(systemRole);
-}
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -166,14 +161,6 @@ export async function resolveEcosystemSession(uid: string, orgId: string): Promi
     return denied(orgId, ECOSYSTEM_SESSION_DENIAL_REASONS.ORGANIZATION_INACTIVE, systemRole);
   }
 
-  // Current MillionsNest policy intentionally restricts NestFinance while it is in development.
-  if (!canAccessNestFinanceDevelopment(systemRole)) {
-    return denied(
-      orgId,
-      ECOSYSTEM_SESSION_DENIAL_REASONS.NESTFINANCE_DEVELOPMENT_ACCESS_RESTRICTED,
-      systemRole
-    );
-  }
 
   const common = {
     organization: {
