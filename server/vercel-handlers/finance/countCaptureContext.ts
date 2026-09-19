@@ -11,6 +11,12 @@ export function deriveOpenCountStage(status: CountSessionStatus | string): 'coun
   throw new Error('COUNT_CAPTURE_INVALID_STAGE_STATE');
 }
 
+export function assertCountCaptureStageOpen(stage: 'count_a' | 'count_b', status: CountSessionStatus | string) {
+  if (isCountCaptureMaterialHidden(stage, status as CountSessionStatus)) throw new Error('COUNT_CAPTURE_MATERIAL_HIDDEN');
+  if (stage === 'count_a' && status !== 'counting_a') throw new Error('COUNT_CAPTURE_INVALID_STAGE_STATE');
+  if (stage === 'count_b' && status !== 'counting_b') throw new Error('COUNT_CAPTURE_INVALID_STAGE_STATE');
+}
+
 export async function resolveCountCaptureContext(input: {
   db: Firestore;
   organizationId: string;
