@@ -16,27 +16,49 @@ const sha = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest(
 const evidenceId = () => 'evd_' + crypto.randomBytes(16).toString('hex');
 
 function providerResult(input?: {
+  transactionKind?: 'expense' | 'income' | 'transfer' | 'non_transaction';
+  documentType?: string;
+  counterparty?: string;
+  issuer?: string | null;
   recipient?: string | null;
-  category?: string;
+  payer?: string | null;
+  payee?: string | null;
+  category?: string | null;
   multiplicity?: 'single' | 'multiple';
   amount?: string;
+  currency?: string;
+  settlement?: 'paid' | 'unpaid' | 'unknown';
+  paymentMethod?: string;
+  description?: string;
 }) {
-  const recipient =
-    input?.recipient === null
+  const role = (value: string | null | undefined, fallback: string | null) => {
+    const effective = value === undefined ? fallback : value;
+    return effective === null
       ? { status: 'absent' as const, observation: '' }
-      : { status: 'recognized' as const, observation: input?.recipient || '04.252.011/0001-10' };
+      : { status: 'recognized' as const, observation: effective };
+  };
   return {
     fields: [
-      { key: 'document_type', status: 'recognized', observation: 'receipt' },
-      { key: 'transaction_kind', status: 'recognized', observation: 'expense' },
-      { key: 'merchant_name', status: 'recognized', observation: 'POSTO EXEMPLO LTDA' },
-      { key: 'issuer_tax_id', status: 'recognized', observation: '11.444.777/0001-61' },
-      { key: 'recipient_tax_id', ...recipient },
+      { key: 'document_type', status: 'recognized', observation: input?.documentType || 'fiscal_receipt' },
+      { key: 'transaction_kind', status: 'recognized', observation: input?.transactionKind || 'expense' },
+      { key: 'counterparty_name', status: 'recognized', observation: input?.counterparty || 'FORNECEDOR EXEMPLO LTDA' },
+      { key: 'issuer_tax_id', ...role(input?.issuer, '11.444.777/0001-61') },
+      { key: 'recipient_tax_id', ...role(input?.recipient, '04.252.011/0001-10') },
+      { key: 'payer_tax_id', ...role(input?.payer, null) },
+      { key: 'payee_tax_id', ...role(input?.payee, null) },
+      { key: 'document_number', status: 'recognized', observation: 'DOC-12345' },
       { key: 'total_amount', status: 'recognized', observation: input?.amount || 'R$ 250,00' },
+      { key: 'currency', status: 'recognized', observation: input?.currency || 'BRL' },
       { key: 'occurred_at', status: 'recognized', observation: '19/09/2026' },
-      { key: 'payment_method', status: 'recognized', observation: 'credit_card' },
-      { key: 'description', status: 'recognized', observation: 'Combustível' },
-      { key: 'category_id', status: 'recognized', observation: input?.category || 'cat_fuel' },
+      { key: 'due_date', status: 'absent', observation: '' },
+      { key: 'settlement_state', status: 'recognized', observation: input?.settlement || 'paid' },
+      { key: 'payment_method', status: 'recognized', observation: input?.paymentMethod || 'credit_card' },
+      { key: 'description', status: 'recognized', observation: input?.description || 'Compra de materiais' },
+      {
+        key: 'category_id',
+        status: input?.category === null ? 'absent' : 'recognized',
+        observation: input?.category === null ? '' : input?.category || 'cat_fuel',
+      },
       { key: 'document_multiplicity', status: 'recognized', observation: input?.multiplicity || 'single' },
     ],
   };
@@ -125,7 +147,7 @@ async function run() {
       return {
         provider: 'test',
         model: 'test-document-vision',
-        revision: 'document-to-draft-structured-v1',
+        revision: 'document-to-draft-structured-v2',
         result: next,
       };
     },
@@ -209,9 +231,9 @@ async function run() {
     });
     verify(analyzed.statusCode === 200 && analyzed.body.version === 3 && analyzed.body.replayed === false, 'accepted receipt receives a versioned AI-assisted analysis');
     verify(analyzed.body.analysis.entityTaxIdCheck === 'match', 'recipient CNPJ is matched to the active church on the server');
-    verify(analyzed.body.analysis.transactionKind.value === 'expense', 'fuel receipt is proposed as expense');
+    verify(analyzed.body.analysis.transactionKind.value === 'expense', 'retail evidence is proposed as expense');
     verify(analyzed.body.analysis.totalAmountCents.value === 25000, 'document total is normalized to integer cents');
-    verify(analyzed.body.analysis.suggestedCategoryName === 'Combustível', 'active fuel category is suggested');
+    verify(analyzed.body.analysis.suggestedCategoryName === 'Combustível', 'active same-direction category is suggested');
     verify(analyzed.body.analysis.authority.createsTransaction === false && analyzed.body.analysis.authority.changesBalance === false, 'analysis remains non-authoritative');
 
     const txBefore = await db.collection('organizations').doc(orgId).collection('financeTransactions').get();
@@ -274,7 +296,7 @@ async function run() {
     verify(draftDoc.status === 'draft', 'document-generated transaction remains draft');
     verify(draftDoc.sourceContext === 'document_intelligence', 'draft preserves document-intelligence provenance');
     verify(Array.isArray(draftDoc.evidenceIds) && draftDoc.evidenceIds[0] === evMatch, 'immutable original evidence is attached to the draft');
-    verify(draftDoc.description === 'Combustível' && draftDoc.counterparty === 'POSTO EXEMPLO LTDA', 'confirmed factual description and merchant are preserved');
+    verify(draftDoc.description === 'Combustível' && draftDoc.counterparty === 'POSTO EXEMPLO LTDA', 'confirmed factual description and counterparty are preserved');
 
     const journalAfterDraft = await db.collection('organizations').doc(orgId).collection('financeJournalEntries').get();
     const aggregateAfterDraft = await db.collection('organizations').doc(orgId).collection('financeAggregates').get();
@@ -296,7 +318,7 @@ async function run() {
 
     const evAbsent = evidenceId();
     await seedEvidence(entityARef, entityA, evAbsent, 'fuel-absent-cnpj');
-    providerQueue.push(providerResult({ recipient: null }));
+    providerQueue.push(providerResult({ recipient: null, payer: null }));
     const absent = await call(universalEvidenceAnalyzeTransaction, {
       financeEntityId: entityA,
       evidenceId: evAbsent,
@@ -309,7 +331,7 @@ async function run() {
 
     const evMismatch = evidenceId();
     await seedEvidence(entityARef, entityA, evMismatch, 'fuel-wrong-cnpj');
-    providerQueue.push(providerResult({ recipient: '33.000.167/0001-01' }));
+    providerQueue.push(providerResult({ recipient: '33.000.167/0001-01', payer: null }));
     const mismatch = await call(universalEvidenceAnalyzeTransaction, {
       financeEntityId: entityA,
       evidenceId: evMismatch,
@@ -345,6 +367,66 @@ async function run() {
       requestId: request(),
     });
     verify(wrongCategory.statusCode === 200 && wrongCategory.body.analysis.categoryId.value === null, 'income category suggestion is rejected for expense evidence');
+
+    const evIncome = evidenceId();
+    await seedEvidence(entityARef, entityA, evIncome, 'pix-income');
+    providerQueue.push(providerResult({
+      transactionKind: 'income',
+      documentType: 'pix_receipt',
+      counterparty: 'DOADOR EXEMPLO',
+      issuer: null,
+      recipient: null,
+      payer: '11.444.777/0001-61',
+      payee: '04.252.011/0001-10',
+      category: 'cat_income',
+      amount: 'R$ 900,00',
+      paymentMethod: 'pix',
+      description: 'Entrada recebida via Pix',
+    }));
+    const income = await call(universalEvidenceAnalyzeTransaction, {
+      financeEntityId: entityA,
+      evidenceId: evIncome,
+      expectedVersion: 2,
+      locale: 'PT',
+      idempotencyKey: key(),
+      requestId: request(),
+    });
+    verify(income.statusCode === 200 && income.body.analysis.entityTaxIdRole === 'payee', 'income document can identify church as payment beneficiary');
+    verify(income.body.analysis.transactionKind.value === 'income' && income.body.analysis.analysisStatus === 'ready_for_confirmation', 'completed Pix receipt can become an income proposal');
+
+    const evUnpaid = evidenceId();
+    await seedEvidence(entityARef, entityA, evUnpaid, 'utility-unpaid');
+    providerQueue.push(providerResult({
+      documentType: 'utility_bill',
+      settlement: 'unpaid',
+      paymentMethod: 'unknown',
+      description: 'Energia elétrica',
+    }));
+    const unpaid = await call(universalEvidenceAnalyzeTransaction, {
+      financeEntityId: entityA,
+      evidenceId: evUnpaid,
+      expectedVersion: 2,
+      locale: 'PT',
+      idempotencyKey: key(),
+      requestId: request(),
+    });
+    verify(unpaid.statusCode === 200 && unpaid.body.analysis.analysisStatus === 'not_settled', 'unpaid bill is preserved but cannot masquerade as a cash outflow');
+
+    const evUsd = evidenceId();
+    await seedEvidence(entityARef, entityA, evUsd, 'foreign-currency');
+    providerQueue.push(providerResult({
+      amount: 'US$ 125.50',
+      currency: 'USD',
+    }));
+    const foreign = await call(universalEvidenceAnalyzeTransaction, {
+      financeEntityId: entityA,
+      evidenceId: evUsd,
+      expectedVersion: 2,
+      locale: 'PT',
+      idempotencyKey: key(),
+      requestId: request(),
+    });
+    verify(foreign.statusCode === 200 && foreign.body.analysis.analysisStatus === 'unsupported_currency', 'foreign-currency evidence is never silently treated as BRL');
 
     const otherEntityAnalysis = await call(universalEvidenceAnalyzeTransaction, {
       financeEntityId: entityB,
