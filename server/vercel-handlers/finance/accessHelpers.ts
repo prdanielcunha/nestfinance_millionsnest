@@ -62,8 +62,35 @@ function canonicalPermissions(sessionList: any): string[] {
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList?.isGlobalAccess) return true;
 
+  const organizationRole = String(sessionList?.organizationRole || '').trim().toLowerCase();
+  if (
+    (organizationRole === 'owner' || organizationRole === 'admin') &&
+    (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities')
+  ) {
+    return true;
+  }
+
   const permissions = canonicalPermissions(sessionList);
-  return permissions.includes('*') || permissions.includes(requestedCapability);
+  if (permissions.includes('*') || permissions.includes(requestedCapability)) return true;
+
+  if (requestedCapability.startsWith('finance.') && permissions.includes('finance.manage')) {
+    return true;
+  }
+
+  const structuralFinanceCapabilities = new Set([
+    'finance.accounts.manage',
+    'finance.accounts.repair',
+    'finance.funds.manage',
+    'finance.categories.manage',
+  ]);
+  if (
+    structuralFinanceCapabilities.has(requestedCapability) &&
+    permissions.includes('organization.manage_entities')
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export function hasFinanceEntityScope(sessionList: any, financeEntityId: string): boolean {
