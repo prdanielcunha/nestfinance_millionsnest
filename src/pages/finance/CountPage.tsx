@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarDays,
+  Camera,
   CheckCircle2,
   ChevronRight,
   FileText,
@@ -44,6 +45,8 @@ const SIMPLE_MODE_COPY = {
     paperTitle: 'Usar papel',
     paperBody: 'Crie uma folha simples para imprimir. Depois de preencher, basta fotografar para o NestFinance ajudar a lançar.',
     paperCreate: 'Criar folha para imprimir',
+    filledSheet: 'Já tenho uma folha preenchida',
+    filledSheetBody: 'Abra a câmera, fotografe a Folha Count e deixe o NestFinance ajudar a ler o que foi escrito.',
   },
   EN: {
     title: 'How do you want to record the count?',
@@ -53,6 +56,8 @@ const SIMPLE_MODE_COPY = {
     paperTitle: 'Use paper',
     paperBody: 'Create a simple sheet to print. After filling it out, photograph it and NestFinance helps enter the values.',
     paperCreate: 'Create printable sheet',
+    filledSheet: 'I already have a completed sheet',
+    filledSheetBody: 'Open the camera, photograph the Count Sheet, and let NestFinance help read what was written.',
   },
   ES: {
     title: '¿Cómo quieres registrar el conteo?',
@@ -62,6 +67,8 @@ const SIMPLE_MODE_COPY = {
     paperTitle: 'Usar papel',
     paperBody: 'Crea una hoja simple para imprimir. Después de llenarla, basta fotografiarla y NestFinance ayuda a registrar los valores.',
     paperCreate: 'Crear hoja para imprimir',
+    filledSheet: 'Ya tengo una hoja completada',
+    filledSheetBody: 'Abre la cámara, fotografía la Hoja Count y deja que NestFinance ayude a leer lo escrito.',
   },
 } as const;
 
@@ -266,6 +273,20 @@ function CountHomeContent() {
                   </span>
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate(APP_ROUTES.countCapture)}
+                className="mt-4 flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border-subtle bg-surface-secondary/40 px-4 py-3 text-left transition hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-elevated text-accent-primary">
+                  <Camera className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-text-primary">{simpleCopy.filledSheet}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-text-muted">{simpleCopy.filledSheetBody}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              </button>
             </Surface>
           ) : null}
 
