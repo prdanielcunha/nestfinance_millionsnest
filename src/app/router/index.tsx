@@ -20,6 +20,7 @@ const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessi
 const CountPaperFormsPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormsPage'));
 const CountPaperFormPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormPage'));
 const CountCapturePage = lazy(() => import('@/src/pages/finance/count/CountCapturePage'));
+const CountFreeFormCapturePage = lazy(() => import('@/src/pages/finance/count/CountFreeFormCapturePage'));
 const CountCaptureReviewPage = lazy(() => import('@/src/pages/finance/count/CountCaptureReviewPage'));
 const UniversalCapturePage = lazy(() => import('@/src/pages/finance/capture/UniversalCapturePage'));
 const BalancePage = lazy(() => import('@/src/pages/finance/BalancePage'));
@@ -89,6 +90,7 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.countPaperForms, element: <Suspense fallback={<PageFallback />}><CountPaperFormsPage /></Suspense> },
           { path: APP_ROUTES.countPaperForm, element: <Suspense fallback={<PageFallback />}><CountPaperFormPage /></Suspense> },
           { path: APP_ROUTES.countCapture, element: <Suspense fallback={<PageFallback />}><CountCapturePage /></Suspense> },
+          { path: APP_ROUTES.countFreeFormCapture, element: <Suspense fallback={<PageFallback />}><CountFreeFormCapturePage /></Suspense> },
           { path: APP_ROUTES.countCaptureReview, element: <Suspense fallback={<PageFallback />}><CountCaptureReviewPage /></Suspense> },
           { path: APP_ROUTES.universalCapture, element: <Suspense fallback={<PageFallback />}><UniversalCapturePage /></Suspense> },
           { path: APP_ROUTES.balance, element: <Suspense fallback={<PageFallback />}><BalancePage /></Suspense> },
