@@ -24,7 +24,7 @@ export interface DocumentTransactionIntelligenceProvider {
 
 const TEST_PROVIDER_SYMBOL = Symbol.for('TEST_DOCUMENT_TRANSACTION_INTELLIGENCE_PROVIDER');
 const GEMINI_INTERACTIONS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions';
-const PROVIDER_REVISION = 'document-to-draft-structured-v1';
+const PROVIDER_REVISION = 'document-to-draft-structured-v2';
 const MAX_PROVIDER_RESPONSE_CHARS = 96 * 1024;
 const MAX_CATEGORY_OPTIONS = 200;
 const PROVIDER_TIMEOUT_MS = 30_000;
@@ -69,33 +69,45 @@ function prompt(categories: DocumentTransactionCategoryOption[], locale: 'PT' | 
   const descriptionLanguage = locale === 'PT' ? 'Brazilian Portuguese' : locale === 'ES' ? 'natural Spanish' : 'natural English';
   return [
     'Analyze exactly ONE financial evidence file for a church finance workflow.',
-    'Your output is a non-authoritative suggestion that a human must confirm before any transaction draft exists.',
-    'Read only what is visible in the supplied image or PDF. Never invent tax IDs, amounts, dates, merchant names, payment methods, or legal roles.',
+    'This engine must work across many document shapes, not only retail receipts. Examples include fiscal receipts, invoices, service invoices, utility bills, payment proofs, Pix/transfer receipts, bank slips, card slips, donation receipts, reimbursements, tax documents, statements, contract charges and unfamiliar documents.',
+    'Your output is only a non-authoritative proposal. A human must confirm before any financial draft exists.',
+    'Read only what is visibly supported by the supplied image or PDF. Never invent tax IDs, amounts, dates, party roles, payment status, payment method, document numbers, transaction direction, or category.',
+    'A multi-page PDF can still be ONE document. document_multiplicity=multiple only when the file contains two or more independent financial records that should not become one transaction.',
     'Return exactly one field object for every required key.',
     '',
     'Field rules:',
-    '- document_type observation must be one of: receipt, payment_proof, invoice, tax_document, other, unknown.',
-    '- transaction_kind observation must be expense, income, or unknown. A merchant receipt/invoice documenting a purchase by the church is normally expense only when the purchase direction is clear from the document.',
-    '- merchant_name is the visible supplier/merchant/issuer display name. Preserve the real name; do not translate it.',
-    '- issuer_tax_id: only a CNPJ explicitly attributable to the issuer/supplier. Do not copy an unlabeled CNPJ into both issuer and recipient.',
-    '- recipient_tax_id: only a CNPJ explicitly attributable to recipient, customer, consumer, buyer, tomador, destinatário, receptor, or equivalent. If consumer CNPJ is absent, mark absent.',
-    '- total_amount: the final total of this document exactly as visible, such as "R$ 250,00". Never use subtotal, tax total, discount, unit price, or change as total.',
-    '- occurred_at: purchase/payment/issue date that best represents the financial event. Preserve a visible date (YYYY-MM-DD or DD/MM/YYYY). If several dates have different meanings and the event date is unclear, mark uncertain.',
+    '- document_type observation must be one of: receipt, fiscal_receipt, invoice, service_invoice, utility_bill, payment_proof, pix_receipt, bank_transfer_receipt, bank_slip, card_slip, donation_receipt, reimbursement_receipt, tax_document, statement, contract_charge, other, unknown.',
+    '- transaction_kind observation must be expense, income, transfer, non_transaction, or unknown. Use transfer only when money is clearly moving between accounts rather than representing income/expense. Use non_transaction for quote/order/statement-like evidence that does not prove a single financial event.',
+    '- counterparty_name is the OTHER economic party relative to the church-side transaction when that can be supported. For an expense this is commonly supplier/payee; for an income this is commonly payer/donor/customer. If direction or party is unclear, mark uncertain rather than guessing.',
+    '- issuer_tax_id: only a CNPJ explicitly attributable to issuer/provider/seller. Do not copy an unlabeled CNPJ into multiple roles.',
+    '- recipient_tax_id: only a CNPJ explicitly attributable to recipient/customer/consumer/buyer/tomador/destinatário/receptor.',
+    '- payer_tax_id: only a CNPJ explicitly attributable to payer/debtor/source of payment.',
+    '- payee_tax_id: only a CNPJ explicitly attributable to beneficiary/payee/receiver/creditor.',
+    '- document_number: fiscal/document/invoice/receipt identifier when explicitly visible. Do not use authorization codes, terminal IDs or card fragments as document number.',
+    '- total_amount: the final financial total for this one document. Never use subtotal, tax total, discount, unit price, installment value or change as the final total unless the document explicitly identifies it as the transaction total.',
+    '- currency observation must be one of: BRL, USD, EUR, GBP, ARS, CLP, COP, MXN, other, unknown. Use BRL only when R$, BRL or Brazilian fiscal context clearly supports it; never assume BRL just because the interface is Brazilian.',
+    '- occurred_at: transaction/payment/purchase/issue date that best represents the actual financial event. Preserve a visible date as YYYY-MM-DD or DD/MM/YYYY. If several dates conflict and event date is unclear, mark uncertain.',
+    '- due_date: payment due date only when explicitly shown. This is not the occurred_at date unless they are actually the same event date.',
+    '- settlement_state observation must be paid, unpaid, or unknown. A payment proof, successful Pix/transfer receipt or completed card/retail receipt can be paid when the document supports completion. An invoice, utility bill, bank slip or charge without payment evidence is unpaid or unknown; never infer payment merely because an amount is due.',
     '- payment_method observation must be one of: cash, pix, bank_transfer, bank_deposit, debit_card, credit_card, prepaid_card, bank_slip, check, automatic_debit, other, unknown.',
-    `- description: a short factual description in ${descriptionLanguage}, based only on the document. For a fuel receipt, for example, use a concise description equivalent to "Combustível" only if fuel is actually evidenced.`,
-    '- category_id: choose only from the supplied active category IDs and only when the match is clear. Otherwise absent or uncertain.',
-    '- document_multiplicity observation must be single, multiple, or uncertain. Use multiple when the file visibly contains two or more independent receipts/invoices/proofs that should become separate financial records.',
+    `- description: a short factual description in ${descriptionLanguage}, based only on the document content. Summarize what the financial event is about without adding accounting interpretation that is not present.`,
+    '- category_id: choose only from the supplied active category IDs and only when the document meaning clearly matches the category AND the category direction matches transaction_kind. Otherwise absent or uncertain.',
+    '- document_multiplicity observation must be single, multiple, or uncertain.',
     '',
     'Status rules:',
-    '- recognized: one reading/meaning is well supported by the visible document.',
-    '- uncertain: evidence exists but two or more readings/meanings are plausible.',
-    '- absent: the field is not present or cannot be supported by the document.',
+    '- recognized: one reading/meaning is well supported by visible evidence.',
+    '- uncertain: some evidence exists but multiple readings/roles/values are plausible.',
+    '- absent: the field is not present or cannot be supported.',
     '- For uncertain/absent fields, observation should be empty or a very short reason; never guess.',
+    '',
+    'Identity safety:',
+    '- The system compares observed CNPJs to the active church on the server. Do not decide whether a CNPJ belongs to the church.',
+    '- Preserve party roles exactly. On expenses the church may appear as recipient/buyer or payer; on income it may appear as payee/beneficiary, recipient, or issuer of a service invoice.',
+    '- Never relabel another party CNPJ as the church CNPJ just to make the document fit.',
     '',
     catalogText(categories),
   ].join('\n');
 }
-
 function extractInteractionsText(payload: any) {
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.steps)) {
     throw new Error('DOCUMENT_ANALYSIS_PROVIDER_INVALID_RESPONSE');
