@@ -33,7 +33,7 @@ for (const rewrite of vercel.rewrites ?? []) {
   expectedRoutes[rewrite.source] = { gateway, operation };
 }
 assert.deepEqual(NESTFINANCE_CLOUD_RUN_ROUTES, expectedRoutes, 'Cloud Run must expose exactly the current public Vercel API contract');
-assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 27, 'Unexpected public API surface change');
+assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 28, 'Unexpected public API surface change');
 assert.deepEqual(
   NESTFINANCE_DIRECT_GATEWAY_ROUTES,
   {
