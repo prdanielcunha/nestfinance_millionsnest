@@ -78,6 +78,7 @@ import reconciliationProgress from '../server/vercel-handlers/finance/reconcilia
 import auditList from '../server/vercel-handlers/finance/auditList.js';
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
+import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -168,6 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'audit-list': return auditList(req, res);
     case 'period-close-readiness': return periodCloseReadiness(req, res);
     case 'period-close-review-confirm': return periodCloseReviewConfirm(req, res);
+    case 'reports-intelligence': return reportsIntelligence(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
