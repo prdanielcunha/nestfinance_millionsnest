@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --rm --name nf-release-smoke             -e PORT=8080             -e NODE_ENV=production             -e NESTFINANCE_RELEASE_SHA="$GITHUB_SHA"             -p 18081:8080 "$IMAGE"
+          docker run -d --rm --name nf-release-smoke             -e PORT=8080             -e NODE_ENV=production             -e NESTFINANCE_SESSION_RESOLVE_ENABLED=true             -e NESTFINANCE_HANDOFF_REDEEM_ENABLED=true             -e NESTFINANCE_RELEASE_SHA="$GITHUB_SHA"             -p 18081:8080 "$IMAGE"
           trap 'docker stop nf-release-smoke >/dev/null 2>&1 || true' EXIT
 
           for i in {1..30}; do
@@ -84,6 +84,14 @@ jobs:
 
           STATUS="$(curl --silent --output /tmp/local-gateway.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/finance-gateway?operation=transactions-summary'             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke"}')"
           test "$STATUS" = "401"
+
+          AUTH_STATUS="$(curl --silent --output /tmp/local-auth.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/auth/session/resolve')"
+          if [ "$AUTH_STATUS" != "401" ]; then
+            echo "Expected enabled session resolver to reject missing auth with 401, got $AUTH_STATUS"
+            cat /tmp/local-auth.json || true
+            exit 1
+          fi
+
           echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
 
       - name: Deploy Firestore indexes
@@ -98,7 +106,7 @@ jobs:
       - name: Deploy Cloud Run revision
         run: |
           set -euo pipefail
-          gcloud run deploy "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --image "$IMAGE"             --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com"             --port 8080             --cpu 1             --memory 512Mi             --min-instances 0             --max-instances 3             --concurrency 80             --timeout 60             --no-allow-unauthenticated             --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"             --quiet
+          gcloud run deploy "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --image "$IMAGE"             --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com"             --port 8080             --cpu 1             --memory 512Mi             --min-instances 0             --max-instances 3             --concurrency 80             --timeout 60             --no-allow-unauthenticated             --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_SESSION_RESOLVE_ENABLED=true,NESTFINANCE_HANDOFF_REDEEM_ENABLED=true,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"             --quiet
 
       - name: Allow Firebase Hosting invocation
         run: |
@@ -135,6 +143,13 @@ jobs:
           if [ "$STATUS" != "401" ]; then
             echo "Expected authenticated gateway to answer 401, got $STATUS"
             cat /tmp/nf-gateway.json || true
+            exit 1
+          fi
+
+          AUTH_STATUS="$(curl --silent --show-error --location --output /tmp/nf-auth.json --write-out '%{http_code}'             -X POST "$BASE/api/auth/session/resolve")"
+          if [ "$AUTH_STATUS" != "401" ]; then
+            echo "Expected enabled session resolver to reject missing auth with 401, got $AUTH_STATUS"
+            cat /tmp/nf-auth.json || true
             exit 1
           fi
 
