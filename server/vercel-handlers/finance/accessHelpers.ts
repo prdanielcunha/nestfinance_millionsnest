@@ -284,6 +284,7 @@ export function createFinanceEntityScope(args: {
     getReconciliationLineLocksRef: () => orgRef.collection('financeReconciliationLineLocks'),
     getReconciliationReversalsRef: () => orgRef.collection('financeReconciliationReversals'),
     getPeriodCloseReviewsRef: () => orgRef.collection('financePeriodCloseReviews'),
+    getPeriodCloseReviewsQuery: () => orgRef.collection('financePeriodCloseReviews').where('financeEntityId', '==', financeEntityId),
 
     assertEntityIsolation
   };
