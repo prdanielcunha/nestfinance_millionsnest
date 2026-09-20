@@ -3,6 +3,7 @@ import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHe
 import {
   AUDIT_FACT_PROJECTION_BATCH_MAX,
   AUDIT_FACT_PROJECTION_VERSION,
+  buildAuditFactInput,
   inspectAuditFactProjection,
   matchesAuditProjectionCandidate,
 } from './auditFactProjection.js';
@@ -55,34 +56,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return { applied: false, reused: false };
         }
 
-        const ensured = await ensureFinanceFact(transaction, db, {
-          organizationId,
-          eventType: 'AUDIT_EVENT_RECORDED',
-          entityType: 'finance_audit_event',
-          entityId: candidate.auditEventId,
-          actorUserId:
-            typeof data.actor === 'string' && data.actor !== 'system'
-              ? data.actor
-              : null,
-          correlationId:
-            `audit-projection-v${AUDIT_FACT_PROJECTION_VERSION}`,
-          occurredAt: data.createdAt || undefined,
-          payload: {
+        const ensured = await ensureFinanceFact(
+          transaction,
+          db,
+          buildAuditFactInput({
+            organizationId,
             financeEntityId,
             auditEventId: candidate.auditEventId,
-            action: candidate.action,
-            resource: candidate.resource,
-            resourceId: candidate.resourceId,
-            requestId: candidate.requestId,
-            metadata: candidate.metadata,
-            projectionKind: 'canonical_audit_projection',
-            historicalEventInferred: false,
-            financialMutation: false,
-            auditMutation: false,
-          },
-          sourceRefs: [{ kind: 'audit', ref: auditRef.path }],
-          confidence: 'verified',
-        });
+            auditRef: auditRef.path,
+            auditData: data,
+          }),
+        );
         return { applied: true, reused: !ensured.created };
       });
 
