@@ -28,8 +28,8 @@ verify(handler.includes("transaction.set(reviewRef"), 'server writes the source-
 verify(
   handler.includes('const auditRef = context.repository') &&
     handler.includes('.getAuditRef()') &&
-    handler.includes('transaction.set(auditRef'),
-  'server appends the review to canonical audit history',
+    handler.includes('stageCanonicalAuditRecord(transaction, db, auditRef'),
+  'server appends the review to canonical audit history atomically with its cross-app audit fact',
 );
 verify(handler.includes('stageFinanceFact'), 'clean human review emits a canonical operational fact');
 verify(handler.includes("eventType: 'REPORT_READY'"), 'clean human review emits REPORT_READY for ecosystem consumers');
