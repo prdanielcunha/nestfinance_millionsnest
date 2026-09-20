@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 import {
   buildTransactionSearchCoverageId,
   buildTransactionSearchCoverageRecord,
@@ -11,8 +11,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { db, uid, organizationId, financeEntityId } =
+    const { db, uid, organizationId, financeEntityId, sessionList } =
       await resolveFinanceRequestContext(req, 'finance.view');
+    if (!hasEffectiveCapability(sessionList, 'finance.manage')) {
+      return res.status(403).json({ error: 'FORBIDDEN_SEARCH_INDEX_MANAGEMENT' });
+    }
     const inspection = await inspectTransactionSearchProjection(
       db,
       organizationId,
