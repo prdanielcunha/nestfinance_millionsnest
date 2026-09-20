@@ -42,6 +42,20 @@ assert.equal(
 );
 assert.equal(
   transactionMatchesSearchQuery(
+    { amountCents: 35000, occurredAt: '2026-08-12T12:00:00.000Z' },
+    '350,00',
+  ),
+  true,
+);
+assert.equal(
+  transactionMatchesSearchQuery(
+    { amountCents: 35000, occurredAt: '2026-08-12T12:00:00.000Z' },
+    '12/08',
+  ),
+  true,
+);
+assert.equal(
+  transactionMatchesSearchQuery(
     { description: 'Oferta Missionária', counterparty: 'José da Silva' },
     'jo aluguel',
   ),
