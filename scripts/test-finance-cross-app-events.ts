@@ -69,6 +69,18 @@ const review = readFileSync(
   'server/vercel-handlers/finance/periodCloseReviewConfirm.ts',
   'utf8',
 );
+const reconciliationConfirm = readFileSync(
+  'server/vercel-handlers/finance/reconciliationConfirm.ts',
+  'utf8',
+);
+const reconciliationReverse = readFileSync(
+  'server/vercel-handlers/finance/reconciliationReverse.ts',
+  'utf8',
+);
+const reconciliationProgress = readFileSync(
+  'shared/finance/reconciliationProgressBuilder.ts',
+  'utf8',
+);
 const financeHandlers = readFileSync(
   'scripts/test-transaction-fact-coverage.ts',
   'utf8',
@@ -116,6 +128,22 @@ for (const forbidden of [
 assert.ok(
   financeHandlers.includes("does not claim posting before a real posting mutation exists"),
   'posting guard remains certified',
+);
+
+assert.ok(reconciliationConfirm.includes("eventType: 'RECONCILIATION_STARTED'"));
+assert.ok(reconciliationConfirm.includes('buildReconciliationSessionId({'));
+assert.ok(reconciliationConfirm.includes('canDeclareStatementFullyReconciled: false'));
+assert.ok(reconciliationReverse.includes("eventType: 'RECONCILIATION_EXCEPTION_FOUND'"));
+assert.ok(reconciliationReverse.includes("exceptionKind: 'human_reversal'"));
+assert.ok(!reconciliationReverse.includes('note: normalizedNote,\n              status:'));
+assert.ok(
+  reconciliationProgress.includes('canDeclareStatementFullyReconciled: false'),
+  'recognized-only progress cannot claim full-statement completion',
+);
+assert.ok(
+  !reconciliationConfirm.includes("eventType: 'RECONCILIATION_COMPLETED'") &&
+    !reconciliationReverse.includes("eventType: 'RECONCILIATION_COMPLETED'"),
+  'no mutation emits RECONCILIATION_COMPLETED before full-statement authority exists',
 );
 
 for (const reserved of [
