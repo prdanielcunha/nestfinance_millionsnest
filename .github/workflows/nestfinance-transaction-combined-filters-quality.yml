@@ -1,0 +1,58 @@
+name: NestFinance Transaction Combined Filters Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "shared/finance/transactionWorkspaceView.ts"
+      - "shared/finance/ledger/listQueryKeys.ts"
+      - "server/vercel-handlers/finance/transactionsList.ts"
+      - "server/vercel-handlers/finance/transactionWorkspaceViewsList.ts"
+      - "src/components/finance/TransactionSavedViews.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "scripts/test-transaction-combined-filters.ts"
+      - "scripts/test-transaction-saved-views.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-transaction-combined-filters-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/finance/transactionWorkspaceView.ts"
+      - "shared/finance/ledger/listQueryKeys.ts"
+      - "server/vercel-handlers/finance/transactionsList.ts"
+      - "server/vercel-handlers/finance/transactionWorkspaceViewsList.ts"
+      - "src/components/finance/TransactionSavedViews.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "scripts/test-transaction-combined-filters.ts"
+      - "scripts/test-transaction-saved-views.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-transaction-combined-filters-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  transaction-combined-filters-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify combined filter contract
+        run: npm run test:transaction-combined-filters
+      - name: Verify saved view compatibility
+        run: npm run test:transaction-saved-views
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun

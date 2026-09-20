@@ -6,6 +6,16 @@ import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/li
 import { normalizeFirestoreInfrastructureError } from '../../shared/firestore/indexRemediation.js';
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 
+function normalizeDateFilter(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string' || value.length > 40) {
+    throw new Error('INVALID_TRANSACTION_DATE_FILTER');
+  }
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) throw new Error('INVALID_TRANSACTION_DATE_FILTER');
+  return new Date(time).toISOString();
+}
+
 function toOptionalIso(value: any): string | null {
   if (!value) return null;
   if (typeof value?.toDate === 'function') {
@@ -53,8 +63,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
       if (filters.status && filters.status !== 'all') status = filters.status;
-      if (filters.occurredFrom) occurredFrom = filters.occurredFrom;
-      if (filters.occurredTo) occurredTo = filters.occurredTo;
+      occurredFrom = normalizeDateFilter(filters.occurredFrom);
+      occurredTo = normalizeDateFilter(filters.occurredTo);
+      if (filters.order && !['newest', 'oldest'].includes(filters.order)) {
+        return res.status(400).json({ error: 'INVALID_TRANSACTION_ORDER' });
+      }
+      if (
+        occurredFrom &&
+        occurredTo &&
+        new Date(occurredFrom).getTime() > new Date(occurredTo).getTime()
+      ) {
+        return res.status(400).json({ error: 'INVALID_TRANSACTION_DATE_RANGE' });
+      }
     }
 
     const requiredCapability = status === 'ready_for_review' ? 'finance.review' : 'finance.view';
@@ -250,6 +270,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
+    if (error.message === 'INVALID_TRANSACTION_DATE_FILTER') {
+      return res.status(400).json({ error: 'INVALID_TRANSACTION_DATE_FILTER' });
+    }
     if (error.message === 'FORBIDDEN_FINANCE_ACCESS' || error.message === 'Session not granted') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }

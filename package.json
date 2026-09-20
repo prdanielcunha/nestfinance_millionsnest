@@ -51,7 +51,8 @@
     "test:audit-fact-projection": "tsx scripts/test-audit-fact-projection.ts",
     "test:transaction-inspector": "tsx scripts/test-transaction-inspector.ts",
     "test:audit-live-emission": "tsx scripts/test-audit-live-emission.ts",
-    "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts"
+    "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts",
+    "test:transaction-combined-filters": "tsx scripts/test-transaction-combined-filters.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -12,7 +12,13 @@ assert.equal(normalizeTransactionWorkspaceViewName('   '), null);
 assert.equal(normalizeTransactionWorkspaceViewName('x'.repeat(49)), null);
 assert.deepStrictEqual(
   normalizeTransactionWorkspaceFilters({ direction: 'income', status: 'ready_for_review' }),
-  { direction: 'income', status: 'ready_for_review' },
+  {
+    direction: 'income',
+    status: 'ready_for_review',
+    occurredFrom: null,
+    occurredTo: null,
+    order: 'newest',
+  },
 );
 assert.equal(
   normalizeTransactionWorkspaceFilters({ direction: 'invalid', status: 'draft' }),
