@@ -50,7 +50,8 @@
     "test:finance-cross-app-events": "tsx scripts/test-finance-cross-app-events.ts",
     "test:audit-fact-projection": "tsx scripts/test-audit-fact-projection.ts",
     "test:transaction-inspector": "tsx scripts/test-transaction-inspector.ts",
-    "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts"
+    "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts",
+    "test:transaction-combined-filters": "tsx scripts/test-transaction-combined-filters.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
