@@ -45,7 +45,8 @@
     "test:personalized-workspaces": "tsx scripts/test-personalized-workspaces.ts",
     "test:adaptive-navigation": "tsx scripts/test-adaptive-finance-navigation.ts",
     "test:command-palette": "tsx scripts/test-finance-command-palette.ts",
-    "test:today-priority-model": "tsx scripts/test-today-priority-model.ts"
+    "test:today-priority-model": "tsx scripts/test-today-priority-model.ts",
+    "test:finance-hub-read-model": "tsx scripts/test-finance-hub-read-model.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
