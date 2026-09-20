@@ -1,0 +1,60 @@
+name: NestFinance Cross-App Events Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "shared/intelligence/canonicalFact.ts"
+      - "shared/intelligence/financeCrossAppEvents.ts"
+      - "server/vercel-handlers/finance/universalEvidenceFinalize.ts"
+      - "server/vercel-handlers/finance/periodCloseReviewConfirm.ts"
+      - "scripts/test-intelligence-fact-foundation.ts"
+      - "scripts/test-finance-cross-app-events.ts"
+      - "scripts/test-period-close-human-review.ts"
+      - "scripts/test-period-close-human-review-emulator.ts"
+      - "scripts/test-universal-evidence-firestore-emulator.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-cross-app-events-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/intelligence/canonicalFact.ts"
+      - "shared/intelligence/financeCrossAppEvents.ts"
+      - "server/vercel-handlers/finance/universalEvidenceFinalize.ts"
+      - "server/vercel-handlers/finance/periodCloseReviewConfirm.ts"
+      - "scripts/test-intelligence-fact-foundation.ts"
+      - "scripts/test-finance-cross-app-events.ts"
+      - "scripts/test-period-close-human-review.ts"
+      - "scripts/test-period-close-human-review-emulator.ts"
+      - "scripts/test-universal-evidence-firestore-emulator.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-cross-app-events-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cross-app-events-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify exact blueprint event vocabulary
+        run: npm run test:finance-cross-app-events
+      - name: Verify canonical fact foundation
+        run: npx tsx scripts/test-intelligence-fact-foundation.ts
+      - name: Verify period review semantics
+        run: npx tsx scripts/test-period-close-human-review.ts
+      - name: Verify transaction posting guard
+        run: npx tsx scripts/test-transaction-fact-coverage.ts
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
