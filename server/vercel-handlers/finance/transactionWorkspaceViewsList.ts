@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import {
   TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY,
+  normalizeTransactionWorkspaceFilters,
   type TransactionWorkspaceView,
 } from '../../../shared/finance/transactionWorkspaceView.js';
 
@@ -27,19 +28,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .limit(TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY)
       .get();
 
-    const items: TransactionWorkspaceView[] = snapshot.docs.map((doc) => {
+    const items: TransactionWorkspaceView[] = snapshot.docs.flatMap((doc) => {
       const data = doc.data() || {};
-      return {
+      const filters = normalizeTransactionWorkspaceFilters(data.filters);
+      if (!filters) return [];
+      return [{
         viewId: doc.id,
         organizationId,
         financeEntityId,
         ownerUid: uid,
         name: String(data.name || ''),
-        filters: data.filters,
+        filters,
         schemaVersion: 1,
         createdAt: data.createdAt || null,
         updatedAt: data.updatedAt || null,
-      };
+      }];
     });
 
     return res.status(200).json({

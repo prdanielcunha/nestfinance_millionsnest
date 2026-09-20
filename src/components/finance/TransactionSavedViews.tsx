@@ -94,7 +94,13 @@ const COPY: Record<Language, Copy> = {
 };
 
 function sameFilters(a: TransactionWorkspaceFilters, b: TransactionWorkspaceFilters) {
-  return a.direction === b.direction && a.status === b.status;
+  return (
+    a.direction === b.direction &&
+    a.status === b.status &&
+    (a.occurredFrom || null) === (b.occurredFrom || null) &&
+    (a.occurredTo || null) === (b.occurredTo || null) &&
+    (a.order || 'newest') === (b.order || 'newest')
+  );
 }
 
 export function TransactionSavedViews({ filters, onApply }: Props) {
