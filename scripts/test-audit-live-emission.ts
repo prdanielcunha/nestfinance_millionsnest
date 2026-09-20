@@ -94,8 +94,12 @@ const crossApp = await readFile(
 );
 assert.ok(
   crossApp.includes("AUDIT_EVENT_RECORDED: {") &&
-    crossApp.includes("state: 'reserved'"),
-  'AUDIT_EVENT_RECORDED stays reserved until historical legacy scope is certified',
+    crossApp.includes("state: 'emitted'"),
+  'AUDIT_EVENT_RECORDED is emitted for every certified financeEntity-scoped live audit writer',
+);
+assert.ok(
+  crossApp.includes('historical completeness is certified independently'),
+  'live emission does not overclaim historical projection completeness',
 );
 
 console.log(
