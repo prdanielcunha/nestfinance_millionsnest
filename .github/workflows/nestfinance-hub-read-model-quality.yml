@@ -12,7 +12,7 @@ on:
       - "scripts/check-api-contracts.mjs"
       - "scripts/test-finance-hub-read-model.ts"
       - "package.json"
-      - "vercel.json"
+      - "vercel.json"\n      - "cloudrunRoutes.ts"\n      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
       - ".github/workflows/nestfinance-hub-read-model-quality.yml"
       - ".github/workflows/nestfinance-production-release.yml"
   push:
@@ -26,7 +26,7 @@ on:
       - "scripts/check-api-contracts.mjs"
       - "scripts/test-finance-hub-read-model.ts"
       - "package.json"
-      - "vercel.json"
+      - "vercel.json"\n      - "cloudrunRoutes.ts"\n      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
       - ".github/workflows/nestfinance-hub-read-model-quality.yml"
       - ".github/workflows/nestfinance-production-release.yml"
 
@@ -48,6 +48,9 @@ jobs:
         run: npm run test:finance-hub-read-model
       - name: Verify API gateway inventory
         run: npm run check:api-contracts
+
+      - name: Verify Firebase Hosting and Cloud Run parity
+        run: npm run test:firebase-infra
       - name: Verify canonical finance RBAC policy
         run: npm run test:finance-role-policy
       - name: TypeScript lint and typecheck
