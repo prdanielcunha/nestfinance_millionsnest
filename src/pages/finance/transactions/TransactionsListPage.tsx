@@ -43,6 +43,13 @@ type TransactionsCopy = {
   filters: string;
   type: string;
   stage: string;
+  period: string;
+  dateFrom: string;
+  dateTo: string;
+  order: string;
+  newest: string;
+  oldest: string;
+  clearPeriod: string;
   allTypes: string;
   income: string;
   expense: string;
@@ -98,6 +105,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     filters: 'Filtrar movimentações',
     type: 'Tipo',
     stage: 'Etapa',
+    period: 'Período',
+    dateFrom: 'De',
+    dateTo: 'Até',
+    order: 'Ordem',
+    newest: 'Mais recentes',
+    oldest: 'Mais antigas',
+    clearPeriod: 'Limpar período',
     allTypes: 'Todos',
     income: 'Entradas',
     expense: 'Saídas',
@@ -151,6 +165,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     filters: 'Filter transactions',
     type: 'Type',
     stage: 'Stage',
+    period: 'Period',
+    dateFrom: 'From',
+    dateTo: 'To',
+    order: 'Order',
+    newest: 'Newest first',
+    oldest: 'Oldest first',
+    clearPeriod: 'Clear period',
     allTypes: 'All',
     income: 'Income',
     expense: 'Expenses',
@@ -204,6 +225,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     filters: 'Filtrar movimientos',
     type: 'Tipo',
     stage: 'Etapa',
+    period: 'Período',
+    dateFrom: 'Desde',
+    dateTo: 'Hasta',
+    order: 'Orden',
+    newest: 'Más recientes',
+    oldest: 'Más antiguos',
+    clearPeriod: 'Limpiar período',
     allTypes: 'Todos',
     income: 'Ingresos',
     expense: 'Egresos',
@@ -252,6 +280,20 @@ function localeFor(language: Language) {
   if (language === 'EN') return 'en-US';
   if (language === 'ES') return 'es-ES';
   return 'pt-BR';
+}
+
+function dateOnlyStartIso(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return undefined;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function dateOnlyEndIso(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return undefined;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 23, 59, 59, 999);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
 function isReturnedDraft(item: any) {
@@ -407,6 +449,9 @@ function TransactionsListContent() {
 
   const directionFilter = searchParams.get('direction') || 'all';
   const statusFilter = searchParams.get('status') || 'all';
+  const fromFilter = searchParams.get('from') || '';
+  const toFilter = searchParams.get('to') || '';
+  const orderFilter = searchParams.get('order') === 'oldest' ? 'oldest' : 'newest';
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
 
@@ -421,6 +466,11 @@ function TransactionsListContent() {
       const filters: Record<string, string> = {};
       if (directionFilter !== 'all') filters.direction = directionFilter;
       if (statusFilter !== 'all') filters.status = statusFilter;
+      const occurredFrom = fromFilter ? dateOnlyStartIso(fromFilter) : undefined;
+      const occurredTo = toFilter ? dateOnlyEndIso(toFilter) : undefined;
+      if (occurredFrom) filters.occurredFrom = occurredFrom;
+      if (occurredTo) filters.occurredTo = occurredTo;
+      filters.order = orderFilter;
 
       const res = await listTransactions(filters, cursor, 25);
 
@@ -467,7 +517,7 @@ function TransactionsListContent() {
     }
 
     return () => abortController.abort();
-  }, [activeFinanceEntityId, directionFilter, statusFilter]);
+  }, [activeFinanceEntityId, directionFilter, statusFilter, fromFilter, toFilter, orderFilter]);
 
   const updateFilter = (key: 'direction' | 'status', value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -476,9 +526,40 @@ function TransactionsListContent() {
     setSearchParams(next);
   };
 
+  const updateDateFilter = (key: 'from' | 'to', value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value) next.delete(key);
+    else next.set(key, value);
+
+    const currentFrom = key === 'from' ? value : (next.get('from') || '');
+    const currentTo = key === 'to' ? value : (next.get('to') || '');
+    if (currentFrom && currentTo && currentFrom > currentTo) {
+      if (key === 'from') next.set('to', currentFrom);
+      else next.set('from', currentTo);
+    }
+    setSearchParams(next);
+  };
+
+  const updateOrder = (value: 'newest' | 'oldest') => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'newest') next.delete('order');
+    else next.set('order', value);
+    setSearchParams(next);
+  };
+
+  const clearPeriod = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('from');
+    next.delete('to');
+    setSearchParams(next);
+  };
+
   const workspaceFilters: TransactionWorkspaceFilters = {
     direction: directionFilter as TransactionWorkspaceFilters['direction'],
     status: statusFilter as TransactionWorkspaceFilters['status'],
+    occurredFrom: fromFilter || null,
+    occurredTo: toFilter || null,
+    order: orderFilter,
   };
 
   const applySavedView = (filters: TransactionWorkspaceFilters) => {
@@ -487,6 +568,12 @@ function TransactionsListContent() {
     else next.set('direction', filters.direction);
     if (filters.status === 'all') next.delete('status');
     else next.set('status', filters.status);
+    if (filters.occurredFrom) next.set('from', filters.occurredFrom);
+    else next.delete('from');
+    if (filters.occurredTo) next.set('to', filters.occurredTo);
+    else next.delete('to');
+    if (filters.order === 'oldest') next.set('order', 'oldest');
+    else next.delete('order');
     setSearchParams(next);
   };
 
@@ -656,6 +743,66 @@ function TransactionsListContent() {
                         aria-pressed={selected}
                         onClick={() => updateFilter('status', option.value)}
                         className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.period}</p>
+                  {fromFilter || toFilter ? (
+                    <button
+                      type="button"
+                      onClick={clearPeriod}
+                      className="nf-interactive rounded-lg px-2 py-1 text-xs font-medium text-accent-primary hover:bg-accent-primary/10"
+                    >
+                      {copy.clearPeriod}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateFrom}</span>
+                    <input
+                      type="date"
+                      value={fromFilter}
+                      max={toFilter || undefined}
+                      onChange={(event) => updateDateFilter('from', event.target.value)}
+                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateTo}</span>
+                    <input
+                      type="date"
+                      value={toFilter}
+                      min={fromFilter || undefined}
+                      onChange={(event) => updateDateFilter('to', event.target.value)}
+                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.order}</p>
+                <div className="flex gap-2" role="group" aria-label={copy.order}>
+                  {([
+                    { value: 'newest', label: copy.newest },
+                    { value: 'oldest', label: copy.oldest },
+                  ] as const).map((option) => {
+                    const selected = orderFilter === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => updateOrder(option.value)}
+                        className={`nf-interactive min-h-11 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
                       >
                         {option.label}
                       </button>
