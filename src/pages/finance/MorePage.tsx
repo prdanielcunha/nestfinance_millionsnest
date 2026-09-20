@@ -8,7 +8,7 @@ import {
   hasEffectiveCapability,
 } from '@/src/lib/permissions';
 import { getFinanceExperienceMode } from '@/src/lib/financeExperience';
-import { buildFinanceNavigation } from '@/src/lib/financeNavigationModel';
+import { buildFinanceNavigation, type FinanceNavigationId } from '@/src/lib/financeNavigationModel';
 import { CANONICAL_NAVIGATION } from '@/src/app/layouts/ShellLayout';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 
@@ -24,7 +24,7 @@ export default function MorePage() {
   });
   const moreItems = CANONICAL_NAVIGATION.filter(
     (item) =>
-      navigation.more.includes(item.id as Parameters<typeof navigation.more.includes>[0]) &&
+      navigation.more.includes(item.id as FinanceNavigationId) &&
       (!item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities)),
   );
 
