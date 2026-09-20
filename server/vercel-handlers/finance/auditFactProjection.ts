@@ -272,9 +272,9 @@ function isOrganizationScopedAudit(data: Record<string, any>) {
 }
 
 function legacyAuditTargetRef(
-  orgRef: FirebaseFirestore.DocumentReference,
+  orgRef: DocumentReference,
   data: Record<string, any>,
-): FirebaseFirestore.DocumentReference | null {
+): DocumentReference | null {
   const entityId =
     typeof data.entityId === 'string' && data.entityId ? data.entityId : null;
   if (!entityId) return null;
@@ -304,7 +304,7 @@ export async function scanAuditFactProjectionCandidates(
 
   const truncated = snapshot.size > AUDIT_FACT_PROJECTION_SCAN_MAX;
   const selected = snapshot.docs.slice(0, AUDIT_FACT_PROJECTION_SCAN_MAX);
-  const targetRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+  const targetRefs = new Map<string, DocumentReference>();
 
   for (const doc of selected) {
     const data = doc.data() || {};
