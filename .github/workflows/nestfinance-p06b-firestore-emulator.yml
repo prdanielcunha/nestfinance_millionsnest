@@ -218,6 +218,7 @@ jobs:
           npx tsx scripts/test-reconciliation-progress-ui.ts
           npx tsx scripts/test-audit-read-model.ts
           npm run test:transaction-saved-views
+          npm run test:transaction-combined-filters
           npm run test:audit-fact-projection
           npx tsx scripts/test-period-close-readiness.ts
           npx tsx scripts/test-period-close-human-review.ts
