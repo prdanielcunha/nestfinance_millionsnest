@@ -109,6 +109,13 @@ jobs:
             exit 1
           fi
 
+          ENTITY_SELECTOR_STATUS="$(curl --silent --output /tmp/local-entity-selector.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/finance/entities/accessible'             -H 'content-type: application/json'             --data '{}')"
+          if [ "$ENTITY_SELECTOR_STATUS" != "401" ]; then
+            echo "Expected accessible entity selector to require authentication with 401, got $ENTITY_SELECTOR_STATUS"
+            cat /tmp/local-entity-selector.json || true
+            exit 1
+          fi
+
           echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
 
       - name: Deploy Firestore indexes
@@ -181,6 +188,13 @@ jobs:
           if [ "$DIRECT_STATUS" != "401" ]; then
             echo "Expected direct entry to require Firebase identity with 401, got $DIRECT_STATUS"
             cat /tmp/nf-direct-entry.json || true
+            exit 1
+          fi
+
+          ENTITY_SELECTOR_STATUS="$(curl --silent --show-error --location --output /tmp/nf-entity-selector.json --write-out '%{http_code}'             -X POST "$BASE/api/finance/entities/accessible"             -H 'content-type: application/json'             --data '{}')"
+          if [ "$ENTITY_SELECTOR_STATUS" != "401" ]; then
+            echo "Expected accessible entity selector to require authentication with 401, got $ENTITY_SELECTOR_STATUS"
+            cat /tmp/nf-entity-selector.json || true
             exit 1
           fi
 
