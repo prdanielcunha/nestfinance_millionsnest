@@ -33,7 +33,8 @@ service cloud.firestore {
         'financeAllocations', 'financeAuditLogs', 'financeIdempotency',
         'financeJournalEntries', 'financeJournalLines', 'financeAggregates',
         'financeReconciliations', 'financeReconciliationSessions', 'financeReconciliationLineLocks',
-        'financeReconciliationReversals', 'financePeriodCloseReviews'
+        'financeReconciliationReversals', 'financePeriodCloseReviews',
+        'financeSearchCoverage'
       ];
     }
     
