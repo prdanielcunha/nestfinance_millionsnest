@@ -1,0 +1,70 @@
+name: NestFinance Audit Fact Projection Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "server/vercel-handlers/finance/auditFactProjection.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionPreview.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionApply.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionVerify.ts"
+      - "server/vercel-handlers/finance/factStream.ts"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-audit-fact-projection.ts"
+      - "scripts/test-audit-fact-projection-emulator.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-audit-fact-projection-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/vercel-handlers/finance/auditFactProjection.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionPreview.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionApply.ts"
+      - "server/vercel-handlers/finance/auditFactProjectionVerify.ts"
+      - "server/vercel-handlers/finance/factStream.ts"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-audit-fact-projection.ts"
+      - "scripts/test-audit-fact-projection-emulator.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-audit-fact-projection-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-fact-projection-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-audit-projection-emulator
+      GCLOUD_PROJECT: nestfinance-audit-projection-emulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify audit projection privacy contract
+        run: npm run test:audit-fact-projection
+      - name: Verify API gateway inventory
+        run: npm run check:api-contracts
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+      - name: Audit fact projection Firestore Emulator
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-audit-projection-emulator "npx tsx scripts/test-audit-fact-projection-emulator.ts"

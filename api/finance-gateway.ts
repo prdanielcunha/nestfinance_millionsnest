@@ -84,6 +84,9 @@ import reconciliationConfirm from '../server/vercel-handlers/finance/reconciliat
 import reconciliationReverse from '../server/vercel-handlers/finance/reconciliationReverse.js';
 import reconciliationProgress from '../server/vercel-handlers/finance/reconciliationProgress.js';
 import auditList from '../server/vercel-handlers/finance/auditList.js';
+import auditFactProjectionPreview from '../server/vercel-handlers/finance/auditFactProjectionPreview.js';
+import auditFactProjectionApply from '../server/vercel-handlers/finance/auditFactProjectionApply.js';
+import auditFactProjectionVerify from '../server/vercel-handlers/finance/auditFactProjectionVerify.js';
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
@@ -183,6 +186,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'reconciliation-reverse': return reconciliationReverse(req, res);
     case 'reconciliation-progress': return reconciliationProgress(req, res);
     case 'audit-list': return auditList(req, res);
+    case 'audit-fact-projection-preview': return auditFactProjectionPreview(req, res);
+    case 'audit-fact-projection-apply': return auditFactProjectionApply(req, res);
+    case 'audit-fact-projection-verify': return auditFactProjectionVerify(req, res);
     case 'period-close-readiness': return periodCloseReadiness(req, res);
     case 'period-close-review-confirm': return periodCloseReviewConfirm(req, res);
     case 'reports-intelligence': return reportsIntelligence(req, res);
