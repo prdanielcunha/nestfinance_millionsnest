@@ -89,8 +89,8 @@ export const NESTFINANCE_CROSS_APP_EVENT_IMPLEMENTATION: Record<
     note: 'Posting reversal remains locked with the posting engine.',
   },
   AUDIT_EVENT_RECORDED: {
-    state: 'reserved',
+    state: 'emitted',
     internalFactType: 'AUDIT_EVENT_RECORDED',
-    note: 'Reserved for a dedicated cross-app audit projection rather than mirroring every internal audit write.',
+    note: 'Emitted atomically for finance-entity audit writes through the canonical audit helper; historical completeness is certified independently by the audit projection coverage workflow.',
   },
 };
