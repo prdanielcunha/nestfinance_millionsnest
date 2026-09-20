@@ -158,7 +158,7 @@ export function EcosystemOverviewPanel() {
     } finally {
       setLoading(false);
     }
-  }, [accessState.isGlobalAccess]);
+  }, [accessState.isGlobalAccess, accessState.organizationId]);
 
   useEffect(() => {
     void load();
