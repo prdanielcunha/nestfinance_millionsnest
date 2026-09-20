@@ -41,6 +41,7 @@ for (const eventType of [
   'INBOX_ITEM_CREATED',
   'INBOX_ITEM_RESOLVED',
   'REPORT_READY',
+  'AUDIT_EVENT_RECORDED',
 ] as const) {
   assert.equal(
     NESTFINANCE_CROSS_APP_EVENT_IMPLEMENTATION[eventType].state,
@@ -60,6 +61,7 @@ assert.equal(
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('REPORT_READY'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_STARTED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_EXCEPTION_FOUND'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('AUDIT_EVENT_RECORDED'));
 
 const evidence = readFileSync(
   'server/vercel-handlers/finance/universalEvidenceFinalize.ts',
@@ -148,7 +150,6 @@ assert.ok(
 
 for (const reserved of [
   'RECONCILIATION_COMPLETED',
-  'AUDIT_EVENT_RECORDED',
 ] as const) {
   assert.equal(
     NESTFINANCE_CROSS_APP_EVENT_IMPLEMENTATION[reserved].state,
