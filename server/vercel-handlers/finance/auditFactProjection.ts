@@ -37,6 +37,8 @@ export type AuditFactProjectionInspection = {
   candidates: AuditFactProjectionCandidate[];
   missing: AuditFactProjectionCandidate[];
   verifiedExisting: AuditFactProjectionCandidate[];
+  unresolvedLegacyScopeCount: number;
+  organizationScopedCount: number;
   truncated: boolean;
 };
 
@@ -211,11 +213,16 @@ function candidateFromAuditDoc(
   organizationId: string,
   financeEntityId: string,
   doc: any,
+  resolvedFinanceEntityId?: string | null,
 ): AuditFactProjectionCandidate | null {
   const data = doc.data() || {};
+  const effectiveFinanceEntityId =
+    typeof data.financeEntityId === 'string' && data.financeEntityId
+      ? data.financeEntityId
+      : resolvedFinanceEntityId || null;
   if (
     data.organizationId !== organizationId ||
-    data.financeEntityId !== financeEntityId
+    effectiveFinanceEntityId !== financeEntityId
   ) {
     return null;
   }
@@ -256,6 +263,34 @@ function candidateFromAuditDoc(
   };
 }
 
+function isOrganizationScopedAudit(data: Record<string, any>) {
+  return (
+    data.entityType === 'financeSettings' ||
+    data.resource === 'finance_settings' ||
+    data.action === 'finance.setup.initialized'
+  );
+}
+
+function legacyAuditTargetRef(
+  orgRef: FirebaseFirestore.DocumentReference,
+  data: Record<string, any>,
+): FirebaseFirestore.DocumentReference | null {
+  const entityId =
+    typeof data.entityId === 'string' && data.entityId ? data.entityId : null;
+  if (!entityId) return null;
+
+  if (data.entityType === 'financeAccount') {
+    return orgRef.collection('financeAccounts').doc(entityId);
+  }
+  if (data.entityType === 'financeCategory') {
+    return orgRef.collection('financeCategories').doc(entityId);
+  }
+  if (data.entityType === 'financeFund') {
+    return orgRef.collection('financeFunds').doc(entityId);
+  }
+  return null;
+}
+
 export async function scanAuditFactProjectionCandidates(
   db: Firestore,
   organizationId: string,
@@ -264,18 +299,95 @@ export async function scanAuditFactProjectionCandidates(
   const orgRef = db.collection('organizations').doc(organizationId);
   const snapshot = await orgRef
     .collection('financeAuditLogs')
-    .where('financeEntityId', '==', financeEntityId)
     .limit(AUDIT_FACT_PROJECTION_SCAN_MAX + 1)
     .get();
 
   const truncated = snapshot.size > AUDIT_FACT_PROJECTION_SCAN_MAX;
-  const candidates = snapshot.docs
-    .slice(0, AUDIT_FACT_PROJECTION_SCAN_MAX)
-    .map((doc) => candidateFromAuditDoc(organizationId, financeEntityId, doc))
-    .filter((item): item is AuditFactProjectionCandidate => Boolean(item))
-    .sort((a, b) => a.auditEventId.localeCompare(b.auditEventId));
+  const selected = snapshot.docs.slice(0, AUDIT_FACT_PROJECTION_SCAN_MAX);
+  const targetRefs = new Map<string, FirebaseFirestore.DocumentReference>();
 
-  return { candidates, truncated };
+  for (const doc of selected) {
+    const data = doc.data() || {};
+    if (typeof data.financeEntityId === 'string' && data.financeEntityId) continue;
+    if (data.entityType === 'financeEntity' && typeof data.entityId === 'string') continue;
+    if (isOrganizationScopedAudit(data)) continue;
+    const ref = legacyAuditTargetRef(orgRef, data);
+    if (ref) targetRefs.set(ref.path, ref);
+  }
+
+  const resolvedTargetScopes = new Map<string, string | null>();
+  const refs = [...targetRefs.values()];
+  for (let index = 0; index < refs.length; index += 200) {
+    const chunk = refs.slice(index, index + 200);
+    if (chunk.length === 0) continue;
+    const docs = await db.getAll(...chunk);
+    for (const doc of docs) {
+      const data = doc.data() || {};
+      resolvedTargetScopes.set(
+        doc.ref.path,
+        typeof data.financeEntityId === 'string' && data.financeEntityId
+          ? data.financeEntityId
+          : null,
+      );
+    }
+  }
+
+  let unresolvedLegacyScopeCount = 0;
+  let organizationScopedCount = 0;
+  const candidates: AuditFactProjectionCandidate[] = [];
+
+  for (const doc of selected) {
+    const data = doc.data() || {};
+    if (data.organizationId !== organizationId) continue;
+
+    if (isOrganizationScopedAudit(data)) {
+      organizationScopedCount += 1;
+      continue;
+    }
+
+    let resolvedFinanceEntityId =
+      typeof data.financeEntityId === 'string' && data.financeEntityId
+        ? data.financeEntityId
+        : null;
+
+    if (
+      !resolvedFinanceEntityId &&
+      data.entityType === 'financeEntity' &&
+      typeof data.entityId === 'string' &&
+      data.entityId
+    ) {
+      resolvedFinanceEntityId = data.entityId;
+    }
+
+    if (!resolvedFinanceEntityId) {
+      const targetRef = legacyAuditTargetRef(orgRef, data);
+      if (targetRef) {
+        resolvedFinanceEntityId =
+          resolvedTargetScopes.get(targetRef.path) || null;
+      }
+    }
+
+    if (!resolvedFinanceEntityId) {
+      unresolvedLegacyScopeCount += 1;
+      continue;
+    }
+
+    const candidate = candidateFromAuditDoc(
+      organizationId,
+      financeEntityId,
+      doc,
+      resolvedFinanceEntityId,
+    );
+    if (candidate) candidates.push(candidate);
+  }
+
+  candidates.sort((a, b) => a.auditEventId.localeCompare(b.auditEventId));
+  return {
+    candidates,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  };
 }
 
 export async function inspectAuditFactProjection(
@@ -283,7 +395,12 @@ export async function inspectAuditFactProjection(
   organizationId: string,
   financeEntityId: string,
 ): Promise<AuditFactProjectionInspection> {
-  const { candidates, truncated } = await scanAuditFactProjectionCandidates(
+  const {
+    candidates,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  } = await scanAuditFactProjectionCandidates(
     db,
     organizationId,
     financeEntityId,
@@ -321,7 +438,14 @@ export async function inspectAuditFactProjection(
     else missing.push(candidate);
   }
 
-  return { candidates, missing, verifiedExisting, truncated };
+  return {
+    candidates,
+    missing,
+    verifiedExisting,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  };
 }
 
 export function matchesAuditProjectionCandidate(
