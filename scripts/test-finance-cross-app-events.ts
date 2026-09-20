@@ -36,6 +36,8 @@ for (const eventType of expected) {
 for (const eventType of [
   'COUNT_OPENED',
   'COUNT_COMPLETED',
+  'RECONCILIATION_STARTED',
+  'RECONCILIATION_EXCEPTION_FOUND',
   'INBOX_ITEM_CREATED',
   'INBOX_ITEM_RESOLVED',
   'REPORT_READY',
@@ -56,6 +58,8 @@ assert.equal(
   'blocked_by_posting',
 );
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('REPORT_READY'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_STARTED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_EXCEPTION_FOUND'));
 
 const evidence = readFileSync(
   'server/vercel-handlers/finance/universalEvidenceFinalize.ts',
@@ -115,8 +119,6 @@ assert.ok(
 );
 
 for (const reserved of [
-  'RECONCILIATION_STARTED',
-  'RECONCILIATION_EXCEPTION_FOUND',
   'RECONCILIATION_COMPLETED',
   'AUDIT_EVENT_RECORDED',
 ] as const) {
