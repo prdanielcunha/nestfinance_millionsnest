@@ -31,6 +31,10 @@ import transactionsList from '../server/vercel-handlers/finance/transactionsList
 import transactionWorkspaceViewsList from '../server/vercel-handlers/finance/transactionWorkspaceViewsList.js';
 import transactionWorkspaceViewsSave from '../server/vercel-handlers/finance/transactionWorkspaceViewsSave.js';
 import transactionWorkspaceViewsDelete from '../server/vercel-handlers/finance/transactionWorkspaceViewsDelete.js';
+import transactionSearch from '../server/vercel-handlers/finance/transactionSearch.js';
+import transactionSearchPreview from '../server/vercel-handlers/finance/transactionSearchPreview.js';
+import transactionSearchApply from '../server/vercel-handlers/finance/transactionSearchApply.js';
+import transactionSearchVerify from '../server/vercel-handlers/finance/transactionSearchVerify.js';
 import transactionsSummary from '../server/vercel-handlers/finance/transactionsSummary.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
@@ -136,6 +140,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'transaction-workspace-views-list': return transactionWorkspaceViewsList(req, res);
     case 'transaction-workspace-views-save': return transactionWorkspaceViewsSave(req, res);
     case 'transaction-workspace-views-delete': return transactionWorkspaceViewsDelete(req, res);
+    case 'transaction-search': return transactionSearch(req, res);
+    case 'transaction-search-preview': return transactionSearchPreview(req, res);
+    case 'transaction-search-apply': return transactionSearchApply(req, res);
+    case 'transaction-search-verify': return transactionSearchVerify(req, res);
     case 'transactions-summary': return transactionsSummary(req, res);
     case 'transactions-detail': return transactionsDetail(req, res);
     case 'transactions-create-draft': return transactionsCreateDraft(req, res);
