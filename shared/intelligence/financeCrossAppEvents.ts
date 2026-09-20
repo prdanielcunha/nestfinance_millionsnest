@@ -49,14 +49,14 @@ export const NESTFINANCE_CROSS_APP_EVENT_IMPLEMENTATION: Record<
     note: 'Emitted only after Count values match.',
   },
   RECONCILIATION_STARTED: {
-    state: 'reserved',
+    state: 'emitted',
     internalFactType: 'RECONCILIATION_STARTED',
-    note: 'Reserved until a persisted reconciliation-session start boundary exists.',
+    note: 'Emitted once when the first certified confirmation creates a persisted statement/account reconciliation session.',
   },
   RECONCILIATION_EXCEPTION_FOUND: {
-    state: 'reserved',
-    internalFactType: 'RECONCILIATION_DIVERGENCE',
-    note: 'Line-level divergence must not be promoted to a cross-app exception until its lifecycle is certified.',
+    state: 'emitted',
+    internalFactType: 'RECONCILIATION_EXCEPTION_FOUND',
+    note: 'Emitted for an explicit human reversal/correction inside a persisted reconciliation session; preview-only no-match states remain non-events.',
   },
   RECONCILIATION_COMPLETED: {
     state: 'reserved',
