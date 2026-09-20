@@ -471,8 +471,13 @@ try {
     .collection('financeReconciliationSessions')
     .get();
   const currentSession = sessionsAfterReverse.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() as Record<string, any> }))
-    .find((item: any) =>
+    .map(
+      (doc) =>
+        ({ id: doc.id, ...(doc.data() as Record<string, any>) }) as {
+          id: string;
+        } & Record<string, any>,
+    )
+    .find((item) =>
       item.financeEntityId === entityId &&
       item.evidenceId === source.evidenceId &&
       item.accountId === accountId
