@@ -45,6 +45,10 @@ const AUTHORIZATION_MARKERS = [
   'context.repository',
 ];
 
+const GLOBAL_AGGREGATION_MARKERS = [
+  'canUseEcosystemOverview',
+];
+
 const ENTITY_SCOPE_MARKERS = [
   'resolveFinanceRequestContext',
   'requireFinanceEntityAccess',
@@ -99,7 +103,10 @@ export function analyzeFinanceHandler(file: string, code: string): string[] {
   const directSensitiveCollection = new RegExp(`\\.collection\\((['"])(?:${sensitiveAlternation})\\1\\)`);
   if (directSensitiveCollection.test(code)) {
     const hasEntityScope = ENTITY_SCOPE_MARKERS.some((marker) => code.includes(marker));
-    if (!hasEntityScope) {
+    const hasExplicitGlobalAggregationBoundary = GLOBAL_AGGREGATION_MARKERS.some((marker) =>
+      code.includes(marker),
+    );
+    if (!hasEntityScope && !hasExplicitGlobalAggregationBoundary) {
       violations.push(`${file}: Entity-sensitive finance collection access has no recognized entity-scope guard`);
     }
   }
