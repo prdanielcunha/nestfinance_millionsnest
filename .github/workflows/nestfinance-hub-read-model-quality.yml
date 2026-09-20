@@ -1,0 +1,58 @@
+name: NestFinance Hub Read Model Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "shared/intelligence/financeHubReadModel.ts"
+      - "server/vercel-handlers/finance/financeHubReadModel.ts"
+      - "server/vercel-handlers/finance/periodCloseReadModel.ts"
+      - "server/vercel-handlers/finance/accessHelpers.ts"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-finance-hub-read-model.ts"
+      - "package.json"
+      - "vercel.json"
+      - ".github/workflows/nestfinance-hub-read-model-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/intelligence/financeHubReadModel.ts"
+      - "server/vercel-handlers/finance/financeHubReadModel.ts"
+      - "server/vercel-handlers/finance/periodCloseReadModel.ts"
+      - "server/vercel-handlers/finance/accessHelpers.ts"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-finance-hub-read-model.ts"
+      - "package.json"
+      - "vercel.json"
+      - ".github/workflows/nestfinance-hub-read-model-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  hub-read-model-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify hub-safe finance read model
+        run: npm run test:finance-hub-read-model
+      - name: Verify API gateway inventory
+        run: npm run check:api-contracts
+      - name: Verify canonical finance RBAC policy
+        run: npm run test:finance-role-policy
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
