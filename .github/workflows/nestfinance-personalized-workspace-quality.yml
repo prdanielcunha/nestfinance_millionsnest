@@ -10,8 +10,13 @@ on:
       - "src/components/finance/RoleWorkspacePanel.tsx"
       - "src/lib/financeExperience.ts"
       - "src/lib/permissions.ts"
+      - "src/lib/financeNavigationModel.ts"
+      - "src/app/layouts/ShellLayout.tsx"
+      - "src/pages/finance/MorePage.tsx"
+      - "src/contexts/LanguageContext.tsx"
       - "scripts/test-today-priority-model.ts"
       - "scripts/test-personalized-workspaces.ts"
+      - "scripts/test-adaptive-finance-navigation.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
@@ -24,8 +29,13 @@ on:
       - "src/components/finance/RoleWorkspacePanel.tsx"
       - "src/lib/financeExperience.ts"
       - "src/lib/permissions.ts"
+      - "src/lib/financeNavigationModel.ts"
+      - "src/app/layouts/ShellLayout.tsx"
+      - "src/pages/finance/MorePage.tsx"
+      - "src/contexts/LanguageContext.tsx"
       - "scripts/test-today-priority-model.ts"
       - "scripts/test-personalized-workspaces.ts"
+      - "scripts/test-adaptive-finance-navigation.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
@@ -51,6 +61,9 @@ jobs:
 
       - name: Verify Today priority authority
         run: npm run test:today-priority-model
+
+      - name: Verify adaptive role navigation
+        run: npm run test:adaptive-navigation
 
       - name: TypeScript lint and typecheck
         run: npm run lint

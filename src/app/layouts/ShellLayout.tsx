@@ -3,11 +3,12 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
 import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
+import { buildFinanceNavigation } from '@/src/lib/financeNavigationModel';
 import {
   chooseCurrentSessionOrganization,
   resolveCurrentSessionOrganizations,
@@ -18,22 +19,23 @@ import { Button } from '@/src/components/foundation';
 
 export type NavigationItem = {
   id: string;
-  labelKey: 'nav_hoje' | 'nav_cultos' | 'nav_capturas' | 'nav_conferir' | 'nav_reports' | 'nav_audit' | 'nav_config' | 'nav_mais';
+  labelKey: 'nav_hoje' | 'nav_movimentacoes' | 'nav_cultos' | 'nav_capturas' | 'nav_revisar' | 'nav_conferir' | 'nav_reports' | 'nav_audit' | 'nav_config' | 'nav_mais';
   icon: ElementType;
   route: string;
   order: number;
-  group: 'primary' | 'more';
   requiredAnyCapabilities?: readonly string[];
 };
 
 export const CANONICAL_NAVIGATION: NavigationItem[] = [
-  { id: 'finance', labelKey: 'nav_hoje', icon: LayoutDashboard, route: APP_ROUTES.finance, order: 1, group: 'primary' },
-  { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 2, group: 'primary', requiredAnyCapabilities: ['finance.view'] },
-  { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 3, group: 'primary', requiredAnyCapabilities: ['finance.view', 'finance.create_drafts', 'finance.review'] },
-  { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 4, group: 'primary', requiredAnyCapabilities: ['finance.view'] },
-  { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 5, group: 'more', requiredAnyCapabilities: ['finance.view'] },
-  { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 6, group: 'more', requiredAnyCapabilities: ['finance.view'] },
-  { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 7, group: 'more', requiredAnyCapabilities: ['finance.manage', 'organization.manage_entities'] },
+  { id: 'finance', labelKey: 'nav_hoje', icon: LayoutDashboard, route: APP_ROUTES.finance, order: 1 },
+  { id: 'transactions', labelKey: 'nav_movimentacoes', icon: ArrowRightLeft, route: APP_ROUTES.transactions, order: 2, requiredAnyCapabilities: ['finance.view'] },
+  { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 3, requiredAnyCapabilities: ['finance.view'] },
+  { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 4, requiredAnyCapabilities: ['finance.view', 'finance.create_drafts', 'finance.review'] },
+  { id: 'review', labelKey: 'nav_revisar', icon: ListChecks, route: APP_ROUTES.financeReview, order: 5, requiredAnyCapabilities: ['finance.review', 'finance.approve_for_posting'] },
+  { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 6, requiredAnyCapabilities: ['finance.view'] },
+  { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 7, requiredAnyCapabilities: ['finance.view'] },
+  { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 8, requiredAnyCapabilities: ['finance.view'] },
+  { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 9, requiredAnyCapabilities: ['finance.manage', 'organization.manage_entities'] },
 ];
 
 const SHELL_COPY: Record<Language, {
@@ -255,11 +257,21 @@ function ShellLayoutInner() {
     }
   };
 
+  const navigationProfile = buildFinanceNavigation(experienceMode, {
+    canView: hasEffectiveCapability(accessState, 'finance.view'),
+    canCreate: hasEffectiveCapability(accessState, 'finance.create_drafts'),
+    canReview: hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']),
+    canManage: hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']),
+  });
   const visibleNavigation = CANONICAL_NAVIGATION.filter(
     (item) => !item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities),
   );
-  const primaryNavigation = visibleNavigation.filter((item) => item.group === 'primary');
-  const moreNavigation = visibleNavigation.filter((item) => item.group === 'more');
+  const primaryNavigation = navigationProfile.primary
+    .map((id) => visibleNavigation.find((item) => item.id === id))
+    .filter((item): item is NavigationItem => Boolean(item));
+  const moreNavigation = navigationProfile.more
+    .map((id) => visibleNavigation.find((item) => item.id === id))
+    .filter((item): item is NavigationItem => Boolean(item));
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -314,25 +326,27 @@ function ShellLayoutInner() {
               ))}
             </div>
 
-            <div>
-              <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_more')}</p>
-              {moreNavigation.map((item) => (
-                <NavLink
-                  key={item.id}
-                  to={item.route}
-                  className={({ isActive }) =>
-                    `nf-interactive flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${
-                      isActive
-                        ? 'bg-surface-elevated text-text-primary'
-                        : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
-                    }`
-                  }
-                >
-                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {t(item.labelKey)}
-                </NavLink>
-              ))}
-            </div>
+            {moreNavigation.length > 0 ? (
+              <div>
+                <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_more')}</p>
+                {moreNavigation.map((item) => (
+                  <NavLink
+                    key={item.id}
+                    to={item.route}
+                    className={({ isActive }) =>
+                      `nf-interactive flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${
+                        isActive
+                          ? 'bg-surface-elevated text-text-primary'
+                          : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+                      }`
+                    }
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {t(item.labelKey)}
+                  </NavLink>
+                ))}
+              </div>
+            ) : null}
           </nav>
         </div>
 
@@ -485,17 +499,19 @@ function ShellLayoutInner() {
             <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t(item.labelKey)}</span>
           </NavLink>
         ))}
-        <NavLink
-          to={APP_ROUTES.more}
-          className={({ isActive }) =>
-            `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
-              isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
-            }`
-          }
-        >
-          <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-          <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t('nav_mais')}</span>
-        </NavLink>
+        {moreNavigation.length > 0 ? (
+          <NavLink
+            to={APP_ROUTES.more}
+            className={({ isActive }) =>
+              `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
+                isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
+              }`
+            }
+          >
+            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+            <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t('nav_mais')}</span>
+          </NavLink>
+        ) : null}
       </nav>
 
       {organizationSwitcherOpen ? (
