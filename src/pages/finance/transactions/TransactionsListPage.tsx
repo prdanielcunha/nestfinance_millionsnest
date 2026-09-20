@@ -20,11 +20,13 @@ import { Button, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
+import { TransactionSavedViews } from '@/src/components/finance/TransactionSavedViews';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
 
 type LoadErrorKind = 'forbidden' | 'entity' | 'cursor' | 'index' | 'generic' | null;
 type Direction = 'income' | 'expense' | 'transfer' | 'liability_settlement' | string;
@@ -472,6 +474,20 @@ function TransactionsListContent() {
     setSearchParams(next);
   };
 
+  const workspaceFilters: TransactionWorkspaceFilters = {
+    direction: directionFilter as TransactionWorkspaceFilters['direction'],
+    status: statusFilter as TransactionWorkspaceFilters['status'],
+  };
+
+  const applySavedView = (filters: TransactionWorkspaceFilters) => {
+    const next = new URLSearchParams(searchParams);
+    if (filters.direction === 'all') next.delete('direction');
+    else next.set('direction', filters.direction);
+    if (filters.status === 'all') next.delete('status');
+    else next.set('status', filters.status);
+    setSearchParams(next);
+  };
+
   const reloadFromStart = () => {
     setItems([]);
     setNextCursor(undefined);
@@ -581,6 +597,11 @@ function TransactionsListContent() {
               ) : null}
             </div>
           </header>
+
+          <TransactionSavedViews
+            filters={workspaceFilters}
+            onApply={applySavedView}
+          />
 
           <Surface variant="secondary" radius="lg" className="p-4 sm:p-5" aria-label={copy.filters}>
             <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
