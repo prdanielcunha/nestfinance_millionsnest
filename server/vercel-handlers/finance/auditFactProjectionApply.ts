@@ -91,8 +91,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       reusedFacts,
       skippedSourceChanged,
       remaining: after.missing.length,
+      unresolvedLegacyScopeCount: after.unresolvedLegacyScopeCount,
+      organizationScopedCount: after.organizationScopedCount,
       truncated: after.truncated,
-      complete: !after.truncated && after.missing.length === 0,
+      complete:
+        !after.truncated &&
+        after.unresolvedLegacyScopeCount === 0 &&
+        after.missing.length === 0,
       financialMutation: false,
       auditMutation: false,
     });
