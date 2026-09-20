@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Search, CornerDownLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -53,7 +53,7 @@ export function FinanceCommandPalette({ open, onClose, commands, copy }: Props) 
     navigate(command.route);
   };
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       onClose();
