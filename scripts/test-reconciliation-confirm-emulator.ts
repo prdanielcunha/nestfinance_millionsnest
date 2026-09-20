@@ -464,6 +464,37 @@ try {
     'human confirmation creates one dedicated audit record',
   );
 
+  const sessionSnapshot = await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeReconciliationSessions')
+    .where('financeEntityId', '==', entityA)
+    .where('evidenceId', '==', source.evidenceId)
+    .get();
+  verify(
+    sessionSnapshot.size === 1 &&
+      sessionSnapshot.docs[0].data().accountId === accountA &&
+      sessionSnapshot.docs[0].data().status === 'in_progress' &&
+      sessionSnapshot.docs[0].data().activeConfirmationCount === 1 &&
+      sessionSnapshot.docs[0].data().totalConfirmationCount === 1 &&
+      sessionSnapshot.docs[0].data().exceptionCount === 0 &&
+      sessionSnapshot.docs[0].data().canDeclareStatementFullyReconciled === false,
+    'first confirmation creates one conservative reconciliation lifecycle session',
+  );
+
+  const startedFacts = await db
+    .collection('intelligenceFacts')
+    .where('organizationId', '==', orgId)
+    .where('eventType', '==', 'RECONCILIATION_STARTED')
+    .get();
+  verify(
+    startedFacts.size === 1 &&
+      startedFacts.docs[0].data().entityId === sessionSnapshot.docs[0].id &&
+      startedFacts.docs[0].data().payload?.canDeclareStatementFullyReconciled === false &&
+      typeof startedFacts.docs[0].data().causationId === 'string',
+    'first persistent confirmation emits one source-backed RECONCILIATION_STARTED fact',
+  );
+
   const facts = await db
     .collection('intelligenceFacts')
     .where('organizationId', '==', orgId)
@@ -515,6 +546,12 @@ try {
       factsAfterRetry.size === 1,
     'same idempotency key replays completed confirmation without duplicate writes or version increments',
   );
+  const startedFactsAfterRetry = await db
+    .collection('intelligenceFacts')
+    .where('organizationId', '==', orgId)
+    .where('eventType', '==', 'RECONCILIATION_STARTED')
+    .get();
+  verify(startedFactsAfterRetry.size === 1, 'confirmation retry never duplicates reconciliation start');
 
   await db
     .collection('organizations')
