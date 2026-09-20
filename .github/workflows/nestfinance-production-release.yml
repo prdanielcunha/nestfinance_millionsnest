@@ -55,6 +55,7 @@ jobs:
           npm run test:finance-role-policy
           npm run test:ecosystem-overview
           npm run test:finance-hub-read-model
+          npm run test:finance-cross-app-events
           npm run test:personalized-workspaces
           npm run test:adaptive-navigation
           npm run test:command-palette
