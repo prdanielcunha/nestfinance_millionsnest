@@ -41,18 +41,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .doc(uid)
       .collection('views');
 
-    if (!requestedViewId) {
-      const current = await viewsRef.limit(TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY + 1).get();
-      if (current.size >= TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY) {
-        return res.status(409).json({ error: 'WORKSPACE_VIEW_LIMIT_REACHED' });
-      }
-    }
-
     const viewId = requestedViewId || ('fview_' + randomBytes(12).toString('hex'));
     const viewRef = viewsRef.doc(viewId);
 
     await db.runTransaction(async (transaction) => {
       const existing = await transaction.get(viewRef);
+      if (!requestedViewId && !existing.exists) {
+        const current = await transaction.get(
+          viewsRef.limit(TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY + 1),
+        );
+        if (current.size >= TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY) {
+          throw new Error('WORKSPACE_VIEW_LIMIT_REACHED');
+        }
+      }
+
       const createdAt = existing.exists
         ? existing.data()?.createdAt || FieldValue.serverTimestamp()
         : FieldValue.serverTimestamp();
@@ -84,6 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (message === 'FINANCE_ENTITY_NOT_FOUND') return res.status(404).json({ error: message });
     if (message === 'FINANCE_ENTITY_NOT_ACTIVE') return res.status(409).json({ error: message });
+    if (message === 'WORKSPACE_VIEW_LIMIT_REACHED') return res.status(409).json({ error: message });
     console.error('Transaction workspace view save error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
