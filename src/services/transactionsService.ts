@@ -366,7 +366,8 @@ export const transactionsService = {
     }
 
     return res.json();
-  ,
+  },
+
   async listWorkspaceViews(
     organizationId: string,
     financeEntityId: string,
