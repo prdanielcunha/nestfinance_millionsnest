@@ -66,6 +66,9 @@ async function run() {
   const more = await fs.readFile(path.join(root, 'src/pages/finance/MorePage.tsx'), 'utf8');
   const session = await fs.readFile(path.join(root, 'src/services/sessionResolutionService.ts'), 'utf8');
   const directEntry = await fs.readFile(path.join(root, 'src/services/directEntryService.ts'), 'utf8');
+  const financeEntityContext = await fs.readFile(path.join(root, 'src/contexts/FinanceEntityContext.tsx'), 'utf8');
+  const financeEntityService = await fs.readFile(path.join(root, 'src/services/financeEntitiesService.ts'), 'utf8');
+  const financeEntitySelector = await fs.readFile(path.join(root, 'server/vercel-handlers/finance/entitiesAccessible.ts'), 'utf8');
 
   assert.ok(shell.includes("requiredAnyCapabilities: ['finance.view']"));
   assert.ok(shell.includes("requiredAnyCapabilities: ['finance.manage', 'organization.manage_entities']"));
@@ -89,7 +92,16 @@ async function run() {
   assert.ok(directEntry.includes('chooseCurrentSessionOrganization'));
   assert.ok(directEntry.includes("'current_session'"));
 
-  console.log('✅ Role-aware workspace keeps navigation, routes and organization switching aligned to canonical access');
+  assert.ok(financeEntityContext.includes('refreshAccessibleFinanceEntities'));
+  assert.ok(financeEntityContext.includes('validRemembered'));
+  assert.ok(financeEntityContext.includes('setActiveFinanceEntityId(null)'));
+  assert.ok(financeEntityService.includes('/api/finance/entities/accessible'));
+  assert.ok(financeEntitySelector.includes('hasFinanceEntityScope(session, document.id)'));
+  assert.ok(financeEntitySelector.includes('data.active !== false'));
+  assert.ok(!financeEntitySelector.includes('taxId'));
+  assert.ok(!financeEntitySelector.includes('legalName:'));
+
+  console.log('✅ Role-aware workspace keeps roles, routes, organization switching and finance-entity scope aligned to canonical access');
 }
 
 run().catch((error) => {
