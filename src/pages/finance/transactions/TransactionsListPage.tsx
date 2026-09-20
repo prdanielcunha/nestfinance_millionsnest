@@ -100,6 +100,15 @@ type TransactionsCopy = {
   searchFallbackHint: string;
   searchTruncatedHint: string;
   clearSearch: string;
+  select: string;
+  cancelSelection: string;
+  selectVisibleDrafts: string;
+  selectedCount: (count: number) => string;
+  sendToReviewBatch: string;
+  sendingBatch: string;
+  selectionLimit: string;
+  batchResult: (success: number, failed: number) => string;
+  onlyDraftsBatch: string;
 };
 
 const COPY: Record<Language, TransactionsCopy> = {
@@ -169,6 +178,17 @@ const COPY: Record<Language, TransactionsCopy> = {
     searchFallbackHint: 'Busca segura no histórico enquanto o índice é preparado.',
     searchTruncatedHint: 'Há mais resultados. Refine o termo ou os filtros para encontrar com precisão.',
     clearSearch: 'Limpar busca',
+    select: 'Selecionar',
+    cancelSelection: 'Cancelar seleção',
+    selectVisibleDrafts: 'Selecionar rascunhos visíveis',
+    selectedCount: (count) => `${count} selecionada${count === 1 ? '' : 's'}`,
+    sendToReviewBatch: 'Enviar para revisão',
+    sendingBatch: 'Enviando…',
+    selectionLimit: 'Selecione no máximo 25 movimentações por lote.',
+    batchResult: (success, failed) => failed === 0
+      ? `${success} movimentação${success === 1 ? '' : 'ões'} enviada${success === 1 ? '' : 's'} para revisão.`
+      : `${success} enviada${success === 1 ? '' : 's'}; ${failed} precisa${failed === 1 ? '' : 'm'} de atenção.`,
+    onlyDraftsBatch: 'O envio em lote aceita apenas rascunhos.',
   },
   EN: {
     title: 'Transactions',
@@ -236,6 +256,17 @@ const COPY: Record<Language, TransactionsCopy> = {
     searchFallbackHint: 'Safe historical search while the index is being prepared.',
     searchTruncatedHint: 'There are more results. Refine the term or filters for precision.',
     clearSearch: 'Clear search',
+    select: 'Select',
+    cancelSelection: 'Cancel selection',
+    selectVisibleDrafts: 'Select visible drafts',
+    selectedCount: (count) => `${count} selected`,
+    sendToReviewBatch: 'Send to review',
+    sendingBatch: 'Sending…',
+    selectionLimit: 'Select at most 25 transactions per batch.',
+    batchResult: (success, failed) => failed === 0
+      ? `${success} transaction${success === 1 ? '' : 's'} sent to review.`
+      : `${success} sent; ${failed} need${failed === 1 ? 's' : ''} attention.`,
+    onlyDraftsBatch: 'Batch submission accepts drafts only.',
   },
   ES: {
     title: 'Movimientos',
@@ -303,6 +334,17 @@ const COPY: Record<Language, TransactionsCopy> = {
     searchFallbackHint: 'Búsqueda segura en el historial mientras se prepara el índice.',
     searchTruncatedHint: 'Hay más resultados. Refina el término o los filtros para mayor precisión.',
     clearSearch: 'Limpiar búsqueda',
+    select: 'Seleccionar',
+    cancelSelection: 'Cancelar selección',
+    selectVisibleDrafts: 'Seleccionar borradores visibles',
+    selectedCount: (count) => `${count} seleccionada${count === 1 ? '' : 's'}`,
+    sendToReviewBatch: 'Enviar a revisión',
+    sendingBatch: 'Enviando…',
+    selectionLimit: 'Selecciona como máximo 25 movimientos por lote.',
+    batchResult: (success, failed) => failed === 0
+      ? `${success} movimiento${success === 1 ? '' : 's'} enviado${success === 1 ? '' : 's'} a revisión.`
+      : `${success} enviado${success === 1 ? '' : 's'}; ${failed} requiere${failed === 1 ? '' : 'n'} atención.`,
+    onlyDraftsBatch: 'El envío por lote acepta solo borradores.',
   },
 };
 
@@ -464,7 +506,7 @@ function TransactionsListContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { listTransactions, searchTransactions } = useTransactions();
+  const { listTransactions, searchTransactions, submitForReview } = useTransactions();
   const { accessState } = useAuth();
   const { language } = useLanguage();
   const copy = COPY[language];
@@ -476,6 +518,10 @@ function TransactionsListContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
   const [searchMeta, setSearchMeta] = useState<{
     searchMode: 'index' | 'canonical_fallback';
     indexCertified: boolean;
@@ -492,6 +538,15 @@ function TransactionsListContent() {
   const normalizedSearchQuery = searchQuery.trim();
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
+
+  const selectedItems = items.filter((item) => selectedIds.has(item.id));
+  const batchSelectionIsDraftOnly =
+    selectedItems.length > 0 &&
+    selectedItems.every((item) => item.status === 'draft');
+  const canBatchSubmit =
+    hasEffectiveCapability(accessState, 'finance.submit_for_review') &&
+    batchSelectionIsDraftOnly &&
+    !batchSubmitting;
 
   const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
     if (!cursor) setLoading(true);
@@ -637,6 +692,79 @@ function TransactionsListContent() {
     setSearchParams(next);
   };
 
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setBatchMessage(null);
+  };
+
+  const toggleSelection = (transactionId: string) => {
+    setBatchMessage(null);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(transactionId)) {
+        next.delete(transactionId);
+        return next;
+      }
+      if (next.size >= 25) {
+        setBatchMessage(copy.selectionLimit);
+        return current;
+      }
+      next.add(transactionId);
+      return next;
+    });
+  };
+
+  const selectVisibleDrafts = () => {
+    const ids = items
+      .filter((item) => item.status === 'draft')
+      .slice(0, 25)
+      .map((item) => item.id);
+    setSelectedIds(new Set(ids));
+    setBatchMessage(items.filter((item) => item.status === 'draft').length > 25 ? copy.selectionLimit : null);
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    clearSelection();
+  };
+
+  const runBatchSubmitForReview = async () => {
+    if (!canBatchSubmit || selectedItems.length === 0) return;
+    setBatchSubmitting(true);
+    setBatchMessage(null);
+
+    let success = 0;
+    const failedIds: string[] = [];
+    const nonce =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    for (const item of selectedItems.slice(0, 25)) {
+      try {
+        await submitForReview(
+          item.id,
+          Number(item.version || 1),
+          `batch-submit-${item.id}-${item.version || 1}-${nonce}`.slice(0, 128),
+          `batch-review-${item.id}-${nonce}`.slice(0, 128),
+        );
+        success += 1;
+      } catch {
+        failedIds.push(item.id);
+      }
+    }
+
+    setBatchSubmitting(false);
+    setBatchMessage(copy.batchResult(success, failedIds.length));
+    if (failedIds.length === 0) {
+      setSelectionMode(false);
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(failedIds));
+    }
+    reloadFromStart();
+  };
+
   const updateSearch = (value: string) => {
     const next = new URLSearchParams(searchParams);
     if (!value) next.delete('q');
@@ -764,6 +892,22 @@ function TransactionsListContent() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+              {hasEffectiveCapability(accessState, 'finance.submit_for_review') ? (
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onClick={() => {
+                    if (selectionMode) exitSelectionMode();
+                    else {
+                      setSelectionMode(true);
+                      setBatchMessage(null);
+                    }
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  {selectionMode ? copy.cancelSelection : copy.select}
+                </Button>
+              ) : null}
               {hasEffectiveCapability(accessState, 'finance.review') ? (
                 <Button
                   variant="secondary"
@@ -1033,10 +1177,27 @@ function TransactionsListContent() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => openInspector(item.id)}
-                    className="nf-interactive group w-full rounded-2xl border border-border-subtle bg-surface-elevated p-4 text-left hover:border-border-strong hover:bg-surface-secondary sm:p-5"
+                    aria-pressed={selectionMode ? selectedIds.has(item.id) : undefined}
+                    onClick={() => selectionMode ? toggleSelection(item.id) : openInspector(item.id)}
+                    className={`nf-interactive group w-full rounded-2xl border p-4 text-left sm:p-5 ${
+                      selectionMode && selectedIds.has(item.id)
+                        ? 'border-accent-primary/45 bg-accent-primary/8'
+                        : 'border-border-subtle bg-surface-elevated hover:border-border-strong hover:bg-surface-secondary'
+                    }`}
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
+                      {selectionMode ? (
+                        <span
+                          className={`mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${
+                            selectedIds.has(item.id)
+                              ? 'border-accent-primary bg-accent-primary text-white'
+                              : 'border-border-strong bg-surface-default text-transparent'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          ✓
+                        </span>
+                      ) : null}
                       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${directionUi.iconClass}`}>
                         <directionUi.Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
@@ -1101,6 +1262,49 @@ function TransactionsListContent() {
           ) : null}
         </div>
       </main>
+
+      {selectionMode ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-4 sm:bottom-5 sm:px-6">
+          <Surface variant="elevated" radius="xl" className="pointer-events-auto mx-auto max-w-3xl border border-border-strong p-3 shadow-xl sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text-primary">{copy.selectedCount(selectedIds.size)}</p>
+                {batchMessage ? (
+                  <p className="mt-1 text-xs leading-relaxed text-text-secondary">{batchMessage}</p>
+                ) : !batchSelectionIsDraftOnly && selectedIds.size > 0 ? (
+                  <p className="mt-1 text-xs text-semantic-warning">{copy.onlyDraftsBatch}</p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={batchSubmitting}
+                  onClick={selectVisibleDrafts}
+                >
+                  {copy.selectVisibleDrafts}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!canBatchSubmit}
+                  onClick={() => void runBatchSubmitForReview()}
+                >
+                  {batchSubmitting ? copy.sendingBatch : copy.sendToReviewBatch}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={batchSubmitting}
+                  onClick={exitSelectionMode}
+                >
+                  {copy.cancelSelection}
+                </Button>
+              </div>
+            </div>
+          </Surface>
+        </div>
+      ) : null}
 
       <TransactionInspector
         transactionId={inspectedTransactionId}
