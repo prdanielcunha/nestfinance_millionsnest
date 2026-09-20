@@ -26,9 +26,14 @@ import {
 import {
   buildReconciliationLineLockId,
   buildReconciliationReversalId,
+  buildReconciliationSessionId,
 } from './reconciliationConfirmationIds.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { stageFinanceFact } from './factStream.js';
+import {
+  RECONCILIATION_SESSION_SCHEMA_VERSION,
+  type ReconciliationSessionRecord,
+} from '../../../shared/finance/reconciliationSession.js';
 
 const validReconciliationId = (value: unknown): value is string =>
   typeof value === 'string' && /^rec_[a-f0-9]{64}$/.test(value);
@@ -192,6 +197,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const lineLockRef = context.repository.getReconciliationLineLocksRef().doc(lineLockId);
         const lineLockSnapshot = await t.get(lineLockRef);
         const lineLock = lineLockSnapshot.data() || {};
+        const accountId =
+          typeof reconciliation.accountId === 'string' ? reconciliation.accountId : '';
+        const reconciliationSessionId = accountId
+          ? buildReconciliationSessionId({
+              organizationId,
+              financeEntityId,
+              evidenceId,
+              accountId,
+            })
+          : null;
+        const reconciliationSessionRef = reconciliationSessionId
+          ? context.repository.getReconciliationSessionsRef().doc(reconciliationSessionId)
+          : null;
+        const reconciliationSessionSnapshot = reconciliationSessionRef
+          ? await t.get(reconciliationSessionRef)
+          : null;
 
         if (
           lineLockSnapshot.exists &&
@@ -210,6 +231,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const newVersion = currentVersion + 1;
         const reversedAt = FieldValue.serverTimestamp();
+        const sessionData = reconciliationSessionSnapshot?.data() || {};
+        if (
+          reconciliationSessionSnapshot?.exists &&
+          (
+            sessionData.organizationId !== organizationId ||
+            sessionData.financeEntityId !== financeEntityId ||
+            sessionData.evidenceId !== evidenceId ||
+            sessionData.accountId !== accountId ||
+            sessionData.status !== 'in_progress'
+          )
+        ) {
+          throw { code: 'RECONCILIATION_SESSION_MISMATCH' };
+        }
 
         const reversal: ReconciliationReversalRecord = {
           reversalId,
@@ -217,8 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           lineLockId,
           organizationId,
           financeEntityId,
-          accountId:
-            typeof reconciliation.accountId === 'string' ? reconciliation.accountId : '',
+          accountId,
           transactionId,
           evidenceId,
           statementLineFingerprint,
@@ -256,6 +289,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         t.create(reversalRef, sanitizeFirestoreObject(reversal));
         t.set(lineLockRef, sanitizeFirestoreObject(releasedLock));
+        if (reconciliationSessionRef && reconciliationSessionId) {
+          const sessionRecord: ReconciliationSessionRecord = {
+            reconciliationSessionId,
+            organizationId,
+            financeEntityId,
+            evidenceId,
+            accountId,
+            status: 'in_progress',
+            startedByUid: reconciliationSessionSnapshot?.exists
+              ? (typeof sessionData.startedByUid === 'string' ? sessionData.startedByUid : null)
+              : (typeof reconciliation.confirmedByUid === 'string'
+                  ? reconciliation.confirmedByUid
+                  : null),
+            startedAt: reconciliationSessionSnapshot?.exists
+              ? sessionData.startedAt
+              : (reconciliation.confirmedAt || reversedAt),
+            lastActivityAt: reversedAt,
+            activeConfirmationCount: Math.max(
+              0,
+              (reconciliationSessionSnapshot?.exists
+                ? Number(sessionData.activeConfirmationCount) || 0
+                : 1) - 1,
+            ),
+            totalConfirmationCount: reconciliationSessionSnapshot?.exists
+              ? Math.max(1, Number(sessionData.totalConfirmationCount) || 1)
+              : 1,
+            exceptionCount: reconciliationSessionSnapshot?.exists
+              ? Math.max(0, Number(sessionData.exceptionCount) || 0) + 1
+              : 1,
+            lastExceptionAt: reversedAt,
+            lastExceptionReasonCode: reasonCode,
+            sourceScope: 'recognized_native_text_items_only',
+            canDeclareStatementFullyReconciled: false,
+            schemaVersion: RECONCILIATION_SESSION_SCHEMA_VERSION,
+          };
+          t.set(reconciliationSessionRef, sanitizeFirestoreObject(sessionRecord));
+        }
 
         t.update(transactionRef, sanitizeFirestoreObject({
           reconciliationStatus: 'unreconciled',
@@ -299,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: reversedAt,
         }));
 
-        stageFinanceFact(t, db, {
+        const reversedFactId = stageFinanceFact(t, db, {
           organizationId,
           eventType: 'RECONCILIATION_REVERSED',
           entityType: 'finance_reconciliation_reversal',
@@ -325,6 +395,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { kind: 'audit', ref: auditRef.path },
           ],
         });
+
+        if (reconciliationSessionRef && reconciliationSessionId) {
+          stageFinanceFact(t, db, {
+            organizationId,
+            eventType: 'RECONCILIATION_EXCEPTION_FOUND',
+            entityType: 'finance_reconciliation_session',
+            entityId: reconciliationSessionId,
+            actorUserId: uid,
+            correlationId: requestId,
+            causationId: reversedFactId,
+            payload: {
+              financeEntityId,
+              evidenceId,
+              accountId,
+              reconciliationId,
+              reversalId,
+              exceptionKind: 'human_reversal',
+              reasonCode,
+              status: 'in_progress',
+              canDeclareStatementFullyReconciled: false,
+            },
+            sourceRefs: [
+              { kind: 'record', ref: reconciliationSessionRef.path, version: RECONCILIATION_SESSION_SCHEMA_VERSION },
+              { kind: 'record', ref: reversalRef.path, version: RECONCILIATION_REVERSAL_SCHEMA_VERSION },
+              { kind: 'record', ref: reconciliationRef.path, version: Number(reconciliation.schemaVersion) || 1 },
+              { kind: 'audit', ref: auditRef.path },
+            ],
+          });
+        }
 
         const eventId = `evt_${reversalId.slice(5, 37)}`;
         t.set(

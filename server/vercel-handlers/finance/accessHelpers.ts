@@ -307,6 +307,7 @@ export function createFinanceEntityScope(args: {
     getAllocationsQuery: () => orgRef.collection('financeAllocations').where('financeEntityId', '==', financeEntityId),
     getIdempotencyRef: () => orgRef.collection('financeIdempotency'),
     getReconciliationsRef: () => orgRef.collection('financeReconciliations'),
+    getReconciliationSessionsRef: () => orgRef.collection('financeReconciliationSessions'),
     getReconciliationsQuery: () => orgRef.collection('financeReconciliations').where('financeEntityId', '==', financeEntityId),
     getReconciliationLineLocksRef: () => orgRef.collection('financeReconciliationLineLocks'),
     getReconciliationReversalsRef: () => orgRef.collection('financeReconciliationReversals'),

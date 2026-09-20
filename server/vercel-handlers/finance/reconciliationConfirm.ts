@@ -39,6 +39,7 @@ import {
   buildLegacyReconciliationId,
   buildReconciliationAttemptId,
   buildReconciliationLineLockId,
+  buildReconciliationSessionId,
   buildStatementLineFingerprint,
 } from './reconciliationConfirmationIds.js';
 import {
@@ -47,6 +48,10 @@ import {
 } from '../../../shared/finance/reconciliationLineLock.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { stageFinanceFact } from './factStream.js';
+import {
+  RECONCILIATION_SESSION_SCHEMA_VERSION,
+  type ReconciliationSessionRecord,
+} from '../../../shared/finance/reconciliationSession.js';
 
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
@@ -389,6 +394,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const reconciliationRef = context.repository.getReconciliationsRef().doc(reconciliationId);
     const legacyReconciliationRef = context.repository.getReconciliationsRef().doc(legacyReconciliationId);
     const lineLockRef = context.repository.getReconciliationLineLocksRef().doc(lineLockId);
+    const reconciliationSessionId = buildReconciliationSessionId({
+      organizationId,
+      financeEntityId,
+      evidenceId,
+      accountId,
+    });
+    const reconciliationSessionRef = context.repository
+      .getReconciliationSessionsRef()
+      .doc(reconciliationSessionId);
     const displayName = await actorDisplayName(db, uid);
 
     const result = await executeWithIdempotency<ReconciliationConfirmResponse>(
@@ -402,6 +416,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const currentTransaction = await t.get(txRef);
         const existingReconciliation = await t.get(reconciliationRef);
         const lineLockSnapshot = await t.get(lineLockRef);
+        const reconciliationSessionSnapshot = await t.get(reconciliationSessionRef);
         const legacyReconciliationSnapshot =
           legacyReconciliationId === reconciliationId
             ? existingReconciliation
@@ -501,6 +516,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const newVersion = currentVersion + 1;
         const confirmedAt = FieldValue.serverTimestamp();
+        const sessionData = reconciliationSessionSnapshot.data() || {};
+        if (
+          reconciliationSessionSnapshot.exists &&
+          (
+            sessionData.organizationId !== organizationId ||
+            sessionData.financeEntityId !== financeEntityId ||
+            sessionData.evidenceId !== evidenceId ||
+            sessionData.accountId !== accountId ||
+            sessionData.status !== 'in_progress'
+          )
+        ) {
+          throw { code: 'RECONCILIATION_SESSION_MISMATCH' };
+        }
+
+        const activeConfirmationCount = reconciliationSessionSnapshot.exists
+          ? Math.max(0, Number(sessionData.activeConfirmationCount) || 0) + 1
+          : 1;
+        const totalConfirmationCount = reconciliationSessionSnapshot.exists
+          ? Math.max(0, Number(sessionData.totalConfirmationCount) || 0) + 1
+          : 1;
+        const exceptionCount = reconciliationSessionSnapshot.exists
+          ? Math.max(0, Number(sessionData.exceptionCount) || 0)
+          : 0;
+
+        const sessionRecord: ReconciliationSessionRecord = {
+          reconciliationSessionId,
+          organizationId,
+          financeEntityId,
+          evidenceId,
+          accountId,
+          status: 'in_progress',
+          startedByUid: reconciliationSessionSnapshot.exists
+            ? (typeof sessionData.startedByUid === 'string' ? sessionData.startedByUid : null)
+            : uid,
+          startedAt: reconciliationSessionSnapshot.exists
+            ? sessionData.startedAt
+            : confirmedAt,
+          lastActivityAt: confirmedAt,
+          activeConfirmationCount,
+          totalConfirmationCount,
+          exceptionCount,
+          lastExceptionAt: reconciliationSessionSnapshot.exists
+            ? (sessionData.lastExceptionAt || null)
+            : null,
+          lastExceptionReasonCode: reconciliationSessionSnapshot.exists
+            ? (typeof sessionData.lastExceptionReasonCode === 'string'
+                ? sessionData.lastExceptionReasonCode
+                : null)
+            : null,
+          sourceScope: 'recognized_native_text_items_only',
+          canDeclareStatementFullyReconciled: false,
+          schemaVersion: RECONCILIATION_SESSION_SCHEMA_VERSION,
+        };
 
         const record: ReconciliationConfirmationRecord = {
           reconciliationId,
@@ -547,6 +615,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         t.create(reconciliationRef, sanitizeFirestoreObject(record));
         t.set(lineLockRef, sanitizeFirestoreObject(lineLock));
+        t.set(reconciliationSessionRef, sanitizeFirestoreObject(sessionRecord));
         t.update(txRef, sanitizeFirestoreObject({
           reconciliationStatus: 'reconciled',
           reconciliationId,
@@ -593,7 +662,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { kind: 'audit' as const, ref: auditRef.path },
         ];
 
-        stageFinanceFact(t, db, {
+        const matchedFactId = stageFinanceFact(t, db, {
           organizationId,
           eventType: 'RECONCILIATION_MATCHED',
           entityType: 'finance_reconciliation',
@@ -615,6 +684,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
           sourceRefs,
         });
+
+        if (!reconciliationSessionSnapshot.exists) {
+          stageFinanceFact(t, db, {
+            organizationId,
+            eventType: 'RECONCILIATION_STARTED',
+            entityType: 'finance_reconciliation_session',
+            entityId: reconciliationSessionId,
+            actorUserId: uid,
+            correlationId: requestId,
+            causationId: matchedFactId,
+            payload: {
+              financeEntityId,
+              evidenceId,
+              accountId,
+              status: 'in_progress',
+              sourceScope: 'recognized_native_text_items_only',
+              canDeclareStatementFullyReconciled: false,
+            },
+            sourceRefs: [
+              { kind: 'record', ref: reconciliationSessionRef.path, version: RECONCILIATION_SESSION_SCHEMA_VERSION },
+              { kind: 'record', ref: reconciliationRef.path, version: RECONCILIATION_CONFIRMATION_SCHEMA_VERSION },
+              { kind: 'evidence', ref: evidenceRef.path, version: evidenceVersion },
+              { kind: 'audit', ref: auditRef.path },
+            ],
+          });
+        }
 
         const eventId = `evt_${reconciliationId.slice(4, 36)}`;
         t.set(
