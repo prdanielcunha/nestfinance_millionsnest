@@ -9,6 +9,7 @@ import { computeApprovalSourceHash, buildApprovalMaterial } from '../../../share
 import { buildPostingPlan } from '../../../shared/finance/ledger/postingPlan.js';
 import { loadPostingConfiguration } from './loadPostingConfiguration.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
