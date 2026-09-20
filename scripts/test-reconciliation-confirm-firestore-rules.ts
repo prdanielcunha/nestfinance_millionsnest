@@ -37,6 +37,10 @@ try {
   const reconciliationId =
     'rec_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   const path = 'organizations/' + orgId + '/financeReconciliations/' + reconciliationId;
+  const sessionId =
+    'rses_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
+  const sessionPath =
+    'organizations/' + orgId + '/financeReconciliationSessions/' + sessionId;
 
   await env.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), 'organizations/' + orgId), {
@@ -55,6 +59,19 @@ try {
       status: 'confirmed',
       schemaVersion: 1,
     });
+    await setDoc(doc(context.firestore(), sessionPath), {
+      reconciliationSessionId: sessionId,
+      organizationId: orgId,
+      financeEntityId: 'ent-rules',
+      evidenceId: 'evd_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      accountId: 'acc-rules',
+      status: 'in_progress',
+      activeConfirmationCount: 1,
+      totalConfirmationCount: 1,
+      exceptionCount: 0,
+      canDeclareStatementFullyReconciled: false,
+      schemaVersion: 1,
+    });
   });
 
   const db = env.authenticatedContext(uid, {
@@ -63,6 +80,7 @@ try {
   }).firestore();
 
   await ok(getDoc(doc(db, path)), 'authorized browser can read server-created reconciliation trace');
+  await ok(getDoc(doc(db, sessionPath)), 'authorized browser can read server-created reconciliation session');
   await denied(
     setDoc(
       doc(
@@ -79,12 +97,37 @@ try {
     'browser cannot create reconciliation confirmation directly',
   );
   await denied(
+    setDoc(
+      doc(
+        db,
+        'organizations/' + orgId +
+          '/financeReconciliationSessions/rses_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      ),
+      {
+        organizationId: orgId,
+        financeEntityId: 'ent-rules',
+        evidenceId: 'evd_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        accountId: 'acc-rules',
+        status: 'in_progress',
+      },
+    ),
+    'browser cannot create reconciliation session directly',
+  );
+  await denied(
     updateDoc(doc(db, path), { status: 'cancelled' }),
     'browser cannot update reconciliation confirmation directly',
   );
   await denied(
+    updateDoc(doc(db, sessionPath), { activeConfirmationCount: 99 }),
+    'browser cannot mutate reconciliation session directly',
+  );
+  await denied(
     deleteDoc(doc(db, path)),
     'browser cannot delete reconciliation confirmation directly',
+  );
+  await denied(
+    deleteDoc(doc(db, sessionPath)),
+    'browser cannot delete reconciliation session directly',
   );
 
   console.log('\nReconciliation Confirmation Rules totals: ' + passed + ' Passed');
