@@ -657,6 +657,20 @@ function TransactionsListContent() {
     normalizedSearchQuery,
   ]);
 
+  useEffect(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setBatchMessage(null);
+  }, [
+    activeFinanceEntityId,
+    directionFilter,
+    statusFilter,
+    fromFilter,
+    toFilter,
+    orderFilter,
+    normalizedSearchQuery,
+  ]);
+
   const updateFilter = (key: 'direction' | 'status', value: string) => {
     const next = new URLSearchParams(searchParams);
     if (value === 'all') next.delete(key);
