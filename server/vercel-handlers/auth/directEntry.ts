@@ -92,6 +92,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userData = userDoc.data() || {};
   if (isInactive(userData)) return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
 
+  if (requestedOrganizationId) {
+    try {
+      const selectedId = cleanString(requestedOrganizationId);
+      const resolution = await resolveEcosystemSession(uid, selectedId);
+      if (!resolution.granted) {
+        return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
+      }
+
+      const customToken = await issueScopedToken(
+        admin.auth,
+        uid,
+        selectedId,
+        resolution.accessSource,
+      );
+      return res.status(200).json({
+        status: 'ready',
+        customToken,
+        organization: {
+          id: selectedId,
+          name: cleanString(resolution.organization?.name) || selectedId,
+          slug: cleanString(resolution.organization?.slug),
+        },
+      });
+    } catch {
+      return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
+    }
+  }
+
   const candidateIds = new Set<string>(collectCandidateOrganizationIds(userData));
 
   // Candidate discovery is intentionally broader than authorization. This keeps
@@ -121,18 +149,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   eligible.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-
-  if (requestedOrganizationId) {
-    const selected = eligible.find((organization) => organization.id === cleanString(requestedOrganizationId));
-    if (!selected) return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
-
-    const customToken = await issueScopedToken(admin.auth, uid, selected.id, selected.accessSource);
-    return res.status(200).json({
-      status: 'ready',
-      customToken,
-      organization: { id: selected.id, name: selected.name, slug: selected.slug },
-    });
-  }
 
   if (eligible.length === 0) {
     return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
