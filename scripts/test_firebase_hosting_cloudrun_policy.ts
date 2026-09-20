@@ -33,7 +33,7 @@ for (const rewrite of vercel.rewrites ?? []) {
   expectedRoutes[rewrite.source] = { gateway, operation };
 }
 assert.deepEqual(NESTFINANCE_CLOUD_RUN_ROUTES, expectedRoutes, 'Cloud Run must expose exactly the current public Vercel API contract');
-assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 30, 'Unexpected public API surface change');
+assert.equal(Object.keys(NESTFINANCE_CLOUD_RUN_ROUTES).length, 31, 'Unexpected public API surface change');
 assert.deepEqual(
   NESTFINANCE_DIRECT_GATEWAY_ROUTES,
   {
@@ -74,6 +74,7 @@ for (const required of [
   'NESTFINANCE_RELEASE_SHA=$GITHUB_SHA',
   'NESTFINANCE_FIREBASE_EXACT_SHA_OK',
   '/api/finance-gateway?operation=transactions-summary',
+  '/api/finance/intelligence/read-model',
 ]) {
   assert.ok(productionRelease.includes(required), `Production release contract missing: ${required}`);
 }
