@@ -27,6 +27,30 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const searchTransactions = useCallback(async (
+    query: string,
+    filters?: Record<string, unknown>,
+    limit?: number,
+  ) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      return await transactionsService.search(
+        organizationId,
+        activeFinanceEntityId,
+        query,
+        filters,
+        limit,
+      );
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
   const getTransactionDetail = useCallback(async (transactionId: string) => {
     if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
     setLoading(true);
@@ -185,6 +209,7 @@ export function useTransactions() {
     loading,
     error,
     listTransactions,
+    searchTransactions,
     getTransactionDetail,
     createDraft,
     createAndSubmit,
