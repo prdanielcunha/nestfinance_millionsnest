@@ -1,9 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
-import {
-  TRANSACTION_SEARCH_SCHEMA_VERSION,
-  inspectTransactionSearchProjection,
-} from './transactionSearchIndex.js';
+import { TRANSACTION_SEARCH_SCHEMA_VERSION } from '../../../shared/finance/transactionSearch.js';
+import { inspectTransactionSearchProjection } from './transactionSearchIndex.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
