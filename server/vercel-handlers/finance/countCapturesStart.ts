@@ -14,6 +14,7 @@ import {
 } from '../../../shared/finance/countCapture.js';
 import { buildCountCaptureObjectPaths, generateCountCaptureAuditId, generateCountCaptureId, resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 function assertStageCanCapture(stage: 'count_a' | 'count_b', session: any, organizationId: string, financeEntityId: string) {
   if (!session || session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) throw new Error('COUNT_CAPTURE_FORM_NOT_FOUND');
@@ -63,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         normalized: { path: paths.normalizedPath, declaredContentType: normalizedContentType, declaredSize: normalizedSize, declaredSha256: normalizedSha256 },
         createdByUid: uid, version: 1, schemaVersion: 1, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
       });
-      transaction.set(context.repository.getAuditRef().doc(auditId), {
+      stageCanonicalAuditRecord(transaction, db, context.repository.getAuditRef().doc(auditId), {
         eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'count_capture', resourceId: captureId,
         action: 'count.capture_started', requestId, idempotencyKey, afterHash: payloadHash,
         metadata: { formId: canonical.form.id, stage: canonical.form.stage, templateVersion: canonical.form.templateVersion, financialMaterialEmbedded: false },
