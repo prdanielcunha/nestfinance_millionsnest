@@ -43,6 +43,7 @@
     "test:finance-role-policy": "tsx scripts/test-finance-role-policy.ts",
     "test:ecosystem-overview": "tsx scripts/test-ecosystem-overview.ts",
     "test:personalized-workspaces": "tsx scripts/test-personalized-workspaces.ts",
+    "test:adaptive-navigation": "tsx scripts/test-adaptive-finance-navigation.ts",
     "test:today-priority-model": "tsx scripts/test-today-priority-model.ts"
   },
   "dependencies": {
