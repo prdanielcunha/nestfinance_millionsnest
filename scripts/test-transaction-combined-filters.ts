@@ -105,6 +105,8 @@ assert.ok(page.includes('dateOnlyEndIso(toFilter)'));
 assert.ok(page.includes('type="date"'));
 assert.ok(page.includes("updateDateFilter('from'"));
 assert.ok(page.includes("updateDateFilter('to'"));
+assert.ok(page.includes('max={toFilter || undefined}'));
+assert.ok(page.includes('min={fromFilter || undefined}'));
 assert.ok(page.includes("updateOrder(option.value)"));
 assert.ok(page.includes("next.set('from', filters.occurredFrom)"));
 assert.ok(page.includes("next.set('to', filters.occurredTo)"));
