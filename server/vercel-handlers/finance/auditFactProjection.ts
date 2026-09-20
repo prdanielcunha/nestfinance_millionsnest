@@ -185,6 +185,16 @@ export function stageCanonicalAuditRecord(
   });
 }
 
+export function stageCanonicalAuditCreate(
+  transaction: Transaction,
+  db: Firestore,
+  auditRef: DocumentReference,
+  auditData: Record<string, any>,
+) {
+  return stageCanonicalAuditRecord(transaction, db, auditRef, auditData, 'create');
+}
+
+
 export function buildAuditProjectionCoverageId(
   organizationId: string,
   financeEntityId: string,
