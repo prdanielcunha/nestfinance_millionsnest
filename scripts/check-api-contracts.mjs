@@ -32,6 +32,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-list', exposure: 'rewrite', url: '/api/finance/entities/list' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-accessible', exposure: 'rewrite', url: '/api/finance/entities/accessible' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'ecosystem-overview', exposure: 'rewrite', url: '/api/finance/ecosystem/overview' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'finance-hub-read-model', exposure: 'rewrite', url: '/api/finance/intelligence/read-model' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-detail', exposure: 'rewrite', url: '/api/finance/entities/detail' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-update', exposure: 'rewrite', url: '/api/finance/entities/update' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-bootstrap-status', exposure: 'rewrite', url: '/api/finance/entities/bootstrap/status' },
