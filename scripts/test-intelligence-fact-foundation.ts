@@ -23,5 +23,7 @@ assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('COUNT_OPENED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('DOCUMENT_ATTACHED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('ATTENTION_STATE_OBSERVED'));
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_REVERSED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('INBOX_ITEM_CREATED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('REPORT_READY'));
 
 console.log('Fact Foundation contract checks passed.');

@@ -79,6 +79,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sourceRefs,
       });
       if (!duplicate) {
+        stageFinanceFact(transaction, db, {
+          organizationId,
+          eventType: 'INBOX_ITEM_CREATED',
+          entityType: 'universal_evidence',
+          entityId: evidenceId,
+          actorUserId: uid,
+          correlationId: requestId,
+          causationId: factId,
+          payload: {
+            financeEntityId,
+            processingState: 'accepted',
+            requiresIdentification: true,
+            financialRecognition: false,
+          },
+          sourceRefs,
+        });
         stageFinanceSignalOpen(transaction, db, {
           organizationId,
           financeEntityId,

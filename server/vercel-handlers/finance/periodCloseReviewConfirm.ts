@@ -5,6 +5,7 @@ import type { PeriodCloseReviewConfirmResponse } from '../../../shared/finance/p
 import { isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { loadPeriodCloseReadModel, parsePeriod } from './periodCloseReadModel.js';
+import { stageFinanceFact } from './factStream.js';
 
 function auditIdFor(reviewId: string) {
   return 'audit_' + createHash('sha256')
@@ -144,7 +145,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         schemaVersion: 1,
       });
 
-      transaction.set(context.repository.getAuditRef().doc(auditIdFor(loaded.expectedReviewId)), {
+      const auditRef = context.repository
+        .getAuditRef()
+        .doc(auditIdFor(loaded.expectedReviewId));
+      transaction.set(auditRef, {
         eventId: auditIdFor(loaded.expectedReviewId),
         organizationId,
         financeEntityId,
@@ -158,6 +162,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           status: 'reviewed_current_snapshot',
         },
         createdAt: reviewedAt,
+      });
+
+      stageFinanceFact(transaction, db, {
+        organizationId,
+        eventType: 'REPORT_READY',
+        entityType: 'finance_period_close_review',
+        entityId: loaded.expectedReviewId,
+        actorUserId: uid,
+        correlationId: requestId,
+        payload: {
+          financeEntityId,
+          periodKey: period.key,
+          readinessState: 'ready_for_review',
+          blockerCount: 0,
+          humanReviewState: 'reviewed_current_snapshot',
+          officialReport: false,
+          periodClosed: false,
+          financialMutation: false,
+        },
+        sourceRefs: [
+          { kind: 'record', ref: reviewRef.path, version: 1 },
+          { kind: 'audit', ref: auditRef.path },
+        ],
       });
 
       const response: PeriodCloseReviewConfirmResponse = {

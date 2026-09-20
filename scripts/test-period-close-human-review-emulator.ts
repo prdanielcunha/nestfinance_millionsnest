@@ -131,10 +131,16 @@ try {
 
   const reviewsRef = db.collection('organizations').doc(orgId).collection('financePeriodCloseReviews');
   const auditsRef = db.collection('organizations').doc(orgId).collection('financeAuditLogs');
+  const factsRef = db.collection('intelligenceFacts');
   const reviewsAfterFirst = await reviewsRef.where('financeEntityId', '==', entityId).get();
   const auditsAfterFirst = await auditsRef.where('financeEntityId', '==', entityId).get();
   verify(reviewsAfterFirst.size === 1, 'exact source snapshot creates one immutable review record');
   verify(auditsAfterFirst.docs.some((doc) => doc.data().action === 'period.close_review_confirmed'), 'review appends canonical audit event');
+  const factsAfterFirst = await factsRef.where('organizationId', '==', orgId).get();
+  const reportReadyAfterFirst = factsAfterFirst.docs.filter((doc) => doc.data().eventType === 'REPORT_READY');
+  verify(reportReadyAfterFirst.length === 1, 'clean human review atomically emits one REPORT_READY fact');
+  verify(reportReadyAfterFirst[0]?.data()?.payload?.officialReport === false, 'REPORT_READY does not claim an official report');
+  verify(reportReadyAfterFirst[0]?.data()?.payload?.periodClosed === false, 'REPORT_READY does not claim a closed period');
 
   const second = await call(periodCloseReviewConfirm, {
     financeEntityId: entityId,
@@ -147,6 +153,11 @@ try {
   verify(second.body.reviewId === first.body.reviewId, 'same source snapshot keeps the same deterministic review identity');
   verify(reviewsAfterRetry.size === 1, 'retry does not duplicate review records');
   verify(auditsAfterRetry.size === auditsAfterFirst.size, 'retry does not duplicate audit events');
+  const factsAfterRetry = await factsRef.where('organizationId', '==', orgId).get();
+  verify(
+    factsAfterRetry.docs.filter((doc) => doc.data().eventType === 'REPORT_READY').length === 1,
+    'exact-snapshot replay does not duplicate REPORT_READY',
+  );
 
   const current = await call(periodCloseReadiness, { financeEntityId: entityId, period: '2026-09' });
   verify(current.body.humanReview.state === 'reviewed_current_snapshot', 'readiness recognizes review only for the matching source snapshot');
@@ -191,6 +202,11 @@ try {
   });
   verify(third.statusCode === 200 && third.body.replayed === false, 'new clean source snapshot can receive a new human review');
   verify(third.body.reviewId !== first.body.reviewId, 'changed source snapshot receives a new deterministic review identity');
+  const factsAfterNewSnapshot = await factsRef.where('organizationId', '==', orgId).get();
+  verify(
+    factsAfterNewSnapshot.docs.filter((doc) => doc.data().eventType === 'REPORT_READY').length === 2,
+    'new clean source snapshot emits a new source-bound REPORT_READY fact',
+  );
 
   const reviewsAfterNewSnapshot = await reviewsRef.where('financeEntityId', '==', entityId).get();
   verify(reviewsAfterNewSnapshot.size === 2, 'review history preserves both source snapshots instead of overwriting');
