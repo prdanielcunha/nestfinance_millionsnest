@@ -36,6 +36,8 @@ for (const eventType of expected) {
 for (const eventType of [
   'COUNT_OPENED',
   'COUNT_COMPLETED',
+  'RECONCILIATION_STARTED',
+  'RECONCILIATION_EXCEPTION_FOUND',
   'INBOX_ITEM_CREATED',
   'INBOX_ITEM_RESOLVED',
   'REPORT_READY',
@@ -56,6 +58,8 @@ assert.equal(
   'blocked_by_posting',
 );
 assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('REPORT_READY'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_STARTED'));
+assert.ok(NESTFINANCE_FACT_EVENT_TYPES.includes('RECONCILIATION_EXCEPTION_FOUND'));
 
 const evidence = readFileSync(
   'server/vercel-handlers/finance/universalEvidenceFinalize.ts',
@@ -63,6 +67,18 @@ const evidence = readFileSync(
 );
 const review = readFileSync(
   'server/vercel-handlers/finance/periodCloseReviewConfirm.ts',
+  'utf8',
+);
+const reconciliationConfirm = readFileSync(
+  'server/vercel-handlers/finance/reconciliationConfirm.ts',
+  'utf8',
+);
+const reconciliationReverse = readFileSync(
+  'server/vercel-handlers/finance/reconciliationReverse.ts',
+  'utf8',
+);
+const reconciliationProgress = readFileSync(
+  'shared/finance/reconciliationProgressBuilder.ts',
   'utf8',
 );
 const financeHandlers = readFileSync(
@@ -114,9 +130,23 @@ assert.ok(
   'posting guard remains certified',
 );
 
+assert.ok(reconciliationConfirm.includes("eventType: 'RECONCILIATION_STARTED'"));
+assert.ok(reconciliationConfirm.includes('buildReconciliationSessionId({'));
+assert.ok(reconciliationConfirm.includes('canDeclareStatementFullyReconciled: false'));
+assert.ok(reconciliationReverse.includes("eventType: 'RECONCILIATION_EXCEPTION_FOUND'"));
+assert.ok(reconciliationReverse.includes("exceptionKind: 'human_reversal'"));
+assert.ok(!reconciliationReverse.includes('note: normalizedNote,\n              status:'));
+assert.ok(
+  reconciliationProgress.includes('canDeclareStatementFullyReconciled: false'),
+  'recognized-only progress cannot claim full-statement completion',
+);
+assert.ok(
+  !reconciliationConfirm.includes("eventType: 'RECONCILIATION_COMPLETED'") &&
+    !reconciliationReverse.includes("eventType: 'RECONCILIATION_COMPLETED'"),
+  'no mutation emits RECONCILIATION_COMPLETED before full-statement authority exists',
+);
+
 for (const reserved of [
-  'RECONCILIATION_STARTED',
-  'RECONCILIATION_EXCEPTION_FOUND',
   'RECONCILIATION_COMPLETED',
   'AUDIT_EVENT_RECORDED',
 ] as const) {
