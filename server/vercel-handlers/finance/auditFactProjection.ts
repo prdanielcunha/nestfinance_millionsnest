@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
-import type { Firestore } from 'firebase-admin/firestore';
-import { buildFinanceFactEventId } from './factStream.js';
+import type { Firestore, Transaction } from 'firebase-admin/firestore';
+import {
+  buildFinanceFactEventId,
+  stageFinanceFact,
+  type FinanceFactInput,
+} from './factStream.js';
 
 export const AUDIT_FACT_PROJECTION_VERSION = 1 as const;
 export const AUDIT_FACT_PROJECTION_SCAN_MAX = 1000 as const;
@@ -79,6 +83,76 @@ export function buildCrossAppAuditMetadata(
   return result;
 }
 
+export function buildAuditFactCorrelationId(auditEventId: string) {
+  return `audit-event-v${AUDIT_FACT_PROJECTION_VERSION}:${auditEventId.trim()}`;
+}
+
+export function buildAuditFactInput(args: {
+  organizationId: string;
+  financeEntityId: string;
+  auditEventId: string;
+  auditRef: string;
+  auditData: Record<string, any>;
+}): FinanceFactInput {
+  const { organizationId, financeEntityId, auditEventId, auditRef, auditData } = args;
+  const action = boundedString(auditData.action, 120) || 'unknown';
+  const resource =
+    boundedString(auditData.resource, 80) ||
+    boundedString(auditData.entityType, 80) ||
+    'unknown';
+  const resourceId =
+    boundedString(auditData.resourceId, 180) ||
+    boundedString(auditData.transactionId, 180) ||
+    boundedString(auditData.reconciliationId, 180) ||
+    boundedString(auditData.entityId, 180) ||
+    null;
+  const requestId = boundedString(auditData.requestId, 180);
+  const rawActor = boundedString(auditData.actor, 180);
+
+  return {
+    organizationId,
+    eventType: 'AUDIT_EVENT_RECORDED',
+    entityType: 'finance_audit_event',
+    entityId: auditEventId,
+    actorUserId: rawActor && rawActor !== 'system' ? rawActor : null,
+    correlationId: buildAuditFactCorrelationId(auditEventId),
+    occurredAt: auditData.createdAt || undefined,
+    payload: {
+      financeEntityId,
+      auditEventId,
+      action,
+      resource,
+      resourceId,
+      requestId,
+      metadata: buildCrossAppAuditMetadata(auditData),
+      projectionKind: 'canonical_audit_projection',
+      historicalEventInferred: false,
+      financialMutation: false,
+      auditMutation: false,
+    },
+    sourceRefs: [{ kind: 'audit', ref: auditRef }],
+    confidence: 'verified',
+  };
+}
+
+export function stageCanonicalAuditFact(
+  transaction: Transaction,
+  db: Firestore,
+  args: {
+    organizationId: string;
+    financeEntityId: string;
+    auditEventId: string;
+    auditRef: string;
+    auditData: Record<string, any>;
+  },
+) {
+  return stageFinanceFact(
+    transaction,
+    db,
+    buildAuditFactInput(args),
+  );
+}
+
 export function buildAuditProjectionCoverageId(
   organizationId: string,
   financeEntityId: string,
@@ -118,8 +192,7 @@ function candidateFromAuditDoc(
   const requestId = boundedString(data.requestId, 180);
   const rawActor = boundedString(data.actor, 180);
   const actorUserId = rawActor && rawActor !== 'system' ? rawActor : null;
-  const correlationId =
-    `audit-projection-v${AUDIT_FACT_PROJECTION_VERSION}`;
+  const correlationId = buildAuditFactCorrelationId(doc.id);
 
   return {
     auditEventId: doc.id,
