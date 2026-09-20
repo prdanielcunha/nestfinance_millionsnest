@@ -54,6 +54,7 @@ jobs:
           npm run test:role-workspace
           npm run test:finance-role-policy
           npm run test:ecosystem-overview
+          npm run test:finance-hub-read-model
           npm run test:personalized-workspaces
           npm run test:adaptive-navigation
           npm run test:command-palette
@@ -124,6 +125,13 @@ jobs:
           if [ "$ECOSYSTEM_STATUS" != "401" ]; then
             echo "Expected ecosystem overview to require authentication with 401, got $ECOSYSTEM_STATUS"
             cat /tmp/local-ecosystem-overview.json || true
+            exit 1
+          fi
+
+          HUB_READ_MODEL_STATUS="$(curl --silent --output /tmp/local-finance-hub-read-model.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/finance/intelligence/read-model'             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke","period":"2026-09"}')"
+          if [ "$HUB_READ_MODEL_STATUS" != "401" ]; then
+            echo "Expected finance Hub read model to require authentication with 401, got $HUB_READ_MODEL_STATUS"
+            cat /tmp/local-finance-hub-read-model.json || true
             exit 1
           fi
 
@@ -225,6 +233,13 @@ jobs:
           if [ "$ECOSYSTEM_STATUS" != "401" ]; then
             echo "Expected ecosystem overview to require authentication with 401, got $ECOSYSTEM_STATUS"
             cat /tmp/nf-ecosystem-overview.json || true
+            exit 1
+          fi
+
+          HUB_READ_MODEL_STATUS="$(curl --silent --show-error --location --output /tmp/nf-finance-hub-read-model.json --write-out '%{http_code}'             -X POST "$BASE/api/finance/intelligence/read-model"             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke","period":"2026-09"}')"
+          if [ "$HUB_READ_MODEL_STATUS" != "401" ]; then
+            echo "Expected finance Hub read model to require authentication with 401, got $HUB_READ_MODEL_STATUS"
+            cat /tmp/nf-finance-hub-read-model.json || true
             exit 1
           fi
 

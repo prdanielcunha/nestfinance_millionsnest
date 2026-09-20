@@ -96,6 +96,10 @@
       "destination": "/api/finance-gateway?operation=ecosystem-overview"
     },
     {
+      "source": "/api/finance/intelligence/read-model",
+      "destination": "/api/finance-gateway?operation=finance-hub-read-model"
+    },
+    {
       "source": "/api/finance/entities/detail",
       "destination": "/api/finance-gateway?operation=entities-detail"
     },

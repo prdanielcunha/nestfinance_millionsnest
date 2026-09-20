@@ -100,6 +100,10 @@ export const NESTFINANCE_CLOUD_RUN_ROUTES = {
     "gateway": "finance",
     "operation": "ecosystem-overview"
   },
+  "/api/finance/intelligence/read-model": {
+    "gateway": "finance",
+    "operation": "finance-hub-read-model"
+  },
   "/api/finance/entities/detail": {
     "gateway": "finance",
     "operation": "entities-detail"
