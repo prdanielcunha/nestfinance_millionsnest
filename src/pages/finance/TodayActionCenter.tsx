@@ -372,6 +372,8 @@ export function TodayActionCenter() {
 
   const organizationId = accessState.organization?.id || '';
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
+  const canApproveTransactions = hasEffectiveCapability(accessState, 'finance.approve_for_posting');
   const canClassifyInbox =
     hasEffectiveCapability(accessState, 'finance.create_drafts') ||
     hasEffectiveCapability(accessState, 'finance.manage');
@@ -503,10 +505,18 @@ export function TodayActionCenter() {
           canReview: canReviewInbox,
         },
         signalSummary ? { items: signalSummary.items } : undefined,
+        {
+          canCreate,
+          canReview: canReviewTransactions,
+          canApprove: canApproveTransactions,
+        },
       ),
     [
+      canApproveTransactions,
       canClassifyInbox,
+      canCreate,
       canReviewInbox,
+      canReviewTransactions,
       countItems,
       effectiveInboxSummary.needsClassification,
       effectiveInboxSummary.pendingReview,
