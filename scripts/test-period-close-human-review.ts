@@ -25,7 +25,12 @@ verify(handler.includes("periodClosed: false"), 'human review never declares the
 verify(handler.includes("financialMutation: false"), 'human review explicitly declares no financial mutation');
 verify(handler.includes("closeMutation: false"), 'human review explicitly declares no close mutation');
 verify(handler.includes("transaction.set(reviewRef"), 'server writes the source-bound review record atomically');
-verify(handler.includes("transaction.set(context.repository.getAuditRef()"), 'server appends the review to canonical audit history');
+verify(
+  handler.includes('const auditRef = context.repository') &&
+    handler.includes('.getAuditRef()') &&
+    handler.includes('transaction.set(auditRef'),
+  'server appends the review to canonical audit history',
+);
 verify(handler.includes('stageFinanceFact'), 'clean human review emits a canonical operational fact');
 verify(handler.includes("eventType: 'REPORT_READY'"), 'clean human review emits REPORT_READY for ecosystem consumers');
 verify(handler.includes("officialReport: false"), 'REPORT_READY never claims an official accounting report');
