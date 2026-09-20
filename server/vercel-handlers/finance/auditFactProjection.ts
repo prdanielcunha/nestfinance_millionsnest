@@ -153,6 +153,38 @@ export function stageCanonicalAuditFact(
   );
 }
 
+export function stageCanonicalAuditRecord(
+  transaction: Transaction,
+  db: Firestore,
+  auditRef: FirebaseFirestore.DocumentReference,
+  auditData: Record<string, any>,
+  writeMode: 'set' | 'create' = 'set',
+) {
+  const organizationId =
+    typeof auditData.organizationId === 'string' ? auditData.organizationId : '';
+  const financeEntityId =
+    typeof auditData.financeEntityId === 'string' ? auditData.financeEntityId : '';
+  const auditEventId =
+    typeof auditData.eventId === 'string' && auditData.eventId
+      ? auditData.eventId
+      : auditRef.id;
+
+  if (!organizationId || !financeEntityId || !auditEventId) {
+    throw new Error('AUDIT_FACT_SOURCE_INVALID');
+  }
+
+  if (writeMode === 'create') transaction.create(auditRef, auditData);
+  else transaction.set(auditRef, auditData);
+
+  return stageCanonicalAuditFact(transaction, db, {
+    organizationId,
+    financeEntityId,
+    auditEventId,
+    auditRef: auditRef.path,
+    auditData,
+  });
+}
+
 export function buildAuditProjectionCoverageId(
   organizationId: string,
   financeEntityId: string,
