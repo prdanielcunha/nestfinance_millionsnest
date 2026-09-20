@@ -12,6 +12,7 @@ import {
   FilePenLine,
   Inbox,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import type { LedgerTransaction } from '../../../shared/finance/ledger/transaction';
@@ -21,10 +22,12 @@ import type {
 } from '../../../shared/intelligence/needsAttention.js';
 import { Button, Surface } from '@/src/components/foundation';
 import { EcosystemOverviewPanel } from '@/src/components/finance/EcosystemOverviewPanel';
+import { RoleWorkspacePanel } from '@/src/components/finance/RoleWorkspacePanel';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
 import {
   transactionsService,
   type TransactionsActionSummary,
@@ -311,6 +314,45 @@ const COPY: Record<Language, TodayCopy> = {
   },
 };
 
+const NO_VIEW_COPY: Record<Language, { title: string; text: string }> = {
+  PT: {
+    title: 'Seu acesso ao NestFinance está ativo',
+    text: 'Seu perfil ainda não inclui permissão para consultar dados financeiros. Um administrador da organização pode ajustar sua função sem recriar sua conta.',
+  },
+  EN: {
+    title: 'Your NestFinance access is active',
+    text: 'Your profile does not yet include permission to view finance data. An organization administrator can adjust your role without recreating your account.',
+  },
+  ES: {
+    title: 'Tu acceso a NestFinance está activo',
+    text: 'Tu perfil todavía no incluye permiso para consultar datos financieros. Un administrador de la organización puede ajustar tu función sin recrear tu cuenta.',
+  },
+};
+
+const CLEAR_PRIORITY_TEXT: Record<Language, Record<FinanceExperienceMode, string>> = {
+  PT: {
+    ecosystem: 'Não há uma ação financeira urgente nesta organização agora. Você pode acompanhar a operação ou voltar à visão do ecossistema.',
+    organization_admin: 'Não há nenhuma ação da equipe exigindo intervenção agora. Você pode acompanhar movimentações, relatórios e estrutura.',
+    review: 'Não há nada aguardando sua conferência ou aprovação agora.',
+    operation: 'Não há correções, rascunhos ou documentos pendentes para o seu perfil agora.',
+    read_only: 'Seu perfil é de consulta. Não há ações financeiras atribuídas a você.',
+  },
+  EN: {
+    ecosystem: 'There is no urgent finance action in this organization right now. You can monitor operations or return to the ecosystem view.',
+    organization_admin: 'There is no team action requiring intervention right now. You can monitor transactions, reports, and structure.',
+    review: 'There is nothing waiting for your review or approval right now.',
+    operation: 'There are no corrections, drafts, or documents pending for your profile right now.',
+    read_only: 'Your profile is read-only. No finance actions are assigned to you.',
+  },
+  ES: {
+    ecosystem: 'No hay una acción financiera urgente en esta organización ahora. Puedes acompañar la operación o volver a la visión del ecosistema.',
+    organization_admin: 'No hay acciones del equipo que requieran intervención ahora. Puedes acompañar movimientos, informes y estructura.',
+    review: 'No hay nada esperando tu revisión o aprobación ahora.',
+    operation: 'No hay correcciones, borradores ni documentos pendientes para tu perfil ahora.',
+    read_only: 'Tu perfil es de consulta. No hay acciones financieras asignadas a ti.',
+  },
+};
+
 const EMPTY_SUMMARY: TransactionsActionSummary = {
   returnedCorrections: 0,
   simpleDrafts: 0,
@@ -371,6 +413,8 @@ export function TodayActionCenter() {
   const copy = COPY[language];
 
   const organizationId = accessState.organization?.id || '';
+  const experienceMode = getFinanceExperienceMode(accessState);
+  const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
   const canApproveTransactions = hasEffectiveCapability(accessState, 'finance.approve_for_posting');
@@ -380,6 +424,10 @@ export function TodayActionCenter() {
   const canReviewInbox =
     hasEffectiveCapability(accessState, 'finance.review') ||
     hasEffectiveCapability(accessState, 'finance.manage');
+  const canManageFinance =
+    hasEffectiveCapability(accessState, 'finance.manage') ||
+    hasEffectiveCapability(accessState, 'organization.manage_entities');
+  const canCount = canCreate;
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
@@ -400,7 +448,7 @@ export function TodayActionCenter() {
   const [recentFailed, setRecentFailed] = useState(false);
 
   const loadSummary = useCallback(async () => {
-    if (!organizationId || !activeFinanceEntityId) return;
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
     setSummaryLoading(true);
     setSummaryFailed(false);
     try {
@@ -411,10 +459,10 @@ export function TodayActionCenter() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [activeFinanceEntityId, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   const loadCounts = useCallback(async () => {
-    if (!organizationId || !activeFinanceEntityId) return;
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
     setCountLoading(true);
     setCountFailed(false);
     try {
@@ -425,10 +473,10 @@ export function TodayActionCenter() {
     } finally {
       setCountLoading(false);
     }
-  }, [activeFinanceEntityId, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   const loadInbox = useCallback(async () => {
-    if (!organizationId || !activeFinanceEntityId) return;
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
     setInboxLoading(true);
     setInboxFailed(false);
     try {
@@ -444,10 +492,10 @@ export function TodayActionCenter() {
     } finally {
       setInboxLoading(false);
     }
-  }, [activeFinanceEntityId, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   const loadSignals = useCallback(async () => {
-    if (!organizationId || !activeFinanceEntityId) return;
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
     try {
       const result = await needsAttentionService.summary(organizationId, activeFinanceEntityId);
       setSignalSummary(result);
@@ -456,10 +504,10 @@ export function TodayActionCenter() {
       // Authoritative legacy readers remain responsible for completeness.
       setSignalSummary(null);
     }
-  }, [activeFinanceEntityId, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   const loadRecent = useCallback(async () => {
-    if (!organizationId || !activeFinanceEntityId) return;
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
     setRecentLoading(true);
     setRecentFailed(false);
     try {
@@ -470,10 +518,10 @@ export function TodayActionCenter() {
     } finally {
       setRecentLoading(false);
     }
-  }, [activeFinanceEntityId, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   useEffect(() => {
-    if (!organizationId || !activeFinanceEntityId) {
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) {
       setSummary(null);
       setCountItems([]);
       setInboxSummary(null);
@@ -488,7 +536,7 @@ export function TodayActionCenter() {
     void loadInbox();
     void loadSignals();
     void loadRecent();
-  }, [activeFinanceEntityId, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+  }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
@@ -509,11 +557,13 @@ export function TodayActionCenter() {
           canCreate,
           canReview: canReviewTransactions,
           canApprove: canApproveTransactions,
+          canCount,
         },
       ),
     [
       canApproveTransactions,
       canClassifyInbox,
+      canCount,
       canCreate,
       canReviewInbox,
       canReviewTransactions,
@@ -659,20 +709,114 @@ export function TodayActionCenter() {
       default:
         return {
           title: copy.clearTitle,
-          text: copy.clearText,
+          text: CLEAR_PRIORITY_TEXT[language][experienceMode],
           action: copy.openTransactions,
           route: APP_ROUTES.transactions,
           icon: Sparkles,
           iconClass: 'bg-semantic-success/10 text-semantic-success',
         };
     }
-  }, [copy, priority]);
+  }, [copy, experienceMode, language, priority]);
+
+  const workspaceSnapshot = useMemo(
+    () => ({
+      returnedCorrections: effectiveSummary.returnedCorrections,
+      drafts: effectiveSummary.simpleDrafts,
+      readyForReview: effectiveSummary.readyForReview,
+      approvedForPosting: effectiveSummary.approvedForPosting,
+      inboxNeedsClassification: effectiveInboxSummary.needsClassification,
+      inboxPendingReview: effectiveInboxSummary.pendingReview,
+      countDivergences: countItems.filter((item) => item.status === 'divergent').length,
+      countChecks: countItems.filter(
+        (item) => item.status === 'counting_b' || item.status === 'recounting',
+      ).length,
+    }),
+    [
+      countItems,
+      effectiveInboxSummary.needsClassification,
+      effectiveInboxSummary.pendingReview,
+      effectiveSummary.approvedForPosting,
+      effectiveSummary.readyForReview,
+      effectiveSummary.returnedCorrections,
+      effectiveSummary.simpleDrafts,
+    ],
+  );
+
+  const workspaceAuthority = {
+    canView: canViewFinance,
+    canCreate,
+    canReview: canReviewTransactions,
+    canApprove: canApproveTransactions,
+    canManage: canManageFinance,
+    canClassifyInbox,
+    canReviewInbox,
+    canCount,
+  };
+
+  const summaryItems = useMemo(() => {
+    const returned = {
+      id: 'returned',
+      label: copy.returned,
+      value: effectiveSummary.returnedCorrections,
+      emphasis: effectiveSummary.returnedCorrections > 0 ? 'text-semantic-warning' : 'text-text-primary',
+    };
+    const review = {
+      id: 'review',
+      label: copy.review,
+      value: effectiveSummary.readyForReview,
+      emphasis: effectiveSummary.readyForReview > 0 ? 'text-accent-primary' : 'text-text-primary',
+    };
+    const approved = {
+      id: 'approved',
+      label: copy.approved,
+      value: effectiveSummary.approvedForPosting,
+      emphasis: effectiveSummary.approvedForPosting > 0 ? 'text-semantic-success' : 'text-text-primary',
+    };
+    const drafts = {
+      id: 'drafts',
+      label: copy.drafts,
+      value: effectiveSummary.simpleDrafts,
+      emphasis: 'text-text-primary',
+    };
+
+    if (experienceMode === 'review') return [review, approved];
+    if (experienceMode === 'operation') return [returned, drafts];
+    return [returned, review, approved, drafts];
+  }, [
+    copy.approved,
+    copy.drafts,
+    copy.returned,
+    copy.review,
+    effectiveSummary.approvedForPosting,
+    effectiveSummary.readyForReview,
+    effectiveSummary.returnedCorrections,
+    effectiveSummary.simpleDrafts,
+    experienceMode,
+  ]);
 
   const prioritiesFailed = summaryFailed || countFailed || inboxFailed;
   const prioritiesLoading =
     (summaryLoading && !summary) ||
     (countLoading && countItems.length === 0) ||
     (inboxLoading && !inboxSummary);
+
+  if (!canViewFinance) {
+    const noViewCopy = NO_VIEW_COPY[language];
+    return (
+      <div className="space-y-6 pb-4">
+        <EcosystemOverviewPanel />
+        <div className="mx-auto flex min-h-[55vh] max-w-2xl items-center justify-center">
+          <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-secondary text-text-secondary">
+              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{noViewCopy.title}</h1>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{noViewCopy.text}</p>
+          </Surface>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeFinanceEntityId) {
     return (
@@ -700,18 +844,12 @@ export function TodayActionCenter() {
     <div className="space-y-6 pb-4">
       <EcosystemOverviewPanel />
 
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-primary">{copy.eyebrow}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] text-text-primary sm:text-3xl">{copy.title}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{copy.subtitle}</p>
-        </div>
-        {activeFinanceEntityName ? (
-          <span className="self-start rounded-xl border border-border-subtle bg-surface-secondary px-3 py-2 text-xs font-medium text-text-secondary sm:self-auto">
-            {activeFinanceEntityName}
-          </span>
-        ) : null}
-      </header>
+      <RoleWorkspacePanel
+        mode={experienceMode}
+        entityName={activeFinanceEntityName}
+        snapshot={workspaceSnapshot}
+        authority={workspaceAuthority}
+      />
 
       {prioritiesFailed ? (
         <Surface variant="elevated" radius="lg" className="p-5" role="alert">
@@ -836,13 +974,8 @@ export function TodayActionCenter() {
           ) : null}
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[
-            { label: copy.returned, value: effectiveSummary.returnedCorrections, emphasis: effectiveSummary.returnedCorrections > 0 ? 'text-semantic-warning' : 'text-text-primary' },
-            { label: copy.review, value: effectiveSummary.readyForReview, emphasis: effectiveSummary.readyForReview > 0 ? 'text-accent-primary' : 'text-text-primary' },
-            { label: copy.approved, value: effectiveSummary.approvedForPosting, emphasis: effectiveSummary.approvedForPosting > 0 ? 'text-semantic-success' : 'text-text-primary' },
-            { label: copy.drafts, value: effectiveSummary.simpleDrafts, emphasis: 'text-text-primary' },
-          ].map((item) => (
-            <Surface key={item.label} variant="secondary" radius="lg" className="p-4">
+          {summaryItems.map((item) => (
+            <Surface key={item.id} variant="secondary" radius="lg" className="p-4">
               <div className={`nf-financial-number text-2xl font-semibold tracking-tight ${item.emphasis}`}>{item.value}</div>
               <div className="mt-1 text-xs font-medium text-text-muted">{item.label}</div>
             </Surface>
