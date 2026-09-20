@@ -10,6 +10,7 @@ import { validateTransactionCore, LedgerTransaction } from '../../../shared/fina
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -456,7 +457,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let action = 'transaction.updated';
       let eventType = 'draft_updated';
 
-      t.set(context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
+      stageCanonicalAuditRecord(t, db, context.repository.getAuditRef().doc(auditId), sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,
