@@ -21,6 +21,7 @@ import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuar
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
 import { TransactionSavedViews } from '@/src/components/finance/TransactionSavedViews';
+import { TransactionInspector } from '@/src/components/finance/TransactionInspector';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
@@ -406,6 +407,7 @@ function TransactionsListContent() {
 
   const directionFilter = searchParams.get('direction') || 'all';
   const statusFilter = searchParams.get('status') || 'all';
+  const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
 
   const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
@@ -486,6 +488,18 @@ function TransactionsListContent() {
     if (filters.status === 'all') next.delete('status');
     else next.set('status', filters.status);
     setSearchParams(next);
+  };
+
+  const openInspector = (transactionId: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('inspect', transactionId);
+    setSearchParams(next, { replace: true });
+  };
+
+  const closeInspector = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('inspect');
+    setSearchParams(next, { replace: true });
   };
 
   const reloadFromStart = () => {
@@ -743,7 +757,7 @@ function TransactionsListContent() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => navigate(APP_ROUTES.transactionDetail.replace(':transactionId', item.id))}
+                    onClick={() => openInspector(item.id)}
                     className="nf-interactive group w-full rounded-2xl border border-border-subtle bg-surface-elevated p-4 text-left hover:border-border-strong hover:bg-surface-secondary sm:p-5"
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
@@ -811,6 +825,11 @@ function TransactionsListContent() {
           ) : null}
         </div>
       </main>
+
+      <TransactionInspector
+        transactionId={inspectedTransactionId}
+        onClose={closeInspector}
+      />
     </div>
   );
 }
