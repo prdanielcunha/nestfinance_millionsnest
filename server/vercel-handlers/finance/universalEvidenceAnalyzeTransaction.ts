@@ -14,6 +14,7 @@ import {
   type DocumentTransactionAnalysis,
 } from '../../../shared/finance/documentTransactionIntelligence.js';
 import { normalizeCnpj } from '../../../shared/finance/taxId.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
@@ -255,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const auditId = generateEvidenceAuditId();
-        transaction.create(context.repository.getAuditRef().doc(auditId), {
+        stageCanonicalAuditCreate(transaction, db, context.repository.getAuditRef().doc(auditId), {
           eventId: auditId,
           organizationId,
           financeEntityId,

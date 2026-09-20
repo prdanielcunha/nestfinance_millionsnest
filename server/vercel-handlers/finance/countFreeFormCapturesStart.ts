@@ -16,6 +16,7 @@ import {
 import { buildCountCaptureObjectPaths, generateCountCaptureAuditId, generateCountCaptureId } from './countCaptureHelpers.js';
 import { deriveOpenCountStage } from './countCaptureContext.js';
 import { getCountCaptureStorageAdapter } from './countCaptureStorage.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
@@ -129,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
-        transaction.create(context.repository.getAuditRef().doc(auditId), {
+        stageCanonicalAuditCreate(transaction, db, context.repository.getAuditRef().doc(auditId), {
           eventId: auditId,
           organizationId,
           financeEntityId,

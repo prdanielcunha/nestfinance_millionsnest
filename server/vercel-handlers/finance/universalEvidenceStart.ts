@@ -6,6 +6,7 @@ import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance
 import { isSha256, isUniversalEvidenceMime, isUniversalEvidenceSize, isUniversalEvidenceSourceKind } from '../../../shared/finance/universalEvidence.js';
 import { cleanFilename, EVIDENCE_UPLOAD_TTL_MS, evidenceObjectPath, generateEvidenceAuditId, generateEvidenceId } from './universalEvidenceHelpers.js';
 import { getUniversalEvidenceStorageAdapter } from './universalEvidenceStorage.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -28,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdByUid: uid, createdAt: FieldValue.serverTimestamp(), schemaVersion: 1, version: 1,
       });
       const auditId = generateEvidenceAuditId();
-      transaction.create(context.repository.getAuditRef().doc(auditId), { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: 'evidence.intake_started', requestId, idempotencyKey, afterHash: payloadHash, metadata: { sourceKind, declaredMimeType, byteSize, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
+      stageCanonicalAuditCreate(transaction, db, context.repository.getAuditRef().doc(auditId), { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: 'evidence.intake_started', requestId, idempotencyKey, afterHash: payloadHash, metadata: { sourceKind, declaredMimeType, byteSize, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
       return { evidenceId, originalPath, version: 1, processingState: 'awaiting_upload' as const };
     });
     const upload = await getUniversalEvidenceStorageAdapter().createUploadUrl(result.originalPath, declaredMimeType, EVIDENCE_UPLOAD_TTL_MS);

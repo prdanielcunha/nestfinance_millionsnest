@@ -12,6 +12,7 @@ import {
 } from '../../../shared/finance/countCapture.js';
 import { generateCountCaptureAuditId } from './countCaptureHelpers.js';
 import { assertCountCaptureStageOpen, resolveCountCaptureContext } from './countCaptureContext.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -81,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updatedByUid: uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
-      transaction.set(context.repository.getAuditRef().doc(auditId), {
+      stageCanonicalAuditRecord(transaction, db, context.repository.getAuditRef().doc(auditId), {
         eventId: auditId,
         organizationId,
         financeEntityId,

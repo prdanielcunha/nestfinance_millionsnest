@@ -10,6 +10,7 @@ import {
   isValidAccountId
 } from '../../../api/_lib/financeIdentity.js';
 import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
+import { stageCanonicalAuditCreate } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -345,6 +346,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditData = {
           organizationId,
+          financeEntityId,
           actorUid: uid,
           action: 'finance.account.updated',
           entityType: 'financeAccount',
@@ -355,7 +357,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
         };
 
-        t.create(auditRef, auditData);
+        stageCanonicalAuditCreate(t, firestore, auditRef, auditData);
 
         const finalAccountType = accountUpdateData.type || accountData.type;
         return {

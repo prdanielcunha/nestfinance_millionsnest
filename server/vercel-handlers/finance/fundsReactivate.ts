@@ -5,6 +5,7 @@ import { hasEffectiveCapability, hasFinanceEntityScope } from './accessHelpers.j
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { isValidFundId } from '../../../api/_lib/financeIdentity.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -135,6 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditData = {
           organizationId,
+          financeEntityId,
           actorUid: uid,
           action: 'finance.fund.reactivated',
           entityType: 'financeFund',
@@ -144,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
         };
 
-        t.create(auditRef, auditData);
+        stageCanonicalAuditCreate(t, firestore, auditRef, auditData);
 
         return {
           fund: {

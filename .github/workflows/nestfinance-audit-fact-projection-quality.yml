@@ -8,6 +8,12 @@ on:
       - "server/vercel-handlers/finance/auditFactProjectionPreview.ts"
       - "server/vercel-handlers/finance/auditFactProjectionApply.ts"
       - "server/vercel-handlers/finance/auditFactProjectionVerify.ts"
+      - "server/vercel-handlers/finance/transactions*.ts"
+      - "server/vercel-handlers/finance/count*.ts"
+      - "server/vercel-handlers/finance/universalEvidence*.ts"
+      - "server/vercel-handlers/finance/reconciliation*.ts"
+      - "server/vercel-handlers/finance/periodCloseReviewConfirm.ts"
+      - "scripts/test-audit-live-emission.ts"
       - "server/vercel-handlers/finance/factStream.ts"
       - "api/finance-gateway.ts"
       - "scripts/check-api-contracts.mjs"
@@ -24,6 +30,12 @@ on:
       - "server/vercel-handlers/finance/auditFactProjectionPreview.ts"
       - "server/vercel-handlers/finance/auditFactProjectionApply.ts"
       - "server/vercel-handlers/finance/auditFactProjectionVerify.ts"
+      - "server/vercel-handlers/finance/transactions*.ts"
+      - "server/vercel-handlers/finance/count*.ts"
+      - "server/vercel-handlers/finance/universalEvidence*.ts"
+      - "server/vercel-handlers/finance/reconciliation*.ts"
+      - "server/vercel-handlers/finance/periodCloseReviewConfirm.ts"
+      - "scripts/test-audit-live-emission.ts"
       - "server/vercel-handlers/finance/factStream.ts"
       - "api/finance-gateway.ts"
       - "scripts/check-api-contracts.mjs"
@@ -58,6 +70,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Verify audit projection privacy contract
         run: npm run test:audit-fact-projection
+      - name: Verify live audit emission coverage
+        run: npm run test:audit-live-emission
       - name: Verify API gateway inventory
         run: npm run check:api-contracts
       - name: TypeScript lint and typecheck

@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageFinanceSignalOpen } from './signalProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { calculateCountEntriesTotalCents, compareCountEntries } from '../../../shared/finance/count.js';
@@ -155,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             version: nextSessionVersion,
             updatedAt: FieldValue.serverTimestamp(),
           });
-          transaction.set(sessionAuditRef, {
+          stageCanonicalAuditRecord(transaction, db, sessionAuditRef, {
             eventId: sessionAuditId,
             organizationId,
             financeEntityId,
@@ -234,7 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             version: nextSessionVersion,
             updatedAt: FieldValue.serverTimestamp(),
           });
-          transaction.set(sessionAuditRef, {
+          stageCanonicalAuditRecord(transaction, db, sessionAuditRef, {
             eventId: sessionAuditId,
             organizationId,
             financeEntityId,
@@ -311,7 +312,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           updatedByUid: uid,
           updatedAt: FieldValue.serverTimestamp(),
         });
-        transaction.set(captureAuditRef, {
+        stageCanonicalAuditRecord(transaction, db, captureAuditRef, {
           eventId: captureAuditId,
           organizationId,
           financeEntityId,
