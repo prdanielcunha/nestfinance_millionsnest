@@ -3,7 +3,7 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks, Search } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
@@ -16,6 +16,8 @@ import {
 } from '@/src/services/directEntryService';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { Button } from '@/src/components/foundation';
+import { FinanceCommandPalette } from '@/src/components/finance/FinanceCommandPalette';
+import type { FinancePaletteCommand } from '@/src/lib/financeCommandPaletteModel';
 
 export type NavigationItem = {
   id: string;
@@ -50,6 +52,12 @@ const SHELL_COPY: Record<Language, {
   switchOrganizationText: string;
   switchOrganizationFailed: string;
   close: string;
+  commandOpen: string;
+  commandTitle: string;
+  commandPlaceholder: string;
+  commandEmpty: string;
+  commandNavigation: string;
+  commandActions: string;
 }> = {
   PT: {
     profile: 'Perfil',
@@ -63,6 +71,12 @@ const SHELL_COPY: Record<Language, {
     switchOrganizationText: 'Você continuará no NestFinance. O acesso será validado novamente antes da troca.',
     switchOrganizationFailed: 'Não foi possível carregar suas organizações agora.',
     close: 'Fechar',
+    commandOpen: 'Ir para…',
+    commandTitle: 'Ir para ou agir',
+    commandPlaceholder: 'Buscar área ou ação…',
+    commandEmpty: 'Nenhum destino encontrado.',
+    commandNavigation: 'Navegação',
+    commandActions: 'Ações rápidas',
   },
   EN: {
     profile: 'Profile',
@@ -76,6 +90,12 @@ const SHELL_COPY: Record<Language, {
     switchOrganizationText: 'You will stay in NestFinance. Access is revalidated before switching.',
     switchOrganizationFailed: 'Your organizations could not be loaded right now.',
     close: 'Close',
+    commandOpen: 'Go to…',
+    commandTitle: 'Go to or act',
+    commandPlaceholder: 'Search area or action…',
+    commandEmpty: 'No destination found.',
+    commandNavigation: 'Navigation',
+    commandActions: 'Quick actions',
   },
   ES: {
     profile: 'Perfil',
@@ -89,6 +109,12 @@ const SHELL_COPY: Record<Language, {
     switchOrganizationText: 'Seguirás en NestFinance. El acceso se vuelve a validar antes del cambio.',
     switchOrganizationFailed: 'No fue posible cargar tus organizaciones ahora.',
     close: 'Cerrar',
+    commandOpen: 'Ir a…',
+    commandTitle: 'Ir o actuar',
+    commandPlaceholder: 'Buscar área o acción…',
+    commandEmpty: 'No se encontró ningún destino.',
+    commandNavigation: 'Navegación',
+    commandActions: 'Acciones rápidas',
   },
 };
 
@@ -178,6 +204,7 @@ function ShellLayoutInner() {
   const experienceMode = getFinanceExperienceMode(accessState);
 
   const [fabOpen, setFabOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [organizationSwitcherOpen, setOrganizationSwitcherOpen] = useState(false);
   const [organizationSwitcherLoading, setOrganizationSwitcherLoading] = useState(false);
   const [organizationSwitcherError, setOrganizationSwitcherError] = useState(false);
@@ -187,7 +214,20 @@ function ShellLayoutInner() {
 
   useEffect(() => {
     setFabOpen(false);
+    setCommandPaletteOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const onCommandKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen((current) => !current);
+      }
+    };
+
+    document.addEventListener('keydown', onCommandKeyDown);
+    return () => document.removeEventListener('keydown', onCommandKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!fabOpen) return;
@@ -257,11 +297,15 @@ function ShellLayoutInner() {
     }
   };
 
+  const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
+  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canReview = hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']);
+  const canManage = hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']);
   const navigationProfile = buildFinanceNavigation(experienceMode, {
-    canView: hasEffectiveCapability(accessState, 'finance.view'),
-    canCreate: hasEffectiveCapability(accessState, 'finance.create_drafts'),
-    canReview: hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']),
-    canManage: hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']),
+    canView: canViewFinance,
+    canCreate,
+    canReview,
+    canManage,
   });
   const visibleNavigation = CANONICAL_NAVIGATION.filter(
     (item) => !item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities),
@@ -272,6 +316,20 @@ function ShellLayoutInner() {
   const moreNavigation = navigationProfile.more
     .map((id) => visibleNavigation.find((item) => item.id === id))
     .filter((item): item is NavigationItem => Boolean(item));
+
+  const navigationCommands: FinancePaletteCommand[] = [...primaryNavigation, ...moreNavigation].map((item) => ({
+    id: `navigate:${item.id}`,
+    label: t(item.labelKey),
+    route: item.route,
+    kind: 'navigation' as const,
+  }));
+  const actionCommands: FinancePaletteCommand[] = canCreate ? [
+    { id: 'action:income', label: t('shortcut_income'), route: `${APP_ROUTES.transactionCreate}?direction=income`, kind: 'action' as const },
+    { id: 'action:expense', label: t('shortcut_expense'), route: `${APP_ROUTES.transactionCreate}?direction=expense`, kind: 'action' as const },
+    { id: 'action:transfer', label: t('shortcut_transfer'), route: `${APP_ROUTES.transactionCreate}?direction=transfer`, kind: 'action' as const },
+    { id: 'action:capture', label: copy.capture, route: APP_ROUTES.universalCapture, kind: 'action' as const },
+  ] : [];
+  const commandPaletteCommands = [...navigationCommands, ...actionCommands];
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -304,6 +362,18 @@ function ShellLayoutInner() {
               </button>
             ) : null}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setCommandPaletteOpen(true)}
+            className="nf-interactive mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl border border-border-subtle bg-background-base px-3 text-left text-sm font-medium text-text-secondary hover:border-border-strong hover:text-text-primary"
+          >
+            <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{copy.commandOpen}</span>
+            <kbd className="rounded-md border border-border-subtle bg-surface-secondary px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">
+              ⌘K
+            </kbd>
+          </button>
 
           <nav className="space-y-1" aria-label={t('shell_principal')}>
             <div className="mb-2">
@@ -412,7 +482,7 @@ function ShellLayoutInner() {
         </div>
       </main>
 
-      {hasEffectiveCapability(accessState, 'finance.create_drafts') &&
+      {canCreate &&
         !location.pathname.includes('/finance/transactions/new') &&
         !location.pathname.includes('/finance/transactions/edit') &&
         !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
@@ -513,6 +583,19 @@ function ShellLayoutInner() {
           </NavLink>
         ) : null}
       </nav>
+
+      <FinanceCommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        commands={commandPaletteCommands}
+        copy={{
+          title: copy.commandTitle,
+          placeholder: copy.commandPlaceholder,
+          empty: copy.commandEmpty,
+          navigation: copy.commandNavigation,
+          actions: copy.commandActions,
+        }}
+      />
 
       {organizationSwitcherOpen ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-background-base/80 p-4 backdrop-blur-sm sm:items-center">

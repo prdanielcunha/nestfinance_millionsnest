@@ -8,15 +8,18 @@ on:
       - "src/pages/finance/todayPriorityModel.ts"
       - "src/pages/finance/todayWorkspaceModel.ts"
       - "src/components/finance/RoleWorkspacePanel.tsx"
+      - "src/components/finance/FinanceCommandPalette.tsx"
       - "src/lib/financeExperience.ts"
       - "src/lib/permissions.ts"
       - "src/lib/financeNavigationModel.ts"
+      - "src/lib/financeCommandPaletteModel.ts"
       - "src/app/layouts/ShellLayout.tsx"
       - "src/pages/finance/MorePage.tsx"
       - "src/contexts/LanguageContext.tsx"
       - "scripts/test-today-priority-model.ts"
       - "scripts/test-personalized-workspaces.ts"
       - "scripts/test-adaptive-finance-navigation.ts"
+      - "scripts/test-finance-command-palette.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
@@ -27,15 +30,18 @@ on:
       - "src/pages/finance/todayPriorityModel.ts"
       - "src/pages/finance/todayWorkspaceModel.ts"
       - "src/components/finance/RoleWorkspacePanel.tsx"
+      - "src/components/finance/FinanceCommandPalette.tsx"
       - "src/lib/financeExperience.ts"
       - "src/lib/permissions.ts"
       - "src/lib/financeNavigationModel.ts"
+      - "src/lib/financeCommandPaletteModel.ts"
       - "src/app/layouts/ShellLayout.tsx"
       - "src/pages/finance/MorePage.tsx"
       - "src/contexts/LanguageContext.tsx"
       - "scripts/test-today-priority-model.ts"
       - "scripts/test-personalized-workspaces.ts"
       - "scripts/test-adaptive-finance-navigation.ts"
+      - "scripts/test-finance-command-palette.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
@@ -64,6 +70,9 @@ jobs:
 
       - name: Verify adaptive role navigation
         run: npm run test:adaptive-navigation
+
+      - name: Verify professional command palette
+        run: npm run test:command-palette
 
       - name: TypeScript lint and typecheck
         run: npm run lint
