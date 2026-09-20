@@ -48,6 +48,7 @@ import {
 } from '../../../shared/finance/reconciliationLineLock.js';
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import {
   RECONCILIATION_SESSION_SCHEMA_VERSION,
   type ReconciliationSessionRecord,
@@ -631,7 +632,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditId = generateAuditId();
         const auditRef = context.repository.getAuditRef().doc(auditId);
-        t.set(auditRef, sanitizeFirestoreObject({
+        stageCanonicalAuditRecord(t, db, auditRef, sanitizeFirestoreObject({
           eventId: auditId,
           organizationId,
           financeEntityId,
