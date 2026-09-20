@@ -26,7 +26,12 @@ verify(handler.includes("financialMutation: false"), 'human review explicitly de
 verify(handler.includes("closeMutation: false"), 'human review explicitly declares no close mutation');
 verify(handler.includes("transaction.set(reviewRef"), 'server writes the source-bound review record atomically');
 verify(handler.includes("transaction.set(context.repository.getAuditRef()"), 'server appends the review to canonical audit history');
-verify(!handler.includes('stageFinanceFact'), 'review confirmation does not fabricate a financial fact');
+verify(handler.includes('stageFinanceFact'), 'clean human review emits a canonical operational fact');
+verify(handler.includes("eventType: 'REPORT_READY'"), 'clean human review emits REPORT_READY for ecosystem consumers');
+verify(handler.includes("officialReport: false"), 'REPORT_READY never claims an official accounting report');
+verify(handler.includes("periodClosed: false"), 'REPORT_READY never claims the period is closed');
+verify(handler.includes("{ kind: 'record', ref: reviewRef.path, version: 1 }"), 'REPORT_READY is source-backed by the immutable review');
+verify(handler.includes("{ kind: 'audit', ref: auditRef.path }"), 'REPORT_READY is source-backed by canonical audit evidence');
 verify(!handler.includes('stageFinanceSignal'), 'review confirmation does not create an intelligence signal');
 for (const forbidden of ['financeJournalEntries', 'financeBalances', 'financeAggregates']) {
   verify(!handler.includes(forbidden), 'review handler never touches ' + forbidden);
