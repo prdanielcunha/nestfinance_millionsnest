@@ -64,6 +64,7 @@ jobs:
           npm run test:transaction-inspector
           npm run test:transaction-saved-views
           npm run test:transaction-combined-filters
+          npm run test:transaction-universal-search
           npm run test:firebase-infra
           npm run test:certification-gates
           npm run build

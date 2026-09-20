@@ -11,6 +11,7 @@ import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/li
 import { sanitizeFirestoreObject } from './sanitizeFirestoreObject.js';
 import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
+import { stageTransactionSearchIndex } from './transactionSearchIndex.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
   try {
@@ -442,6 +443,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sanitizedRecord = sanitizeFirestoreObject(newRecord);
 
       t.update(txRef, sanitizedRecord);
+      stageTransactionSearchIndex(t, db, {
+        organizationId,
+        financeEntityId,
+        transactionId,
+        transactionData: sanitizedRecord,
+      });
 
       for (const aId of allocRefsToDelete) {
         t.delete(context.repository.getAllocationsRef().doc(aId));

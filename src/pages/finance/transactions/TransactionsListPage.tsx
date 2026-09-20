@@ -11,9 +11,11 @@ import {
   Filter,
   Plus,
   RefreshCw,
+  Search,
   ShieldCheck,
   ShieldX,
   WalletCards,
+  X,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -91,6 +93,13 @@ type TransactionsCopy = {
   category: string;
   noDescription: string;
   returnedHint: string;
+  searchPlaceholder: string;
+  searchTooShort: string;
+  searchEmptyTitle: string;
+  searchEmptyText: string;
+  searchFallbackHint: string;
+  searchTruncatedHint: string;
+  clearSearch: string;
 };
 
 const COPY: Record<Language, TransactionsCopy> = {
@@ -153,6 +162,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Categoria',
     noDescription: 'Movimentação sem descrição',
     returnedHint: 'Esta movimentação voltou para você ajustar antes de seguir.',
+    searchPlaceholder: 'Buscar descrição, pessoa, conta, método ou código',
+    searchTooShort: 'Digite pelo menos 2 caracteres para pesquisar.',
+    searchEmptyTitle: 'Nenhum resultado para esta busca',
+    searchEmptyText: 'Tente outro termo ou ajuste os filtros.',
+    searchFallbackHint: 'Busca segura no histórico enquanto o índice é preparado.',
+    searchTruncatedHint: 'Há mais resultados. Refine o termo ou os filtros para encontrar com precisão.',
+    clearSearch: 'Limpar busca',
   },
   EN: {
     title: 'Transactions',
@@ -213,6 +229,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Category',
     noDescription: 'Transaction without a description',
     returnedHint: 'This transaction was returned so you can adjust it before it continues.',
+    searchPlaceholder: 'Search description, person, account, method, or code',
+    searchTooShort: 'Type at least 2 characters to search.',
+    searchEmptyTitle: 'No results for this search',
+    searchEmptyText: 'Try another term or adjust the filters.',
+    searchFallbackHint: 'Safe historical search while the index is being prepared.',
+    searchTruncatedHint: 'There are more results. Refine the term or filters for precision.',
+    clearSearch: 'Clear search',
   },
   ES: {
     title: 'Movimientos',
@@ -273,6 +296,13 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Categoría',
     noDescription: 'Movimiento sin descripción',
     returnedHint: 'Este movimiento volvió para que lo ajustes antes de continuar.',
+    searchPlaceholder: 'Buscar descripción, persona, cuenta, método o código',
+    searchTooShort: 'Escribe al menos 2 caracteres para buscar.',
+    searchEmptyTitle: 'No hay resultados para esta búsqueda',
+    searchEmptyText: 'Prueba otro término o ajusta los filtros.',
+    searchFallbackHint: 'Búsqueda segura en el historial mientras se prepara el índice.',
+    searchTruncatedHint: 'Hay más resultados. Refina el término o los filtros para mayor precisión.',
+    clearSearch: 'Limpiar búsqueda',
   },
 };
 
@@ -434,7 +464,7 @@ function TransactionsListContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { listTransactions } = useTransactions();
+  const { listTransactions, searchTransactions } = useTransactions();
   const { accessState } = useAuth();
   const { language } = useLanguage();
   const copy = COPY[language];
@@ -446,12 +476,20 @@ function TransactionsListContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const [searchMeta, setSearchMeta] = useState<{
+    searchMode: 'index' | 'canonical_fallback';
+    indexCertified: boolean;
+    sourceTruncated: boolean;
+    resultTruncated: boolean;
+  } | null>(null);
 
   const directionFilter = searchParams.get('direction') || 'all';
   const statusFilter = searchParams.get('status') || 'all';
   const fromFilter = searchParams.get('from') || '';
   const toFilter = searchParams.get('to') || '';
   const orderFilter = searchParams.get('order') === 'oldest' ? 'oldest' : 'newest';
+  const searchQuery = searchParams.get('q') || '';
+  const normalizedSearchQuery = searchQuery.trim();
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
 
@@ -472,13 +510,30 @@ function TransactionsListContent() {
       if (occurredTo) filters.occurredTo = occurredTo;
       filters.order = orderFilter;
 
-      const res = await listTransactions(filters, cursor, 25);
+      if (normalizedSearchQuery.length >= 2) {
+        const res = await searchTransactions(normalizedSearchQuery, filters, 50);
 
-      if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
+        if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
 
-      setItems((previous) => cursor ? [...previous, ...res.items] : res.items);
-      setNextCursor(res.nextCursor);
-      setHasMore(res.hasMore);
+        setItems(res.items);
+        setNextCursor(undefined);
+        setHasMore(false);
+        setSearchMeta({
+          searchMode: res.searchMode,
+          indexCertified: res.indexCertified,
+          sourceTruncated: res.sourceTruncated,
+          resultTruncated: res.resultTruncated,
+        });
+      } else {
+        const res = await listTransactions(filters, cursor, 25);
+
+        if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
+
+        setItems((previous) => cursor ? [...previous, ...res.items] : res.items);
+        setNextCursor(res.nextCursor);
+        setHasMore(res.hasMore);
+        setSearchMeta(null);
+      }
     } catch (error: any) {
       if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
 
@@ -506,18 +561,46 @@ function TransactionsListContent() {
 
   useEffect(() => {
     const abortController = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     setItems([]);
     setNextCursor(undefined);
     setHasMore(true);
+    setSearchMeta(null);
 
-    if (activeFinanceEntityId) {
-      void loadData(undefined, abortController.signal, ++epochRef.current);
-    } else {
+    if (!activeFinanceEntityId) {
       setLoading(false);
+      return () => abortController.abort();
     }
 
-    return () => abortController.abort();
-  }, [activeFinanceEntityId, directionFilter, statusFilter, fromFilter, toFilter, orderFilter]);
+    if (normalizedSearchQuery.length === 1) {
+      setLoading(false);
+      setHasMore(false);
+      return () => abortController.abort();
+    }
+
+    const currentEpoch = ++epochRef.current;
+    if (normalizedSearchQuery.length >= 2) {
+      setLoading(true);
+      timeoutId = setTimeout(() => {
+        void loadData(undefined, abortController.signal, currentEpoch);
+      }, 280);
+    } else {
+      void loadData(undefined, abortController.signal, currentEpoch);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      abortController.abort();
+    };
+  }, [
+    activeFinanceEntityId,
+    directionFilter,
+    statusFilter,
+    fromFilter,
+    toFilter,
+    orderFilter,
+    normalizedSearchQuery,
+  ]);
 
   const updateFilter = (key: 'direction' | 'status', value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -552,6 +635,13 @@ function TransactionsListContent() {
     next.delete('from');
     next.delete('to');
     setSearchParams(next);
+  };
+
+  const updateSearch = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value) next.delete('q');
+    else next.set('q', value.slice(0, 64));
+    setSearchParams(next, { replace: true });
   };
 
   const workspaceFilters: TransactionWorkspaceFilters = {
@@ -698,6 +788,41 @@ function TransactionsListContent() {
               ) : null}
             </div>
           </header>
+
+          <Surface variant="glass" radius="lg" className="p-4 sm:p-5">
+            <label className="relative block">
+              <span className="sr-only">{copy.searchPlaceholder}</span>
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-text-muted" aria-hidden="true" />
+              <input
+                type="search"
+                value={searchQuery}
+                maxLength={64}
+                autoComplete="off"
+                placeholder={copy.searchPlaceholder}
+                onChange={(event) => updateSearch(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-surface-elevated pl-10 pr-11 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => updateSearch('')}
+                  aria-label={copy.clearSearch}
+                  className="nf-interactive absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-text-muted hover:bg-surface-secondary hover:text-text-primary"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
+            </label>
+
+            {normalizedSearchQuery.length === 1 ? (
+              <p className="mt-2 text-xs text-text-muted">{copy.searchTooShort}</p>
+            ) : searchMeta?.searchMode === 'canonical_fallback' ? (
+              <p className="mt-2 text-xs text-text-muted">{copy.searchFallbackHint}</p>
+            ) : null}
+            {searchMeta?.sourceTruncated || searchMeta?.resultTruncated ? (
+              <p className="mt-2 text-xs font-medium text-semantic-warning">{copy.searchTruncatedHint}</p>
+            ) : null}
+          </Surface>
 
           <TransactionSavedViews
             filters={workspaceFilters}
@@ -873,8 +998,12 @@ function TransactionsListContent() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-text-muted">
                 <FilePenLine className="h-6 w-6" aria-hidden="true" />
               </div>
-              <h2 className="text-lg font-semibold text-text-primary">{emptyState.title}</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-secondary">{emptyState.text}</p>
+              <h2 className="text-lg font-semibold text-text-primary">
+                {normalizedSearchQuery.length >= 2 ? copy.searchEmptyTitle : emptyState.title}
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-secondary">
+                {normalizedSearchQuery.length >= 2 ? copy.searchEmptyText : emptyState.text}
+              </p>
               {hasEffectiveCapability(accessState, 'finance.create_drafts') && statusFilter === 'all' ? (
                 <Button
                   variant="primary"
