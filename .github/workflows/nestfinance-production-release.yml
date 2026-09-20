@@ -60,6 +60,7 @@ jobs:
           npm run test:personalized-workspaces
           npm run test:adaptive-navigation
           npm run test:command-palette
+          npm run test:transaction-inspector
           npm run test:firebase-infra
           npm run test:certification-gates
           npm run build
