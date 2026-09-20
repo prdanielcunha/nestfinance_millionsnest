@@ -33,6 +33,7 @@ export type TodayTransactionAuthority = {
   canCreate: boolean;
   canReview: boolean;
   canApprove: boolean;
+  canCount: boolean;
 };
 
 export type TodayPriority = {
@@ -92,10 +93,11 @@ export function chooseTodayPriority(
     canCreate: true,
     canReview: true,
     canApprove: true,
+    canCount: true,
   },
 ): TodayPriority {
   const divergent = counts.filter((item) => item.status === 'divergent');
-  if (divergent.length > 0) {
+  if (transactionAuthority.canCount && divergent.length > 0) {
     const divergentIds = new Set(divergent.map((item) => item.id));
     return withSignal(
       {
@@ -117,7 +119,7 @@ export function chooseTodayPriority(
   const activeIndependentChecks = counts.filter(
     (item) => item.status === 'counting_b' || item.status === 'recounting',
   );
-  if (activeIndependentChecks.length > 0) {
+  if (transactionAuthority.canCount && activeIndependentChecks.length > 0) {
     return {
       kind: 'count_check',
       count: activeIndependentChecks.length,

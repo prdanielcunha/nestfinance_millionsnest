@@ -1,0 +1,59 @@
+name: NestFinance Personalized Workspace Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/pages/finance/TodayActionCenter.tsx"
+      - "src/pages/finance/todayPriorityModel.ts"
+      - "src/pages/finance/todayWorkspaceModel.ts"
+      - "src/components/finance/RoleWorkspacePanel.tsx"
+      - "src/lib/financeExperience.ts"
+      - "src/lib/permissions.ts"
+      - "scripts/test-today-priority-model.ts"
+      - "scripts/test-personalized-workspaces.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/pages/finance/TodayActionCenter.tsx"
+      - "src/pages/finance/todayPriorityModel.ts"
+      - "src/pages/finance/todayWorkspaceModel.ts"
+      - "src/components/finance/RoleWorkspacePanel.tsx"
+      - "src/lib/financeExperience.ts"
+      - "src/lib/permissions.ts"
+      - "scripts/test-today-priority-model.ts"
+      - "scripts/test-personalized-workspaces.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/nestfinance-personalized-workspace-quality.yml"
+
+jobs:
+  personalized-workspace-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify personalized workspace model
+        run: npm run test:personalized-workspaces
+
+      - name: Verify Today priority authority
+        run: npm run test:today-priority-model
+
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
