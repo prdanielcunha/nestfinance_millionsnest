@@ -41,6 +41,9 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-bootstrap-verify', exposure: 'rewrite', url: '/api/finance/entities/bootstrap/verify' },
 
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-list', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-workspace-views-list', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-workspace-views-save', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-workspace-views-delete', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-summary', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-detail', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-create-draft', exposure: 'gateway' },
