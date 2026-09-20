@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
+import { TRANSACTION_SEARCH_SCHEMA_VERSION } from '../../../shared/finance/transactionSearch.js';
 import {
   TRANSACTION_SEARCH_BATCH_MAX,
-  TRANSACTION_SEARCH_SCHEMA_VERSION,
   inspectTransactionSearchProjection,
   stageTransactionSearchIndex,
 } from './transactionSearchIndex.js';
