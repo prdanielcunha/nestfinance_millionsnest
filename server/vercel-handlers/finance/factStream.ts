@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import {
   CANONICAL_FACT_SCHEMA_VERSION,
   type CanonicalFact,
@@ -17,6 +17,7 @@ export type FinanceFactInput = {
   correlationId?: string | null;
   causationId?: string | null;
   payload?: Record<string, unknown>;
+  occurredAt?: Timestamp | FieldValue;
   sourceRefs: CanonicalFactSourceRef[];
   confidence?: CanonicalFactConfidence;
 };
@@ -47,7 +48,8 @@ export function buildFinanceFactEventId(input: Pick<FinanceFactInput, 'organizat
 function buildFinanceFactRecord(input: FinanceFactInput) {
   const eventId = buildFinanceFactEventId(input);
   const serverTimestamp = FieldValue.serverTimestamp();
-  const fact: CanonicalFact<Record<string, unknown>, FieldValue> = {
+  const occurredAt = input.occurredAt || serverTimestamp;
+  const fact: CanonicalFact<Record<string, unknown>, FieldValue | Timestamp> = {
     eventId,
     organizationId: input.organizationId,
     sourceApp: 'NESTFINANCE',
@@ -55,7 +57,7 @@ function buildFinanceFactRecord(input: FinanceFactInput) {
     entityType: input.entityType,
     entityId: input.entityId,
     actorUserId: input.actorUserId,
-    occurredAt: serverTimestamp,
+    occurredAt,
     recordedAt: serverTimestamp,
     correlationId: input.correlationId || null,
     causationId: input.causationId || null,
