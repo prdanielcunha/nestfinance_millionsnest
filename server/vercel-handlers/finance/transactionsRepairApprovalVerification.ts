@@ -147,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         version: txData.version + 1
       }));
 
-      t.set(context.repository.getAuditRef().doc(repairEventId), sanitizeFirestoreObject({
+      stageCanonicalAuditRecord(t, db, context.repository.getAuditRef().doc(repairEventId), sanitizeFirestoreObject({
         eventId: repairEventId,
         organizationId,
         financeEntityId,
