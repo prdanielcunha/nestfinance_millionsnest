@@ -107,7 +107,7 @@ export function buildAuditFactInput(args: {
     boundedString(auditData.entityId, 180) ||
     null;
   const requestId = boundedString(auditData.requestId, 180);
-  const rawActor = boundedString(auditData.actor, 180);
+  const rawActor = boundedString(auditData.actor ?? auditData.actorUid, 180);
 
   return {
     organizationId,
@@ -232,7 +232,7 @@ function candidateFromAuditDoc(
     boundedString(data.entityId, 180) ||
     null;
   const requestId = boundedString(data.requestId, 180);
-  const rawActor = boundedString(data.actor, 180);
+  const rawActor = boundedString(data.actor ?? data.actorUid, 180);
   const actorUserId = rawActor && rawActor !== 'system' ? rawActor : null;
   const correlationId = buildAuditFactCorrelationId(doc.id);
 
