@@ -1,0 +1,90 @@
+name: NestFinance Universal Transaction Search Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/transactionSearchIndex.ts"
+      - "server/vercel-handlers/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/transactionSearchPreview.ts"
+      - "server/vercel-handlers/finance/transactionSearchApply.ts"
+      - "server/vercel-handlers/finance/transactionSearchVerify.ts"
+      - "server/vercel-handlers/finance/transactionsCreateDraft.ts"
+      - "server/vercel-handlers/finance/transactionsCreateAndSubmit.ts"
+      - "server/vercel-handlers/finance/transactionsUpdateDraft.ts"
+      - "src/services/transactionsService.ts"
+      - "src/hooks/finance/useTransactions.ts"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-transaction-universal-search.ts"
+      - "scripts/test-transaction-search-emulator.ts"
+      - "scripts/test-transaction-search-firestore-rules.ts"
+      - "firestore.rules"
+      - "package.json"
+      - ".github/workflows/nestfinance-universal-transaction-search-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/transactionSearchIndex.ts"
+      - "server/vercel-handlers/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/transactionSearchPreview.ts"
+      - "server/vercel-handlers/finance/transactionSearchApply.ts"
+      - "server/vercel-handlers/finance/transactionSearchVerify.ts"
+      - "server/vercel-handlers/finance/transactionsCreateDraft.ts"
+      - "server/vercel-handlers/finance/transactionsCreateAndSubmit.ts"
+      - "server/vercel-handlers/finance/transactionsUpdateDraft.ts"
+      - "src/services/transactionsService.ts"
+      - "src/hooks/finance/useTransactions.ts"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "api/finance-gateway.ts"
+      - "scripts/check-api-contracts.mjs"
+      - "scripts/test-transaction-universal-search.ts"
+      - "scripts/test-transaction-search-emulator.ts"
+      - "scripts/test-transaction-search-firestore-rules.ts"
+      - "firestore.rules"
+      - "package.json"
+      - ".github/workflows/nestfinance-universal-transaction-search-quality.yml"
+      - ".github/workflows/nestfinance-p06b-firestore-emulator.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  universal-transaction-search-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-transaction-search-emulator
+      GCLOUD_PROJECT: nestfinance-transaction-search-emulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify universal search contract
+        run: npm run test:transaction-universal-search
+      - name: Verify API contract
+        run: npm run check:api-contracts
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Cloud Run bundle
+        run: npm run build:cloudrun
+      - name: Install emulator tools
+        run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
+      - name: Universal Search Firestore Emulator
+        run: npx firebase-tools emulators:exec --only firestore --project nestfinance-transaction-search-emulator "npx tsx scripts/test-transaction-search-emulator.ts && npx tsx scripts/test-transaction-search-firestore-rules.ts"
