@@ -13,6 +13,7 @@ import {
   generateCountPaperAuditId,
   generateCountPaperFormId,
 } from './countPaperHelpers.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -120,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        transaction.set(context.repository.getAuditRef().doc(auditId), {
+        stageCanonicalAuditRecord(transaction, db, context.repository.getAuditRef().doc(auditId), {
           eventId: auditId,
           organizationId,
           financeEntityId,
