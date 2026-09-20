@@ -25,6 +25,16 @@ export interface TransactionsSummaryResponse {
   requestId?: string;
 }
 
+export interface TransactionSearchResponse {
+  items: any[];
+  query: string;
+  searchMode: 'index' | 'canonical_fallback';
+  indexCertified: boolean;
+  sourceTruncated: boolean;
+  resultTruncated: boolean;
+  limit: number;
+}
+
 export interface TransactionDetailResponse {
   transaction: LedgerTransaction;
   allocations: any[];
@@ -73,6 +83,44 @@ export const transactionsService = {
       const throwErr: any = new Error(err.message || err.error || 'Failed to list transactions');
       throwErr.details = err;
       throw throwErr;
+    }
+
+    return res.json();
+  },
+
+  async search(
+    organizationId: string,
+    financeEntityId: string,
+    query: string,
+    filters?: Record<string, unknown>,
+    limit = 50,
+  ): Promise<TransactionSearchResponse> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transaction-search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, query, filters, limit }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      let err: any = {};
+      try {
+        err = JSON.parse(errText);
+      } catch {
+        err = { message: errText || `HTTP ${res.status}` };
+      }
+      const thrown: any = new Error(err.message || err.error || 'Failed to search transactions');
+      thrown.details = err;
+      throw thrown;
     }
 
     return res.json();
