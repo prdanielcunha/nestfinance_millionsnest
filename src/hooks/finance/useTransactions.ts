@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { transactionsService, TransactionsListResponse, TransactionDetailResponse } from '../../services/transactionsService.js';
+import type { TransactionWorkspaceFilters } from '../../../shared/finance/transactionWorkspaceView.js';
 import { useAuth } from '../useAuth.js';
 import { useFinanceEntity } from '../../contexts/FinanceEntityContext.js';
 
@@ -161,6 +162,25 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const listWorkspaceViews = useCallback(async () => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    return transactionsService.listWorkspaceViews(organizationId, activeFinanceEntityId);
+  }, [organizationId, activeFinanceEntityId]);
+
+  const saveWorkspaceView = useCallback(async (input: {
+    viewId?: string;
+    name: string;
+    filters: TransactionWorkspaceFilters;
+  }) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    return transactionsService.saveWorkspaceView(organizationId, activeFinanceEntityId, input);
+  }, [organizationId, activeFinanceEntityId]);
+
+  const deleteWorkspaceView = useCallback(async (viewId: string) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    return transactionsService.deleteWorkspaceView(organizationId, activeFinanceEntityId, viewId);
+  }, [organizationId, activeFinanceEntityId]);
+
   return {
     loading,
     error,
@@ -173,6 +193,9 @@ export function useTransactions() {
     returnToDraft,
     approveForPosting,
     invalidateApproval,
-    getPostingPlanPreview
+    getPostingPlanPreview,
+    listWorkspaceViews,
+    saveWorkspaceView,
+    deleteWorkspaceView
   };
 }

@@ -1,5 +1,9 @@
 import { getAuth } from 'firebase/auth';
 import type { LedgerTransaction } from '../../shared/finance/ledger/transaction.js';
+import type {
+  TransactionWorkspaceFilters,
+  TransactionWorkspaceView,
+} from '../../shared/finance/transactionWorkspaceView.js';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 
 export interface TransactionsListResponse {
@@ -359,6 +363,98 @@ export const transactionsService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.details || err.error || 'Failed to get posting plan preview');
+    }
+
+    return res.json();
+  },
+
+  async listWorkspaceViews(
+    organizationId: string,
+    financeEntityId: string,
+  ): Promise<{ items: TransactionWorkspaceView[]; limit: number }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transaction-workspace-views-list`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to list workspace views');
+    }
+
+    return res.json();
+  },
+
+  async saveWorkspaceView(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      viewId?: string;
+      name: string;
+      filters: TransactionWorkspaceFilters;
+    },
+  ): Promise<{
+    viewId: string;
+    name: string;
+    filters: TransactionWorkspaceFilters;
+    schemaVersion: number;
+  }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transaction-workspace-views-save`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, ...input }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to save workspace view');
+    }
+
+    return res.json();
+  },
+
+  async deleteWorkspaceView(
+    organizationId: string,
+    financeEntityId: string,
+    viewId: string,
+  ): Promise<{ deleted: boolean; viewId?: string }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transaction-workspace-views-delete`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ financeEntityId, viewId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to delete workspace view');
     }
 
     return res.json();
