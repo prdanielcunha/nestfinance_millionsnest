@@ -24,9 +24,16 @@ export type TransactionWorkspaceDirection =
 export type TransactionWorkspaceStatus =
   (typeof TRANSACTION_WORKSPACE_STATUSES)[number];
 
+export const TRANSACTION_WORKSPACE_ORDERS = ['newest', 'oldest'] as const;
+export type TransactionWorkspaceOrder =
+  (typeof TRANSACTION_WORKSPACE_ORDERS)[number];
+
 export type TransactionWorkspaceFilters = {
   direction: TransactionWorkspaceDirection;
   status: TransactionWorkspaceStatus;
+  occurredFrom: string | null;
+  occurredTo: string | null;
+  order: TransactionWorkspaceOrder;
 };
 
 export type TransactionWorkspaceView = {
@@ -50,6 +57,23 @@ export function normalizeTransactionWorkspaceViewName(value: unknown) {
   return normalized;
 }
 
+function normalizeDateOnly(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    return undefined;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
 export function normalizeTransactionWorkspaceFilters(
   input: unknown,
 ): TransactionWorkspaceFilters | null {
@@ -57,6 +81,12 @@ export function normalizeTransactionWorkspaceFilters(
   const value = input as Record<string, unknown>;
   const direction = value.direction;
   const status = value.status;
+  const occurredFrom = normalizeDateOnly(value.occurredFrom);
+  const occurredTo = normalizeDateOnly(value.occurredTo);
+  const order =
+    typeof value.order === 'string' && value.order
+      ? value.order
+      : 'newest';
 
   if (
     typeof direction !== 'string' ||
@@ -70,9 +100,22 @@ export function normalizeTransactionWorkspaceFilters(
   ) {
     return null;
   }
+  if (
+    occurredFrom === undefined ||
+    occurredTo === undefined ||
+    !(TRANSACTION_WORKSPACE_ORDERS as readonly string[]).includes(order)
+  ) {
+    return null;
+  }
+  if (occurredFrom && occurredTo && occurredFrom > occurredTo) {
+    return null;
+  }
 
   return {
     direction: direction as TransactionWorkspaceDirection,
     status: status as TransactionWorkspaceStatus,
+    occurredFrom,
+    occurredTo,
+    order: order as TransactionWorkspaceOrder,
   };
 }
