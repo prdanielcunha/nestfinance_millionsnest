@@ -62,6 +62,7 @@ jobs:
           npm run test:adaptive-navigation
           npm run test:command-palette
           npm run test:transaction-inspector
+          npm run test:transaction-saved-views
           npm run test:firebase-infra
           npm run test:certification-gates
           npm run build
