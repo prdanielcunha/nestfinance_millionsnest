@@ -94,3 +94,20 @@ export function buildReconciliationReversalId(input: {
 
   return `rrev_${createHash('sha256').update(key).digest('hex')}`;
 }
+
+export function buildReconciliationSessionId(input: {
+  organizationId: string;
+  financeEntityId: string;
+  evidenceId: string;
+  accountId: string;
+}): string {
+  const key = [
+    normalize(input.organizationId),
+    normalize(input.financeEntityId),
+    normalize(input.evidenceId),
+    normalize(input.accountId),
+    'reconciliation-session-v1',
+  ].join(':');
+
+  return `rses_${createHash('sha256').update(key).digest('hex')}`;
+}
