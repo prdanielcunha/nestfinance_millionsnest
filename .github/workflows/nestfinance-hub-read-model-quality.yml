@@ -12,7 +12,9 @@ on:
       - "scripts/check-api-contracts.mjs"
       - "scripts/test-finance-hub-read-model.ts"
       - "package.json"
-      - "vercel.json"\n      - "cloudrunRoutes.ts"\n      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
+      - "vercel.json"
+      - "cloudrunRoutes.ts"
+      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
       - ".github/workflows/nestfinance-hub-read-model-quality.yml"
       - ".github/workflows/nestfinance-production-release.yml"
   push:
@@ -26,7 +28,9 @@ on:
       - "scripts/check-api-contracts.mjs"
       - "scripts/test-finance-hub-read-model.ts"
       - "package.json"
-      - "vercel.json"\n      - "cloudrunRoutes.ts"\n      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
+      - "vercel.json"
+      - "cloudrunRoutes.ts"
+      - "scripts/test_firebase_hosting_cloudrun_policy.ts"
       - ".github/workflows/nestfinance-hub-read-model-quality.yml"
       - ".github/workflows/nestfinance-production-release.yml"
 
