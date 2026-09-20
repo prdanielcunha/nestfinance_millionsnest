@@ -40,8 +40,48 @@ export function transactionSearchTokens(values: unknown[]) {
   return output;
 }
 
-export function buildTransactionSearchKeys(transaction: Record<string, any>) {
-  const tokens = transactionSearchTokens([
+function amountSearchValues(value: unknown) {
+  const cents = Number(value);
+  if (!Number.isInteger(cents)) return [];
+  const absolute = Math.abs(cents);
+  const whole = Math.floor(absolute / 100);
+  const fraction = String(absolute % 100).padStart(2, '0');
+  return [
+    String(whole),
+    fraction,
+    String(absolute),
+    `${whole},${fraction}`,
+    `${whole}.${fraction}`,
+  ];
+}
+
+function dateSearchValues(value: unknown) {
+  let iso = '';
+  if (typeof value === 'string') {
+    iso = value;
+  } else if (value && typeof (value as any).toDate === 'function') {
+    try {
+      iso = (value as any).toDate().toISOString();
+    } catch {
+      return [];
+    }
+  }
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/u);
+  if (!match) return [];
+  const [, year, month, day] = match;
+  return [
+    day,
+    month,
+    year,
+    `${day}/${month}`,
+    `${day}/${month}/${year}`,
+    `${day}${month}`,
+    `${day}${month}${year}`,
+  ];
+}
+
+function transactionSearchValues(transaction: Record<string, any>) {
+  return [
     transaction.id,
     transaction.transactionId,
     transaction.description,
@@ -54,7 +94,13 @@ export function buildTransactionSearchKeys(transaction: Record<string, any>) {
     transaction.liabilityAccountId,
     transaction.accountSnapshot?.name,
     transaction.liabilityAccountSnapshot?.name,
-  ]);
+    ...amountSearchValues(transaction.amountCents),
+    ...dateSearchValues(transaction.occurredAt),
+  ];
+}
+
+export function buildTransactionSearchKeys(transaction: Record<string, any>) {
+  const tokens = transactionSearchTokens(transactionSearchValues(transaction));
 
   const keys = new Set<string>();
   for (const token of tokens) {
@@ -99,20 +145,9 @@ export function transactionMatchesSearchQuery(
 ) {
   const normalizedQuery = normalizeTransactionSearchQuery(query);
   if (!normalizedQuery) return false;
-  const candidateTokens = transactionSearchTokens([
-    transaction.id,
-    transaction.transactionId,
-    transaction.description,
-    transaction.counterparty,
-    transaction.paymentMethod,
-    transaction.sourceContext,
-    transaction.accountId,
-    transaction.sourceAccountId,
-    transaction.destinationAccountId,
-    transaction.liabilityAccountId,
-    transaction.accountSnapshot?.name,
-    transaction.liabilityAccountSnapshot?.name,
-  ]);
+  const candidateTokens = transactionSearchTokens(
+    transactionSearchValues(transaction),
+  );
 
   return normalizedQuery.tokens.every((queryToken) =>
     candidateTokens.some((candidate) => candidate.startsWith(queryToken)),
