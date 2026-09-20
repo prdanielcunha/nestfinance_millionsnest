@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 import {
   TRANSACTION_SEARCH_BATCH_MAX,
   TRANSACTION_SEARCH_SCHEMA_VERSION,
@@ -12,8 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { db, organizationId, financeEntityId } =
+    const { db, organizationId, financeEntityId, sessionList } =
       await resolveFinanceRequestContext(req, 'finance.view');
+    if (!hasEffectiveCapability(sessionList, 'finance.manage')) {
+      return res.status(403).json({ error: 'FORBIDDEN_SEARCH_INDEX_MANAGEMENT' });
+    }
     const batchSize = Number(req.body?.batchSize ?? 50);
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > TRANSACTION_SEARCH_BATCH_MAX) {
       return res.status(400).json({ error: 'INVALID_BATCH_SIZE' });
