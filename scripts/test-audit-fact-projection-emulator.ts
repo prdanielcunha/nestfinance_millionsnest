@@ -40,6 +40,13 @@ for (const id of [entityId, otherEntityId]) {
     active: true,
   });
 }
+const legacyAccountId = 'acc_legacy_' + suffix;
+await db.collection('organizations').doc(orgId).collection('financeAccounts').doc(legacyAccountId).set({
+  organizationId: orgId,
+  financeEntityId: entityId,
+  name: 'Legacy Account',
+  active: true,
+});
 
 const audits = db.collection('organizations').doc(orgId).collection('financeAuditLogs');
 await audits.doc('audit_a_' + suffix).set({
@@ -70,6 +77,25 @@ await audits.doc('audit_b_' + suffix).set({
   requestId: 'req_b_' + suffix,
   metadata: { periodKey: '2026-09', status: 'reviewed_current_snapshot' },
   createdAt: occurredAtB,
+});
+await audits.doc('audit_legacy_' + suffix).set({
+  organizationId: orgId,
+  actorUid: uid,
+  entityType: 'financeAccount',
+  entityId: legacyAccountId,
+  action: 'finance.account.updated',
+  requestId: 'req_legacy_' + suffix,
+  metadata: { status: 'legacy' },
+  createdAt: occurredAtA,
+});
+await audits.doc('audit_setup_' + suffix).set({
+  organizationId: orgId,
+  actorUid: uid,
+  entityType: 'financeSettings',
+  entityId: 'config',
+  action: 'finance.setup.initialized',
+  requestId: 'req_setup_' + suffix,
+  createdAt: occurredAtA,
 });
 await audits.doc('audit_other_' + suffix).set({
   organizationId: orgId,
@@ -109,8 +135,10 @@ try {
   const preview = await call(auditFactProjectionPreview, { financeEntityId: entityId });
   verify(
     preview.statusCode === 200 &&
-      preview.body.totalAuditEvents === 2 &&
-      preview.body.missingProjection === 2 &&
+      preview.body.totalAuditEvents === 3 &&
+      preview.body.missingProjection === 3 &&
+      preview.body.unresolvedLegacyScopeCount === 0 &&
+      preview.body.organizationScopedCount === 1 &&
       preview.body.truncated === false &&
       preview.body.safeToVerify === false,
     'preview finds only current-entity audit events and reports missing facts',
@@ -122,8 +150,10 @@ try {
   });
   verify(
     applied.statusCode === 200 &&
-      applied.body.applied === 2 &&
+      applied.body.applied === 3 &&
       applied.body.remaining === 0 &&
+      applied.body.unresolvedLegacyScopeCount === 0 &&
+      applied.body.organizationScopedCount === 1 &&
       applied.body.complete === true,
     'apply projects the full bounded audit history without financial mutation',
   );
@@ -132,7 +162,7 @@ try {
     .where('organizationId', '==', orgId)
     .where('eventType', '==', 'AUDIT_EVENT_RECORDED')
     .get();
-  verify(facts.size === 2, 'two canonical audit facts are created for the scoped entity');
+  verify(facts.size === 3, 'three canonical audit facts are created for the scoped entity, including resolvable legacy history');
 
   const projectedA = facts.docs.map((doc) => doc.data()).find(
     (data) => data.payload?.auditEventId === 'audit_a_' + suffix,
@@ -159,6 +189,20 @@ try {
   );
   verify(projectedSystem?.actorUserId === null, 'system audit actor is not fabricated as a user identity');
 
+  const projectedLegacy = facts.docs.map((doc) => doc.data()).find(
+    (data) => data.payload?.auditEventId === 'audit_legacy_' + suffix,
+  );
+  verify(
+    projectedLegacy?.actorUserId === uid &&
+      projectedLegacy?.payload?.resource === 'financeAccount' &&
+      projectedLegacy?.payload?.resourceId === legacyAccountId,
+    'legacy actorUid audit without financeEntityId resolves scope through its canonical account',
+  );
+  verify(
+    !facts.docs.some((doc) => doc.data().payload?.auditEventId === 'audit_setup_' + suffix),
+    'organization-scoped setup audit stays internal instead of being misclassified as an entity event',
+  );
+
   const retry = await call(auditFactProjectionApply, {
     financeEntityId: entityId,
     batchSize: 50,
@@ -176,7 +220,9 @@ try {
     certified.statusCode === 200 &&
       certified.body.verified === true &&
       certified.body.status === 'certified' &&
-      certified.body.verifiedFactCount === 2,
+      certified.body.verifiedFactCount === 3 &&
+      certified.body.unresolvedLegacyScopeCount === 0 &&
+      certified.body.organizationScopedCount === 1,
     'verify certifies complete bounded audit fact coverage',
   );
 
@@ -187,6 +233,30 @@ try {
       coverage.data()?.financialMutation === false &&
       coverage.data()?.auditMutation === false,
     'coverage record is explicit and non-mutating',
+  );
+
+  await audits.doc('audit_unresolved_' + suffix).set({
+    organizationId: orgId,
+    actorUid: uid,
+    entityType: 'financeAccount',
+    entityId: 'acc_missing_' + suffix,
+    action: 'finance.account.updated',
+    createdAt: occurredAtB,
+  });
+  const unsafePreview = await call(auditFactProjectionPreview, { financeEntityId: entityId });
+  verify(
+    unsafePreview.statusCode === 200 &&
+      unsafePreview.body.unresolvedLegacyScopeCount === 1 &&
+      unsafePreview.body.safeToVerify === false,
+    'unresolvable legacy audit scope blocks certification instead of disappearing from coverage',
+  );
+  const unsafeVerify = await call(auditFactProjectionVerify, { financeEntityId: entityId });
+  verify(
+    unsafeVerify.statusCode === 200 &&
+      unsafeVerify.body.verified === false &&
+      unsafeVerify.body.status === 'incomplete' &&
+      unsafeVerify.body.unresolvedLegacyScopeCount === 1,
+    'verify fails closed when legacy audit scope cannot be proven',
   );
 
   console.log('\nAudit Fact Projection Emulator totals: ' + passed + ' Passed');

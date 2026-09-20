@@ -15,6 +15,7 @@ import {
 } from '../../../shared/finance/countCaptureExtraction.js';
 import { generateCountCaptureAuditId, resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
 import { getCountCaptureExtractionProvider } from './countCaptureExtractionProvider.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 function assertStageCanExtract(stage: 'count_a' | 'count_b', session: any) {
   const status = String(session?.status || '');
@@ -190,7 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       transaction.update(canonical.sessionRef, { captureExtractionLease: FieldValue.delete() });
       const auditId = generateCountCaptureAuditId();
-      transaction.set(context.repository.getAuditRef().doc(auditId), {
+      stageCanonicalAuditRecord(transaction, db, context.repository.getAuditRef().doc(auditId), {
         eventId: auditId,
         organizationId,
         financeEntityId,

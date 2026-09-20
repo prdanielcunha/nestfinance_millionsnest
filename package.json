@@ -49,7 +49,8 @@
     "test:finance-hub-read-model": "tsx scripts/test-finance-hub-read-model.ts",
     "test:finance-cross-app-events": "tsx scripts/test-finance-cross-app-events.ts",
     "test:audit-fact-projection": "tsx scripts/test-audit-fact-projection.ts",
-    "test:transaction-inspector": "tsx scripts/test-transaction-inspector.ts"
+    "test:transaction-inspector": "tsx scripts/test-transaction-inspector.ts",
+    "test:audit-live-emission": "tsx scripts/test-audit-live-emission.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

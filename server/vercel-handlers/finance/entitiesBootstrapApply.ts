@@ -3,6 +3,7 @@ import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 import { requireFinanceEntityAccess } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -405,7 +406,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // 5. Audit
             const auditRef = orgRef.collection('financeAuditLogs').doc(auditId);
-            transaction.create(auditRef, {
+            stageCanonicalAuditCreate(transaction, firestore, auditRef, {
                action: 'finance.bootstrap.applied',
                actorUid: uid,
                requestId,

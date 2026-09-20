@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageFinanceSignalOpen } from './signalProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { detectUniversalEvidenceMime, inspectImageMetadata } from '../../../shared/finance/universalEvidence.js';
@@ -56,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!hashDoc.exists) transaction.create(hashRef, { evidenceId, originalSha256: stored.sha256, organizationId, financeEntityId, createdAt: FieldValue.serverTimestamp() });
       const auditId = generateEvidenceAuditId();
       const auditRef = context.repository.getAuditRef().doc(auditId);
-      transaction.create(auditRef, { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: duplicate ? 'evidence.duplicate_detected' : 'evidence.accepted', requestId, idempotencyKey, afterHash: payloadHash, metadata: { verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, duplicate, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
+      stageCanonicalAuditCreate(transaction, db, auditRef, { eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'universal_evidence', resourceId: evidenceId, action: duplicate ? 'evidence.duplicate_detected' : 'evidence.accepted', requestId, idempotencyKey, afterHash: payloadHash, metadata: { verifiedMimeType, byteSize: stored.size, originalSha256: stored.sha256, duplicate, financialRecognition: false }, createdAt: FieldValue.serverTimestamp() });
       const sourceRefs = [
         { kind: 'evidence' as const, ref: evidenceRef.path, version: 2 },
         { kind: 'audit' as const, ref: auditRef.path },

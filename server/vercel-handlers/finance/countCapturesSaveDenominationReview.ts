@@ -13,6 +13,7 @@ import {
   type CountCaptureReviewedDenomination,
 } from '../../../shared/finance/countCaptureDenominations.js';
 import { generateCountCaptureAuditId, resolveCanonicalCountPaperForm } from './countCaptureHelpers.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 function candidatesForCapture(capture: any): CountCaptureDenominationCandidate[] {
   if (Array.isArray(capture.denominationCandidates) && capture.denominationCandidates.length > 0) return capture.denominationCandidates as CountCaptureDenominationCandidate[];
@@ -79,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updatedAt: FieldValue.serverTimestamp(),
       });
       const auditId = generateCountCaptureAuditId();
-      transaction.set(context.repository.getAuditRef().doc(auditId), {
+      stageCanonicalAuditRecord(transaction, db, context.repository.getAuditRef().doc(auditId), {
         eventId: auditId, organizationId, financeEntityId, actor: uid, resource: 'count_capture', resourceId: captureId,
         action: 'count.capture_denomination_review_saved', requestId, idempotencyKey, afterHash: payloadHash,
         metadata: {
