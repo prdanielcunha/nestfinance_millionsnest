@@ -10,8 +10,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { db, financeEntityId } = await resolveFinanceRequestContext(req, 'finance.view');
-    const organizationId = String(req.headers['x-organization-id'] || '');
+    const { db, organizationId, financeEntityId } =
+      await resolveFinanceRequestContext(req, 'finance.view');
     const inspection = await inspectTransactionSearchProjection(
       db,
       organizationId,
