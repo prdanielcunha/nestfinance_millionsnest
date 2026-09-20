@@ -13,9 +13,11 @@ interface Translations {
 export const TRANSLATIONS: Translations = {
   // Navigation
   nav_hoje: { PT: 'Hoje', EN: 'Today', ES: 'Hoy' },
-  nav_cultos: { PT: 'Cultos', EN: 'Services', ES: 'Cultos' },
-  nav_capturas: { PT: 'Capturas', EN: 'Captures', ES: 'Capturas' },
-  nav_conferir: { PT: 'Conferir', EN: 'Check', ES: 'Confrontar' },
+  nav_movimentacoes: { PT: 'Movimentações', EN: 'Transactions', ES: 'Movimientos' },
+  nav_cultos: { PT: 'Contagem', EN: 'Count', ES: 'Conteo' },
+  nav_capturas: { PT: 'Documentos', EN: 'Documents', ES: 'Documentos' },
+  nav_revisar: { PT: 'Revisão', EN: 'Review', ES: 'Revisión' },
+  nav_conferir: { PT: 'Conciliação', EN: 'Reconciliation', ES: 'Conciliación' },
   nav_mais: { PT: 'Mais', EN: 'More', ES: 'Más' },
   nav_config: { PT: 'Configurações', EN: 'Settings', ES: 'Ajustes' },
   nav_reports: { PT: 'Relatórios', EN: 'Reports', ES: 'Informes' },
@@ -23,10 +25,10 @@ export const TRANSLATIONS: Translations = {
 
   // MorePage
   more_title: { PT: 'Mais Opções', EN: 'More Options', ES: 'Más Opciones' },
-  more_desc: { PT: 'Navegação adicional do sistema corporativo.', EN: 'Additional navigation of the corporate system.', ES: 'Navegación adicional del sistema corporativo.' },
+  more_desc: { PT: 'Áreas adicionais relevantes para o seu trabalho financeiro.', EN: 'Additional areas relevant to your finance work.', ES: 'Áreas adicionales relevantes para tu trabajo financiero.' },
   more_churches_title: { PT: 'Igrejas e CNPJs', EN: 'Churches and Tax IDs', ES: 'Iglesias y CNPJ' },
   more_churches_desc: { PT: 'Gestão das igrejas que compõem a organização.', EN: 'Management of the churches that make up the organization.', ES: 'Gestión de las iglesias que componen la organización.' },
-  more_other_areas: { PT: 'Outras Áreas', EN: 'Other Areas', ES: 'Otras Áreas' },
+  more_other_areas: { PT: 'Outras áreas do seu perfil', EN: 'Other areas for your role', ES: 'Otras áreas de tu perfil' },
 
   // Shell Layout
   shell_organization: { PT: 'Organização', EN: 'Organization', ES: 'Organización' },
