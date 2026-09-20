@@ -188,7 +188,7 @@ function run() {
     [],
     undefined,
     undefined,
-    { canCreate: true, canReview: false, canApprove: false },
+    { canCreate: true, canReview: false, canApprove: false, canCount: true },
   );
   assert.deepStrictEqual(operatorIgnoresReviewQueue, { kind: 'draft', count: 2 });
 
@@ -203,7 +203,7 @@ function run() {
     [],
     undefined,
     undefined,
-    { canCreate: false, canReview: true, canApprove: false },
+    { canCreate: false, canReview: true, canApprove: false, canCount: false },
   );
   assert.deepStrictEqual(reviewerIgnoresDraftsAndCorrections, { kind: 'review', count: 2 });
 
@@ -219,9 +219,22 @@ function run() {
     [],
     undefined,
     undefined,
-    { canCreate: false, canReview: false, canApprove: false },
+    { canCreate: false, canReview: false, canApprove: false, canCount: false },
   );
   assert.deepStrictEqual(viewerGetsNoActionableTransactionPriority, { kind: 'clear', count: 0 });
+
+
+  const reviewerCannotReceiveCountMutationPriority = chooseTodayPriority(
+    { ...emptySummary, readyForReview: 1, totalOpen: 1 },
+    [
+      { id: 'cnt_divergent', status: 'divergent' },
+      { id: 'cnt_check', status: 'counting_b' },
+    ],
+    undefined,
+    undefined,
+    { canCreate: false, canReview: true, canApprove: false, canCount: false },
+  );
+  assert.deepStrictEqual(reviewerCannotReceiveCountMutationPriority, { kind: 'review', count: 1 });
 
   const clear = chooseTodayPriority(emptySummary, [
     { id: 'cnt_done', status: 'matched' },
