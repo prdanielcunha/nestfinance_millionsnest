@@ -9,6 +9,7 @@ import { assertAllocationsTotal, FinanceAllocation } from '../../../shared/finan
 import { LedgerTransaction } from '../../../shared/finance/ledger/transaction.js';
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageFinanceSignalOpen, stageFinanceSignalResolve } from './signalProjection.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
@@ -101,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const auditId = generateAuditId();
       const auditRef = context.repository.getAuditRef().doc(auditId);
-      t.set(auditRef, sanitizeFirestoreObject({
+      stageCanonicalAuditRecord(t, db, auditRef, sanitizeFirestoreObject({
         eventId: auditId,
         organizationId,
         financeEntityId,

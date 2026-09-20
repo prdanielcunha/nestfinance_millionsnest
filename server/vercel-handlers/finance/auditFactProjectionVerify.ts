@@ -22,7 +22,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       financeEntityId,
     );
     const verified =
-      !inspection.truncated && inspection.missing.length === 0;
+      !inspection.truncated &&
+      inspection.unresolvedLegacyScopeCount === 0 &&
+      inspection.missing.length === 0;
     const coverageId = buildAuditProjectionCoverageId(
       organizationId,
       financeEntityId,
@@ -41,6 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         expectedAuditEventCount: inspection.candidates.length,
         verifiedFactCount: inspection.verifiedExisting.length,
         missingFactCount: inspection.missing.length,
+        unresolvedLegacyScopeCount: inspection.unresolvedLegacyScopeCount,
+        organizationScopedCount: inspection.organizationScopedCount,
         truncated: inspection.truncated,
         checkedAt: FieldValue.serverTimestamp(),
         checkedBy: uid,
@@ -58,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expectedAuditEventCount: inspection.candidates.length,
       verifiedFactCount: inspection.verifiedExisting.length,
       missingFactCount: inspection.missing.length,
+      unresolvedLegacyScopeCount: inspection.unresolvedLegacyScopeCount,
+      organizationScopedCount: inspection.organizationScopedCount,
       truncated: inspection.truncated,
       financialMutation: false,
       auditMutation: false,

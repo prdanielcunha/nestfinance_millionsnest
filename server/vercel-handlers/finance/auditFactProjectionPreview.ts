@@ -25,8 +25,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       totalAuditEvents: inspection.candidates.length,
       alreadyProjected: inspection.verifiedExisting.length,
       missingProjection: inspection.missing.length,
+      unresolvedLegacyScopeCount: inspection.unresolvedLegacyScopeCount,
+      organizationScopedCount: inspection.organizationScopedCount,
       truncated: inspection.truncated,
-      safeToVerify: !inspection.truncated && inspection.missing.length === 0,
+      safeToVerify:
+        !inspection.truncated &&
+        inspection.unresolvedLegacyScopeCount === 0 &&
+        inspection.missing.length === 0,
       financialMutation: false,
       auditMutation: false,
     });

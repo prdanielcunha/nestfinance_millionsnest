@@ -5,6 +5,7 @@ import { hasEffectiveCapability, hasFinanceEntityScope } from './accessHelpers.j
 import { FieldValue } from 'firebase-admin/firestore';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
+import { stageCanonicalAuditCreate } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -228,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build audit log
         const auditDocRef = auditRef.doc();
-        transaction.create(auditDocRef, {
+        stageCanonicalAuditCreate(transaction, firestore, auditDocRef, {
           id: auditDocRef.id,
           organizationId,
           financeEntityId,

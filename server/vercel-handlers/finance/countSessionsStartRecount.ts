@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
 
@@ -78,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditId = `audit_${countSessionId.slice(4)}_${nextVersion}`;
         const auditRef = context.repository.getAuditRef().doc(auditId);
-        transaction.set(auditRef, {
+        stageCanonicalAuditRecord(transaction, db, auditRef, {
           eventId: auditId,
           organizationId,
           financeEntityId,

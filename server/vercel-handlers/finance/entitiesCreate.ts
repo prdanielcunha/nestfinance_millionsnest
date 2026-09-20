@@ -5,6 +5,7 @@ import { canManageFinanceEntities } from './accessHelpers.js';
 import { normalizeCnpj, isValidCnpj, getCnpjFormat } from '../../../shared/finance/taxId.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes, createHash } from 'crypto';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -230,8 +231,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 createdAt: FieldValue.serverTimestamp()
             });
             
-            t.create(auditRef, {
+            stageCanonicalAuditCreate(t, firestore, auditRef, {
                 organizationId,
+                financeEntityId,
                 actorUid: uid,
                 action: 'finance.entity.created',
                 entityType: 'financeEntity',
