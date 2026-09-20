@@ -465,6 +465,43 @@ try {
     'reversal records one audit and one source-backed canonical fact',
   );
 
+  const sessionsAfterReverse = await db
+    .collection('organizations')
+    .doc(orgId)
+    .collection('financeReconciliationSessions')
+    .get();
+  const currentSession = sessionsAfterReverse.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() as Record<string, any> }))
+    .find((item: any) =>
+      item.financeEntityId === entityId &&
+      item.evidenceId === source.evidenceId &&
+      item.accountId === accountId
+    );
+  verify(
+    currentSession?.status === 'in_progress' &&
+      currentSession?.activeConfirmationCount === 0 &&
+      currentSession?.totalConfirmationCount === 1 &&
+      currentSession?.exceptionCount === 1 &&
+      currentSession?.lastExceptionReasonCode === 'wrong_transaction' &&
+      currentSession?.canDeclareStatementFullyReconciled === false,
+    'reversal updates the persisted lifecycle session without claiming statement completion',
+  );
+
+  const exceptionFacts = await db
+    .collection('intelligenceFacts')
+    .where('organizationId', '==', orgId)
+    .where('eventType', '==', 'RECONCILIATION_EXCEPTION_FOUND')
+    .get();
+  verify(
+    exceptionFacts.size === 1 &&
+      exceptionFacts.docs[0].data().entityId === currentSession?.id &&
+      exceptionFacts.docs[0].data().payload?.reasonCode === 'wrong_transaction' &&
+      exceptionFacts.docs[0].data().payload?.exceptionKind === 'human_reversal' &&
+      exceptionFacts.docs[0].data().payload?.canDeclareStatementFullyReconciled === false &&
+      typeof exceptionFacts.docs[0].data().causationId === 'string',
+    'human reversal emits one minimal source-backed RECONCILIATION_EXCEPTION_FOUND fact',
+  );
+
   const reverseEvents = await db
     .collection('organizations')
     .doc(orgId)
@@ -495,6 +532,21 @@ try {
       ).size === 1,
     'reversal retry is idempotent and does not increment version or duplicate history',
   );
+  const exceptionFactsAfterRetry = await db
+    .collection('intelligenceFacts')
+    .where('organizationId', '==', orgId)
+    .where('eventType', '==', 'RECONCILIATION_EXCEPTION_FOUND')
+    .get();
+  const sessionAfterRetry = (
+    await db.collection('organizations').doc(orgId)
+      .collection('financeReconciliationSessions').doc(String(currentSession?.id)).get()
+  ).data();
+  verify(
+    exceptionFactsAfterRetry.size === 1 &&
+      sessionAfterRetry?.exceptionCount === 1 &&
+      sessionAfterRetry?.activeConfirmationCount === 0,
+    'reversal retry does not duplicate exception facts or session counters',
+  );
 
   await db
     .collection('organizations')
@@ -518,6 +570,22 @@ try {
     confirmB.statusCode === 200 &&
       confirmB.body.reconciliationId !== firstReconciliationId,
     'released immutable statement line can be corrected with a new confirmation attempt',
+  );
+  const sessionAfterCorrection = (
+    await db.collection('organizations').doc(orgId)
+      .collection('financeReconciliationSessions').doc(String(currentSession?.id)).get()
+  ).data();
+  const startFactsAfterCorrection = await db
+    .collection('intelligenceFacts')
+    .where('organizationId', '==', orgId)
+    .where('eventType', '==', 'RECONCILIATION_STARTED')
+    .get();
+  verify(
+    sessionAfterCorrection?.activeConfirmationCount === 1 &&
+      sessionAfterCorrection?.totalConfirmationCount === 2 &&
+      sessionAfterCorrection?.exceptionCount === 1 &&
+      startFactsAfterCorrection.size === 1,
+    'correction resumes the same session without duplicating RECONCILIATION_STARTED',
   );
 
   const reactivatedLock = (
