@@ -10,6 +10,7 @@ import { validateTransactionCore, LedgerTransaction } from '../../../shared/fina
 import { buildTransactionListQueryKeys } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { stageFinanceFact } from './factStream.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
+import { stageTransactionSearchIndex } from './transactionSearchIndex.js';
 import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
 
 async function getActorDisplayName(db: any, uid: string): Promise<string> {
@@ -329,6 +330,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       
       t.set(txRef, txData);
+      stageTransactionSearchIndex(t, db, {
+        organizationId,
+        financeEntityId,
+        transactionId: txId,
+        transactionData: txData,
+      });
 
       for (const alloc of allocsToSave) {
         const allocRef = context.repository.getAllocationsRef().doc(alloc.id);
