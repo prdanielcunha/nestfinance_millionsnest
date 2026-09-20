@@ -58,17 +58,20 @@ for (const source of [apply, preview, verify]) {
   assert.ok(source.includes("hasEffectiveCapability(sessionList, 'finance.manage')"));
   assert.ok(source.includes('financialMutation: false'));
 }
-assert.ok(apply.includes("eventType: 'AUDIT_EVENT_RECORDED'"));
-assert.ok(apply.includes("projectionKind: 'canonical_audit_projection'"));
-assert.ok(apply.includes('historicalEventInferred: false'));
-assert.ok(apply.includes("sourceRefs: [{ kind: 'audit', ref: auditRef.path }]"));
-assert.ok(apply.includes('occurredAt: data.createdAt || undefined'));
-assert.ok(!apply.includes('amountCents'));
-assert.ok(!apply.includes('note:'));
+assert.ok(projection.includes("eventType: 'AUDIT_EVENT_RECORDED'"));
+assert.ok(projection.includes("projectionKind: 'canonical_audit_projection'"));
+assert.ok(projection.includes('historicalEventInferred: false'));
+assert.ok(projection.includes("sourceRefs: [{ kind: 'audit', ref: auditRef }]"));
+assert.ok(projection.includes('occurredAt: auditData.createdAt || undefined'));
+assert.ok(!projection.includes('amountCents'));
+assert.ok(!projection.includes('note:'));
 assert.ok(!projection.includes('amountCents'));
 assert.ok(!projection.includes('contributorName'));
 assert.ok(factStream.includes('occurredAt?: Timestamp | FieldValue'));
 assert.ok(factStream.includes('const occurredAt = input.occurredAt || serverTimestamp'));
+assert.ok(projection.includes('stageCanonicalAuditFact'));
+assert.ok(projection.includes('buildAuditFactCorrelationId'));
+assert.ok(apply.includes('buildAuditFactInput({'));
 assert.ok(gateway.includes("case 'audit-fact-projection-preview'"));
 assert.ok(gateway.includes("case 'audit-fact-projection-apply'"));
 assert.ok(gateway.includes("case 'audit-fact-projection-verify'"));
