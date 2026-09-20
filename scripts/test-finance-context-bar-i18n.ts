@@ -32,7 +32,12 @@ verify('provides ES switch aria copy', source.includes('ES: (entityName)'));
 verify('selector exposes dialog semantics', source.includes('role="dialog"') && source.includes('aria-modal="true"'));
 verify('selector title is associated to dialog', source.includes('aria-labelledby={selectorTitleId}') && source.includes('id={selectorTitleId}'));
 verify('entity switching contract remains present', source.includes('setActiveFinanceEntityId(other.id, other.displayName)'));
-verify('bootstrap readiness lookup remains present', source.includes("/api/finance/entities/bootstrap/status"));
+verify(
+  'selector uses the server-scoped finance entity set',
+  source.includes('accessibleFinanceEntities') &&
+  !source.includes('/api/finance/entities/bootstrap/status') &&
+  !source.includes('listFinanceEntities'),
+);
 
 console.log(`\nFinance context bar totals: ${passed} Passed, ${failed} Failed`);
 process.exit(failed > 0 ? 1 : 0);

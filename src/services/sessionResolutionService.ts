@@ -74,7 +74,14 @@ export async function resolveEcosystemSession(forceRefresh = false): Promise<Eco
           organizationId: data.organizationId,
           isGlobalAccess: data.isGlobalAccess,
           accessSource: data.accessSource,
-          capabilities: Array.isArray(data.capabilities) ? data.capabilities : [],
+          systemRole: typeof data.systemRole === 'string' ? data.systemRole : undefined,
+          organizationRole: typeof data.organizationRole === 'string' ? data.organizationRole : undefined,
+          roles: Array.isArray(data.roles) ? data.roles.filter((item: unknown): item is string => typeof item === 'string') : [],
+          permissions: Array.isArray(data.permissions) ? data.permissions.filter((item: unknown): item is string => typeof item === 'string') : [],
+          capabilities: Array.isArray(data.capabilities) ? data.capabilities.filter((item: unknown): item is string => typeof item === 'string') : [],
+          scopes: data.scopes && typeof data.scopes === 'object' && !Array.isArray(data.scopes)
+            ? data.scopes
+            : {},
           organization: {
             id: data.organization.id,
             name: data.organization.name,

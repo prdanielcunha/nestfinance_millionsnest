@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceEntityAccess } from './accessHelpers.js';
+import { hasEffectiveCapability, hasFinanceEntityScope, requireFinanceEntityAccess } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { CANONICAL_ACCOUNT_TEMPLATES } from '../../../shared/finance/smartLogic.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
@@ -86,9 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Permission Hardening:
     // User must have finance.accounts.repair or finance.accounts.manage (or global access)
     // A user with create draft but without repair/manage permissions CANNOT repair.
-    const hasRepairAccess = sessionList.isGlobalAccess || 
-                            sessionList.capabilities?.includes('finance.accounts.repair') || 
-                            sessionList.capabilities?.includes('finance.accounts.manage');
+    const hasRepairAccess =
+      hasEffectiveCapability(sessionList, 'finance.accounts.repair') ||
+      hasEffectiveCapability(sessionList, 'finance.accounts.manage');
 
     if (!hasRepairAccess) {
       return res.status(403).json({ error: 'FINANCE_ACCOUNT_REPAIR_FORBIDDEN', message: 'Você não tem permissão para reparar contas.' });
@@ -108,6 +108,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId) {
       return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED', message: 'Entidade financeira da conta não identificada.', requestId });
+    }
+
+    if (!hasFinanceEntityScope(sessionList, financeEntityId)) {
+      return res.status(403).json({ error: 'FORBIDDEN_FINANCE_ENTITY_SCOPE', message: 'Acesso negado para esta entidade financeira.', requestId });
     }
 
     const auditRef = orgRef.collection('financeAuditLogs');

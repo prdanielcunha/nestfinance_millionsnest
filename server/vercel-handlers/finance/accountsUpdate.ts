@@ -9,7 +9,7 @@ import {
   generateUniqueKeyId,
   isValidAccountId
 } from '../../../api/_lib/financeIdentity.js';
-import { requireScopedFinanceAccount } from './accessHelpers.js';
+import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Must be global access or have finance.accounts.manage
-    const hasManageAccess = sessionList.isGlobalAccess === true || sessionList.capabilities?.includes('finance.accounts.manage');
+    const hasManageAccess = hasEffectiveCapability(sessionList, 'finance.accounts.manage');
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }

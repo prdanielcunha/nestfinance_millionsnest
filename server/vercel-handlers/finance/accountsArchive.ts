@@ -4,7 +4,7 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { isValidAccountId } from '../../../api/_lib/financeIdentity.js';
-import { requireScopedFinanceAccount } from './accessHelpers.js';
+import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    if (sessionList.isGlobalAccess !== true) {
+    if (!hasEffectiveCapability(sessionList, 'finance.accounts.manage')) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 

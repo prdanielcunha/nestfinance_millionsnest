@@ -2,14 +2,18 @@ import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Building2 } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
-import { canManageFinanceEntities } from '@/src/lib/permissions';
+import { canManageFinanceEntities, hasAnyEffectiveCapability } from '@/src/lib/permissions';
 import { CANONICAL_NAVIGATION } from '@/src/app/layouts/ShellLayout';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 
 export default function MorePage() {
   const { accessState } = useAuth();
   const { t } = useLanguage();
-  const moreItems = CANONICAL_NAVIGATION.filter(i => i.group === 'more');
+  const moreItems = CANONICAL_NAVIGATION.filter(
+    (item) =>
+      item.group === 'more' &&
+      (!item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities)),
+  );
 
   return (
     <div className="flex flex-col h-full fade-in space-y-6 max-w-2xl mx-auto w-full pt-4 font-sans">

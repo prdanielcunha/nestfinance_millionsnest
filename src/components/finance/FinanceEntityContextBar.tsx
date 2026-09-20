@@ -1,11 +1,9 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
-import { firebaseAuth } from '@/src/lib/firebase';
-import { listFinanceEntities } from '@/src/services/financeEntitiesService';
 
 interface FinanceEntityContextBarProps {
   areaName?: string;
@@ -26,56 +24,17 @@ export function FinanceEntityContextBar({
   allowSwitch = true,
   onBeforeSwitch,
 }: FinanceEntityContextBarProps) {
-  const { activeFinanceEntityId, activeFinanceEntityName, setActiveFinanceEntityId } = useFinanceEntity();
+  const {
+    activeFinanceEntityId,
+    activeFinanceEntityName,
+    accessibleFinanceEntities,
+    setActiveFinanceEntityId,
+  } = useFinanceEntity();
   const { language, t } = useLanguage();
   const navigate = useNavigate();
   const selectorTitleId = useId();
 
-  const [readyEntities, setReadyEntities] = useState<any[]>([]);
   const [selectorOpen, setSelectorOpen] = useState(false);
-
-  useEffect(() => {
-    if (allowSwitch && activeFinanceEntityId) {
-      fetchEntities();
-    }
-  }, [allowSwitch, activeFinanceEntityId]);
-
-  const fetchEntities = async () => {
-    try {
-      const user = firebaseAuth.currentUser;
-      if (!user) return;
-      const token = await user.getIdToken();
-
-      const res = await listFinanceEntities();
-      const allEntities = res.entities || [];
-
-      const statuses: Record<string, any> = {};
-      await Promise.all(
-        allEntities.map(async (entity: any) => {
-          try {
-            const bootstrapResponse = await fetch('/api/finance/entities/bootstrap/status', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ financeEntityId: entity.id }),
-            });
-            if (bootstrapResponse.ok) {
-              statuses[entity.id] = await bootstrapResponse.json();
-            }
-          } catch {
-            // Background readiness lookup is intentionally non-blocking.
-          }
-        }),
-      );
-
-      const readyList = allEntities.filter((entity: any) => statuses[entity.id]?.status === 'ready');
-      setReadyEntities(readyList);
-    } catch {
-      // Keep the current context usable if the background switch lookup fails.
-    }
-  };
 
   const handleSwitchClick = async () => {
     if (onBeforeSwitch) {
@@ -83,17 +42,17 @@ export function FinanceEntityContextBar({
       if (!allowed) return;
     }
 
-    if (readyEntities.length === 2) {
-      const other = readyEntities.find((entity) => entity.id !== activeFinanceEntityId);
+    if (accessibleFinanceEntities.length === 2) {
+      const other = accessibleFinanceEntities.find((entity) => entity.id !== activeFinanceEntityId);
       if (other) {
         setActiveFinanceEntityId(other.id, other.displayName);
         if (returnTo) {
           navigate(returnTo);
         }
       }
-    } else if (readyEntities.length > 2) {
+    } else if (accessibleFinanceEntities.length > 2) {
       setSelectorOpen(true);
-    } else if (readyEntities.length <= 1) {
+    } else if (accessibleFinanceEntities.length <= 1) {
       setActiveFinanceEntityId(null);
       navigate(APP_ROUTES.finance);
     }
@@ -109,7 +68,7 @@ export function FinanceEntityContextBar({
 
   if (!activeFinanceEntityId || !activeFinanceEntityName) return null;
 
-  const canSwitch = allowSwitch && readyEntities.length > 1;
+  const canSwitch = allowSwitch && accessibleFinanceEntities.length > 1;
 
   return (
     <>
@@ -173,7 +132,7 @@ export function FinanceEntityContextBar({
               </h3>
 
               <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
-                {readyEntities.map((entity) => (
+                {accessibleFinanceEntities.map((entity) => (
                   <button
                     type="button"
                     key={entity.id}

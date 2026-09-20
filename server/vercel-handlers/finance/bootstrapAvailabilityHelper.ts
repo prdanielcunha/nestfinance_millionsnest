@@ -60,17 +60,17 @@ export async function canManageFinanceBootstrap(uid: string, organizationId: str
   const roles = Array.isArray(session.roles) ? session.roles : [];
   const organizationRole = session.organizationRole;
 
-  const hasFinanceAdmin =
+  const hasFinanceAccess =
     permissions.includes('*') ||
     permissions.includes('organization.manage_entities') ||
-    permissions.includes('finance.manage') ||
+    permissions.some((permission) => permission.startsWith('finance.')) ||
     permissions.includes('finance_admin') ||
     roles.includes('admin') ||
     roles.includes('treasurer') ||
     organizationRole === 'owner' ||
     organizationRole === 'admin';
 
-  if (!hasFinanceAdmin) {
+  if (!hasFinanceAccess) {
     return { canApply: false, reason: 'INSUFFICIENT_FINANCE_PERMISSION' };
   }
 

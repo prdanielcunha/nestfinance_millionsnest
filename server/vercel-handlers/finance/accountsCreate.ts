@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
+import { hasEffectiveCapability, hasFinanceEntityScope } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { 
@@ -66,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Must be global access or have finance.accounts.manage
-    const hasManageAccess = sessionList.isGlobalAccess === true || sessionList.capabilities?.includes('finance.accounts.manage');
+    const hasManageAccess = hasEffectiveCapability(sessionList, 'finance.accounts.manage');
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
@@ -97,6 +98,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
+    }
+
+    if (!hasFinanceEntityScope(sessionList, financeEntityId)) {
+      return res.status(403).json({ error: 'FORBIDDEN_FINANCE_ENTITY_SCOPE' });
     }
 
     const entityDoc = await firestore.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId).get();

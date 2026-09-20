@@ -182,6 +182,47 @@ function run() {
   );
   assert.deepStrictEqual(signalAloneNeverCreatesPriority, { kind: 'clear', count: 0 });
 
+
+  const operatorIgnoresReviewQueue = chooseTodayPriority(
+    { ...emptySummary, readyForReview: 5, simpleDrafts: 2, totalOpen: 7 },
+    [],
+    undefined,
+    undefined,
+    { canCreate: true, canReview: false, canApprove: false },
+  );
+  assert.deepStrictEqual(operatorIgnoresReviewQueue, { kind: 'draft', count: 2 });
+
+  const reviewerIgnoresDraftsAndCorrections = chooseTodayPriority(
+    {
+      ...emptySummary,
+      returnedCorrections: 3,
+      simpleDrafts: 4,
+      readyForReview: 2,
+      totalOpen: 9,
+    },
+    [],
+    undefined,
+    undefined,
+    { canCreate: false, canReview: true, canApprove: false },
+  );
+  assert.deepStrictEqual(reviewerIgnoresDraftsAndCorrections, { kind: 'review', count: 2 });
+
+  const viewerGetsNoActionableTransactionPriority = chooseTodayPriority(
+    {
+      ...emptySummary,
+      returnedCorrections: 2,
+      simpleDrafts: 2,
+      readyForReview: 2,
+      approvedForPosting: 2,
+      totalOpen: 8,
+    },
+    [],
+    undefined,
+    undefined,
+    { canCreate: false, canReview: false, canApprove: false },
+  );
+  assert.deepStrictEqual(viewerGetsNoActionableTransactionPriority, { kind: 'clear', count: 0 });
+
   const clear = chooseTodayPriority(emptySummary, [
     { id: 'cnt_done', status: 'matched' },
     { id: 'cnt_first', status: 'counting_a' },

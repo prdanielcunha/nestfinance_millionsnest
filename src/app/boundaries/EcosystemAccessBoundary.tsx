@@ -45,11 +45,23 @@ export function EcosystemAccessBoundary({ children }: Props) {
         <NestFinanceLogo layout="horizontal" surface="dark" className="w-[512px] max-w-full mb-6 opacity-95" />
         <h1 className="text-lg font-medium text-white mb-2">Acesso necessário</h1>
         <p className="text-sm text-zinc-400 max-w-sm mb-6">
-          Você precisa entrar pelo Hub MillionsNest para acessar o NestFinance.
+          Entre no NestFinance para continuar. Se preferir, você também pode abrir pelo MillionsNest.
         </p>
-        <button disabled className="px-5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-medium text-zinc-500 opacity-50 cursor-not-allowed">
-          Ir para o {config.platformName} Hub
-        </button>
+        <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+          <button
+            onClick={() => navigate(APP_ROUTES.login, { replace: true })}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-black"
+          >
+            <LogIn className="h-4 w-4" aria-hidden="true" />
+            Entrar no NestFinance
+          </button>
+          <button
+            onClick={openHub}
+            className="rounded-lg border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-200"
+          >
+            Abrir {config.platformName}
+          </button>
+        </div>
       </div>
     );
   }
