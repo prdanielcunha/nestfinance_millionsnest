@@ -4,6 +4,7 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 import { canManageFinanceEntities } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes, createHash } from 'crypto';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -287,8 +288,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  auditChanges.operationalAddressSameAsRegistered = { from: currentData.operationalAddressSameAsRegistered, to: isSameAsRegistered };
             }
 
-            t.create(auditRef, {
+            stageCanonicalAuditCreate(t, firestore, auditRef, {
                 organizationId,
+                financeEntityId,
                 actorUid: uid,
                 action: 'finance.entity.updated',
                 entityType: 'financeEntity',
