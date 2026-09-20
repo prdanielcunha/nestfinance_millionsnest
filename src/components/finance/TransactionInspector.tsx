@@ -215,6 +215,7 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
     }
 
     let active = true;
+    setDetail(null);
     setLoading(true);
     setFailed(false);
     const currentEpoch = epoch;
