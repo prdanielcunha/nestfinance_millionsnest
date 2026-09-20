@@ -31,6 +31,7 @@ export type AuditFactProjectionCandidate = {
   actorUserId: string | null;
   metadata: CrossAppAuditMetadata;
   occurredAt: any;
+  scopeProofRef: string | null;
 };
 
 export type AuditFactProjectionInspection = {
@@ -214,6 +215,7 @@ function candidateFromAuditDoc(
   financeEntityId: string,
   doc: any,
   resolvedFinanceEntityId?: string | null,
+  scopeProofRef?: string | null,
 ): AuditFactProjectionCandidate | null {
   const data = doc.data() || {};
   const effectiveFinanceEntityId =
@@ -260,6 +262,7 @@ function candidateFromAuditDoc(
     actorUserId,
     metadata: buildCrossAppAuditMetadata(data),
     occurredAt: data.createdAt || null,
+    scopeProofRef: scopeProofRef || null,
   };
 }
 
@@ -288,6 +291,9 @@ function legacyAuditTargetRef(
   if (data.entityType === 'financeFund') {
     return orgRef.collection('financeFunds').doc(entityId);
   }
+  if (data.entityType === 'financeEntity') {
+    return orgRef.collection('financeEntities').doc(entityId);
+  }
   return null;
 }
 
@@ -309,7 +315,6 @@ export async function scanAuditFactProjectionCandidates(
   for (const doc of selected) {
     const data = doc.data() || {};
     if (typeof data.financeEntityId === 'string' && data.financeEntityId) continue;
-    if (data.entityType === 'financeEntity' && typeof data.entityId === 'string') continue;
     if (isOrganizationScopedAudit(data)) continue;
     const ref = legacyAuditTargetRef(orgRef, data);
     if (ref) targetRefs.set(ref.path, ref);
@@ -327,7 +332,9 @@ export async function scanAuditFactProjectionCandidates(
         doc.ref.path,
         typeof data.financeEntityId === 'string' && data.financeEntityId
           ? data.financeEntityId
-          : null,
+          : doc.ref.parent.id === 'financeEntities'
+            ? doc.id
+            : null,
       );
     }
   }
@@ -350,21 +357,13 @@ export async function scanAuditFactProjectionCandidates(
         ? data.financeEntityId
         : null;
 
-    if (
-      !resolvedFinanceEntityId &&
-      data.entityType === 'financeEntity' &&
-      typeof data.entityId === 'string' &&
-      data.entityId
-    ) {
-      resolvedFinanceEntityId = data.entityId;
-    }
+    const targetRef = !resolvedFinanceEntityId
+      ? legacyAuditTargetRef(orgRef, data)
+      : null;
 
-    if (!resolvedFinanceEntityId) {
-      const targetRef = legacyAuditTargetRef(orgRef, data);
-      if (targetRef) {
-        resolvedFinanceEntityId =
-          resolvedTargetScopes.get(targetRef.path) || null;
-      }
+    if (!resolvedFinanceEntityId && targetRef) {
+      resolvedFinanceEntityId =
+        resolvedTargetScopes.get(targetRef.path) || null;
     }
 
     if (!resolvedFinanceEntityId) {
@@ -377,6 +376,7 @@ export async function scanAuditFactProjectionCandidates(
       financeEntityId,
       doc,
       resolvedFinanceEntityId,
+      targetRef?.path || null,
     );
     if (candidate) candidates.push(candidate);
   }
@@ -461,9 +461,17 @@ export function matchesAuditProjectionCandidate(
     'unknown';
   const currentRequestId = boundedString(data.requestId, 180);
 
+  const embeddedFinanceEntityId =
+    typeof data.financeEntityId === 'string' && data.financeEntityId
+      ? data.financeEntityId
+      : null;
+  const scopeShapeValid = embeddedFinanceEntityId
+    ? embeddedFinanceEntityId === financeEntityId
+    : Boolean(candidate.scopeProofRef);
+
   return (
     data.organizationId === organizationId &&
-    data.financeEntityId === financeEntityId &&
+    scopeShapeValid &&
     candidate.auditEventId.length > 0 &&
     candidate.sourceRef.endsWith('/' + candidate.auditEventId) &&
     candidate.action === currentAction &&
