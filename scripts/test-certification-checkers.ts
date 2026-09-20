@@ -153,6 +153,34 @@ async function run() {
     assert.deepStrictEqual(violations, []);
   });
 
+
+  await check('agregação financeira global exige boundary global explícito', () => {
+    const violations = analyzeFinanceHandler(
+      'safeGlobalAggregate.ts',
+      `export default async function handler(req, res) {
+        const organizationId = decodedToken.mn_organization_id;
+        const session = await resolveEcosystemSession(uid, organizationId);
+        if (!canUseEcosystemOverview(session)) return res.status(403).end();
+        const ref = firestore.collection('organizations').doc(organizationId).collection('financeTransactions');
+        return res.json(await ref.count().get());
+      }`,
+    );
+    assert.deepStrictEqual(violations, []);
+  });
+
+  await check('agregação cross-entity sem boundary global continua rejeitada', () => {
+    const violations = analyzeFinanceHandler(
+      'unsafeGlobalAggregate.ts',
+      `export default async function handler(req, res) {
+        const organizationId = decodedToken.mn_organization_id;
+        await resolveEcosystemSession(uid, organizationId);
+        const ref = firestore.collection('organizations').doc(organizationId).collection('financeTransactions');
+        return res.json(await ref.count().get());
+      }`,
+    );
+    assert.ok(violations.some((item) => item.includes('entity-scope guard')));
+  });
+
   await check('erro inesperado de filesystem não é engolido pelo checker SaaS', async () => {
     const failingFs = {
       async readdir() {

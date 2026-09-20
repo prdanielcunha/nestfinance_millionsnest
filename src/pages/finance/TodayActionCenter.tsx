@@ -20,6 +20,7 @@ import type {
   NeedsAttentionSignalSummary,
 } from '../../../shared/intelligence/needsAttention.js';
 import { Button, Surface } from '@/src/components/foundation';
+import { EcosystemOverviewPanel } from '@/src/components/finance/EcosystemOverviewPanel';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
@@ -371,6 +372,8 @@ export function TodayActionCenter() {
 
   const organizationId = accessState.organization?.id || '';
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
+  const canApproveTransactions = hasEffectiveCapability(accessState, 'finance.approve_for_posting');
   const canClassifyInbox =
     hasEffectiveCapability(accessState, 'finance.create_drafts') ||
     hasEffectiveCapability(accessState, 'finance.manage');
@@ -502,10 +505,18 @@ export function TodayActionCenter() {
           canReview: canReviewInbox,
         },
         signalSummary ? { items: signalSummary.items } : undefined,
+        {
+          canCreate,
+          canReview: canReviewTransactions,
+          canApprove: canApproveTransactions,
+        },
       ),
     [
+      canApproveTransactions,
       canClassifyInbox,
+      canCreate,
       canReviewInbox,
+      canReviewTransactions,
       countItems,
       effectiveInboxSummary.needsClassification,
       effectiveInboxSummary.pendingReview,
@@ -665,23 +676,30 @@ export function TodayActionCenter() {
 
   if (!activeFinanceEntityId) {
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center">
-        <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
-          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-            <Clock3 className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{copy.noEntityTitle}</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{copy.noEntityText}</p>
-          <Button variant="primary" size="lg" className="mt-6" onClick={() => navigate(APP_ROUTES.financeSettings)}>
-            {copy.chooseEntity}
-          </Button>
-        </Surface>
+      <div className="space-y-6 pb-4">
+        <EcosystemOverviewPanel />
+        <div className="mx-auto flex min-h-[48vh] max-w-2xl items-center justify-center">
+          <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
+              <Clock3 className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{copy.noEntityTitle}</h1>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{copy.noEntityText}</p>
+            {hasEffectiveCapability(accessState, 'organization.manage_entities') ? (
+              <Button variant="primary" size="lg" className="mt-6" onClick={() => navigate(APP_ROUTES.financeSettings)}>
+                {copy.chooseEntity}
+              </Button>
+            ) : null}
+          </Surface>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-4">
+      <EcosystemOverviewPanel />
+
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-primary">{copy.eyebrow}</p>

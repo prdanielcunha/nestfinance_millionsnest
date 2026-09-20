@@ -40,7 +40,8 @@
     "test:firebase-infra": "tsx scripts/test_firebase_hosting_cloudrun_policy.ts",
     "test:auth-session": "tsx scripts/test-ecosystem-session-resolver.ts",
     "test:role-workspace": "tsx scripts/test-role-aware-workspace.ts",
-    "test:finance-role-policy": "tsx scripts/test-finance-role-policy.ts"
+    "test:finance-role-policy": "tsx scripts/test-finance-role-policy.ts",
+    "test:ecosystem-overview": "tsx scripts/test-ecosystem-overview.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

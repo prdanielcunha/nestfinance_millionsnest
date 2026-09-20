@@ -96,6 +96,10 @@ export const NESTFINANCE_CLOUD_RUN_ROUTES = {
     "gateway": "finance",
     "operation": "entities-accessible"
   },
+  "/api/finance/ecosystem/overview": {
+    "gateway": "finance",
+    "operation": "ecosystem-overview"
+  },
   "/api/finance/entities/detail": {
     "gateway": "finance",
     "operation": "entities-detail"

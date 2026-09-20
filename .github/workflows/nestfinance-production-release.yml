@@ -53,6 +53,7 @@ jobs:
           npm run test:auth-session
           npm run test:role-workspace
           npm run test:finance-role-policy
+          npm run test:ecosystem-overview
           npm run test:firebase-infra
           npm run test:certification-gates
           npm run build
@@ -116,6 +117,13 @@ jobs:
             exit 1
           fi
 
+          ECOSYSTEM_STATUS="$(curl --silent --output /tmp/local-ecosystem-overview.json --write-out '%{http_code}'             -X POST 'http://127.0.0.1:18081/api/finance/ecosystem/overview'             -H 'content-type: application/json'             --data '{}')"
+          if [ "$ECOSYSTEM_STATUS" != "401" ]; then
+            echo "Expected ecosystem overview to require authentication with 401, got $ECOSYSTEM_STATUS"
+            cat /tmp/local-ecosystem-overview.json || true
+            exit 1
+          fi
+
           echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
 
       - name: Deploy Firestore indexes
@@ -160,8 +168,20 @@ jobs:
             grep -Eiq '<!doctype html|<html' /tmp/nf-page.html
           done
 
-          curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$BASE/api/system/release" -o /tmp/nf-release.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/nf-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);if(x.app!=='nestfinance'||x.gitCommitSha!==expected){console.error(x,expected);process.exit(1)};console.log('NESTFINANCE_FIREBASE_EXACT_SHA_OK', expected);"
+          EXPECTED_SHA="${GITHUB_SHA:0:12}"
+          for ATTEMPT in {1..20}; do
+            curl --fail --silent --show-error --location "$BASE/api/system/release" -o /tmp/nf-release.json || true
+            if node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/nf-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);process.exit(x.app==='nestfinance'&&x.gitCommitSha===expected?0:1)"; then
+              echo "NESTFINANCE_FIREBASE_EXACT_SHA_OK $EXPECTED_SHA"
+              break
+            fi
+            if [ "$ATTEMPT" = "20" ]; then
+              echo "Firebase Hosting did not expose the expected release SHA in time."
+              cat /tmp/nf-release.json || true
+              exit 1
+            fi
+            sleep 3
+          done
 
           STATUS="$(curl --silent --show-error --location --output /tmp/nf-gateway.json --write-out '%{http_code}'             -X POST "$BASE/api/finance-gateway?operation=transactions-summary"             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke"}')"
           if [ "$STATUS" != "401" ]; then
@@ -195,6 +215,13 @@ jobs:
           if [ "$ENTITY_SELECTOR_STATUS" != "401" ]; then
             echo "Expected accessible entity selector to require authentication with 401, got $ENTITY_SELECTOR_STATUS"
             cat /tmp/nf-entity-selector.json || true
+            exit 1
+          fi
+
+          ECOSYSTEM_STATUS="$(curl --silent --show-error --location --output /tmp/nf-ecosystem-overview.json --write-out '%{http_code}'             -X POST "$BASE/api/finance/ecosystem/overview"             -H 'content-type: application/json'             --data '{}')"
+          if [ "$ECOSYSTEM_STATUS" != "401" ]; then
+            echo "Expected ecosystem overview to require authentication with 401, got $ECOSYSTEM_STATUS"
+            cat /tmp/nf-ecosystem-overview.json || true
             exit 1
           fi
 
