@@ -215,10 +215,20 @@ export function matchesAuditProjectionCandidate(
   organizationId: string,
   financeEntityId: string,
 ) {
+  const currentAction = boundedString(data.action, 120) || 'unknown';
+  const currentResource =
+    boundedString(data.resource, 80) ||
+    boundedString(data.entityType, 80) ||
+    'unknown';
+  const currentRequestId = boundedString(data.requestId, 180);
+
   return (
     data.organizationId === organizationId &&
     data.financeEntityId === financeEntityId &&
     candidate.auditEventId.length > 0 &&
-    candidate.sourceRef.endsWith('/' + candidate.auditEventId)
+    candidate.sourceRef.endsWith('/' + candidate.auditEventId) &&
+    candidate.action === currentAction &&
+    candidate.resource === currentResource &&
+    candidate.requestId === currentRequestId
   );
 }
