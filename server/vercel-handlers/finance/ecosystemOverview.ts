@@ -3,6 +3,7 @@ import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 
 const MAX_ORGANIZATIONS = 100;
+const MAX_SCANNED_ORGANIZATIONS = 500;
 const ORG_BATCH_SIZE = 8;
 const OPEN_TRANSACTION_STATUSES = ['draft', 'ready_for_review', 'approved_for_posting'] as const;
 
@@ -31,7 +32,7 @@ function isInactive(value: any): boolean {
   );
 }
 
-function hasNestFinanceEntitlement(data: any): boolean {
+export function hasNestFinanceEntitlement(data: any): boolean {
   const enabledApps = Array.isArray(data?.enabledApps) ? data.enabledApps : [];
   const entitlement = data?.entitlements?.nestfinance;
 
@@ -39,6 +40,19 @@ function hasNestFinanceEntitlement(data: any): boolean {
     enabledApps.includes('nestfinance') &&
     (entitlement?.active === true || entitlement?.status === 'active')
   );
+}
+
+export function canUseEcosystemOverview(session: any): boolean {
+  return session?.granted === true && session?.isGlobalAccess === true;
+}
+
+export function organizationOverviewState(input: {
+  readyForReview: number;
+  openTransactions: number;
+}): OrganizationOverview['state'] {
+  if (input.readyForReview > 0) return 'attention';
+  if (input.openTransactions > 0) return 'active';
+  return 'clear';
 }
 
 async function countStatus(transactions: any, status: (typeof OPEN_TRANSACTION_STATUSES)[number]) {
@@ -69,11 +83,7 @@ async function summarizeOrganization(db: any, organization: { id: string; name: 
     readyForReview,
     approvedForPosting,
     openTransactions,
-    state: readyForReview > 0
-      ? 'attention'
-      : openTransactions > 0
-        ? 'active'
-        : 'clear',
+    state: organizationOverviewState({ readyForReview, openTransactions }),
   } satisfies OrganizationOverview;
 }
 
@@ -122,14 +132,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Global authority is resolved canonically for the currently scoped organization.
     // The client can never opt into ecosystem scope by sending a role or organization list.
     const activeSession = await resolveEcosystemSession(uid, activeOrganizationId);
-    if (!activeSession.granted || activeSession.isGlobalAccess !== true) {
+    if (!canUseEcosystemOverview(activeSession)) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
+    // Scan only organizations where NestFinance is explicitly enabled. The app
+    // entitlement is then checked again before any finance metadata is read.
+    // This remains bounded even if the ecosystem grows substantially.
     const snapshot = await admin.firestore
       .collection('organizations')
-      .orderBy('name', 'asc')
-      .limit(MAX_ORGANIZATIONS + 1)
+      .where('enabledApps', 'array-contains', 'nestfinance')
+      .limit(MAX_SCANNED_ORGANIZATIONS)
       .get();
 
     const eligibleOrganizations = snapshot.docs
@@ -146,7 +159,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
       });
 
-    const truncated = eligibleOrganizations.length > MAX_ORGANIZATIONS;
+    const truncated =
+      eligibleOrganizations.length > MAX_ORGANIZATIONS ||
+      snapshot.size >= MAX_SCANNED_ORGANIZATIONS;
     const visibleOrganizations = eligibleOrganizations.slice(0, MAX_ORGANIZATIONS);
 
     const organizations = await mapInBatches(
