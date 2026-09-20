@@ -10,6 +10,7 @@ import {
   buildUniqueKeyLogicName, 
   generateUniqueKeyId 
 } from '../../../api/_lib/financeIdentity.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -182,6 +183,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditData = {
           organizationId,
+          financeEntityId,
           actorUid: uid,
           action: 'finance.fund.created',
           entityType: 'financeFund',
@@ -193,7 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         t.create(fundRef, fundData);
         t.create(uniqueKeyRef, uniqueKeyData);
-        t.create(auditRef, auditData);
+        stageCanonicalAuditCreate(t, firestore, auditRef, auditData);
       });
 
       return res.status(201).json({ id: fundId, success: true });

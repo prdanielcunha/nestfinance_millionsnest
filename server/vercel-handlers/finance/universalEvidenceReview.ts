@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageFinanceSignalResolve } from './signalProjection.js';
 import { generateEvidenceAuditId } from './universalEvidenceHelpers.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
@@ -111,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const auditId = generateEvidenceAuditId();
         const auditRef = context.repository.getAuditRef().doc(auditId);
-        transaction.create(auditRef, {
+        stageCanonicalAuditCreate(transaction, db, auditRef, {
           eventId: auditId,
           organizationId,
           financeEntityId,

@@ -56,6 +56,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return { applied: false, reused: false };
         }
 
+        if (candidate.scopeProofRef) {
+          const scopeProofRef = db.doc(candidate.scopeProofRef);
+          const scopeProofSnapshot = await transaction.get(scopeProofRef);
+          const scopeProof = scopeProofSnapshot.data() || {};
+          const provenFinanceEntityId =
+            typeof scopeProof.financeEntityId === 'string' && scopeProof.financeEntityId
+              ? scopeProof.financeEntityId
+              : scopeProofRef.parent.id === 'financeEntities'
+                ? scopeProofRef.id
+                : null;
+          if (!scopeProofSnapshot.exists || provenFinanceEntityId !== financeEntityId) {
+            return { applied: false, reused: false };
+          }
+        }
+
         const ensured = await ensureFinanceFact(
           transaction,
           db,
@@ -91,8 +106,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       reusedFacts,
       skippedSourceChanged,
       remaining: after.missing.length,
+      unresolvedLegacyScopeCount: after.unresolvedLegacyScopeCount,
+      organizationScopedCount: after.organizationScopedCount,
       truncated: after.truncated,
-      complete: !after.truncated && after.missing.length === 0,
+      complete:
+        !after.truncated &&
+        after.unresolvedLegacyScopeCount === 0 &&
+        after.missing.length === 0,
       financialMutation: false,
       auditMutation: false,
     });

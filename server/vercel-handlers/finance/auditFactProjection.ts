@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Firestore, Transaction } from 'firebase-admin/firestore';
+import type { DocumentReference, Firestore, Transaction } from 'firebase-admin/firestore';
 import {
   buildFinanceFactEventId,
   stageFinanceFact,
@@ -31,12 +31,15 @@ export type AuditFactProjectionCandidate = {
   actorUserId: string | null;
   metadata: CrossAppAuditMetadata;
   occurredAt: any;
+  scopeProofRef: string | null;
 };
 
 export type AuditFactProjectionInspection = {
   candidates: AuditFactProjectionCandidate[];
   missing: AuditFactProjectionCandidate[];
   verifiedExisting: AuditFactProjectionCandidate[];
+  unresolvedLegacyScopeCount: number;
+  organizationScopedCount: number;
   truncated: boolean;
 };
 
@@ -107,7 +110,7 @@ export function buildAuditFactInput(args: {
     boundedString(auditData.entityId, 180) ||
     null;
   const requestId = boundedString(auditData.requestId, 180);
-  const rawActor = boundedString(auditData.actor, 180);
+  const rawActor = boundedString(auditData.actor ?? auditData.actorUid, 180);
 
   return {
     organizationId,
@@ -153,6 +156,48 @@ export function stageCanonicalAuditFact(
   );
 }
 
+export function stageCanonicalAuditRecord(
+  transaction: Transaction,
+  db: Firestore,
+  auditRef: DocumentReference,
+  auditData: Record<string, any>,
+  writeMode: 'set' | 'create' = 'set',
+) {
+  const organizationId =
+    typeof auditData.organizationId === 'string' ? auditData.organizationId : '';
+  const financeEntityId =
+    typeof auditData.financeEntityId === 'string' ? auditData.financeEntityId : '';
+  const auditEventId =
+    typeof auditData.eventId === 'string' && auditData.eventId
+      ? auditData.eventId
+      : auditRef.id;
+
+  if (!organizationId || !financeEntityId || !auditEventId) {
+    throw new Error('AUDIT_FACT_SOURCE_INVALID');
+  }
+
+  if (writeMode === 'create') transaction.create(auditRef, auditData);
+  else transaction.set(auditRef, auditData);
+
+  return stageCanonicalAuditFact(transaction, db, {
+    organizationId,
+    financeEntityId,
+    auditEventId,
+    auditRef: auditRef.path,
+    auditData,
+  });
+}
+
+export function stageCanonicalAuditCreate(
+  transaction: Transaction,
+  db: Firestore,
+  auditRef: DocumentReference,
+  auditData: Record<string, any>,
+) {
+  return stageCanonicalAuditRecord(transaction, db, auditRef, auditData, 'create');
+}
+
+
 export function buildAuditProjectionCoverageId(
   organizationId: string,
   financeEntityId: string,
@@ -169,11 +214,17 @@ function candidateFromAuditDoc(
   organizationId: string,
   financeEntityId: string,
   doc: any,
+  resolvedFinanceEntityId?: string | null,
+  scopeProofRef?: string | null,
 ): AuditFactProjectionCandidate | null {
   const data = doc.data() || {};
+  const effectiveFinanceEntityId =
+    typeof data.financeEntityId === 'string' && data.financeEntityId
+      ? data.financeEntityId
+      : resolvedFinanceEntityId || null;
   if (
     data.organizationId !== organizationId ||
-    data.financeEntityId !== financeEntityId
+    effectiveFinanceEntityId !== financeEntityId
   ) {
     return null;
   }
@@ -190,7 +241,7 @@ function candidateFromAuditDoc(
     boundedString(data.entityId, 180) ||
     null;
   const requestId = boundedString(data.requestId, 180);
-  const rawActor = boundedString(data.actor, 180);
+  const rawActor = boundedString(data.actor ?? data.actorUid, 180);
   const actorUserId = rawActor && rawActor !== 'system' ? rawActor : null;
   const correlationId = buildAuditFactCorrelationId(doc.id);
 
@@ -211,7 +262,39 @@ function candidateFromAuditDoc(
     actorUserId,
     metadata: buildCrossAppAuditMetadata(data),
     occurredAt: data.createdAt || null,
+    scopeProofRef: scopeProofRef || null,
   };
+}
+
+function isOrganizationScopedAudit(data: Record<string, any>) {
+  return (
+    data.entityType === 'financeSettings' ||
+    data.resource === 'finance_settings' ||
+    data.action === 'finance.setup.initialized'
+  );
+}
+
+function legacyAuditTargetRef(
+  orgRef: DocumentReference,
+  data: Record<string, any>,
+): DocumentReference | null {
+  const entityId =
+    typeof data.entityId === 'string' && data.entityId ? data.entityId : null;
+  if (!entityId) return null;
+
+  if (data.entityType === 'financeAccount') {
+    return orgRef.collection('financeAccounts').doc(entityId);
+  }
+  if (data.entityType === 'financeCategory') {
+    return orgRef.collection('financeCategories').doc(entityId);
+  }
+  if (data.entityType === 'financeFund') {
+    return orgRef.collection('financeFunds').doc(entityId);
+  }
+  if (data.entityType === 'financeEntity') {
+    return orgRef.collection('financeEntities').doc(entityId);
+  }
+  return null;
 }
 
 export async function scanAuditFactProjectionCandidates(
@@ -222,18 +305,89 @@ export async function scanAuditFactProjectionCandidates(
   const orgRef = db.collection('organizations').doc(organizationId);
   const snapshot = await orgRef
     .collection('financeAuditLogs')
-    .where('financeEntityId', '==', financeEntityId)
     .limit(AUDIT_FACT_PROJECTION_SCAN_MAX + 1)
     .get();
 
   const truncated = snapshot.size > AUDIT_FACT_PROJECTION_SCAN_MAX;
-  const candidates = snapshot.docs
-    .slice(0, AUDIT_FACT_PROJECTION_SCAN_MAX)
-    .map((doc) => candidateFromAuditDoc(organizationId, financeEntityId, doc))
-    .filter((item): item is AuditFactProjectionCandidate => Boolean(item))
-    .sort((a, b) => a.auditEventId.localeCompare(b.auditEventId));
+  const selected = snapshot.docs.slice(0, AUDIT_FACT_PROJECTION_SCAN_MAX);
+  const targetRefs = new Map<string, DocumentReference>();
 
-  return { candidates, truncated };
+  for (const doc of selected) {
+    const data = doc.data() || {};
+    if (typeof data.financeEntityId === 'string' && data.financeEntityId) continue;
+    if (isOrganizationScopedAudit(data)) continue;
+    const ref = legacyAuditTargetRef(orgRef, data);
+    if (ref) targetRefs.set(ref.path, ref);
+  }
+
+  const resolvedTargetScopes = new Map<string, string | null>();
+  const refs = [...targetRefs.values()];
+  for (let index = 0; index < refs.length; index += 200) {
+    const chunk = refs.slice(index, index + 200);
+    if (chunk.length === 0) continue;
+    const docs = await db.getAll(...chunk);
+    for (const doc of docs) {
+      const data = doc.data() || {};
+      resolvedTargetScopes.set(
+        doc.ref.path,
+        typeof data.financeEntityId === 'string' && data.financeEntityId
+          ? data.financeEntityId
+          : doc.ref.parent.id === 'financeEntities'
+            ? doc.id
+            : null,
+      );
+    }
+  }
+
+  let unresolvedLegacyScopeCount = 0;
+  let organizationScopedCount = 0;
+  const candidates: AuditFactProjectionCandidate[] = [];
+
+  for (const doc of selected) {
+    const data = doc.data() || {};
+    if (data.organizationId !== organizationId) continue;
+
+    if (isOrganizationScopedAudit(data)) {
+      organizationScopedCount += 1;
+      continue;
+    }
+
+    let resolvedFinanceEntityId =
+      typeof data.financeEntityId === 'string' && data.financeEntityId
+        ? data.financeEntityId
+        : null;
+
+    const targetRef = !resolvedFinanceEntityId
+      ? legacyAuditTargetRef(orgRef, data)
+      : null;
+
+    if (!resolvedFinanceEntityId && targetRef) {
+      resolvedFinanceEntityId =
+        resolvedTargetScopes.get(targetRef.path) || null;
+    }
+
+    if (!resolvedFinanceEntityId) {
+      unresolvedLegacyScopeCount += 1;
+      continue;
+    }
+
+    const candidate = candidateFromAuditDoc(
+      organizationId,
+      financeEntityId,
+      doc,
+      resolvedFinanceEntityId,
+      targetRef?.path || null,
+    );
+    if (candidate) candidates.push(candidate);
+  }
+
+  candidates.sort((a, b) => a.auditEventId.localeCompare(b.auditEventId));
+  return {
+    candidates,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  };
 }
 
 export async function inspectAuditFactProjection(
@@ -241,7 +395,12 @@ export async function inspectAuditFactProjection(
   organizationId: string,
   financeEntityId: string,
 ): Promise<AuditFactProjectionInspection> {
-  const { candidates, truncated } = await scanAuditFactProjectionCandidates(
+  const {
+    candidates,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  } = await scanAuditFactProjectionCandidates(
     db,
     organizationId,
     financeEntityId,
@@ -279,7 +438,14 @@ export async function inspectAuditFactProjection(
     else missing.push(candidate);
   }
 
-  return { candidates, missing, verifiedExisting, truncated };
+  return {
+    candidates,
+    missing,
+    verifiedExisting,
+    unresolvedLegacyScopeCount,
+    organizationScopedCount,
+    truncated,
+  };
 }
 
 export function matchesAuditProjectionCandidate(
@@ -295,9 +461,17 @@ export function matchesAuditProjectionCandidate(
     'unknown';
   const currentRequestId = boundedString(data.requestId, 180);
 
+  const embeddedFinanceEntityId =
+    typeof data.financeEntityId === 'string' && data.financeEntityId
+      ? data.financeEntityId
+      : null;
+  const scopeShapeValid = embeddedFinanceEntityId
+    ? embeddedFinanceEntityId === financeEntityId
+    : Boolean(candidate.scopeProofRef);
+
   return (
     data.organizationId === organizationId &&
-    data.financeEntityId === financeEntityId &&
+    scopeShapeValid &&
     candidate.auditEventId.length > 0 &&
     candidate.sourceRef.endsWith('/' + candidate.auditEventId) &&
     candidate.action === currentAction &&

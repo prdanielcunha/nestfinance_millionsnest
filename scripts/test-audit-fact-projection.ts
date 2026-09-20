@@ -80,8 +80,12 @@ assert.ok(contracts.includes("operation: 'audit-fact-projection-apply'"));
 assert.ok(contracts.includes("operation: 'audit-fact-projection-verify'"));
 assert.ok(
   crossApp.includes("AUDIT_EVENT_RECORDED: {") &&
-    crossApp.includes("state: 'reserved'"),
-  'cross-app audit event remains reserved until live writers are migrated',
+    crossApp.includes("state: 'emitted'"),
+  'cross-app audit event is live while historical coverage remains independently certifiable',
+);
+assert.ok(
+  verify.includes("coverageKind: 'audit_fact_projection'"),
+  'historical audit completeness remains an explicit coverage certification',
 );
 
 console.log('✅ Audit fact projection is permissioned, idempotent-ready and privacy bounded');

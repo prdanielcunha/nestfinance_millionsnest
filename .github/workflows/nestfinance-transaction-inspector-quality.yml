@@ -1,0 +1,46 @@
+name: NestFinance Transaction Inspector Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/components/finance/TransactionInspector.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "src/hooks/finance/useTransactions.ts"
+      - "src/services/transactionsService.ts"
+      - "scripts/test-transaction-inspector.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-transaction-inspector-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/components/finance/TransactionInspector.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "src/hooks/finance/useTransactions.ts"
+      - "src/services/transactionsService.ts"
+      - "scripts/test-transaction-inspector.ts"
+      - "package.json"
+      - ".github/workflows/nestfinance-transaction-inspector-quality.yml"
+      - ".github/workflows/nestfinance-production-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  transaction-inspector-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify inspector UX contract
+        run: npm run test:transaction-inspector
+      - name: TypeScript lint and typecheck
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build

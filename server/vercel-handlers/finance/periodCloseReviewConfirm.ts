@@ -6,6 +6,7 @@ import { isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { loadPeriodCloseReadModel, parsePeriod } from './periodCloseReadModel.js';
 import { stageFinanceFact } from './factStream.js';
+import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 
 function auditIdFor(reviewId: string) {
   return 'audit_' + createHash('sha256')
@@ -148,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const auditRef = context.repository
         .getAuditRef()
         .doc(auditIdFor(loaded.expectedReviewId));
-      transaction.set(auditRef, {
+      stageCanonicalAuditRecord(transaction, db, auditRef, {
         eventId: auditIdFor(loaded.expectedReviewId),
         organizationId,
         financeEntityId,
