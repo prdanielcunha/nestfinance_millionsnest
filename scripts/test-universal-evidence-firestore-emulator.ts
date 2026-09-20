@@ -58,6 +58,22 @@ try {
       typeof identificationSignal?.lastFactId === 'string',
     'accepted evidence opens a source-backed identification signal',
   );
+  const factsAfterAccept = await db.collection('intelligenceFacts').where('organizationId', '==', orgId).get();
+  const acceptedEvidenceFacts = factsAfterAccept.docs
+    .map((doc) => doc.data())
+    .filter((data) => data.entityId === started.body.evidenceId);
+  verify(
+    acceptedEvidenceFacts.some((data) => data.eventType === 'DOCUMENT_ATTACHED') &&
+      acceptedEvidenceFacts.some((data) => data.eventType === 'INBOX_ITEM_CREATED'),
+    'accepted non-duplicate evidence emits both source attachment and Inbox creation facts',
+  );
+  const inboxCreated = acceptedEvidenceFacts.find((data) => data.eventType === 'INBOX_ITEM_CREATED');
+  verify(
+    inboxCreated?.payload?.requiresIdentification === true &&
+      inboxCreated?.payload?.financialRecognition === false &&
+      typeof inboxCreated?.causationId === 'string',
+    'Inbox creation fact is minimal and causally linked to document attachment',
+  );
   const duplicate = await call(universalEvidenceStart, startBody(entityA)); objects.set(String(duplicate.body.upload.url).replace('memory://', ''), { bytes: png, contentType: 'image/png' }); const duplicateFinal = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: duplicate.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(duplicateFinal.body.duplicate === true && !('duplicateOfEvidenceId' in duplicateFinal.body), 'same-entity duplicate is detected without returning private canonical metadata');
   const duplicateSignalId = buildFinanceSignalId({
     organizationId: orgId,
@@ -68,6 +84,13 @@ try {
   verify(
     !(await db.collection('intelligenceSignals').doc(duplicateSignalId).get()).exists,
     'duplicate evidence does not create actionable identification work',
+  );
+  const factsAfterDuplicate = await db.collection('intelligenceFacts').where('organizationId', '==', orgId).get();
+  verify(
+    !factsAfterDuplicate.docs
+      .map((doc) => doc.data())
+      .some((data) => data.entityId === duplicate.body.evidenceId && data.eventType === 'INBOX_ITEM_CREATED'),
+    'duplicate evidence does not advertise a new Inbox item cross-app',
   );
   const other = await call(universalEvidenceStart, startBody(entityB)); objects.set(String(other.body.upload.url).replace('memory://', ''), { bytes: png, contentType: 'image/png' }); const otherFinal = await call(universalEvidenceFinalize, { financeEntityId: entityB, evidenceId: other.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(otherFinal.body.duplicate === false, 'same content in another entity does not leak duplicate existence');
   const corruptBytes = Buffer.from([1,2,3,4]); const corrupt = await call(universalEvidenceStart, { ...startBody(entityA), byteSize: corruptBytes.length, originalSha256: sha(corruptBytes) }); objects.set(String(corrupt.body.upload.url).replace('memory://', ''), { bytes: corruptBytes, contentType: 'image/png' }); const corruptFinal = await call(universalEvidenceFinalize, { financeEntityId: entityA, evidenceId: corrupt.body.evidenceId, expectedVersion: 1, idempotencyKey: key(), requestId: request() }); verify(corruptFinal.statusCode === 415, 'corrupt/spoofed content is rejected by byte signature');
