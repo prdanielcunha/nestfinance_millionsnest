@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Firestore, Transaction } from 'firebase-admin/firestore';
+import type { DocumentReference, Firestore, Transaction } from 'firebase-admin/firestore';
 import {
   buildFinanceFactEventId,
   stageFinanceFact,
@@ -156,7 +156,7 @@ export function stageCanonicalAuditFact(
 export function stageCanonicalAuditRecord(
   transaction: Transaction,
   db: Firestore,
-  auditRef: FirebaseFirestore.DocumentReference,
+  auditRef: DocumentReference,
   auditData: Record<string, any>,
   writeMode: 'set' | 'create' = 'set',
 ) {
