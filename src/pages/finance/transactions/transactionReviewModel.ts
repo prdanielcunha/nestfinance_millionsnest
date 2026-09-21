@@ -130,3 +130,16 @@ export function normalizeReviewQueueSequence(
 
   return normalized;
 }
+
+
+export type ReviewQueueSignal = 'blocked' | 'warning' | 'ready' | 'unknown';
+
+export function resolveReviewQueueSignal(transaction: any): ReviewQueueSignal {
+  const blockerCount = Math.max(0, Number(transaction?.blockerCount || 0));
+  const warningCount = Math.max(0, Number(transaction?.warningCount || 0));
+
+  if (blockerCount > 0) return 'blocked';
+  if (warningCount > 0) return 'warning';
+  if (transaction?.isReady === true) return 'ready';
+  return 'unknown';
+}

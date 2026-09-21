@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
+  CheckCircle2,
   ChevronRight,
   Clock3,
   Search,
@@ -28,6 +30,7 @@ import {
   normalizeReviewDirection,
   normalizeReviewOrder,
   normalizeReviewQueueSequence,
+  resolveReviewQueueSignal,
   type ReviewDirectionFilter,
   type ReviewOrder,
 } from './transactionReviewModel';
@@ -289,6 +292,15 @@ function ReviewContent() {
     return copy.directions.all;
   };
 
+  const queueSignalCounts = items.reduce(
+    (counts, transaction) => {
+      const signal = resolveReviewQueueSignal(transaction);
+      counts[signal] += 1;
+      return counts;
+    },
+    { blocked: 0, warning: 0, ready: 0, unknown: 0 },
+  );
+
   if (errorKind === 'index' && items.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
@@ -475,6 +487,46 @@ function ReviewContent() {
             ))}
           </div>
 
+          {items.length > 0 ? (
+            <Surface variant="secondary" radius="lg" className="p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="max-w-2xl">
+                  <h2 className="text-sm font-semibold text-text-primary">
+                    {copy.signalsTitle}
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                    {copy.signalsBody}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  {queueSignalCounts.blocked > 0 ? (
+                    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-semantic-danger/20 bg-semantic-danger/10 px-3 text-semantic-danger">
+                      <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      {queueSignalCounts.blocked} · {copy.summaryBlocked}
+                    </span>
+                  ) : null}
+                  {queueSignalCounts.warning > 0 ? (
+                    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-semantic-warning/20 bg-semantic-warning/10 px-3 text-semantic-warning">
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                      {queueSignalCounts.warning} · {copy.summaryWarning}
+                    </span>
+                  ) : null}
+                  {queueSignalCounts.ready > 0 ? (
+                    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-3 text-semantic-success">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      {queueSignalCounts.ready} · {copy.summaryReady}
+                    </span>
+                  ) : null}
+                  {queueSignalCounts.unknown > 0 ? (
+                    <span className="inline-flex min-h-8 items-center rounded-full border border-border-subtle bg-surface-elevated px-3 text-text-secondary">
+                      {queueSignalCounts.unknown} · {copy.summaryUnknown}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </Surface>
+          ) : null}
+
           {loading && items.length === 0 ? (
             <div className="grid gap-3" aria-busy="true" aria-label={copy.loading}>
               {[0, 1, 2].map((item) => (
@@ -523,7 +575,15 @@ function ReviewContent() {
                 const accountName =
                   transaction.accountSnapshot?.name || copy.noAccount;
                 const description = transaction.description || copy.noDescription;
-                const warningCount = Number(transaction.warningCount || 0);
+                const blockerCount = Math.max(
+                  0,
+                  Number(transaction.blockerCount || 0),
+                );
+                const warningCount = Math.max(
+                  0,
+                  Number(transaction.warningCount || 0),
+                );
+                const queueSignal = resolveReviewQueueSignal(transaction);
 
                 return (
                   <button
@@ -561,11 +621,26 @@ function ReviewContent() {
                           >
                             {description}
                           </p>
-                          {warningCount > 0 ? (
-                            <p className="mt-1 text-xs text-semantic-warning">
-                              {copy.warnings(warningCount)}
+                          {queueSignal === 'blocked' ? (
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-danger">
+                              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                              {copy.blockedSignal(blockerCount)}
                             </p>
-                          ) : null}
+                          ) : queueSignal === 'warning' ? (
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-warning">
+                              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                              {copy.warningSignal(warningCount)}
+                            </p>
+                          ) : queueSignal === 'ready' ? (
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-success">
+                              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              {copy.readySignal}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-text-muted">
+                              {copy.unknownSignal}
+                            </p>
+                          )}
                         </div>
 
                         <span className="truncate text-sm text-text-secondary">
