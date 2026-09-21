@@ -270,9 +270,11 @@ Estado atual em `main`:
 - quando uma evidência já possui `transactionAnalysis` persistida, o Review compara deterministicamente valor, data, tipo, forma de pagamento e categoria entre a leitura assistida e a movimentação atual, expondo match/diferença/incerteza como contexto para a pessoa revisora;
 - o binário original continua opt-in e só é solicitado após ação explícita via `universal-evidence-preview`; object URLs temporárias são revogadas ao fechar/trocar contexto;
 - o Review não dispara `universal-evidence-analyze-transaction` automaticamente, não classifica/resolve evidência e não transforma divergência assistida em blocker de aprovação;
+- o histórico relacionado é carregado somente após ação explícita e reutiliza `audit-list`, a trilha canônica server-mediated da entidade; o cliente filtra apenas o `transactionId` atual e os `evidenceIds` já vinculados, limita a visualização a eventos recentes relacionados e nunca cria/edita/apaga auditoria;
+- quando `audit-list.truncated === true`, a UI declara que o painel contém apenas atividade relacionada encontrada dentro da janela recente; a tela de Auditoria completa permanece o destino canônico para investigação mais ampla;
 - aprovação/devolução continuam governadas exclusivamente pelo contrato canônico de review readiness e pelas mutações existentes da transação.
 
-A busca e o contexto documental são ferramentas de leitura/revisão. Eles não modificam transação, aprovação ou posting por conta própria.
+Busca, contexto documental e histórico relacionado são ferramentas de leitura/revisão. Eles não modificam transação, aprovação, auditoria ou posting por conta própria.
 
 ## 28. Próximos boundaries
 O antigo texto que tratava **Review Workspace** como ainda inexistente não representa mais o código atual. Já existem revisão documental humana, Review de transações, inspector e superfícies profissionais.
