@@ -265,9 +265,14 @@ Estado atual em `main`:
 - busca universal server-side, accent-insensitive, com termos de texto, valor e data;
 - índice derivado certificado com fallback canônico seguro enquanto a cobertura histórica não estiver certificada;
 - manutenção atômica do índice nas escritas canônicas e ferramentas protegidas de preview/apply/verify para cobertura histórica;
-- fila `/finance/review` restrita a `ready_for_review`, com filtro de direção/ordem e a mesma busca universal, preservando a boundary `finance.review`.
+- fila `/finance/review` restrita a `ready_for_review`, com filtro de direção/ordem e a mesma busca universal, preservando a boundary `finance.review`;
+- o detalhe de revisão carrega metadata protegida das evidências já vinculadas à movimentação e permite alternar entre até seis IDs canônicos, sempre reautorizados pelo endpoint `universal-evidence-detail`;
+- quando uma evidência já possui `transactionAnalysis` persistida, o Review compara deterministicamente valor, data, tipo, forma de pagamento e categoria entre a leitura assistida e a movimentação atual, expondo match/diferença/incerteza como contexto para a pessoa revisora;
+- o binário original continua opt-in e só é solicitado após ação explícita via `universal-evidence-preview`; object URLs temporárias são revogadas ao fechar/trocar contexto;
+- o Review não dispara `universal-evidence-analyze-transaction` automaticamente, não classifica/resolve evidência e não transforma divergência assistida em blocker de aprovação;
+- aprovação/devolução continuam governadas exclusivamente pelo contrato canônico de review readiness e pelas mutações existentes da transação.
 
-A busca é uma ferramenta de leitura. Ela não modifica transação, aprovação ou posting.
+A busca e o contexto documental são ferramentas de leitura/revisão. Eles não modificam transação, aprovação ou posting por conta própria.
 
 ## 28. Próximos boundaries
 O antigo texto que tratava **Review Workspace** como ainda inexistente não representa mais o código atual. Já existem revisão documental humana, Review de transações, inspector e superfícies profissionais.
