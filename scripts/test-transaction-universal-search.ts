@@ -73,6 +73,8 @@ const [
   gateway,
   contracts,
   page,
+  reviewPage,
+  reviewCopy,
   service,
   hook,
   rules,
@@ -87,6 +89,8 @@ const [
   readFile('api/finance-gateway.ts', 'utf8'),
   readFile('scripts/check-api-contracts.mjs', 'utf8'),
   readFile('src/pages/finance/transactions/TransactionsListPage.tsx', 'utf8'),
+  readFile('src/pages/finance/transactions/ReviewPage.tsx', 'utf8'),
+  readFile('src/pages/finance/transactions/transactionReviewCopy.ts', 'utf8'),
   readFile('src/services/transactionsService.ts', 'utf8'),
   readFile('src/hooks/finance/useTransactions.ts', 'utf8'),
   readFile('firestore.rules', 'utf8'),
@@ -123,9 +127,23 @@ assert.ok(page.includes('setTimeout(() =>'));
 assert.ok(page.includes('searchTransactions(normalizedSearchQuery'));
 assert.ok(page.includes("searchMode === 'canonical_fallback'"));
 assert.ok(page.includes("PT: {") && page.includes("EN: {") && page.includes("ES: {"));
+assert.ok(reviewPage.includes("searchParams.get('q')"));
+assert.ok(reviewPage.includes('searchTransactions('));
+assert.ok(reviewPage.includes('normalizedSearchQuery'));
+assert.ok(reviewPage.includes("status: 'ready_for_review'"));
+assert.ok(reviewPage.includes('setTimeout(() =>'));
+assert.ok(reviewPage.includes("searchMode === 'canonical_fallback'"));
+assert.ok(reviewPage.includes('sourceTruncated') && reviewPage.includes('resultTruncated'));
+assert.ok(
+  reviewCopy.includes("PT: {") &&
+    reviewCopy.includes("EN: {") &&
+    reviewCopy.includes("ES: {") &&
+    reviewCopy.includes('searchPlaceholder') &&
+    reviewCopy.includes('searchTruncatedHint'),
+);
 assert.ok(
   rules.includes('match /financeEntities/{entityId}/transactionSearchIndex/{document=**}') &&
     rules.includes('match /financeSearchCoverage/{document=**}'),
 );
 
-console.log('✅ Universal transaction search is indexed, fallback-safe, scoped and live-maintained');
+console.log('✅ Universal transaction search is indexed, fallback-safe, scoped, live-maintained and available in the review queue');
