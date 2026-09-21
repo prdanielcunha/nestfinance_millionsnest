@@ -39,6 +39,10 @@ export type TransactionReviewCopy = {
   endOfQueue: string;
   signalsTitle: string;
   signalsBody: string;
+  summaryBlocked: string;
+  summaryWarning: string;
+  summaryReady: string;
+  summaryUnknown: string;
   blockedSignal: (count: number) => string;
   warningSignal: (count: number) => string;
   readySignal: string;
@@ -94,6 +98,10 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     endOfQueue: 'Você chegou ao fim da fila.',
     signalsTitle: 'O que pede atenção nesta página',
     signalsBody: 'Os sinais abaixo só organizam sua conferência. A ordem da fila continua a mesma e a decisão permanece humana.',
+    summaryBlocked: 'com bloqueios',
+    summaryWarning: 'com alertas',
+    summaryReady: 'sem bloqueios',
+    summaryUnknown: 'a conferir',
     blockedSignal: (count) => `${count} ${count === 1 ? 'bloqueio' : 'bloqueios'} para corrigir`,
     warningSignal: (count) => `${count} ${count === 1 ? 'alerta' : 'alertas'} para conferir`,
     readySignal: 'Sem bloqueios',
@@ -147,6 +155,10 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     endOfQueue: 'You reached the end of the queue.',
     signalsTitle: 'What needs attention on this page',
     signalsBody: 'These signals only organize your review. Queue order stays unchanged and the decision remains human.',
+    summaryBlocked: 'with blockers',
+    summaryWarning: 'with warnings',
+    summaryReady: 'without blockers',
+    summaryUnknown: 'to review',
     blockedSignal: (count) => `${count} ${count === 1 ? 'blocker' : 'blockers'} to fix`,
     warningSignal: (count) => `${count} ${count === 1 ? 'warning' : 'warnings'} to check`,
     readySignal: 'No blockers',
@@ -200,6 +212,10 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     endOfQueue: 'Llegaste al final de la cola.',
     signalsTitle: 'Qué requiere atención en esta página',
     signalsBody: 'Estas señales solo organizan tu revisión. El orden de la cola no cambia y la decisión sigue siendo humana.',
+    summaryBlocked: 'con bloqueos',
+    summaryWarning: 'con alertas',
+    summaryReady: 'sin bloqueos',
+    summaryUnknown: 'por revisar',
     blockedSignal: (count) => `${count} ${count === 1 ? 'bloqueo' : 'bloqueos'} para corregir`,
     warningSignal: (count) => `${count} ${count === 1 ? 'alerta' : 'alertas'} para revisar`,
     readySignal: 'Sin bloqueos',
