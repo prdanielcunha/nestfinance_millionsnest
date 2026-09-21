@@ -6,6 +6,7 @@ export type ReviewHistoryCopy = {
   load: string;
   loading: string;
   retry: string;
+  openAudit: string;
   errorTitle: string;
   errorBody: string;
   emptyTitle: string;
@@ -26,6 +27,7 @@ export const TRANSACTION_REVIEW_HISTORY_COPY: Record<Language, ReviewHistoryCopy
     load: 'Carregar histórico',
     loading: 'Carregando atividade recente…',
     retry: 'Tentar novamente',
+    openAudit: 'Abrir auditoria completa',
     errorTitle: 'Não foi possível carregar o histórico',
     errorBody: 'A movimentação não foi alterada. Você pode tentar novamente ou continuar a conferência.',
     emptyTitle: 'Nenhuma atividade relacionada apareceu nos eventos recentes',
@@ -56,6 +58,7 @@ export const TRANSACTION_REVIEW_HISTORY_COPY: Record<Language, ReviewHistoryCopy
     load: 'Load history',
     loading: 'Loading recent activity…',
     retry: 'Try again',
+    openAudit: 'Open full audit',
     errorTitle: 'Could not load history',
     errorBody: 'The transaction was not changed. You can try again or continue the review.',
     emptyTitle: 'No related activity appeared in the recent events',
@@ -86,6 +89,7 @@ export const TRANSACTION_REVIEW_HISTORY_COPY: Record<Language, ReviewHistoryCopy
     load: 'Cargar historial',
     loading: 'Cargando actividad reciente…',
     retry: 'Intentar de nuevo',
+    openAudit: 'Abrir auditoría completa',
     errorTitle: 'No fue posible cargar el historial',
     errorBody: 'El movimiento no fue modificado. Puedes intentarlo de nuevo o continuar la revisión.',
     emptyTitle: 'No apareció actividad relacionada entre los eventos recientes',
