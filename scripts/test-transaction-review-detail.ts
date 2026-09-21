@@ -30,6 +30,12 @@ verify('router lazy-loads dedicated review detail', router.includes('Transaction
 verify('detail preserves finance.view capability gate', page.includes("'finance.view'"));
 verify('detail preserves finance.review capability gate', page.includes("'finance.review'"));
 verify('detail loads through existing detail contract', page.includes('getTransactionDetail(transactionId)'));
+verify('detail reads preserved queue return context', page.includes('useSearchParams') && page.includes("searchParams.get('returnTo')"));
+verify('detail sanitizes queue return context', page.includes('normalizeReviewQueueReturnPath'));
+verify(
+  'approve and return both navigate back to preserved queue context',
+  (page.match(/navigate\(returnTo, \{ replace: true \}\)/g) || []).length === 2,
+);
 verify('detail accepts decisions only for ready_for_review', page.includes("status !== 'ready_for_review'") && page.includes("status !== 'ready_for_review'"));
 verify('detail preserves entity epoch stale-response protection', page.includes('currentEpoch !== epochRef.current') && page.includes('actionEpoch !== epochRef.current'));
 verify('approval keeps retry-safe idempotency state', page.includes('approveIdempotencyKeyRef') && page.includes("makeRequestToken('idap')"));

@@ -2,10 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TRANSACTION_REVIEW_COPY } from '../src/pages/finance/transactions/transactionReviewCopy';
 import {
+  buildReviewQueueReturnPath,
   formatReviewDate,
   formatReviewMoney,
   normalizeReviewDirection,
   normalizeReviewOrder,
+  normalizeReviewQueueReturnPath,
 } from '../src/pages/finance/transactions/transactionReviewModel';
 
 let passed = 0;
@@ -37,11 +39,29 @@ verify('localized date is valid in PT', Boolean(formatReviewDate('2026-08-14T12:
 verify('localized date is valid in EN', Boolean(formatReviewDate('2026-08-14T12:00:00.000Z', 'EN')));
 verify('localized date is valid in ES', Boolean(formatReviewDate('2026-08-14T12:00:00.000Z', 'ES')));
 
+const preservedQueuePath = buildReviewQueueReturnPath(
+  new URLSearchParams('direction=expense&order=newest&q=Jose&cursor=cursor123&inspect=tx123'),
+  '/finance/review',
+);
+verify(
+  'queue return path preserves only canonical professional context',
+  preservedQueuePath === '/finance/review?direction=expense&order=newest&q=Jose',
+);
+verify(
+  'queue return path rejects external navigation',
+  normalizeReviewQueueReturnPath('https://evil.example/finance/review?q=Jose', '/finance/review') === '/finance/review',
+);
+verify(
+  'queue return path normalizes invalid filter values',
+  normalizeReviewQueueReturnPath('/finance/review?direction=owner&order=random&q=Jose', '/finance/review') === '/finance/review?q=Jose',
+);
+
 verify('queue keeps finance.review capability gate', page.includes("'finance.review'"));
 verify('queue requests only ready_for_review items', page.includes("status: 'ready_for_review'"));
 verify('queue preserves 25 item page size', page.includes('listTransactions(filters, cursor, 25)'));
 verify('queue preserves entity epoch stale-response protection', page.includes('currentEpoch !== epochRef.current'));
 verify('queue opens dedicated review-detail route', page.includes('APP_ROUTES.transactionReviewDetail'));
+verify('queue carries a sanitized return path into review detail', page.includes('buildReviewQueueReturnPath') && page.includes('new URLSearchParams({ returnTo })'));
 verify('queue no longer depends on reviewMode query contract', !page.includes('?reviewMode=true'));
 verify('queue preserves direction query parameter', page.includes("next.set('direction', value)"));
 verify('queue preserves order query parameter', page.includes("next.set('order', value)"));

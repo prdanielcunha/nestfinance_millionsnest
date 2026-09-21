@@ -22,6 +22,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { TRANSACTION_REVIEW_COPY } from './transactionReviewCopy';
 import {
+  buildReviewQueueReturnPath,
   formatReviewDate,
   formatReviewMoney,
   normalizeReviewDirection,
@@ -258,9 +259,16 @@ function ReviewContent() {
   };
 
   const openReview = (transactionId: string) => {
-    navigate(
-      APP_ROUTES.transactionReviewDetail.replace(':transactionId', transactionId),
+    const detailPath = APP_ROUTES.transactionReviewDetail.replace(
+      ':transactionId',
+      transactionId,
     );
+    const returnTo = buildReviewQueueReturnPath(
+      searchParams,
+      APP_ROUTES.financeReview,
+    );
+    const detailParams = new URLSearchParams({ returnTo });
+    navigate(`${detailPath}?${detailParams.toString()}`);
   };
 
   const transactionType = (transactionKind: string) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -20,7 +20,11 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
-import { formatReviewDate, formatReviewMoney } from './transactionReviewModel';
+import {
+  formatReviewDate,
+  formatReviewMoney,
+  normalizeReviewQueueReturnPath,
+} from './transactionReviewModel';
 import {
   TRANSACTION_REVIEW_DETAIL_COPY,
   type ReviewReturnReason,
@@ -76,6 +80,7 @@ export default function TransactionReviewDetailPage() {
 
 function TransactionReviewDetailContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
@@ -96,7 +101,11 @@ function TransactionReviewDetailContent() {
   const returnIdempotencyKeyRef = useRef<string | null>(null);
   const epochRef = useRef(0);
 
-  const backToQueue = () => navigate(APP_ROUTES.financeReview);
+  const returnTo = normalizeReviewQueueReturnPath(
+    searchParams.get('returnTo'),
+    APP_ROUTES.financeReview,
+  );
+  const backToQueue = () => navigate(returnTo);
 
   const loadData = async (signal?: AbortSignal, currentEpoch?: number) => {
     if (!transactionId || !activeFinanceEntityId) return;
@@ -184,7 +193,7 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       approveIdempotencyKeyRef.current = null;
-      navigate(APP_ROUTES.financeReview, { replace: true });
+      navigate(returnTo, { replace: true });
     } catch {
       if (actionEpoch !== epochRef.current) return;
       setActionError(true);
@@ -220,7 +229,7 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       returnIdempotencyKeyRef.current = null;
-      navigate(APP_ROUTES.financeReview, { replace: true });
+      navigate(returnTo, { replace: true });
     } catch {
       if (actionEpoch !== epochRef.current) return;
       setActionError(true);
