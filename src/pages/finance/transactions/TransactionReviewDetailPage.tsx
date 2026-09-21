@@ -30,6 +30,7 @@ import {
   TRANSACTION_REVIEW_DETAIL_COPY,
   type ReviewReturnReason,
 } from './transactionReviewDetailCopy';
+import { TransactionReviewEvidencePanel } from './TransactionReviewEvidencePanel';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'state_changed';
 type ActionState = 'approve' | 'return' | null;
@@ -483,6 +484,12 @@ function TransactionReviewDetailContent() {
                   </div>
                 </div>
               </Surface>
+
+              <TransactionReviewEvidencePanel
+                evidenceIds={transaction.evidenceIds}
+                transaction={transaction}
+                allocations={allocations}
+              />
 
               <Surface variant="elevated" radius="xl" className="overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4 sm:px-6">
