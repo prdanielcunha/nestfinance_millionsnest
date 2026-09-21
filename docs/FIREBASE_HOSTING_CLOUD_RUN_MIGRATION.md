@@ -8,7 +8,7 @@ NestFinance is migrated conservatively: Firebase Hosting serves the SPA and forw
 - Hosting target: `nestfinance`
 - Hosting site: `mn-nestfinance-555464791734`
 - Cloud Run service: `nestfinance-api`
-- Domain after cutover: `nestfinance.millionsnest.com`
+- Canonical production domain: `nestfinance.millionsnest.com`
 
 ## Compatibility boundary
 
@@ -25,7 +25,7 @@ The canonical production path is the atomic workflow `.github/workflows/nestfina
 - A merged pull request whose base is `production` starts the atomic release.
 - Closing a production pull request without merging never deploys.
 - `workflow_dispatch` remains the explicit manual fallback.
-- The release re-certifies the exact production commit, deploys Firestore indexes/rules, publishes the exact-SHA Cloud Run image, deploys Firebase Hosting and verifies the same SHA through the public Hosting route.
+- The release re-certifies the exact production commit, deploys Firestore indexes/rules, publishes the exact-SHA Cloud Run image, deploys Firebase Hosting, verifies the same SHA through the technical `*.web.app` route and then repeats the critical smoke through the canonical `https://nestfinance.millionsnest.com` domain.
 - Direct push is not a second deployment trigger, avoiding duplicate releases for the same promotion.
 
 ## Non-regression rules
@@ -33,4 +33,4 @@ The canonical production path is the atomic workflow `.github/workflows/nestfina
 - Firestore Rules and indexes are untouched by the migration contract outside the certified production release stages.
 - `organizationId` and `financeEntityId` remain security boundaries.
 - Idempotency, posting safeguards, allowlists, Handoff and RBAC are not rewritten.
-- Vercel remains manual-only until Firebase smoke tests and domain cutover are complete.
+- Vercel is legacy/manual rollback only. Firebase Hosting + Cloud Run is the canonical runtime, and `nestfinance.millionsnest.com` is the canonical user-facing production address.
