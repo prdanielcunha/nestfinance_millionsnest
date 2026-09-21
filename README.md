@@ -15,14 +15,16 @@ Nunca inclua neste repositório credenciais, tokens, chaves privadas, dumps de b
 - Tailwind CSS v4
 - Vite 6
 - Node.js 22
-- Vercel Serverless Functions
+- Firebase Hosting + Cloud Run
 - Firebase Auth / Firestore / Admin SDK
+- Vercel somente como rollback/manual legado
 
 ## Estrutura
 
-- `/api` — entrypoints/gateways Vercel
-- `/src` — frontend React
-- `/server` — handlers e lógica server-side
+- `/api` — gateways HTTP reutilizados pelo runtime server-side
+- `/src` — frontend React publicado pelo Firebase Hosting
+- `/server` — handlers e lógica server-side reutilizados pelo Cloud Run
+- `/cloudrun.ts` — adapter do serviço `nestfinance-api`
 - `/shared` — contratos e lógica compartilhada
 - `/scripts` — testes, certificações e verificações
 - `/docs` — arquitetura, contratos e decisões
@@ -52,7 +54,7 @@ Os demais testes canônicos estão declarados em `package.json` e nos workflows 
 
 ## Segurança e multi-tenancy
 
-- Autenticação entra pelo Handoff do Hub MillionsNest.
+- Autenticação suporta entrada direta com Google e Handoff do Hub MillionsNest, sempre reconciliados pelo backend canônico.
 - O backend valida token e contexto da organização.
 - `organizationId` e `financeEntityId` são fronteiras de segurança.
 - O frontend nunca é fonte suficiente de autorização.
@@ -64,7 +66,7 @@ Consulte `SECURITY.md`, `AGENTS.md` e `docs/ARCHITECTURE_CURRENT.md` antes de al
 
 ## Variáveis de ambiente
 
-Somente nomes/placeholders ficam em `.env.example`. Valores reais devem ser configurados no ambiente de execução (por exemplo, Vercel) e nunca commitados.
+Somente nomes/placeholders ficam em `.env.example`. Valores reais devem ser configurados no runtime seguro de produção e nunca commitados. O runtime canônico atual é Firebase Hosting + Cloud Run; Vercel não é o caminho normal de deploy.
 
 Entre as variáveis server-side estão credenciais Firebase Admin, feature flags e, quando uma funcionalidade explicitamente habilitada exigir, chaves de provedores externos.
 
@@ -74,6 +76,7 @@ Entre as variáveis server-side estão credenciais Firebase Admin, feature flags
 - `production` — linha de produção; não deve receber alterações automáticas ou incidentais.
 - Mudanças devem ocorrer em branches de escopo pequeno e chegar a `main` por PR após gates e auditoria.
 - Promoção para `production` é uma decisão separada e explícita.
+- O release atômico publica Cloud Run + Firebase Hosting e só é considerado saudável depois de validar também o domínio canônico `https://nestfinance.millionsnest.com`.
 
 ## Automação de engenharia
 
