@@ -6,7 +6,7 @@
 - **Ecossistema:** Opera recebendo sessões de autenticação do Hub MillionsNest.
 
 ## 2. Stack Tecnológica
-- **Frontend:** React 19, react-router-dom v7, Tailwind CSS v4, framer-motion.
+- **Frontend:** React 19, react-router-dom v7, Tailwind CSS v4, `motion` e Lucide React.
 - **Backend:** Node.js (via Vercel Serverless Functions), Express, `firebase-admin` (v13.10.0).
 - **Banco de Dados:** Firebase Firestore.
 - **Autenticação:** Firebase Auth, validado no backend via token ID e `verifyIdToken`.
@@ -35,7 +35,8 @@
 
 ## 5. Rotas do Frontend (Principais)
 Localizadas em `/src/app/router/routes.ts`:
-- `/auth/handoff`: Recebe transição de autenticação (Handoff).
+- `/auth/login`: entrada nativa do NestFinance com Google, sempre reconciliada server-side pelo resolver canônico do ecossistema.
+- `/auth/handoff`: recebe transição de autenticação (Handoff) iniciada pelo Hub.
 - `/finance`: Dashboard principal (`Hoje`).
 - `/finance/transactions`: workspace de movimentações com filtros, busca universal, saved views e quick inspector.
 - `/finance/review`: fila profissional de movimentações em `ready_for_review`, com filtros e busca universal preservando o escopo de revisão.
@@ -46,6 +47,8 @@ Localizadas em `/src/app/router/routes.ts`:
 
 ## 6. Fluxo de Autenticação, Handoff e RBAC
 - **Autenticação:** Gerenciada pelo Firebase Auth via `useAuth.ts`. Ao detectar login, o NestFinance resolve o acesso canônico pelo backend em `/api/auth/session/resolve`.
+- **Entrada nativa Google:** `/auth/login` autentica a identidade com Google/Firebase, mas a autorização continua server-side. A operação `direct-entry` valida o ID token, descobre candidatos de organização sem tratá-los como autorização, chama `resolveEcosystemSession()` para cada tenant elegível e somente então emite um Custom Token scoped à organização selecionada.
+- **Múltiplas organizações:** direct entry pode retornar uma lista de organizações já autorizadas para seleção; escolher uma organização reexecuta o resolver canônico antes de emitir o token scoped.
 - **Handoff:** `/auth/handoff` aceita um código URL-safe de 43 caracteres, remove-o da URL, envia somente `{ code }` para `/api/auth/handoff/redeem` e, após resgate válido, usa `signInWithCustomToken()`.
 - **Resgate server-side:** `handoffRedeem.ts` calcula SHA-256 do código, consulta `ecosystemHandoffs/{codeHash}`, valida app/version/status/expiração/contexto e consome o registro atomicamente antes de emitir o Firebase Custom Token.
 - **Claims do Custom Token:** incluem `mn_app_id`, `mn_organization_id`, `mn_handoff_version` e `mn_access_source`. O contexto de organização vem do Handoff armazenado server-side, não do body arbitrário do cliente.
