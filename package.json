@@ -54,7 +54,8 @@
     "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts",
     "test:transaction-combined-filters": "tsx scripts/test-transaction-combined-filters.ts",
     "test:transaction-universal-search": "tsx scripts/test-transaction-universal-search.ts",
-    "test:transaction-review-evidence-context": "tsx scripts/test-transaction-review-evidence-context.ts"
+    "test:transaction-review-evidence-context": "tsx scripts/test-transaction-review-evidence-context.ts",
+    "test:transaction-review-related-history": "tsx scripts/test-transaction-review-related-history.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
