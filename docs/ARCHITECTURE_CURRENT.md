@@ -266,7 +266,8 @@ Estado atual em `main`:
 - busca universal server-side, accent-insensitive, com termos de texto, valor e data;
 - índice derivado certificado com fallback canônico seguro enquanto a cobertura histórica não estiver certificada;
 - manutenção atômica do índice nas escritas canônicas e ferramentas protegidas de preview/apply/verify para cobertura histórica;
-- fila `/finance/review` restrita a `ready_for_review`, com filtro de direção/ordem e a mesma busca universal, preservando a boundary `finance.review`;
+- fila `/finance/review` restrita a `ready_for_review`, com filtro de direção/ordem e a mesma busca universal; tanto a listagem quanto a busca exigem `finance.review` server-side quando o status é de revisão;
+- a fila preserva a ordem escolhida pela pessoa revisora e usa os sinais determinísticos de readiness (`blockerCount`, `warningCount`, `isReady`) apenas para destacar o que precisa de correção, segunda olhada ou está sem bloqueios; esses sinais não reordenam, aprovam ou devolvem itens automaticamente;
 - o detalhe de revisão carrega metadata protegida das evidências já vinculadas à movimentação e permite alternar entre até seis IDs canônicos, sempre reautorizados pelo endpoint `universal-evidence-detail`;
 - quando uma evidência já possui `transactionAnalysis` persistida, o Review compara deterministicamente valor, data, tipo, forma de pagamento e categoria entre a leitura assistida e a movimentação atual, expondo match/diferença/incerteza como contexto para a pessoa revisora;
 - o binário original continua opt-in e só é solicitado após ação explícita via `universal-evidence-preview`; object URLs temporárias são revogadas ao fechar/trocar contexto;
