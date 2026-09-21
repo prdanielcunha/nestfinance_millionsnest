@@ -12,6 +12,8 @@ export type TransactionReviewDetailCopy = {
   pageTitle: string;
   pageSubtitle: string;
   backToQueue: string;
+  nextReviewButton: string;
+  continueNextHint: string;
   loading: string;
   errorTitle: string;
   errorBody: string;
@@ -77,6 +79,8 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     pageTitle: 'Conferir movimentação',
     pageSubtitle: 'Confira os dados com calma e escolha o próximo passo.',
     backToQueue: 'Voltar para a fila',
+    nextReviewButton: 'Abrir próxima pendência',
+    continueNextHint: 'Depois desta decisão, a próxima pendência já carregada será aberta automaticamente.',
     loading: 'Carregando movimentação...',
     errorTitle: 'Não foi possível carregar esta movimentação',
     errorBody: 'Nenhuma informação foi alterada. Tente novamente em instantes.',
@@ -178,6 +182,8 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     pageTitle: 'Review transaction',
     pageSubtitle: 'Check the information carefully and choose the next step.',
     backToQueue: 'Back to queue',
+    nextReviewButton: 'Open next pending item',
+    continueNextHint: 'After this decision, the next already loaded pending item will open automatically.',
     loading: 'Loading transaction...',
     errorTitle: 'Could not load this transaction',
     errorBody: 'No information was changed. Try again shortly.',
@@ -279,6 +285,8 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     pageTitle: 'Revisar movimiento',
     pageSubtitle: 'Verifica los datos con calma y elige el siguiente paso.',
     backToQueue: 'Volver a la cola',
+    nextReviewButton: 'Abrir siguiente pendiente',
+    continueNextHint: 'Después de esta decisión, se abrirá automáticamente el siguiente pendiente ya cargado.',
     loading: 'Cargando movimiento...',
     errorTitle: 'No fue posible cargar este movimiento',
     errorBody: 'No se modificó ninguna información. Inténtalo de nuevo en unos instantes.',

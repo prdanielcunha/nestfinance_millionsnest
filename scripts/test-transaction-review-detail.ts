@@ -33,8 +33,20 @@ verify('detail loads through existing detail contract', page.includes('getTransa
 verify('detail reads preserved queue return context', page.includes('useSearchParams') && page.includes("searchParams.get('returnTo')"));
 verify('detail sanitizes queue return context', page.includes('normalizeReviewQueueReturnPath'));
 verify(
-  'approve and return both navigate back to preserved queue context',
-  (page.match(/navigate\(returnTo, \{ replace: true \}\)/g) || []).length === 2,
+  'approve and return both use continuous queue navigation',
+  (page.match(/continueReview\(\);/g) || []).length === 2,
+);
+verify(
+  'continuous queue falls back to preserved queue context when no next item exists',
+  page.includes("navigate(returnTo, { replace: true })"),
+);
+verify(
+  'continuous queue preserves return context while advancing',
+  page.includes("state: { reviewQueueIds: reviewQueueIds.slice(1) }"),
+);
+verify(
+  'continuous queue state is sanitized before navigation',
+  page.includes('normalizeReviewQueueSequence') && page.includes('nextReviewId'),
 );
 verify('detail accepts decisions only for ready_for_review', page.includes("status !== 'ready_for_review'") && page.includes("status !== 'ready_for_review'"));
 verify('detail preserves entity epoch stale-response protection', page.includes('currentEpoch !== epochRef.current') && page.includes('actionEpoch !== epochRef.current'));
@@ -57,6 +69,8 @@ verify('detail surfaces non-blocking readiness warnings separately', page.includ
 verify('detail maps issue codes through localized copy', page.includes('copy.reviewIssueLabels'));
 verify('allocation mismatch remains an explicit blocker', page.includes('ALLOCATION_MISMATCH') && page.includes('blockingIssues.length > 0'));
 verify('detail does not render backend readiness details directly', !page.includes('issue.details'));
+verify('detail offers recovery to the next pending item when current state changed', page.includes('copy.nextReviewButton') && page.includes('continueReview'));
+verify('detail explains automatic continuation only when a next item exists', page.includes('copy.continueNextHint') && page.includes('nextReviewId ?'));
 verify('detail uses premium foundation primitives', page.includes("import { Button, Surface }"));
 
 for (const language of ['PT', 'EN', 'ES'] as const) {
@@ -65,6 +79,7 @@ for (const language of ['PT', 'EN', 'ES'] as const) {
   verify(`${language} has safe recovery copy`, Boolean(copy.errorTitle && copy.errorBody && copy.retry && copy.actionError));
   verify(`${language} has all controlled return reasons`, Boolean(copy.reasons.need_correction && copy.reasons.missing_evidence && copy.reasons.incorrect_classification && copy.reasons.other));
   verify(`${language} has approval confirmation copy`, Boolean(copy.approveConfirmTitle && copy.approveConfirmBody && copy.confirmApprove));
+  verify(`${language} has continuous review copy`, Boolean(copy.nextReviewButton && copy.continueNextHint));
   verify(
     `${language} has localized review exception reasons`,
     Boolean(
