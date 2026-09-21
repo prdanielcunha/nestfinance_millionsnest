@@ -319,8 +319,25 @@ function TransactionReviewDetailContent() {
     0,
   );
   const allocationMismatch = allocations.length > 0 && allocationTotal !== amountCents;
-  const reviewBlocked = Boolean(data.reviewReadiness && !data.reviewReadiness.ready);
-  const approvalDisabled = reviewBlocked || allocationMismatch || actionState !== null;
+  const readinessBlockers = Array.isArray(data.reviewReadiness?.blockers)
+    ? data.reviewReadiness.blockers
+    : [];
+  const readinessWarnings = Array.isArray(data.reviewReadiness?.warnings)
+    ? data.reviewReadiness.warnings
+    : [];
+  const blockingIssues = [
+    ...readinessBlockers.map((issue: any) =>
+      copy.reviewIssueLabels[String(issue?.code || '')] || copy.unknownReviewIssue,
+    ),
+    ...(allocationMismatch
+      ? [copy.reviewIssueLabels.ALLOCATION_MISMATCH || copy.unknownReviewIssue]
+      : []),
+  ];
+  const warningIssues = readinessWarnings.map((issue: any) =>
+    copy.reviewIssueLabels[String(issue?.code || '')] || copy.unknownReviewIssue,
+  );
+  const reviewBlocked = blockingIssues.length > 0;
+  const approvalDisabled = reviewBlocked || actionState !== null;
   const primaryAccount = transaction.accountSnapshot?.name || transaction.accountName;
   const destinationAccount = transaction.destinationAccountSnapshot?.name;
   const liabilityAccount = transaction.liabilityAccountSnapshot?.name;
@@ -489,10 +506,59 @@ function TransactionReviewDetailContent() {
                 <p className="mt-3 text-sm leading-relaxed text-text-secondary">{copy.decisionBody}</p>
                 <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noBalanceChange}</p>
 
-                {reviewBlocked ? (
-                  <div className="mt-5 rounded-2xl border border-semantic-warning/20 bg-semantic-warning/10 p-4" role="status">
-                    <p className="text-sm font-semibold text-text-primary">{copy.warningsTitle}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-text-muted">{copy.warningsBody}</p>
+                {blockingIssues.length > 0 ? (
+                  <div
+                    className="mt-5 rounded-2xl border border-semantic-danger/20 bg-semantic-danger/10 p-4"
+                    role="alert"
+                  >
+                    <p className="text-sm font-semibold text-text-primary">
+                      {copy.blockingIssuesTitle}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                      {copy.blockingIssuesBody}
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {blockingIssues.map((issue, index) => (
+                        <li
+                          key={`blocker-${index}-${issue}`}
+                          className="flex gap-2 text-xs leading-relaxed text-text-primary"
+                        >
+                          <span
+                            className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-semantic-danger"
+                            aria-hidden="true"
+                          />
+                          <span>{issue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {warningIssues.length > 0 ? (
+                  <div
+                    className="mt-4 rounded-2xl border border-semantic-warning/20 bg-semantic-warning/10 p-4"
+                    role="status"
+                  >
+                    <p className="text-sm font-semibold text-text-primary">
+                      {copy.warningIssuesTitle}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                      {copy.warningIssuesBody}
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {warningIssues.map((issue, index) => (
+                        <li
+                          key={`warning-${index}-${issue}`}
+                          className="flex gap-2 text-xs leading-relaxed text-text-primary"
+                        >
+                          <span
+                            className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-semantic-warning"
+                            aria-hidden="true"
+                          />
+                          <span>{issue}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ) : null}
 
