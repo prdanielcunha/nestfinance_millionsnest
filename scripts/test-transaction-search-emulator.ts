@@ -41,6 +41,7 @@ for (const entityId of [entityA, entityB]) {
 
 const txA1 = 'tx_search_a1_' + suffix;
 const txA2 = 'tx_search_a2_' + suffix;
+const txA3 = 'tx_search_a3_' + suffix;
 const txB1 = 'tx_search_b1_' + suffix;
 
 async function seedTx(id: string, entityId: string, overrides: Record<string, unknown>) {
@@ -86,6 +87,43 @@ await seedTx(txA2, entityA, {
   counterparty: 'Imobiliária Central',
   occurredAt: '2026-09-15T12:00:00.000Z',
 });
+
+await db.collection('organizations').doc(orgId).collection('financeAccounts').doc('acc-review').set({
+  id: 'acc-review',
+  organizationId: orgId,
+  financeEntityId: entityA,
+  name: 'Conta Review',
+  active: true,
+  configurationStatus: 'complete',
+  type: 'bank_checking',
+  nature: 'asset',
+  templateKey: 'main_checking',
+  supportedPaymentInstruments: ['pix'],
+});
+await seedTx(txA3, entityA, {
+  status: 'ready_for_review',
+  accountId: 'acc-review',
+  accountSnapshot: {
+    id: 'acc-review',
+    name: 'Conta Review',
+    type: 'bank_checking',
+    nature: 'asset',
+  },
+  description: 'Review signal ready',
+  counterparty: 'Fornecedor Review',
+  occurredAt: '2026-09-20T12:00:00.000Z',
+  evidenceIds: ['evd_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+  allocationIds: ['alloc-review-' + suffix],
+});
+await db.collection('organizations').doc(orgId).collection('financeAllocations').doc('alloc-review-' + suffix).set({
+  id: 'alloc-review-' + suffix,
+  organizationId: orgId,
+  financeEntityId: entityA,
+  transactionId: txA3,
+  categoryId: 'cat-review',
+  amountCents: 10000,
+});
+
 await seedTx(txB1, entityB, {
   description: 'Oferta outra entidade',
   counterparty: 'José da Silva',
@@ -121,7 +159,7 @@ try {
   verify(
     before.statusCode === 200 &&
       before.body.ready === false &&
-      before.body.missingOrStale === 2,
+      before.body.missingOrStale === 3,
     'preview detects historical transactions missing from search index',
   );
 
@@ -149,7 +187,7 @@ try {
   });
   verify(
     applied.statusCode === 200 &&
-      applied.body.applied === 2 &&
+      applied.body.applied === 3 &&
       applied.body.complete === true,
     'manager backfill creates all missing index documents',
   );
@@ -184,6 +222,21 @@ try {
   verify(
     accent.body.items.length === 1 && accent.body.items[0].id === txA1,
     'accent-insensitive lookup returns José when searching jose',
+  );
+
+  const reviewSearch = await call(transactionSearch, {
+    financeEntityId: entityA,
+    query: 'review signal',
+    filters: { direction: 'income', status: 'ready_for_review', order: 'newest' },
+  });
+  verify(
+    reviewSearch.statusCode === 200 &&
+      reviewSearch.body.items.length === 1 &&
+      reviewSearch.body.items[0].id === txA3 &&
+      reviewSearch.body.items[0].blockerCount === 0 &&
+      reviewSearch.body.items[0].warningCount === 0 &&
+      reviewSearch.body.items[0].isReady === true,
+    'review search preserves deterministic readiness metadata',
   );
 
   const noLeak = await db
