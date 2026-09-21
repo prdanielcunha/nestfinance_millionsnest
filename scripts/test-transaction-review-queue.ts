@@ -8,6 +8,7 @@ import {
   normalizeReviewDirection,
   normalizeReviewOrder,
   normalizeReviewQueueReturnPath,
+  normalizeReviewQueueSequence,
 } from '../src/pages/finance/transactions/transactionReviewModel';
 
 let passed = 0;
@@ -56,12 +57,32 @@ verify(
   normalizeReviewQueueReturnPath('/finance/review?direction=owner&order=random&q=Jose', '/finance/review') === '/finance/review?q=Jose',
 );
 
+const normalizedSequence = normalizeReviewQueueSequence(
+  [
+    'tx_aaaaaaaaaaaaaaaa',
+    'invalid',
+    'tx_bbbbbbbbbbbbbbbb',
+    'tx_aaaaaaaaaaaaaaaa',
+    'tx_cccccccccccccccc',
+  ],
+  'tx_bbbbbbbbbbbbbbbb',
+);
+verify(
+  'queue sequence keeps only unique canonical transaction ids after the current item',
+  normalizedSequence.join(',') === 'tx_aaaaaaaaaaaaaaaa,tx_cccccccccccccccc',
+);
+verify(
+  'queue sequence fails closed for non-array state',
+  normalizeReviewQueueSequence('tx_aaaaaaaaaaaaaaaa', null).length === 0,
+);
+
 verify('queue keeps finance.review capability gate', page.includes("'finance.review'"));
 verify('queue requests only ready_for_review items', page.includes("status: 'ready_for_review'"));
 verify('queue preserves 25 item page size', page.includes('listTransactions(filters, cursor, 25)'));
 verify('queue preserves entity epoch stale-response protection', page.includes('currentEpoch !== epochRef.current'));
 verify('queue opens dedicated review-detail route', page.includes('APP_ROUTES.transactionReviewDetail'));
 verify('queue carries a sanitized return path into review detail', page.includes('buildReviewQueueReturnPath') && page.includes('new URLSearchParams({ returnTo })'));
+verify('queue carries only loaded subsequent review ids through ephemeral router state', page.includes('items.slice(itemIndex + 1)') && page.includes('state: { reviewQueueIds }'));
 verify('queue no longer depends on reviewMode query contract', !page.includes('?reviewMode=true'));
 verify('queue preserves direction query parameter', page.includes("next.set('direction', value)"));
 verify('queue preserves order query parameter', page.includes("next.set('order', value)"));

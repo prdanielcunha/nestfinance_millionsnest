@@ -104,3 +104,29 @@ export function normalizeReviewQueueReturnPath(
   const rawQuery = queryIndex === -1 ? '' : candidate.slice(queryIndex + 1);
   return buildReviewQueueReturnPath(new URLSearchParams(rawQuery), canonicalPath);
 }
+
+
+const REVIEW_TRANSACTION_ID_PATTERN = /^tx_[a-f0-9]{16,64}$/;
+
+export function normalizeReviewQueueSequence(
+  value: unknown,
+  currentTransactionId?: string | null,
+): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const current = String(currentTransactionId || '').trim();
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const candidate of value) {
+    if (typeof candidate !== 'string') continue;
+    const id = candidate.trim();
+    if (!REVIEW_TRANSACTION_ID_PATTERN.test(id)) continue;
+    if (id === current || seen.has(id)) continue;
+    seen.add(id);
+    normalized.push(id);
+    if (normalized.length >= 24) break;
+  }
+
+  return normalized;
+}
