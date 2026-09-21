@@ -27,6 +27,7 @@ import {
   formatReviewMoney,
   normalizeReviewDirection,
   normalizeReviewOrder,
+  normalizeReviewQueueSequence,
   type ReviewDirectionFilter,
   type ReviewOrder,
 } from './transactionReviewModel';
@@ -258,7 +259,7 @@ function ReviewContent() {
     }
   };
 
-  const openReview = (transactionId: string) => {
+  const openReview = (transactionId: string, itemIndex: number) => {
     const detailPath = APP_ROUTES.transactionReviewDetail.replace(
       ':transactionId',
       transactionId,
@@ -268,7 +269,14 @@ function ReviewContent() {
       APP_ROUTES.financeReview,
     );
     const detailParams = new URLSearchParams({ returnTo });
-    navigate(`${detailPath}?${detailParams.toString()}`);
+    const reviewQueueIds = normalizeReviewQueueSequence(
+      items.slice(itemIndex + 1).map((item) => item?.id),
+      transactionId,
+    );
+
+    navigate(`${detailPath}?${detailParams.toString()}`, {
+      state: { reviewQueueIds },
+    });
   };
 
   const transactionType = (transactionKind: string) => {
@@ -509,7 +517,7 @@ function ReviewContent() {
                 <span className="text-right">{copy.review}</span>
               </div>
 
-              {items.map((transaction) => {
+              {items.map((transaction, itemIndex) => {
                 const date =
                   formatReviewDate(transaction.occurredAt, language) || '—';
                 const accountName =
@@ -521,7 +529,7 @@ function ReviewContent() {
                   <button
                     key={transaction.id}
                     type="button"
-                    onClick={() => openReview(transaction.id)}
+                    onClick={() => openReview(transaction.id, itemIndex)}
                     className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
                   >
                     <Surface
