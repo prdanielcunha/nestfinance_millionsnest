@@ -19,6 +19,7 @@ env:
   REGION: us-central1
   SERVICE: nestfinance-api
   SITE_ID: mn-nestfinance-555464791734
+  CANONICAL_BASE: https://nestfinance.millionsnest.com
   IMAGE: us-central1-docker.pkg.dev/millionsnest/millionsnest-web/nestfinance-api:${{ github.sha }}
 
 jobs:
@@ -254,3 +255,39 @@ jobs:
           fi
 
           echo "NESTFINANCE_PRODUCTION_RELEASE_OK=$BASE"
+
+
+      - name: Smoke canonical production domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$CANONICAL_BASE"
+
+          for PATHNAME in "/" "/finance" "/finance/review"; do
+            curl --fail --silent --show-error --location --retry 8 --retry-delay 3 "$BASE$PATHNAME" -o /tmp/nf-canonical-page.html
+            grep -Eiq '<!doctype html|<html' /tmp/nf-canonical-page.html
+          done
+
+          EXPECTED_SHA="${GITHUB_SHA:0:12}"
+          for ATTEMPT in {1..20}; do
+            curl --fail --silent --show-error --location "$BASE/api/system/release" -o /tmp/nf-canonical-release.json || true
+            if node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/nf-canonical-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);process.exit(x.app==='nestfinance'&&x.gitCommitSha===expected?0:1)"; then
+              echo "NESTFINANCE_CANONICAL_EXACT_SHA_OK $EXPECTED_SHA"
+              break
+            fi
+            if [ "$ATTEMPT" = "20" ]; then
+              echo "Canonical production domain did not expose the expected release SHA in time."
+              cat /tmp/nf-canonical-release.json || true
+              exit 1
+            fi
+            sleep 3
+          done
+
+          STATUS="$(curl --silent --show-error --location --output /tmp/nf-canonical-gateway.json --write-out '%{http_code}'             -X POST "$BASE/api/finance-gateway?operation=transactions-summary"             -H 'content-type: application/json'             --data '{"financeEntityId":"release-smoke"}')"
+          if [ "$STATUS" != "401" ]; then
+            echo "Expected canonical authenticated gateway to answer 401, got $STATUS"
+            cat /tmp/nf-canonical-gateway.json || true
+            exit 1
+          fi
+
+          echo "NESTFINANCE_CANONICAL_PRODUCTION_OK=$BASE"
