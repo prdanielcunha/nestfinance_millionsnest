@@ -61,6 +61,8 @@ jobs:
         run: npm run check:api-contracts
       - name: Document intelligence authority and UX
         run: npx tsx scripts/test-document-transaction-intelligence.ts
+      - name: Review evidence context authority and UX
+        run: npm run test:transaction-review-evidence-context
       - name: Install emulator tools
         run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
       - name: Document intelligence Firestore Emulator
