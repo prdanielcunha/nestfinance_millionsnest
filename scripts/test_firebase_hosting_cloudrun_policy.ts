@@ -91,8 +91,12 @@ for (const required of [
   'Deploy Cloud Run revision',
   'Deploy Firebase Hosting',
   'Smoke production through Firebase Hosting',
+  'Smoke canonical production domain',
+  'CANONICAL_BASE: https://nestfinance.millionsnest.com',
   'NESTFINANCE_RELEASE_SHA=$GITHUB_SHA',
   'NESTFINANCE_FIREBASE_EXACT_SHA_OK',
+  'NESTFINANCE_CANONICAL_EXACT_SHA_OK',
+  'NESTFINANCE_CANONICAL_PRODUCTION_OK=$BASE',
   '/api/finance-gateway?operation=transactions-summary',
   '/api/finance/intelligence/read-model',
 ]) {
@@ -106,6 +110,7 @@ const releaseOrder = [
   'Deploy Cloud Run revision',
   'Deploy Firebase Hosting',
   'Smoke production through Firebase Hosting',
+  'Smoke canonical production domain',
 ].map((label) => productionRelease.indexOf(label));
 assert.ok(releaseOrder.every((index) => index >= 0), 'Production release stages must all exist');
 assert.deepEqual(
