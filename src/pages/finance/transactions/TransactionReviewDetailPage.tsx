@@ -328,17 +328,18 @@ function TransactionReviewDetailContent() {
             </div>
             <h1 className="mt-4 text-lg font-semibold text-text-primary">{copy.stateChangedTitle}</h1>
             <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.stateChangedBody}</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {nextReviewId ? (
+            {nextReviewId ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <Button onClick={continueReview}>{copy.nextReviewButton}</Button>
-              ) : null}
-              <Button
-                variant={nextReviewId ? 'secondary' : 'primary'}
-                onClick={backToQueue}
-              >
+                <Button variant="secondary" onClick={backToQueue}>
+                  {copy.backToQueue}
+                </Button>
+              </div>
+            ) : (
+              <Button className="mt-6" onClick={backToQueue}>
                 {copy.backToQueue}
               </Button>
-            </div>
+            )}
           </Surface>
         </div>
       </div>
