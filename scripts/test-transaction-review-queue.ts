@@ -9,6 +9,7 @@ import {
   normalizeReviewOrder,
   normalizeReviewQueueReturnPath,
   normalizeReviewQueueSequence,
+  resolveReviewQueueSignal,
 } from '../src/pages/finance/transactions/transactionReviewModel';
 
 let passed = 0;
@@ -76,6 +77,23 @@ verify(
   normalizeReviewQueueSequence('tx_aaaaaaaaaaaaaaaa', null).length === 0,
 );
 
+verify(
+  'queue signal gives blockers precedence over warnings',
+  resolveReviewQueueSignal({ blockerCount: 2, warningCount: 3, isReady: false }) === 'blocked',
+);
+verify(
+  'queue signal surfaces warnings before ready state',
+  resolveReviewQueueSignal({ blockerCount: 0, warningCount: 2, isReady: true }) === 'warning',
+);
+verify(
+  'queue signal marks deterministic blocker-free transactions as ready',
+  resolveReviewQueueSignal({ blockerCount: 0, warningCount: 0, isReady: true }) === 'ready',
+);
+verify(
+  'queue signal fails closed to unknown when readiness metadata is absent',
+  resolveReviewQueueSignal({}) === 'unknown',
+);
+
 verify('queue keeps finance.review capability gate', page.includes("'finance.review'"));
 verify('queue requests only ready_for_review items', page.includes("status: 'ready_for_review'"));
 verify('queue preserves 25 item page size', page.includes('listTransactions(filters, cursor, 25)'));
@@ -91,12 +109,16 @@ verify('queue delegates index recovery to human-safe component', page.includes('
 verify('queue does not render raw backend error messages', !page.includes('{error.message}') && !page.includes('{err.message}') && !page.includes('setError(err.message'));
 verify('queue does not call transaction mutations', !/createDraft|createAndSubmit|updateDraft|submitForReview|returnToDraft|approveForPosting/.test(page));
 verify('queue does not reference posting or ledger writes', !/financeJournalEntries|financeJournalLines|financeAggregates|posting-real|ledger-post/.test(page));
+verify('queue renders deterministic exception signals', page.includes('resolveReviewQueueSignal') && page.includes('copy.signalsTitle') && page.includes('queueSignalCounts'));
+verify('queue preserves server order while adding signals', page.includes('items.map((transaction, itemIndex)') && !page.includes('items.sort('));
+verify('queue keeps blocker warning and ready signals visually distinct', page.includes("queueSignal === 'blocked'") && page.includes("queueSignal === 'warning'") && page.includes("queueSignal === 'ready'"));
 verify('queue uses premium foundation primitives', page.includes("import { Button, Surface }"));
 
 for (const language of ['PT', 'EN', 'ES'] as const) {
   const copy = TRANSACTION_REVIEW_COPY[language];
   verify(`${language} copy has human review title`, Boolean(copy.pageTitle && copy.pageSubtitle && copy.review));
   verify(`${language} copy has controlled recovery state`, Boolean(copy.errorTitle && copy.errorBody && copy.retry && copy.supportCode));
+  verify(`${language} copy explains exception signals without changing human authority`, Boolean(copy.signalsTitle && copy.signalsBody && copy.blockedSignal(1) && copy.warningSignal(1) && copy.readySignal && copy.unknownSignal));
   verify(`${language} copy has all direction labels`, Boolean(copy.directions.all && copy.directions.income && copy.directions.expense && copy.directions.transfer && copy.directions.liability_settlement));
 }
 
