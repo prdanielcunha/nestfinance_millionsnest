@@ -37,6 +37,12 @@ export type TransactionReviewCopy = {
   loadMore: string;
   loadingMore: string;
   endOfQueue: string;
+  signalsTitle: string;
+  signalsBody: string;
+  blockedSignal: (count: number) => string;
+  warningSignal: (count: number) => string;
+  readySignal: string;
+  unknownSignal: string;
   warnings: (count: number) => string;
 };
 
@@ -86,6 +92,12 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     loadMore: 'Carregar mais',
     loadingMore: 'Carregando...',
     endOfQueue: 'Você chegou ao fim da fila.',
+    signalsTitle: 'O que pede atenção nesta página',
+    signalsBody: 'Os sinais abaixo só organizam sua conferência. A ordem da fila continua a mesma e a decisão permanece humana.',
+    blockedSignal: (count) => `${count} ${count === 1 ? 'bloqueio' : 'bloqueios'} para corrigir`,
+    warningSignal: (count) => `${count} ${count === 1 ? 'alerta' : 'alertas'} para conferir`,
+    readySignal: 'Sem bloqueios',
+    unknownSignal: 'Conferência necessária',
     warnings: (count) => `${count} ${count === 1 ? 'aviso' : 'avisos'}`,
   },
   EN: {
@@ -133,6 +145,12 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     loadMore: 'Load more',
     loadingMore: 'Loading...',
     endOfQueue: 'You reached the end of the queue.',
+    signalsTitle: 'What needs attention on this page',
+    signalsBody: 'These signals only organize your review. Queue order stays unchanged and the decision remains human.',
+    blockedSignal: (count) => `${count} ${count === 1 ? 'blocker' : 'blockers'} to fix`,
+    warningSignal: (count) => `${count} ${count === 1 ? 'warning' : 'warnings'} to check`,
+    readySignal: 'No blockers',
+    unknownSignal: 'Review required',
     warnings: (count) => `${count} ${count === 1 ? 'warning' : 'warnings'}`,
   },
   ES: {
@@ -180,6 +198,12 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     loadMore: 'Cargar más',
     loadingMore: 'Cargando...',
     endOfQueue: 'Llegaste al final de la cola.',
+    signalsTitle: 'Qué requiere atención en esta página',
+    signalsBody: 'Estas señales solo organizan tu revisión. El orden de la cola no cambia y la decisión sigue siendo humana.',
+    blockedSignal: (count) => `${count} ${count === 1 ? 'bloqueo' : 'bloqueos'} para corregir`,
+    warningSignal: (count) => `${count} ${count === 1 ? 'alerta' : 'alertas'} para revisar`,
+    readySignal: 'Sin bloqueos',
+    unknownSignal: 'Revisión necesaria',
     warnings: (count) => `${count} ${count === 1 ? 'aviso' : 'avisos'}`,
   },
 };
