@@ -8,6 +8,13 @@ export type TransactionReviewCopy = {
   pageSubtitle: string;
   back: string;
   filtersLabel: string;
+  searchPlaceholder: string;
+  searchTooShort: string;
+  searchEmptyTitle: string;
+  searchEmptyBody: string;
+  searchFallbackHint: string;
+  searchTruncatedHint: string;
+  clearSearch: string;
   directions: Record<ReviewDirectionFilter, string>;
   orders: Record<ReviewOrder, string>;
   loading: string;
@@ -41,6 +48,13 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     pageSubtitle: 'Movimentações que aguardam uma segunda conferência antes do próximo passo.',
     back: 'Voltar para Finance',
     filtersLabel: 'Filtrar fila de revisão',
+    searchPlaceholder: 'Buscar descrição, pessoa, conta, método, valor, data ou código',
+    searchTooShort: 'Digite pelo menos 2 caracteres para pesquisar.',
+    searchEmptyTitle: 'Nada para conferir com essa busca',
+    searchEmptyBody: 'Tente outro termo ou ajuste os filtros da fila.',
+    searchFallbackHint: 'Busca segura no histórico enquanto o índice é preparado.',
+    searchTruncatedHint: 'Há mais resultados. Refine o termo ou os filtros para encontrar com precisão.',
+    clearSearch: 'Limpar busca',
     directions: {
       all: 'Tudo',
       income: 'Entradas',
@@ -81,6 +95,13 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     pageSubtitle: 'Transactions waiting for a second check before the next step.',
     back: 'Back to Finance',
     filtersLabel: 'Filter review queue',
+    searchPlaceholder: 'Search description, person, account, method, amount, date, or code',
+    searchTooShort: 'Type at least 2 characters to search.',
+    searchEmptyTitle: 'Nothing to review for this search',
+    searchEmptyBody: 'Try another term or adjust the queue filters.',
+    searchFallbackHint: 'Safe historical search while the index is being prepared.',
+    searchTruncatedHint: 'There are more results. Refine the term or filters for precision.',
+    clearSearch: 'Clear search',
     directions: {
       all: 'All',
       income: 'Income',
@@ -121,6 +142,13 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
     pageSubtitle: 'Movimientos que esperan una segunda revisión antes del siguiente paso.',
     back: 'Volver a Finanzas',
     filtersLabel: 'Filtrar cola de revisión',
+    searchPlaceholder: 'Buscar descripción, persona, cuenta, método, valor, fecha o código',
+    searchTooShort: 'Escribe al menos 2 caracteres para buscar.',
+    searchEmptyTitle: 'Nada para revisar con esta búsqueda',
+    searchEmptyBody: 'Prueba otro término o ajusta los filtros de la cola.',
+    searchFallbackHint: 'Búsqueda segura en el historial mientras se prepara el índice.',
+    searchTruncatedHint: 'Hay más resultados. Refina el término o los filtros para encontrarlos con precisión.',
+    clearSearch: 'Limpiar búsqueda',
     directions: {
       all: 'Todo',
       income: 'Ingresos',
