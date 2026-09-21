@@ -63,6 +63,26 @@ console.log('NestFinance Firebase Hosting + Cloud Run migration contract: OK');
 
 
 const productionRelease = fs.readFileSync('.github/workflows/nestfinance-production-release.yml', 'utf8');
+const productionReleaseTriggerBlock = productionRelease.slice(
+  productionRelease.indexOf('on:'),
+  productionRelease.indexOf('permissions:'),
+);
+assert.match(
+  productionReleaseTriggerBlock,
+  /pull_request:\s*[\s\S]*branches: \[ production \][\s\S]*types: \[ closed \]/,
+  'Atomic production release must be driven by an explicit production PR close event',
+);
+assert.doesNotMatch(
+  productionReleaseTriggerBlock,
+  /\bpush:/,
+  'Atomic production release must not race a production PR merge with a duplicate push-triggered release',
+);
+assert.match(
+  productionRelease,
+  /github\.event_name == 'workflow_dispatch' \|\| github\.event\.pull_request\.merged == true/,
+  'Closed but unmerged production PRs must never deploy',
+);
+
 for (const required of [
   'branches: [ production ]',
   'Deploy Firestore indexes',

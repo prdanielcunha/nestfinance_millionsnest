@@ -1,8 +1,9 @@
 name: NestFinance Production Release
 
 on:
-  push:
+  pull_request:
     branches: [ production ]
+    types: [ closed ]
   workflow_dispatch:
 
 permissions:
@@ -22,6 +23,7 @@ env:
 
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
