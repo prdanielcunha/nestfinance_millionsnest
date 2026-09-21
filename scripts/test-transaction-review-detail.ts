@@ -52,6 +52,11 @@ verify('PT localized money remains valid', /1\.234,56/.test(formatReviewMoney(12
 verify('EN localized money remains valid', /1,234\.56/.test(formatReviewMoney(123456, 'EN')));
 verify('ES localized date remains valid', Boolean(formatReviewDate('2026-08-14T12:00:00.000Z', 'ES')));
 verify('detail explicitly communicates no balance change', page.includes('copy.noBalanceChange'));
+verify('detail surfaces deterministic readiness blockers', page.includes('readinessBlockers') && page.includes('blockingIssues'));
+verify('detail surfaces non-blocking readiness warnings separately', page.includes('readinessWarnings') && page.includes('warningIssues'));
+verify('detail maps issue codes through localized copy', page.includes('copy.reviewIssueLabels'));
+verify('allocation mismatch remains an explicit blocker', page.includes('ALLOCATION_MISMATCH') && page.includes('blockingIssues.length > 0'));
+verify('detail does not render backend readiness details directly', !page.includes('issue.details'));
 verify('detail uses premium foundation primitives', page.includes("import { Button, Surface }"));
 
 for (const language of ['PT', 'EN', 'ES'] as const) {
@@ -60,6 +65,17 @@ for (const language of ['PT', 'EN', 'ES'] as const) {
   verify(`${language} has safe recovery copy`, Boolean(copy.errorTitle && copy.errorBody && copy.retry && copy.actionError));
   verify(`${language} has all controlled return reasons`, Boolean(copy.reasons.need_correction && copy.reasons.missing_evidence && copy.reasons.incorrect_classification && copy.reasons.other));
   verify(`${language} has approval confirmation copy`, Boolean(copy.approveConfirmTitle && copy.approveConfirmBody && copy.confirmApprove));
+  verify(
+    `${language} has localized review exception reasons`,
+    Boolean(
+      copy.blockingIssuesTitle &&
+      copy.warningIssuesTitle &&
+      copy.reviewIssueLabels.MISSING_ACCOUNT &&
+      copy.reviewIssueLabels.NO_EVIDENCE &&
+      copy.reviewIssueLabels.ALLOCATION_MISMATCH &&
+      copy.unknownReviewIssue
+    ),
+  );
 }
 
 console.log(`\nTransaction Review Detail 2.0 totals: ${passed} Passed, ${failed} Failed`);
