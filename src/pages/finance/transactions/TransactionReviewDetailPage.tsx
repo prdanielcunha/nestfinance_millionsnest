@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   formatReviewDate,
   formatReviewMoney,
   normalizeReviewQueueReturnPath,
+  normalizeReviewQueueSequence,
 } from './transactionReviewModel';
 import {
   TRANSACTION_REVIEW_DETAIL_COPY,
@@ -80,6 +81,7 @@ export default function TransactionReviewDetailPage() {
 
 function TransactionReviewDetailContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
@@ -105,7 +107,30 @@ function TransactionReviewDetailContent() {
     searchParams.get('returnTo'),
     APP_ROUTES.financeReview,
   );
+  const reviewQueueIds = normalizeReviewQueueSequence(
+    (location.state as { reviewQueueIds?: unknown } | null)?.reviewQueueIds,
+    transactionId,
+  );
+  const nextReviewId = reviewQueueIds[0] || null;
+
   const backToQueue = () => navigate(returnTo);
+
+  const continueReview = () => {
+    if (!nextReviewId) {
+      navigate(returnTo, { replace: true });
+      return;
+    }
+
+    const detailPath = APP_ROUTES.transactionReviewDetail.replace(
+      ':transactionId',
+      nextReviewId,
+    );
+    const detailParams = new URLSearchParams({ returnTo });
+    navigate(`${detailPath}?${detailParams.toString()}`, {
+      replace: true,
+      state: { reviewQueueIds: reviewQueueIds.slice(1) },
+    });
+  };
 
   const loadData = async (signal?: AbortSignal, currentEpoch?: number) => {
     if (!transactionId || !activeFinanceEntityId) return;
@@ -193,7 +218,7 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       approveIdempotencyKeyRef.current = null;
-      navigate(returnTo, { replace: true });
+      continueReview();
     } catch {
       if (actionEpoch !== epochRef.current) return;
       setActionError(true);
@@ -229,7 +254,7 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       returnIdempotencyKeyRef.current = null;
-      navigate(returnTo, { replace: true });
+      continueReview();
     } catch {
       if (actionEpoch !== epochRef.current) return;
       setActionError(true);
@@ -303,7 +328,17 @@ function TransactionReviewDetailContent() {
             </div>
             <h1 className="mt-4 text-lg font-semibold text-text-primary">{copy.stateChangedTitle}</h1>
             <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.stateChangedBody}</p>
-            <Button className="mt-6" onClick={backToQueue}>{copy.backToQueue}</Button>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {nextReviewId ? (
+                <Button onClick={continueReview}>{copy.nextReviewButton}</Button>
+              ) : null}
+              <Button
+                variant={nextReviewId ? 'secondary' : 'primary'}
+                onClick={backToQueue}
+              >
+                {copy.backToQueue}
+              </Button>
+            </div>
           </Surface>
         </div>
       </div>
@@ -505,6 +540,11 @@ function TransactionReviewDetailContent() {
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-text-secondary">{copy.decisionBody}</p>
                 <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noBalanceChange}</p>
+                {nextReviewId ? (
+                  <p className="mt-2 text-xs leading-relaxed text-accent-primary">
+                    {copy.continueNextHint}
+                  </p>
+                ) : null}
 
                 {blockingIssues.length > 0 ? (
                   <div
