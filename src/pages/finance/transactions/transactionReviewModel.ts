@@ -68,3 +68,39 @@ export function formatReviewDate(
     year: 'numeric',
   }).format(date);
 }
+
+
+export function buildReviewQueueReturnPath(
+  params: URLSearchParams,
+  canonicalPath: string,
+): string {
+  const next = new URLSearchParams();
+
+  const direction = normalizeReviewDirection(params.get('direction'));
+  if (direction !== 'all') next.set('direction', direction);
+
+  const order = normalizeReviewOrder(params.get('order'));
+  if (order !== 'oldest') next.set('order', order);
+
+  const query = (params.get('q') || '').trim().slice(0, 64);
+  if (query) next.set('q', query);
+
+  const serialized = next.toString();
+  return serialized ? `${canonicalPath}?${serialized}` : canonicalPath;
+}
+
+export function normalizeReviewQueueReturnPath(
+  value: string | null | undefined,
+  canonicalPath: string,
+): string {
+  const candidate = String(value || '').trim();
+  if (!candidate) return canonicalPath;
+
+  const queryIndex = candidate.indexOf('?');
+  const pathname =
+    queryIndex === -1 ? candidate : candidate.slice(0, queryIndex);
+  if (pathname !== canonicalPath) return canonicalPath;
+
+  const rawQuery = queryIndex === -1 ? '' : candidate.slice(queryIndex + 1);
+  return buildReviewQueueReturnPath(new URLSearchParams(rawQuery), canonicalPath);
+}

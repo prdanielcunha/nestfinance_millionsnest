@@ -5,8 +5,10 @@ import {
   ArrowLeft,
   ChevronRight,
   Clock3,
+  Search,
   ShieldCheck,
   ShieldX,
+  X,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -20,6 +22,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { TRANSACTION_REVIEW_COPY } from './transactionReviewCopy';
 import {
+  buildReviewQueueReturnPath,
   formatReviewDate,
   formatReviewMoney,
   normalizeReviewDirection,
@@ -79,12 +82,14 @@ function ReviewContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeFinanceEntityId } = useFinanceEntity();
-  const { listTransactions } = useTransactions();
+  const { listTransactions, searchTransactions } = useTransactions();
   const { language } = useLanguage();
   const copy = TRANSACTION_REVIEW_COPY[language];
 
   const directionFilter = normalizeReviewDirection(searchParams.get('direction'));
   const orderFilter = normalizeReviewOrder(searchParams.get('order'));
+  const searchQuery = searchParams.get('q') || '';
+  const normalizedSearchQuery = searchQuery.trim();
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +98,12 @@ function ReviewContent() {
   const [errorDetails, setErrorDetails] = useState<any | null>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(true);
+  const [searchMeta, setSearchMeta] = useState<{
+    searchMode: 'index' | 'canonical_fallback';
+    indexCertified: boolean;
+    sourceTruncated: boolean;
+    resultTruncated: boolean;
+  } | null>(null);
   const epochRef = useRef(0);
 
   const loadData = async (
@@ -112,20 +123,46 @@ function ReviewContent() {
       };
       if (directionFilter !== 'all') filters.direction = directionFilter;
 
-      const response = await listTransactions(filters, cursor, 25);
+      if (normalizedSearchQuery.length >= 2) {
+        const response = await searchTransactions(
+          normalizedSearchQuery,
+          filters,
+          50,
+        );
 
-      if (
-        signal?.aborted ||
-        (currentEpoch !== undefined && currentEpoch !== epochRef.current)
-      ) {
-        return;
+        if (
+          signal?.aborted ||
+          (currentEpoch !== undefined && currentEpoch !== epochRef.current)
+        ) {
+          return;
+        }
+
+        setItems(response.items);
+        setNextCursor(undefined);
+        setHasMore(false);
+        setSearchMeta({
+          searchMode: response.searchMode,
+          indexCertified: response.indexCertified,
+          sourceTruncated: response.sourceTruncated,
+          resultTruncated: response.resultTruncated,
+        });
+      } else {
+        const response = await listTransactions(filters, cursor, 25);
+
+        if (
+          signal?.aborted ||
+          (currentEpoch !== undefined && currentEpoch !== epochRef.current)
+        ) {
+          return;
+        }
+
+        setItems((current) =>
+          cursor ? [...current, ...response.items] : response.items,
+        );
+        setNextCursor(response.nextCursor);
+        setHasMore(response.hasMore);
+        setSearchMeta(null);
       }
-
-      setItems((current) =>
-        cursor ? [...current, ...response.items] : response.items,
-      );
-      setNextCursor(response.nextCursor);
-      setHasMore(response.hasMore);
     } catch (error: any) {
       if (
         signal?.aborted ||
@@ -157,22 +194,39 @@ function ReviewContent() {
 
   useEffect(() => {
     const abortController = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     setItems([]);
     setNextCursor(undefined);
     setHasMore(true);
+    setSearchMeta(null);
 
-    if (activeFinanceEntityId) {
-      void loadData(
-        undefined,
-        abortController.signal,
-        ++epochRef.current,
-      );
+    if (!activeFinanceEntityId) {
+      setLoading(false);
+      return () => abortController.abort();
     }
 
-    return () => abortController.abort();
+    const currentEpoch = ++epochRef.current;
+    if (normalizedSearchQuery.length >= 2) {
+      setLoading(true);
+      timeoutId = setTimeout(() => {
+        void loadData(undefined, abortController.signal, currentEpoch);
+      }, 280);
+    } else {
+      void loadData(undefined, abortController.signal, currentEpoch);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      abortController.abort();
+    };
     // The request is intentionally restarted by these canonical queue dimensions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFinanceEntityId, directionFilter, orderFilter]);
+  }, [
+    activeFinanceEntityId,
+    directionFilter,
+    orderFilter,
+    normalizedSearchQuery,
+  ]);
 
   const updateDirection = (value: ReviewDirectionFilter) => {
     const next = new URLSearchParams(searchParams);
@@ -190,6 +244,14 @@ function ReviewContent() {
     setSearchParams(next);
   };
 
+  const updateSearch = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value) next.delete('q');
+    else next.set('q', value.slice(0, 64));
+    next.delete('cursor');
+    setSearchParams(next, { replace: true });
+  };
+
   const loadMore = () => {
     if (!loadingMore && hasMore && nextCursor) {
       void loadData(nextCursor, undefined, epochRef.current);
@@ -197,9 +259,16 @@ function ReviewContent() {
   };
 
   const openReview = (transactionId: string) => {
-    navigate(
-      APP_ROUTES.transactionReviewDetail.replace(':transactionId', transactionId),
+    const detailPath = APP_ROUTES.transactionReviewDetail.replace(
+      ':transactionId',
+      transactionId,
     );
+    const returnTo = buildReviewQueueReturnPath(
+      searchParams,
+      APP_ROUTES.financeReview,
+    );
+    const detailParams = new URLSearchParams({ returnTo });
+    navigate(`${detailPath}?${detailParams.toString()}`);
   };
 
   const transactionType = (transactionKind: string) => {
@@ -333,6 +402,50 @@ function ReviewContent() {
             </div>
           </header>
 
+          <Surface variant="glass" radius="lg" className="p-4 sm:p-5">
+            <label className="relative block">
+              <span className="sr-only">{copy.searchPlaceholder}</span>
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-text-muted"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                maxLength={64}
+                autoComplete="off"
+                placeholder={copy.searchPlaceholder}
+                onChange={(event) => updateSearch(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-surface-elevated pl-10 pr-11 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => updateSearch('')}
+                  aria-label={copy.clearSearch}
+                  className="nf-interactive absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-text-muted hover:bg-surface-secondary hover:text-text-primary"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
+            </label>
+
+            {normalizedSearchQuery.length === 1 ? (
+              <p className="mt-2 text-xs text-text-muted">
+                {copy.searchTooShort}
+              </p>
+            ) : searchMeta?.searchMode === 'canonical_fallback' ? (
+              <p className="mt-2 text-xs text-text-muted">
+                {copy.searchFallbackHint}
+              </p>
+            ) : null}
+            {searchMeta?.sourceTruncated || searchMeta?.resultTruncated ? (
+              <p className="mt-2 text-xs font-medium text-semantic-warning">
+                {copy.searchTruncatedHint}
+              </p>
+            ) : null}
+          </Surface>
+
           <div
             className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
             aria-label={copy.filtersLabel}
@@ -375,10 +488,14 @@ function ReviewContent() {
                 <Clock3 className="h-6 w-6" aria-hidden="true" />
               </div>
               <h2 className="mt-4 text-lg font-semibold text-text-primary">
-                {copy.emptyTitle}
+                {normalizedSearchQuery.length >= 2
+                  ? copy.searchEmptyTitle
+                  : copy.emptyTitle}
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-text-muted">
-                {copy.emptyBody}
+                {normalizedSearchQuery.length >= 2
+                  ? copy.searchEmptyBody
+                  : copy.emptyBody}
               </p>
             </Surface>
           ) : (

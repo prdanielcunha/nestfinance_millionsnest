@@ -6,7 +6,7 @@
 - **Ecossistema:** Opera recebendo sessões de autenticação do Hub MillionsNest.
 
 ## 2. Stack Tecnológica
-- **Frontend:** React 19, react-router-dom v7, Tailwind CSS v4, framer-motion.
+- **Frontend:** React 19, react-router-dom v7, Tailwind CSS v4, `motion` e Lucide React.
 - **Backend:** Node.js (via Vercel Serverless Functions), Express, `firebase-admin` (v13.10.0).
 - **Banco de Dados:** Firebase Firestore.
 - **Autenticação:** Firebase Auth, validado no backend via token ID e `verifyIdToken`.
@@ -35,9 +35,11 @@
 
 ## 5. Rotas do Frontend (Principais)
 Localizadas em `/src/app/router/routes.ts`:
-- `/auth/handoff`: Recebe transição de autenticação (Handoff).
+- `/auth/login`: entrada nativa do NestFinance com Google, sempre reconciliada server-side pelo resolver canônico do ecossistema.
+- `/auth/handoff`: recebe transição de autenticação (Handoff) iniciada pelo Hub.
 - `/finance`: Dashboard principal (`Hoje`).
-- `/finance/transactions`: Lista de movimentações (transactions).
+- `/finance/transactions`: workspace de movimentações com filtros, busca universal, saved views e quick inspector.
+- `/finance/review`: fila profissional de movimentações em `ready_for_review`, com filtros e busca universal preservando o escopo de revisão.
 - `/finance/capture`: Universal Capture documental.
 - `/finance/inbox`: Fila server-mediated de documentos e evidências da entidade financeira ativa.
 - `/finance/inbox/:evidenceId`: Detalhe protegido de uma evidência da entidade financeira ativa.
@@ -45,16 +47,18 @@ Localizadas em `/src/app/router/routes.ts`:
 
 ## 6. Fluxo de Autenticação, Handoff e RBAC
 - **Autenticação:** Gerenciada pelo Firebase Auth via `useAuth.ts`. Ao detectar login, o NestFinance resolve o acesso canônico pelo backend em `/api/auth/session/resolve`.
+- **Entrada nativa Google:** `/auth/login` autentica a identidade com Google/Firebase, mas a autorização continua server-side. A operação `direct-entry` valida o ID token, descobre candidatos de organização sem tratá-los como autorização, chama `resolveEcosystemSession()` para cada tenant elegível e somente então emite um Custom Token scoped à organização selecionada.
+- **Múltiplas organizações:** direct entry pode retornar uma lista de organizações já autorizadas para seleção; escolher uma organização reexecuta o resolver canônico antes de emitir o token scoped.
 - **Handoff:** `/auth/handoff` aceita um código URL-safe de 43 caracteres, remove-o da URL, envia somente `{ code }` para `/api/auth/handoff/redeem` e, após resgate válido, usa `signInWithCustomToken()`.
 - **Resgate server-side:** `handoffRedeem.ts` calcula SHA-256 do código, consulta `ecosystemHandoffs/{codeHash}`, valida app/version/status/expiração/contexto e consome o registro atomicamente antes de emitir o Firebase Custom Token.
 - **Claims do Custom Token:** incluem `mn_app_id`, `mn_organization_id`, `mn_handoff_version` e `mn_access_source`. O contexto de organização vem do Handoff armazenado server-side, não do body arbitrário do cliente.
 - **Resolução de Organização Ativa:** `mn_organization_id` é usado como contexto autenticado e a organização é revalidada no backend. NUNCA aceitar cegamente `organizationId`, roles, permissions ou scopes apenas do frontend/URL.
 - **Resolução de Permissões (RBAC):** feita no backend em `/api/_lib/ecosystemSessionResolver.ts`.
-  - **Papéis globais canônicos:** somente `ceo`, `global_admin`, `ecosystem_owner` e `founder` podem representar autoridade global de ecossistema (`isGlobalAccess: true`).
-  - **Gate atual de desenvolvimento do NestFinance:** atualmente permite acesso apenas a `ceo`, `global_admin` e `ecosystem_owner`. `founder` permanece no vocabulário global canônico, mas não passa o gate temporário de desenvolvimento atual.
-  - **Papéis organizacionais:** `owner`, `admin`, pastor/líder e equivalentes organizacionais NÃO são papéis globais do ecossistema.
-  - **Membership canônica do resolver:** quando o gate de desenvolvimento for ampliado, o resolver usa `organizations/{orgId}/members/{uid}`; coleções legadas como `organization_members` não são fontes de autorização do resolver canônico.
-  - **Acesso por membership:** exige organização ativa, `enabledApps` contendo `nestfinance`, entitlement ativo e `appAccess.nestFinance.enabled === true`; permissões/scopes vêm desse bloco server-side.
+  - **Papéis globais canônicos:** `ceo`, `global_admin`, `ecosystem_owner` e `founder` representam autoridade global de ecossistema (`isGlobalAccess: true`) quando vêm de `users/{uid}.systemRole`.
+  - **Papéis organizacionais:** `owner`, `admin`, pastor/líder e equivalentes organizacionais NÃO viram papéis globais do ecossistema; sua autoridade deriva exclusivamente da membership canônica.
+  - **Membership canônica do resolver:** `organizations/{orgId}/members/{uid}` é a única fonte não-global de autorização do NestFinance. Coleções legadas como `organization_members` e memberships antigas em `users` não são fontes de autorização do resolver canônico.
+  - **Acesso por membership:** exige usuário/organização/membership ativos, `enabledApps` contendo `nestfinance`, entitlement NestFinance ativo e `appAccess.nestFinance.enabled === true`; roles, permissions e scopes são resolvidos server-side desse bloco.
+  - **Capabilities efetivas:** o frontend pode adaptar a experiência ao contexto resolvido, mas nenhuma capability client-side substitui a autorização novamente feita pelos handlers server-side.
 - O Frontend reflete o estado resolvido através de Boundaries (`AuthBoundary`, `EcosystemAccessBoundary`, `OrganizationalAccessBoundary`) e checagens de capabilities.
 - O contrato cross-app completo do Handoff ainda possui pendências documentadas em `Pending-Integration-Contract.md` (por exemplo `sessionVersion`, rate limit, App Check, política de origem/CORS, logout e troca de organização).
 
@@ -95,7 +99,7 @@ Encontrados no `package.json` e workflows:
 
 ## 10. Dívidas Técnicas / Legados / Informações Ausentes
 - **Contrato Handoff cross-app:** o resgate no NestFinance está implementado; emissão/TTL no Hub, `sessionVersion`, rate limit, App Check, política de origem/CORS, logout, troca de organização, retorno ao Hub e auditoria durável ainda exigem reconciliação/certificação coordenada. Ver `Pending-Integration-Contract.md`.
-- **Gate de desenvolvimento:** o resolver e as Rules restringem temporariamente o NestFinance a `ceo`, `global_admin` e `ecosystem_owner`; a abertura para memberships organizacionais deve ser um slice explícito e certificado.
+- **Acesso organizacional:** memberships canônicas já são aceitas pelo resolver quando app, entitlement e `appAccess.nestFinance` estão ativos. O risco remanescente é manter roles/capabilities/scopes alinhados entre Hub, resolver, boundaries de UI e handlers server-side, sem fontes paralelas.
 - **Firestore Rules vs. legados:** as Rules ainda contêm helpers de compatibilidade para memberships/roles legados em áreas gerais do ecossistema; isso não deve ser confundido com a membership canônica usada pelo resolver NestFinance.
 - **Posting real:** permanece desativado/fora do contrato certificado; aprovação para posting e preview não equivalem a lançamento real.
 - **Billing / Assinaturas:** não é responsabilidade implementada diretamente neste app; entitlement é consumido do contexto MillionsNest.
@@ -217,18 +221,61 @@ Encontrados no `package.json` e workflows:
 - Confirmação durável pertence a um futuro **Review Workspace**, que deverá possuir autorização, auditoria e contrato de escrita próprios.
 - Contrato detalhado: `docs/UNIVERSAL_EVIDENCE_I2L_DETERMINISTIC_FIELD_ROLE_HINTS_UX.md`.
 
-## 24. Boundary Certificado Atual e Próximo Passo
-O estado certificado atual do Document Intelligence termina em I2L.
+## 24. Boundary I2D–I2L e evolução posterior
+I2D–I2L continuam sendo a foundation determinística e sem efeitos financeiros descrita acima. Essas fases não foram substituídas: continuam úteis para texto nativo, sinais e hints de baixo custo antes de qualquer camada mais cara.
 
-Invariantes que devem permanecer até um slice posterior explicitamente aprovado:
-- nenhuma análise documental automática em page load/background;
-- deterministic-first;
-- nenhum OCR ou IA no fluxo I2D–I2L;
-- nenhum texto/candidato/role hint persistido como fato financeiro;
-- nenhuma confirmação humana durável ainda implementada;
-- nenhuma criação/aplicação automática de transação, journal, balance, aggregate, PostingPlan ou Count;
+O estado técnico atual, porém, já avançou além do antigo boundary I2L. A partir dele foram adicionados slices explícitos, server-mediated e auditáveis de revisão humana e inteligência assistida.
+
+Invariantes que continuam válidos:
+- nenhuma análise documental cara deve acontecer automaticamente em page load/background;
+- deterministic-first continua sendo a regra de custo e confiança;
+- nenhum candidato determinístico vira fato financeiro sem um contrato posterior apropriado;
 - posting real permanece fora do boundary certificado;
 - isolamento por organização + `financeEntityId` + `evidenceId` continua obrigatório;
-- PT/EN/ES e estados de incerteza devem permanecer explícitos.
+- PT/EN/ES e estados de incerteza permanecem obrigatórios;
+- análise assistida nunca deve conceder permissão, postar, alterar saldo ou fechar ambiguidade sozinha.
 
-O próximo boundary funcional natural é um **Review Workspace** separado, capaz de registrar confirmação humana com autorização, trilha de auditoria e contrato de escrita próprio. Esse passo não deve ser inferido como existente apenas porque I2K/I2L já fornecem sugestões semânticas.
+## 25. Inbox — Human Evidence Review
+O Inbox já possui confirmação humana durável para o lifecycle documental, separada da confirmação semântica antiga de I2K/I2L.
+
+- `universal-evidence-classify` exige `finance.create_drafts`, versão esperada e idempotência; grava `classification.source = human`, incrementa versão e volta o item para `review.status = pending`.
+- A classificação é auditada e projeta fatos/sinais canônicos, resolvendo identificação pendente e abrindo revisão quando apropriado.
+- `universal-evidence-review` exige `finance.review`, classificação válida, versão esperada e idempotência; grava quem revisou, quando e nota normalizada.
+- A revisão também é auditada, emite `INBOX_ITEM_RESOLVED` e resolve o sinal de revisão correspondente.
+- O frontend separa capability de classificar da capability de resolver e mantém a experiência localizada em PT/EN/ES.
+- Esse lifecycle documental não equivale a posting, journal, balance ou aprovação contábil.
+
+## 26. Document Transaction Intelligence — proposta assistida, não autoridade
+O detalhe de uma evidência pode iniciar, por ação explícita, uma análise transacional assistida.
+
+- `universal-evidence-analyze-transaction` exige `finance.create_drafts`, revalida organização, entidade, evidência aceita, versão, original imutável, tamanho, SHA-256, MIME e assinatura antes de analisar o documento.
+- A análise é versionada/fingerprinted e carrega autoridade explícita de proposta: confirmação humana é obrigatória e a própria análise não cria transação.
+- O backend registra provider/model/revision e evento de auditoria, inclusive que não houve criação de transação, mutação de saldo ou reconhecimento financeiro definitivo.
+- A UI apresenta campos sugeridos editáveis e bloqueios conservadores para casos como CNPJ incompatível, múltiplos documentos, moeda/estado de liquidação não suportados.
+- Somente depois da revisão humana a pessoa pode criar um **rascunho** pela API canônica de transações, vinculando `evidenceIds` e `sourceContext = document_intelligence`.
+- Criar esse rascunho não posta, não aprova e não altera saldo.
+
+## 27. Workspace profissional de movimentações e revisão
+O workspace de movimentações já ultrapassou a lista CRUD básica.
+
+Estado atual em `main`:
+- quick inspector responsivo e contextual;
+- saved views server-owned por usuário e `financeEntityId`;
+- filtros combináveis de direção, status, período e ordenação;
+- busca universal server-side, accent-insensitive, com termos de texto, valor e data;
+- índice derivado certificado com fallback canônico seguro enquanto a cobertura histórica não estiver certificada;
+- manutenção atômica do índice nas escritas canônicas e ferramentas protegidas de preview/apply/verify para cobertura histórica;
+- fila `/finance/review` restrita a `ready_for_review`, com filtro de direção/ordem e a mesma busca universal, preservando a boundary `finance.review`.
+
+A busca é uma ferramenta de leitura. Ela não modifica transação, aprovação ou posting.
+
+## 28. Próximos boundaries
+O antigo texto que tratava **Review Workspace** como ainda inexistente não representa mais o código atual. Já existem revisão documental humana, Review de transações, inspector e superfícies profissionais.
+
+Os próximos slices devem partir do roadmap vigente e de gaps reais observados no código/testes, por exemplo:
+- aprofundar trabalho por exceção no Review Workspace sem automatizar decisões irreversíveis;
+- aproximar documento, dados detectados, divergências, confiança e histórico em uma experiência profissional coerente;
+- adicionar produtividade somente quando preservar autorização server-side, auditabilidade e contexto;
+- manter documentação e gates sincronizados após cada slice.
+
+Nenhum desses pontos autoriza posting real ou bulk actions financeiras irreversíveis sem um boundary dedicado e certificado.
