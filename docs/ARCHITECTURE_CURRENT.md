@@ -3,18 +3,19 @@
 ## 1. Responsabilidade
 - **Nome do Aplicativo:** NestFinance (nomeado no código como `react-example` no `package.json`, mas visivelmente como NestFinance na interface).
 - **Responsabilidade:** Aplicativo de gestão financeira, integrado como parte do ecossistema MillionsNest.
-- **Ecossistema:** Opera recebendo sessões de autenticação do Hub MillionsNest.
+- **Ecossistema:** Opera com entrada direta Google e Handoff do Hub MillionsNest, ambos reconciliados server-side pelo contexto canônico.
+- **Produção canônica:** `https://nestfinance.millionsnest.com` → Firebase Hosting → Cloud Run `nestfinance-api` para `/api/**`.
 
 ## 2. Stack Tecnológica
 - **Frontend:** React 19, react-router-dom v7, Tailwind CSS v4, `motion` e Lucide React.
-- **Backend:** Node.js (via Vercel Serverless Functions), Express, `firebase-admin` (v13.10.0).
+- **Backend:** Node.js 22 em Cloud Run (`nestfinance-api`), com os gateways/handlers históricos reutilizados pelo adapter `cloudrun.ts`; Vercel permanece somente como fallback manual legado.
 - **Banco de Dados:** Firebase Firestore.
 - **Autenticação:** Firebase Auth, validado no backend via token ID e `verifyIdToken`.
 - **Linguagem:** TypeScript (typecheck via `tsc`).
 - **Build/Bundler:** Vite.
 
 ## 3. Estrutura de Diretórios
-- `/api/`: Entrypoints para Serverless Functions (ex: `auth-gateway.ts`, `finance-gateway.ts`).
+- `/api/`: Gateways HTTP reutilizados pelo runtime Cloud Run (ex: `auth-gateway.ts`, `finance-gateway.ts`, `system-gateway.ts`).
 - `/src/`: Código do Frontend React.
   - `/src/app/`: Configurações globais de layout e rotas (`router.tsx`, `ShellLayout.tsx`).
   - `/src/components/`: Componentes UI reutilizáveis.
@@ -24,14 +25,14 @@
   - `/src/services/`: Serviços client-side (ex: `sessionResolutionService.ts`).
   - `/src/lib/`: Configurações de bibliotecas de terceiros (ex: `firebase.ts`).
 - `/server/`: Código do Backend.
-  - `/server/vercel-handlers/`: Handlers Vercel por domínio (`auth/`, `finance/`, `system/`).
+  - `/server/vercel-handlers/`: nome histórico do diretório de handlers server-side, atualmente reutilizados pelo Cloud Run (`auth/`, `finance/`, `system/`).
   - `/server/shared/`: Código compartilhado no backend.
 - `/scripts/`: Scripts utilitários e de teste.
 
 ## 4. Pontos de Entrada (Entrypoints)
 - **Frontend:** `/src/main.tsx` → `/src/App.tsx`.
-- **Backend (API):** `/api/auth-gateway.ts`, `/api/finance-gateway.ts`, `/api/system-gateway.ts`.
-- As rotas da API no `/api` roteiam o tráfego para os arquivos em `/server/vercel-handlers/` com base no parâmetro `operation` ou através das reescritas do `vercel.json`.
+- **Backend (API):** `cloudrun.ts` expõe o serviço `nestfinance-api` e encaminha para `/api/auth-gateway.ts`, `/api/finance-gateway.ts` e `/api/system-gateway.ts`.
+- O Firebase Hosting publica a SPA e reescreve `/api/**` para o Cloud Run; os gateways continuam roteando para `/server/vercel-handlers/` conforme o contrato público preservado. O `vercel.json` permanece apenas como contrato/rollback legado manual.
 
 ## 5. Rotas do Frontend (Principais)
 Localizadas em `/src/app/router/routes.ts`:
