@@ -80,7 +80,7 @@ async function runP06BConsolidatedTests() {
     return res;
   }
 
-  admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
+  admin.auth.verifyIdToken = async () => ({ uid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 
   console.log('\n--- 11. AUDITANDO SANITIZADOR E INTEGRIDADE DE ARRAYS ---');
 
