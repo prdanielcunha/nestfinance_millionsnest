@@ -157,7 +157,10 @@ async function run() {
   admin.auth.verifyIdToken = async () => ({
     uid,
     email: uid + '@test.com',
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
     mn_organization_id: orgId,
+    mn_session_version: 1,
   }) as any;
 
   const call = async (handler: any, body: any) => {
