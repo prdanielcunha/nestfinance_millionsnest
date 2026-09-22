@@ -72,7 +72,7 @@ await seed('aug-expense-' + suffix, entityA, '2026-08-06T12:00:00.000Z', 'expens
 await seed('other-entity-' + suffix, entityB, '2026-09-05T12:00:00.000Z', 'income', 99999, 'posted', 'reconciled');
 
 const originalVerify = admin.auth.verifyIdToken;
-admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
+admin.auth.verifyIdToken = async () => ({ uid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 
 const call = async (financeEntityId: string, period = '2026-09') => {
   const req = {
