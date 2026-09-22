@@ -155,8 +155,8 @@ for (const forbidden of [
 }
 
 verify(
-  engine.includes("transaction.amountCents !== line.selectedAmountCents") &&
-    engine.includes("direction !== line.selectedDirection") &&
+  engine.includes("transaction.amountCents !== source.amountCents") &&
+    engine.includes("direction !== source.direction") &&
     engine.includes('difference > 1') &&
     engine.includes("transaction.reconciliationStatus === 'reconciled'"),
   'engine uses exact amount/account-direction/date rules and excludes already reconciled records',
