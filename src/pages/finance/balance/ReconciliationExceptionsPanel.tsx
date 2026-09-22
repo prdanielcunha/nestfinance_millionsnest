@@ -130,6 +130,7 @@ function CandidateCard({
   candidate: ReconciliationExceptionCandidate;
   language: Language;
   copy: Copy;
+  key?: string;
 }) {
   const navigate = useNavigate();
 
@@ -223,9 +224,9 @@ export function ReconciliationExceptionsPanel({ lines, language }: Props) {
               </p>
             </div>
 
-            {line.exceptionCandidates.length > 0 ? (
+            {(line.exceptionCandidates?.length || 0) > 0 ? (
               <div className="mt-3 space-y-2">
-                {line.exceptionCandidates.map((candidate) => (
+                {(line.exceptionCandidates || []).map((candidate) => (
                   <CandidateCard
                     key={candidate.transactionId}
                     candidate={candidate}
