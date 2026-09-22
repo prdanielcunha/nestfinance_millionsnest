@@ -125,6 +125,79 @@ verify(
   'already reconciled, wrong amount/account/direction and dates beyond one day are excluded',
 );
 
+const amountException = buildReconciliationMatchPreview(
+  [line()],
+  [tx('tx_amount_exception', { amountCents: 10400 })],
+  'acc_main',
+);
+verify(
+  amountException.noCandidateLines === 1 &&
+    amountException.divergentLines === 1 &&
+    amountException.lines[0]?.exceptionCandidates[0]?.exceptionKind === 'amount_difference' &&
+    amountException.lines[0]?.exceptionCandidates[0]?.amountDifferenceCents === 400 &&
+    amountException.lines[0]?.exceptionCandidates[0]?.confirmable === false &&
+    amountException.lines[0]?.suggestedAction === 'review_possible_transaction',
+  'near amount mismatch is surfaced as a deterministic non-confirmable exception',
+);
+
+const dateException = buildReconciliationMatchPreview(
+  [line()],
+  [tx('tx_date_exception', { occurredAt: '2026-09-05T12:00:00.000Z' })],
+  'acc_main',
+);
+verify(
+  dateException.lines[0]?.exceptionCandidates[0]?.exceptionKind === 'date_difference' &&
+    dateException.lines[0]?.exceptionCandidates[0]?.dateOffsetDays === 3 &&
+    dateException.lines[0]?.exceptionCandidates[0]?.absoluteDateDifferenceDays === 3,
+  'near date mismatch remains visible with an explicit day difference',
+);
+
+const combinedException = buildReconciliationMatchPreview(
+  [line()],
+  [tx('tx_combined_exception', {
+    amountCents: 9700,
+    occurredAt: '2026-09-06T12:00:00.000Z',
+  })],
+  'acc_main',
+);
+verify(
+  combinedException.lines[0]?.exceptionCandidates[0]?.exceptionKind === 'amount_and_date_difference' &&
+    combinedException.lines[0]?.exceptionCandidates[0]?.amountDifferenceCents === -300 &&
+    combinedException.lines[0]?.exceptionCandidates[0]?.dateOffsetDays === 4,
+  'amount and date differences stay explicit instead of being collapsed into a hidden ranking',
+);
+
+const noNearbyException = buildReconciliationMatchPreview(
+  [line()],
+  [
+    tx('tx_amount_far', { amountCents: 12000 }),
+    tx('tx_date_far', { occurredAt: '2026-09-20T12:00:00.000Z' }),
+    tx('tx_other_account', { accountId: 'acc_other' }),
+  ],
+  'acc_main',
+);
+verify(
+  noNearbyException.lines[0]?.exceptionCandidates.length === 0 &&
+    noNearbyException.lines[0]?.suggestedAction === 'locate_or_register_transaction',
+  'out-of-bounds or wrong-account records are not presented as nearby possibilities',
+);
+
+const exceptionOrdering = buildReconciliationMatchPreview(
+  [line()],
+  [
+    tx('tx_two_dimensions', {
+      amountCents: 10100,
+      occurredAt: '2026-09-05T12:00:00.000Z',
+    }),
+    tx('tx_amount_only', { amountCents: 10200 }),
+  ],
+  'acc_main',
+);
+verify(
+  exceptionOrdering.lines[0]?.exceptionCandidates[0]?.transactionId === 'tx_amount_only',
+  'exception ordering is deterministic and favors fewer differing dimensions before distance',
+);
+
 const unknownLegacy = buildReconciliationMatchPreview(
   [line()],
   [tx('tx_legacy', { reconciliationStatus: 'unknown' })],
