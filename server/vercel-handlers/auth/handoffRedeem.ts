@@ -69,6 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let uid = '';
     let organizationId = '';
     let accessSource = '';
+    let sessionVersion = 0;
 
     // Atomic Consumption
     await firestore.runTransaction(async (transaction) => {
@@ -88,7 +89,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data?.consumedAt !== null ||
         !data?.uid ||
         !data?.organizationId ||
-        !data?.accessSource
+        !data?.accessSource ||
+        typeof data?.sessionVersion !== 'number' ||
+        !Number.isSafeInteger(data.sessionVersion) ||
+        data.sessionVersion < 1
       ) {
         throw new Error('INVALID_DATA');
       }
@@ -97,6 +101,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const expiresAt = data.expiresAt?.toDate();
       if (!expiresAt || expiresAt.getTime() <= Date.now()) {
         throw new Error('EXPIRED');
+      }
+
+      // A code issued before a logout/org-switch revocation must not mint a fresh session.
+      const userRef = firestore.collection('users').doc(data.uid);
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) {
+        throw new Error('REVOKED');
+      }
+      const rawCanonicalVersion = userDoc.data()?.ecosystemSessionVersion;
+      const canonicalSessionVersion =
+        typeof rawCanonicalVersion === 'number' &&
+        Number.isSafeInteger(rawCanonicalVersion) &&
+        rawCanonicalVersion >= 1
+          ? rawCanonicalVersion
+          : 1;
+      if (canonicalSessionVersion !== data.sessionVersion) {
+        throw new Error('REVOKED');
       }
 
       // Atomically update state
@@ -109,6 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       uid = data.uid;
       organizationId = data.organizationId;
       accessSource = data.accessSource;
+      sessionVersion = data.sessionVersion;
     });
 
     // Issuing Firebase Custom Token without revealing raw payload
@@ -116,7 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mn_app_id: 'nestfinance',
       mn_organization_id: organizationId,
       mn_handoff_version: 1,
-      mn_access_source: accessSource
+      mn_access_source: accessSource,
+      mn_session_version: sessionVersion
     });
 
     const duration = Date.now() - startTime;
@@ -126,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     const duration = Date.now() - startTime;
     
-    if (['NOT_FOUND', 'INVALID_DATA', 'EXPIRED'].includes(error.message)) {
+    if (['NOT_FOUND', 'INVALID_DATA', 'EXPIRED', 'REVOKED'].includes(error.message)) {
       console.log(`[HANDOFF_REDEEM] Event: rejected, Reason: ${error.message}, Duration: ${duration}ms`);
       return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
     }

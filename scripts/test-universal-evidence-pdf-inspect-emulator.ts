@@ -132,7 +132,7 @@ await evidenceCollection(entityA).doc(pendingId).set({
 
 const originalVerify = admin.auth.verifyIdToken;
 let verifiedUid = uid;
-admin.auth.verifyIdToken = async () => ({ uid: verifiedUid, mn_organization_id: orgId }) as any;
+admin.auth.verifyIdToken = async () => ({ uid: verifiedUid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 const call = async (body: any, headerOrg = orgId) => {
   const req = { method: 'POST', headers: { authorization: 'Bearer i2d_test', 'x-organization-id': headerOrg }, body, query: {} };
   const res = new MockRes();

@@ -12,6 +12,9 @@ on:
       - "src/services/sessionResolutionService.ts"
       - "scripts/test-ecosystem-session-resolver.ts"
       - "scripts/test-handoff-token-binding.ts"
+      - "scripts/test-handoff-session-enforcement.ts"
+      - "scripts/test-direct-entry-session-version.ts"
+      - "server/vercel-handlers/finance/accessHelpers.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-auth-quality.yml"
@@ -26,6 +29,8 @@ on:
       - "src/services/sessionResolutionService.ts"
       - "scripts/test-ecosystem-session-resolver.ts"
       - "scripts/test-handoff-token-binding.ts"
+      - "scripts/test-handoff-session-enforcement.ts"
+      - "server/vercel-handlers/finance/accessHelpers.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-auth-quality.yml"
@@ -54,6 +59,12 @@ jobs:
 
       - name: Verify handoff token binding
         run: npx tsx scripts/test-handoff-token-binding.ts
+
+      - name: Verify finance API handoff session enforcement
+        run: npx tsx scripts/test-handoff-session-enforcement.ts
+
+      - name: Verify direct entry session-version binding
+        run: npx tsx scripts/test-direct-entry-session-version.ts
 
       - name: Verify public auth contracts
         run: npm run check:api-contracts

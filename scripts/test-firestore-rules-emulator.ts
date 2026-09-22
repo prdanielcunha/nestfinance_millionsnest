@@ -33,6 +33,8 @@ const authorityUpdates: Record<string, unknown>[] = [
   { entitlements: ['all'] },
   { lifetimeAccess: true },
   { isGlobalAccess: true },
+  { ecosystemSessionVersion: 999 },
+  { ecosystemSessionVersionUpdatedAt: new Date() },
 ];
 
 const serverOnlyCollections = [
@@ -144,6 +146,7 @@ async function run() {
       ['ceo', ceoDb],
       ['global-admin', globalAdminDb],
       ['ecosystem-owner', ecosystemOwnerDb],
+      ['founder', founderDb],
     ] as const;
 
     await assertFails(setDoc(doc(commonDb, 'users/new-common'), {
@@ -189,7 +192,6 @@ async function run() {
     // Current NestFinance development gate must be enforced at the Firestore boundary too.
     for (const collectionName of financeReadableCollections) {
       await assertFails(getDoc(doc(commonDb, `organizations/org-a/${collectionName}/readable`)));
-      await assertFails(getDoc(doc(founderDb, `organizations/org-a/${collectionName}/readable`)));
       await assertFails(getDoc(doc(appRoleOnlyDb, `organizations/org-a/${collectionName}/readable`)));
       await assertFails(getDoc(doc(roleOnlyDb, `organizations/org-a/${collectionName}/readable`)));
       await assertFails(getDoc(doc(supportDb, `organizations/org-a/${collectionName}/readable`)));

@@ -12,6 +12,7 @@ export const ECOSYSTEM_SESSION_DENIAL_REASONS = {
   APP_NOT_ENABLED: 'APP_NOT_ENABLED',
   ENTITLEMENT_NOT_CONFIGURED: 'ENTITLEMENT_NOT_CONFIGURED',
   MEMBER_APP_ACCESS_DISABLED: 'MEMBER_APP_ACCESS_DISABLED',
+  SESSION_VERSION_MISMATCH: 'SESSION_VERSION_MISMATCH',
 } as const;
 
 export interface EcosystemOrganizationSummary {
@@ -76,6 +77,9 @@ function isCanonicalGlobalRole(systemRole: unknown): boolean {
   return typeof systemRole === 'string' && (CANONICAL_GLOBAL_ROLES as readonly string[]).includes(systemRole);
 }
 
+function normalizeEcosystemSessionVersion(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : 1;
+}
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -123,7 +127,14 @@ async function resolveFinanceSetupStatus(db: any, orgId: string): Promise<string
   return status;
 }
 
-export async function resolveEcosystemSession(uid: string, orgId: string): Promise<EcosystemSessionResolution> {
+export async function resolveEcosystemSession(
+  uid: string,
+  orgId: string,
+  options: {
+    requireSessionVersion?: boolean;
+    expectedSessionVersion?: unknown;
+  } = {},
+): Promise<EcosystemSessionResolution> {
   const admin = getFirebaseAdmin();
   const db = admin.firestore;
 
@@ -144,6 +155,23 @@ export async function resolveEcosystemSession(uid: string, orgId: string): Promi
 
   // Canonical Hub contract: only systemRole can convey ecosystem-global authority.
   const systemRole = typeof userData.systemRole === 'string' ? userData.systemRole : undefined;
+  const canonicalSessionVersion = normalizeEcosystemSessionVersion(userData.ecosystemSessionVersion);
+
+  if (options.requireSessionVersion === true) {
+    const expectedSessionVersion = options.expectedSessionVersion;
+    if (
+      typeof expectedSessionVersion !== 'number' ||
+      !Number.isSafeInteger(expectedSessionVersion) ||
+      expectedSessionVersion < 1 ||
+      expectedSessionVersion !== canonicalSessionVersion
+    ) {
+      return denied(
+        orgId,
+        ECOSYSTEM_SESSION_DENIAL_REASONS.SESSION_VERSION_MISMATCH,
+        systemRole,
+      );
+    }
+  }
 
   const orgDoc = await db.collection('organizations').doc(orgId).get();
   if (!orgDoc.exists) {

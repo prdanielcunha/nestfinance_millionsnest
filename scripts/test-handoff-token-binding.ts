@@ -6,6 +6,7 @@ const valid = {
   mn_organization_id: 'org_123',
   mn_handoff_version: 1,
   mn_access_source: 'global_system_role',
+  mn_session_version: 7,
 };
 
 assert.deepEqual(
@@ -13,6 +14,7 @@ assert.deepEqual(
   {
     organizationId: 'org_123',
     accessSource: 'global_system_role',
+    sessionVersion: 7,
   },
 );
 
@@ -24,12 +26,15 @@ assert.deepEqual(
   {
     organizationId: 'org_123',
     accessSource: null,
+    sessionVersion: 7,
   },
 );
 
 for (const [name, claims, expectedOrg] of [
   ['wrong app', { ...valid, mn_app_id: 'musicscale' }, 'org_123'],
   ['wrong version', { ...valid, mn_handoff_version: 2 }, 'org_123'],
+  ['missing session version', { ...valid, mn_session_version: undefined }, 'org_123'],
+  ['invalid session version', { ...valid, mn_session_version: 0 }, 'org_123'],
   ['missing organization', { ...valid, mn_organization_id: '' }, null],
   ['organization mismatch', valid, 'org_other'],
   ['unsafe organization path', { ...valid, mn_organization_id: '../org_123' }, null],
@@ -41,4 +46,4 @@ for (const [name, claims, expectedOrg] of [
   );
 }
 
-console.log('✅ NestFinance handoff app/version/organization claim binding is strict.');
+console.log('✅ NestFinance handoff app/version/organization/session claim binding is strict.');

@@ -47,6 +47,43 @@ async function run() {
     assert.deepStrictEqual(result.scopes, { '*': ['*'] });
   });
 
+  await check('handoff com sessionVersion canônico atual recebe acesso', async () => {
+    await setUser('u_session_current', {
+      systemRole: 'ceo',
+      ecosystemSessionVersion: 7,
+    });
+    const result: any = await resolveEcosystemSession('u_session_current', orgId, {
+      requireSessionVersion: true,
+      expectedSessionVersion: 7,
+    });
+    assert.strictEqual(result.granted, true);
+  });
+
+  await check('handoff com sessionVersion antigo falha fechado', async () => {
+    await setUser('u_session_stale', {
+      systemRole: 'ceo',
+      ecosystemSessionVersion: 7,
+    });
+    const result: any = await resolveEcosystemSession('u_session_stale', orgId, {
+      requireSessionVersion: true,
+      expectedSessionVersion: 6,
+    });
+    assert.strictEqual(result.granted, false);
+    assert.strictEqual(result.denialReason, 'SESSION_VERSION_MISMATCH');
+  });
+
+  await check('handoff sem sessionVersion falha fechado quando a versão é obrigatória', async () => {
+    await setUser('u_session_missing', {
+      systemRole: 'ceo',
+      ecosystemSessionVersion: 3,
+    });
+    const result: any = await resolveEcosystemSession('u_session_missing', orgId, {
+      requireSessionVersion: true,
+    });
+    assert.strictEqual(result.granted, false);
+    assert.strictEqual(result.denialReason, 'SESSION_VERSION_MISMATCH');
+  });
+
   await check('global_admin canônico recebe acesso', async () => {
     await setUser('u_global_admin', { systemRole: 'global_admin' });
     const result: any = await resolveEcosystemSession('u_global_admin', orgId);

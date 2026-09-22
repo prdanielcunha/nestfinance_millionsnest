@@ -47,7 +47,7 @@ async function run() {
   await sessionRef.set({ id: sessionId, organizationId: orgId, financeEntityId: entityA, serviceLabel: 'Culto Capture', serviceDate: '2026-08-14', status: 'counting_a', countA: { entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], totalCents: 1000 }, version: 2 });
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com`, mn_organization_id: orgId }) as any;
+  admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com`, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
   const call = async (handler: any, body: any) => {
     const req = { method: 'POST', headers: { authorization: 'Bearer count_capture_test', 'x-organization-id': orgId }, body, query: {} };
     const res = new MockRes(); await handler(req as any, res as any); return res;

@@ -5,6 +5,47 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
 
+export function resolveHandoffBinding(decodedToken: Record<string, unknown>) {
+  const handoffKeys = [
+    'mn_app_id',
+    'mn_handoff_version',
+    'mn_organization_id',
+    'mn_session_version',
+  ];
+  const hasHandoffNamespace = handoffKeys.some(
+    key => decodedToken[key] !== undefined && decodedToken[key] !== null,
+  );
+
+  if (!hasHandoffNamespace) {
+    return {
+      bound: false as const,
+      organizationId: null,
+      sessionVersion: null,
+    };
+  }
+
+  const organizationId = decodedToken.mn_organization_id;
+  const sessionVersion = decodedToken.mn_session_version;
+
+  if (
+    decodedToken.mn_app_id !== 'nestfinance' ||
+    decodedToken.mn_handoff_version !== 1 ||
+    typeof organizationId !== 'string' ||
+    organizationId.trim() === '' ||
+    typeof sessionVersion !== 'number' ||
+    !Number.isSafeInteger(sessionVersion) ||
+    sessionVersion < 1
+  ) {
+    throw { status: 401, error: 'UNAUTHORIZED' };
+  }
+
+  return {
+    bound: true as const,
+    organizationId,
+    sessionVersion,
+  };
+}
+
 export async function resolveFinanceRequestContext(req: VercelRequest, requiredCapability: 'finance.view' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft') {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -17,17 +58,25 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
   // Finance mutations/reads must reject revoked Firebase sessions, matching auth/session/resolve.
   const decodedToken = await admin.auth.verifyIdToken(token, true);
   const uid = decodedToken.uid;
+  const handoff = resolveHandoffBinding(decodedToken as Record<string, unknown>);
 
   // Handoff token organization is canonical. Header remains only for compatibility/consistency checking.
   const headerOrgId = req.headers['x-organization-id'] as string;
-  const tokenOrgId = decodedToken.mn_organization_id as string;
+  const tokenOrgId = handoff.organizationId;
   const organizationId = tokenOrgId || headerOrgId;
 
   if (!organizationId) {
     throw { status: 400, error: 'MISSING_ORGANIZATION_ID' };
   }
 
-  const sessionList = await resolveEcosystemSession(uid, organizationId);
+  const sessionList = await resolveEcosystemSession(uid, organizationId, handoff.bound ? {
+    requireSessionVersion: true,
+    expectedSessionVersion: handoff.sessionVersion,
+  } : {});
+
+  if (!sessionList.granted && sessionList.denialReason === 'SESSION_VERSION_MISMATCH') {
+    throw { status: 401, error: 'UNAUTHORIZED' };
+  }
 
   // Never let a caller retarget a handoff-bound token through a conflicting header.
   if (tokenOrgId && headerOrgId && tokenOrgId !== headerOrgId) {
