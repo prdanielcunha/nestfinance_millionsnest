@@ -5,6 +5,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { signInWithCustomToken } from 'firebase/auth';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { validateNestFinanceHandoffClaims } from '@/src/lib/handoffContract';
+import { markNestFinanceSessionOrigin } from '@/src/services/ecosystemSessionLifecycle';
 
 type HandoffStatus =
   | 'validating'
@@ -116,6 +117,7 @@ export default function HandoffPage() {
           try {
             sessionStorage.removeItem(RECOVERY_KEY);
             sessionStorage.setItem('mn_ecosystem_org_id', verifiedOrganizationId);
+            markNestFinanceSessionOrigin('hub');
           } catch {}
 
           setStatus('success');
@@ -175,6 +177,7 @@ export default function HandoffPage() {
         try {
           sessionStorage.removeItem(RECOVERY_KEY);
           sessionStorage.setItem('mn_ecosystem_org_id', verifiedOrganizationId);
+          markNestFinanceSessionOrigin('hub');
         } catch {}
         setStatus('success');
         navigate(APP_ROUTES.finance, { replace: true });
