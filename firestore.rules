@@ -28,6 +28,18 @@ service cloud.firestore {
       ]);
     }
 
+    function hasServerControlledSessionFields(data) {
+      return data.keys().hasAny([
+        'ecosystemSessionVersion', 'ecosystemSessionVersionUpdatedAt'
+      ]);
+    }
+
+    function changesServerControlledSessionFields() {
+      return incoming().diff(resource.data).affectedKeys().hasAny([
+        'ecosystemSessionVersion', 'ecosystemSessionVersionUpdatedAt'
+      ]);
+    }
+
     function isServerOnlyFinanceCollection(collectionName) {
       return collectionName in [
         'financeSettings', 'financeCategories', 'financeAccounts',
@@ -200,26 +212,30 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated() && (userId == request.auth.uid || isSystemAdmin() || ('organizationId' in resource.data && checkOrgAccess(resource.data.get('organizationId', ''))));
-      allow create: if isAuthenticated() && (
-        isSystemAdmin() ||
-        ((userId == request.auth.uid || hasOrgContext(incoming())) && !hasAuthorityFields(incoming()))
-      );
-      allow update: if isAuthenticated() && (
-        isSystemAdmin() || 
-        // User updating their own profile
-        (userId == request.auth.uid && !changesAuthorityFields()) ||
-        // Org admin updating member of their org
+      allow create: if isAuthenticated() &&
+        !hasServerControlledSessionFields(incoming()) &&
         (
-          resource != null && 'organizationId' in resource.data && isOrgAdmin(resource.data.get('organizationId', '')) &&
-          !changesAuthorityFields() &&
+          isSystemAdmin() ||
+          ((userId == request.auth.uid || hasOrgContext(incoming())) && !hasAuthorityFields(incoming()))
+        );
+      allow update: if isAuthenticated() &&
+        !changesServerControlledSessionFields() &&
+        (
+          isSystemAdmin() || 
+          // User updating their own profile
+          (userId == request.auth.uid && !changesAuthorityFields()) ||
+          // Org admin updating member of their org
           (
-            (!isOwner(userId) && (
-              (resource.data.get('role', '') != 'owner' && resource.data.get('role', '') != 'Dono' && resource.data.get('organizationRole', '') != 'Dono' && resource.data.get('organizationRole', '') != 'owner') ||
-              isOrgOwner(resource.data.get('organizationId', ''))
-            ))
+            resource != null && 'organizationId' in resource.data && isOrgAdmin(resource.data.get('organizationId', '')) &&
+            !changesAuthorityFields() &&
+            (
+              (!isOwner(userId) && (
+                (resource.data.get('role', '') != 'owner' && resource.data.get('role', '') != 'Dono' && resource.data.get('organizationRole', '') != 'Dono' && resource.data.get('organizationRole', '') != 'owner') ||
+                isOrgOwner(resource.data.get('organizationId', ''))
+              ))
+            )
           )
-        )
-      );
+        );
       allow delete: if isAuthenticated() && (isSystemAdmin() || (resource != null && 'organizationId' in resource.data && isOrgAdmin(resource.data.get('organizationId', '')) && checkOrgAccess(resource.data.get('organizationId', ''))));
     }
 
