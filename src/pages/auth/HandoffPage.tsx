@@ -4,6 +4,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { useAuth } from '@/src/hooks/useAuth';
 import { signInWithCustomToken } from 'firebase/auth';
 import { firebaseAuth } from '@/src/lib/firebase';
+import { validateNestFinanceHandoffClaims } from '@/src/lib/handoffContract';
 
 type HandoffStatus =
   | 'validating'
@@ -35,6 +36,33 @@ function recoverThroughHub(returnTo: string): boolean {
   url.searchParams.set('returnTo', safeReturnPath(returnTo));
   window.location.replace(url.toString());
   return true;
+}
+
+async function signInVerifiedHandoff(
+  customToken: string,
+  expectedUid?: string | null,
+  expectedOrganizationId?: string | null,
+): Promise<string> {
+  const credential = await signInWithCustomToken(firebaseAuth, customToken);
+
+  try {
+    if (expectedUid && credential.user.uid !== expectedUid) {
+      throw new Error('HANDOFF_IDENTITY_MISMATCH');
+    }
+
+    const tokenResult = await credential.user.getIdTokenResult(true);
+    const verified = validateNestFinanceHandoffClaims(
+      tokenResult.claims as Record<string, unknown>,
+      expectedOrganizationId,
+    );
+
+    return verified.organizationId;
+  } catch (error) {
+    try {
+      await firebaseAuth.signOut();
+    } catch {}
+    throw error;
+  }
 }
 
 export default function HandoffPage() {
@@ -79,15 +107,15 @@ export default function HandoffPage() {
           }
 
           setStatus('signing_in');
-          const credential = await signInWithCustomToken(firebaseAuth, payload.customToken);
-          if (credential.user.uid !== payload.userId) {
-            await firebaseAuth.signOut();
-            throw new Error('identity_mismatch');
-          }
+          const verifiedOrganizationId = await signInVerifiedHandoff(
+            payload.customToken,
+            payload.userId,
+            payload.orgId,
+          );
 
           try {
             sessionStorage.removeItem(RECOVERY_KEY);
-            sessionStorage.setItem('mn_ecosystem_org_id', payload.orgId);
+            sessionStorage.setItem('mn_ecosystem_org_id', verifiedOrganizationId);
           } catch {}
 
           setStatus('success');
@@ -143,8 +171,11 @@ export default function HandoffPage() {
         }
 
         setStatus('signing_in');
-        await signInWithCustomToken(firebaseAuth, data.customToken);
-        try { sessionStorage.removeItem(RECOVERY_KEY); } catch {}
+        const verifiedOrganizationId = await signInVerifiedHandoff(data.customToken);
+        try {
+          sessionStorage.removeItem(RECOVERY_KEY);
+          sessionStorage.setItem('mn_ecosystem_org_id', verifiedOrganizationId);
+        } catch {}
         setStatus('success');
         navigate(APP_ROUTES.finance, { replace: true });
       } catch {
