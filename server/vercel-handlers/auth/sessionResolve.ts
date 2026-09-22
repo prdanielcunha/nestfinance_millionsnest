@@ -46,13 +46,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mn_app_id = decodedToken.mn_app_id;
     const mn_handoff_version = decodedToken.mn_handoff_version;
     const mn_organization_id = decodedToken.mn_organization_id;
+    const mn_session_version = decodedToken.mn_session_version;
 
-    if (mn_app_id !== 'nestfinance' || mn_handoff_version !== 1 || !mn_organization_id || typeof mn_organization_id !== 'string') {
+    if (
+      mn_app_id !== 'nestfinance' ||
+      mn_handoff_version !== 1 ||
+      !mn_organization_id ||
+      typeof mn_organization_id !== 'string' ||
+      typeof mn_session_version !== 'number' ||
+      !Number.isSafeInteger(mn_session_version) ||
+      mn_session_version < 1
+    ) {
       console.log(`[SESSION_RESOLVE] Event: rejected, Reason: INVALID_CLAIMS, Duration: ${Date.now() - startTime}ms`);
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
 
-    const resolution = await resolveEcosystemSession(uid, mn_organization_id);
+    const resolution = await resolveEcosystemSession(uid, mn_organization_id, {
+      requireSessionVersion: true,
+      expectedSessionVersion: mn_session_version,
+    });
 
     if (resolution.granted) {
       console.log(`[SESSION_RESOLVE] Event: granted, Org: ${mn_organization_id}, isGlobal: ${resolution.isGlobalAccess}, Duration: ${Date.now() - startTime}ms`);
@@ -75,6 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`[SESSION_RESOLVE] Event: denied, Org: ${mn_organization_id}, Reason: ${resolution.denialReason}, Duration: ${Date.now() - startTime}ms`);
+    if (resolution.denialReason === 'SESSION_VERSION_MISMATCH') {
+      return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
     return res.status(403).json({ status: 'denied' });
   } catch (error: any) {
     const duration = Date.now() - startTime;
