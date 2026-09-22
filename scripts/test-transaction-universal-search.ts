@@ -105,7 +105,12 @@ assert.ok(searchHandler.includes("coverage.status === 'certified'"));
 assert.ok(searchHandler.includes(".where('searchKeys', 'array-contains', normalizedQuery.lookupKey)"));
 assert.ok(searchHandler.includes('FALLBACK_SCAN_LIMIT = 1000'));
 assert.ok(searchHandler.includes('transactionMatchesSearchQuery('));
-assert.ok(searchHandler.includes("resolveFinanceRequestContext(req, 'finance.view')"));
+assert.ok(searchHandler.includes("status === 'ready_for_review' ? 'finance.review' : 'finance.view'"));
+assert.ok(searchHandler.includes('resolveFinanceRequestContext(req, requiredCapability)'));
+assert.ok(searchHandler.includes('evaluateReviewReadiness('));
+assert.ok(searchHandler.includes('blockerCount: readiness.blockers.length'));
+assert.ok(searchHandler.includes('warningCount: readiness.warnings.length'));
+assert.ok(searchHandler.includes('isReady: readiness.ready'));
 assert.ok(preview.includes("resolveFinanceRequestContext(req, 'finance.view')"));
 for (const managerHandler of [apply, verify]) {
   assert.ok(managerHandler.includes("hasEffectiveCapability(sessionList, 'finance.manage')"));

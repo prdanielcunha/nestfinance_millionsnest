@@ -12,6 +12,7 @@ import {
   buildTransactionSearchCoverageId,
   getTransactionSearchIndexRef,
 } from './transactionSearchIndex.js';
+import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 
 const INDEX_CANDIDATE_LIMIT = 500;
 const FALLBACK_SCAN_LIMIT = 1000;
@@ -41,7 +42,10 @@ function normalizeOptionalDate(value: unknown) {
   return new Date(ms).toISOString();
 }
 
-function compactTransaction(doc: any) {
+function compactTransaction(
+  doc: any,
+  readiness?: { blockers: unknown[]; warnings: unknown[]; ready: boolean } | null,
+) {
   const data = doc.data() || {};
   return {
     id: doc.id,
@@ -64,7 +68,22 @@ function compactTransaction(doc: any) {
     returnedToDraftAt: toIso(data.returnedToDraftAt),
     returnedToDraftReason: data.returnedToDraftReason || null,
     returnedToDraftComment: data.returnedToDraftComment || null,
+    ...(readiness
+      ? {
+          blockerCount: readiness.blockers.length,
+          warningCount: readiness.warnings.length,
+          isReady: readiness.ready,
+        }
+      : {}),
   };
+}
+
+function chunkTransactionIds(ids: string[], size = 30): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -114,8 +133,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       RESULT_LIMIT_MAX,
     );
 
+    const requiredCapability =
+      status === 'ready_for_review' ? 'finance.review' : 'finance.view';
     const { db, organizationId, financeEntityId, context } =
-      await resolveFinanceRequestContext(req, 'finance.view');
+      await resolveFinanceRequestContext(req, requiredCapability);
 
     const coverageId = buildTransactionSearchCoverageId(
       organizationId,
@@ -201,7 +222,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
     const resultTruncated = sourceTruncated || matched.length > limit;
-    const items = matched.slice(0, limit).map(compactTransaction);
+    const selectedDocs = matched.slice(0, limit);
+    const readinessById = new Map<
+      string,
+      { blockers: unknown[]; warnings: unknown[]; ready: boolean }
+    >();
+
+    if (status === 'ready_for_review' && selectedDocs.length > 0) {
+      const accountsSnapshot = await context.repository.getAccountsQuery().get();
+      const accounts = accountsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const transactionIds = selectedDocs.map((doc) => doc.id);
+      const allocationsByTransaction = new Map<string, any[]>();
+
+      for (const transactionIdChunk of chunkTransactionIds(transactionIds)) {
+        const allocationsSnapshot = await context.repository
+          .getAllocationsRef()
+          .where('transactionId', 'in', transactionIdChunk)
+          .get();
+
+        for (const allocationDoc of allocationsSnapshot.docs) {
+          const allocation = {
+            id: allocationDoc.id,
+            ...allocationDoc.data(),
+          } as any;
+          if (allocation.financeEntityId !== financeEntityId) continue;
+          const transactionId = String(allocation.transactionId || '');
+          if (!transactionIds.includes(transactionId)) continue;
+          const current = allocationsByTransaction.get(transactionId) || [];
+          current.push(allocation);
+          allocationsByTransaction.set(transactionId, current);
+        }
+      }
+
+      for (const doc of selectedDocs) {
+        const data = doc.data() || {};
+        const allocations = allocationsByTransaction.get(doc.id) || [];
+        const allocationIds =
+          Array.isArray(data.allocationIds) && data.allocationIds.length > 0
+            ? data.allocationIds
+            : allocations.map((allocation) => allocation.id);
+
+        const readiness = evaluateReviewReadiness(
+          {
+            ...data,
+            id: doc.id,
+            allocationIds,
+          } as any,
+          accounts,
+        );
+        readinessById.set(doc.id, readiness);
+      }
+    }
+
+    const items = selectedDocs.map((doc) =>
+      compactTransaction(doc, readinessById.get(doc.id)),
+    );
 
     return res.status(200).json({
       items,
