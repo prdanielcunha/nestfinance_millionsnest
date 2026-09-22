@@ -5,7 +5,7 @@ import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResol
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
 
-function resolveHandoffBinding(decodedToken: Record<string, unknown>) {
+export function resolveHandoffBinding(decodedToken: Record<string, unknown>) {
   const handoffKeys = [
     'mn_app_id',
     'mn_handoff_version',
