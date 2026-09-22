@@ -112,7 +112,7 @@ export type ReconciliationMatchPreviewResult = {
   singleCandidateLines: number;
   multipleCandidateLines: number;
   noCandidateLines: number;
-  divergentLines: number;
+  divergentLines?: number;
   lines: ReconciliationLineMatchPreview[];
   requiresHumanConfirmation: true;
   autoSelected: false;
