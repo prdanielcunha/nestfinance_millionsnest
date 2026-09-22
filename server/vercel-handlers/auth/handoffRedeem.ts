@@ -2,6 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { createHash } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
+import {
+  buildRedeemAuditEvent,
+  enforceRedeemRateLimit,
+  resolveRedeemNetworkFingerprint,
+  validateRedeemOrigin,
+} from './handoffSecurity.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Security Headers
@@ -43,6 +49,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
 
+  const networkFingerprint = resolveRedeemNetworkFingerprint(req.headers as Record<string, unknown>);
+
+  res.setHeader('Vary', 'Origin');
+  const originDecision = validateRedeemOrigin(req.headers.origin);
+  if (!originDecision.allowed) {
+    const auditRef = firestore.collection('ecosystemHandoffAudit').doc();
+    await auditRef.set(buildRedeemAuditEvent({
+      eventId: auditRef.id,
+      eventType: 'handoff.origin_rejected',
+      networkFingerprint,
+      reason: 'ORIGIN_NOT_ALLOWED',
+    })).catch(() => undefined);
+
+    return res.status(403).json({ error: 'ORIGIN_NOT_ALLOWED' });
+  }
+  if (originDecision.origin) {
+    res.setHeader('Access-Control-Allow-Origin', originDecision.origin);
+  }
+
+  let rateLimit;
+  try {
+    rateLimit = await enforceRedeemRateLimit({
+      db: firestore,
+      networkFingerprint,
+      nowMs: Date.now(),
+    });
+  } catch (error: any) {
+    console.error('[HANDOFF_REDEEM_RATE_LIMIT] Protection unavailable:', error?.code || error?.message || 'UNKNOWN');
+    return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
+  }
+
+  if (!rateLimit.allowed) {
+    res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+    const auditRef = firestore.collection('ecosystemHandoffAudit').doc();
+    await auditRef.set(buildRedeemAuditEvent({
+      eventId: auditRef.id,
+      eventType: 'handoff.rate_limited',
+      networkFingerprint,
+      reason: 'RATE_LIMITED',
+    })).catch(() => undefined);
+
+    return res.status(429).json({
+      error: 'RATE_LIMITED',
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    });
+  }
+
   // Payload Shape and Properties Validation
   const body = req.body;
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -70,8 +123,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let organizationId = '';
     let accessSource = '';
     let sessionVersion = 0;
+    let auditUid = '';
+    let auditOrganizationId = '';
+    let auditSessionVersion = 0;
+    const successAuditRef = firestore.collection('ecosystemHandoffAudit').doc();
 
-    // Atomic Consumption
+    // Atomic Consumption + durable audit
     await firestore.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
 
@@ -80,6 +137,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const data = doc.data();
+
+      auditUid = typeof data?.uid === 'string' ? data.uid : '';
+      auditOrganizationId = typeof data?.organizationId === 'string' ? data.organizationId : '';
+      auditSessionVersion =
+        typeof data?.sessionVersion === 'number' && Number.isSafeInteger(data.sessionVersion)
+          ? data.sessionVersion
+          : 0;
 
       // Validate integrity of handoff issuance
       if (
@@ -127,6 +191,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         consumedBy: 'nestfinance-redeem-v1'
       });
 
+      transaction.set(successAuditRef, buildRedeemAuditEvent({
+        eventId: successAuditRef.id,
+        eventType: 'handoff.redeemed',
+        codeHash,
+        networkFingerprint,
+        uid: data.uid,
+        organizationId: data.organizationId,
+        sessionVersion: data.sessionVersion,
+      }));
+
       uid = data.uid;
       organizationId = data.organizationId;
       accessSource = data.accessSource;
@@ -151,6 +225,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (['NOT_FOUND', 'INVALID_DATA', 'EXPIRED', 'REVOKED'].includes(error.message)) {
       console.log(`[HANDOFF_REDEEM] Event: rejected, Reason: ${error.message}, Duration: ${duration}ms`);
+
+      // Avoid write amplification for random brute-force codes that never existed.
+      if (error.message !== 'NOT_FOUND') {
+        const rejectionAuditRef = firestore.collection('ecosystemHandoffAudit').doc();
+        await rejectionAuditRef.set(buildRedeemAuditEvent({
+          eventId: rejectionAuditRef.id,
+          eventType: 'handoff.redeem_rejected',
+          codeHash,
+          networkFingerprint,
+          uid: auditUid || null,
+          organizationId: auditOrganizationId || null,
+          sessionVersion: auditSessionVersion || null,
+          reason: error.message,
+        })).catch(() => undefined);
+      }
+
       return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
     }
 
