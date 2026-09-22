@@ -1,6 +1,7 @@
 export type NestFinanceHandoffClaimValidation = {
   organizationId: string;
   accessSource: string | null;
+  sessionVersion: number;
 };
 
 const INVALID_HANDOFF_CLAIMS = 'HANDOFF_CLAIM_BINDING_INVALID';
@@ -17,10 +18,14 @@ export function validateNestFinanceHandoffClaims(
   const organizationId = cleanString(claims.mn_organization_id);
   const accessSource = cleanString(claims.mn_access_source) || null;
   const version = claims.mn_handoff_version;
+  const sessionVersion = claims.mn_session_version;
 
   if (
     appId !== 'nestfinance' ||
     version !== 1 ||
+    typeof sessionVersion !== 'number' ||
+    !Number.isSafeInteger(sessionVersion) ||
+    sessionVersion < 1 ||
     !organizationId ||
     organizationId.length > 256 ||
     organizationId === '.' ||
@@ -37,5 +42,5 @@ export function validateNestFinanceHandoffClaims(
     throw new Error(INVALID_HANDOFF_CLAIMS);
   }
 
-  return { organizationId, accessSource };
+  return { organizationId, accessSource, sessionVersion };
 }
