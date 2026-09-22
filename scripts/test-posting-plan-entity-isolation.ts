@@ -39,7 +39,13 @@ async function run() {
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityB).set({ active: true, name: 'Entity B' });
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
+  admin.auth.verifyIdToken = async () => ({
+    uid,
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
+    mn_organization_id: orgId,
+    mn_session_version: 1,
+  }) as any;
 
   async function call(financeEntityId: string, transactionId: string) {
     const req: any = {
