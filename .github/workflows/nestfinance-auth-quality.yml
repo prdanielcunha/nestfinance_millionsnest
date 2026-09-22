@@ -10,10 +10,15 @@ on:
       - "src/lib/handoffContract.ts"
       - "src/services/directEntryService.ts"
       - "src/services/sessionResolutionService.ts"
+      - "src/services/ecosystemSessionLifecycle.ts"
+      - "src/services/ecosystemExitService.ts"
+      - "src/app/layouts/ShellLayout.tsx"
+      - "src/pages/finance/MorePage.tsx"
       - "scripts/test-ecosystem-session-resolver.ts"
       - "scripts/test-handoff-token-binding.ts"
       - "scripts/test-handoff-session-enforcement.ts"
       - "scripts/test-direct-entry-session-version.ts"
+      - "scripts/test-ecosystem-session-lifecycle.ts"
       - "server/vercel-handlers/finance/accessHelpers.ts"
       - "package.json"
       - "package-lock.json"
@@ -65,6 +70,9 @@ jobs:
 
       - name: Verify direct entry session-version binding
         run: npx tsx scripts/test-direct-entry-session-version.ts
+
+      - name: Verify ecosystem exit and recovery lifecycle
+        run: npx tsx scripts/test-ecosystem-session-lifecycle.ts
 
       - name: Verify public auth contracts
         run: npm run check:api-contracts
