@@ -16,6 +16,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import type { Language } from '@/src/contexts/LanguageContext';
 import { reconciliationService } from '@/src/services/reconciliationService';
+import { ReconciliationExceptionsPanel } from './ReconciliationExceptionsPanel';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { generateLedgerId } from '../../../../shared/finance/ledger/ids.js';
@@ -463,6 +464,11 @@ export function ReconciliationMatchPreviewPanel({
 
       {result?.state === 'preview' ? (
         <div className="mt-4 space-y-4">
+          <ReconciliationExceptionsPanel
+            lines={result.preview.lines}
+            language={language}
+          />
+
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {[
               { label: copy.summarySingle, value: result.preview.singleCandidateLines },
@@ -478,7 +484,7 @@ export function ReconciliationMatchPreviewPanel({
           </div>
 
           <div className="space-y-3">
-            {result.preview.lines.map((line) => {
+            {result.preview.lines.filter((line) => line.state !== 'no_candidate').map((line) => {
               const direction = lineDirection(line, copy);
               const DirectionIcon = direction.icon;
               const stateLabel =

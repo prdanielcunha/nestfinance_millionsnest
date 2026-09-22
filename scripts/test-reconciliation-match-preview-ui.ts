@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [panel, prepPanel, service, handler, engine] = await Promise.all([
+const [panel, exceptionsPanel, prepPanel, service, handler, engine] = await Promise.all([
   readFile('src/pages/finance/balance/ReconciliationMatchPreviewPanel.tsx', 'utf8'),
+  readFile('src/pages/finance/balance/ReconciliationExceptionsPanel.tsx', 'utf8'),
   readFile('src/pages/finance/balance/ReconciliationStatementPreparationPanel.tsx', 'utf8'),
   readFile('src/services/reconciliationService.ts', 'utf8'),
   readFile('server/vercel-handlers/finance/reconciliationMatchPreview.ts', 'utf8'),
@@ -51,6 +52,33 @@ verify(
     panel.includes('copy.directionCompatible') &&
     panel.includes("candidate.evidence.date === 'exact' ? copy.dateExact : copy.dateAdjacent"),
   'accountant-facing detail shows the objective evidence behind each possibility',
+);
+
+verify(
+  panel.includes('ReconciliationExceptionsPanel') &&
+    panel.includes("filter((line) => line.state !== 'no_candidate')"),
+  'exception-first panel is shown before normal match details without duplicating divergent lines',
+);
+
+verify(
+  exceptionsPanel.includes("Encontramos 1 item que não bate") &&
+    exceptionsPanel.includes("Encontramos ${count} itens que não batem") &&
+    exceptionsPanel.includes("possibleMatch: 'Possível correspondência'"),
+  'Portuguese exception-first summary says exactly what needs attention in human language',
+);
+
+verify(
+  exceptionsPanel.includes('copy.amountDifference(candidate.amountDifferenceCents)') &&
+    exceptionsPanel.includes('copy.dateDifference(candidate.dateOffsetDays)') &&
+    exceptionsPanel.includes("reviewAction: 'Ação sugerida:"),
+  'exception review exposes amount/date differences and a suggested human action',
+);
+
+verify(
+  exceptionsPanel.includes("APP_ROUTES.transactionDetail.replace(") &&
+    !exceptionsPanel.includes('reconciliationService.confirmMatch') &&
+    !exceptionsPanel.includes('confirmMatch('),
+  'near matches can be inspected but cannot enter the reconciliation confirmation path',
 );
 
 verify(
@@ -127,8 +155,8 @@ for (const forbidden of [
 }
 
 verify(
-  engine.includes("transaction.amountCents !== line.selectedAmountCents") &&
-    engine.includes("direction !== line.selectedDirection") &&
+  engine.includes("transaction.amountCents !== source.amountCents") &&
+    engine.includes("direction !== source.direction") &&
     engine.includes('difference > 1') &&
     engine.includes("transaction.reconciliationStatus === 'reconciled'"),
   'engine uses exact amount/account-direction/date rules and excludes already reconciled records',
