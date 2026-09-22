@@ -99,9 +99,9 @@ export type ReconciliationLineMatchPreview = {
   totalCandidates: number;
   candidateLimitReached: boolean;
   candidates: ReconciliationMatchCandidate[];
-  exceptionCandidates: ReconciliationExceptionCandidate[];
-  exceptionCandidateLimitReached: boolean;
-  suggestedAction: ReconciliationExceptionSuggestedAction | null;
+  exceptionCandidates?: ReconciliationExceptionCandidate[];
+  exceptionCandidateLimitReached?: boolean;
+  suggestedAction?: ReconciliationExceptionSuggestedAction | null;
   requiresHumanConfirmation: true;
 };
 
