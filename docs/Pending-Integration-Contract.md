@@ -1,124 +1,190 @@
 # Integração de Login com MillionsNest Hub — Estado Atual e Pendências
 
-Este documento registra o contrato de Handoff entre o MillionsNest Hub e o NestFinance separando explicitamente o que está **confirmado no repositório do NestFinance** do que continua **não confirmado ou pendente de coordenação com o Hub**.
+Este documento registra o contrato de autenticação/handoff entre o MillionsNest Hub e o NestFinance e separa o que está **confirmado nos dois repositórios** do que ainda depende de uma fase coordenada.
 
-O código do NestFinance é a fonte de verdade para o lado NestFinance deste contrato. Este documento não deve ser usado para afirmar que um comportamento existe no Hub quando ele não foi verificado no repositório do Hub.
+Estado verificado em 2026-09-22:
 
-## 1. Fluxo confirmado no NestFinance
+- Hub `prdanielcunha/millionsnest` — `main` contendo a PR #193, merge `95cf64496211225e0d523a0742f8c5b484cdf2e2`;
+- NestFinance `prdanielcunha/nestfinance_millionsnest` — `main` contendo Balance #169 e hardening de handoff #171, merge `e61512e505cba424d0a9e07671affc4ed4d81dc7`.
 
-O seguinte fluxo está implementado no NestFinance:
+O código e os testes continuam sendo a fonte de verdade. Este documento não substitui regras reais de RBAC, multi-tenancy, Firebase Auth, Firestore ou os gates de release.
 
-1. A rota frontend `/auth/handoff` aceita um parâmetro `code`.
-2. O cliente exige um código no formato URL-safe de 43 caracteres (`A-Z`, `a-z`, `0-9`, `_`, `-`).
-3. Depois de validar o formato, o cliente remove o código da URL usando navegação com `replace` antes de continuar o resgate.
-4. O cliente envia somente `{ code }` por `POST` para `/api/auth/handoff/redeem` com `Content-Type: application/json` e `cache: no-store`.
-5. A operação é roteada pelo `auth-gateway` para `handoffRedeem.ts` e permanece protegida pela feature flag `NESTFINANCE_HANDOFF_REDEEM_ENABLED`.
-6. O backend calcula `SHA-256(code)` e procura exclusivamente o documento `ecosystemHandoffs/{codeHash}`. O código bruto não é usado como ID do documento.
-7. O backend valida, dentro de transação Firestore, que o Handoff:
-   - existe;
-   - possui `appId === 'nestfinance'`;
-   - possui `version === 1`;
-   - está com `status === 'issued'`;
-   - ainda não possui `consumedAt`;
-   - contém `uid`, `organizationId` e `accessSource`;
-   - possui `expiresAt` válido e ainda não expirado.
-8. O consumo é atômico: a mesma transação altera o documento para `status: 'consumed'`, grava `consumedAt` com timestamp do servidor e `consumedBy: 'nestfinance-redeem-v1'`.
-9. Depois do consumo válido, o backend emite Firebase Custom Token para o `uid` validado com claims:
+## 1. Dois fluxos de Handoff coexistem
+
+O ecossistema possui atualmente dois caminhos compatíveis com o NestFinance. Eles não devem ser confundidos.
+
+### 1.1 Fluxo atual do launcher canônico — `ecosystem_ctx`
+
+No Hub:
+
+1. A rota canônica `/apps/nestfinance/launch` usa `EcosystemAppLaunch`.
+2. O launcher resolve usuário e organização canônicos e chama `openEcosystemModule()`.
+3. O Hub envia `POST /api/ecosystem/create-handoff` com Bearer ID token e `{ appId: 'nestfinance', orgId, supportMode }`.
+4. O backend usa `resolveEcosystemAppAccess()` antes de emitir qualquer token.
+5. Para NestFinance, o Firebase Custom Token mantém os claims genéricos do ecossistema e também inclui o namespace estrito esperado pelo NestFinance:
    - `mn_app_id: 'nestfinance'`;
-   - `mn_organization_id` vindo do Handoff armazenado;
+   - `mn_organization_id`;
    - `mn_handoff_version: 1`;
-   - `mn_access_source` vindo do Handoff armazenado.
-10. O cliente usa `signInWithCustomToken()` e segue para `/finance`.
-11. Após autenticação, o NestFinance resolve novamente o acesso por fontes canônicas server-side; roles, permissions e `organizationId` fornecidos arbitrariamente pela URL ou body não são fontes de autoridade.
+   - `mn_access_source`.
+6. Roles, permissions e scopes não são serializados como autoridade dentro do token.
+7. A resposta do Hub usa `protocolVersion: '1.0.0'` e `expiresAt = now + 300000` (5 minutos).
+8. O launcher valida a resposta, cria `ecosystem_ctx` e direciona para `https://nestfinance.millionsnest.com/auth/handoff`.
 
-## 2. Controles confirmados no resgate
+No NestFinance:
 
-O handler de resgate atualmente confirma os seguintes controles:
+1. `/auth/handoff` reconhece `ecosystem_ctx`.
+2. O contexto curto é removido do histórico do navegador antes de continuar.
+3. O cliente valida `appId`, protocolo, `userId`, `orgId`, custom token e expiração.
+4. Depois de `signInWithCustomToken()`, o NestFinance força leitura atualizada do ID token.
+5. Antes de navegar, valida novamente as claims assinadas:
+   - app precisa ser `nestfinance`;
+   - versão precisa ser `1`;
+   - organização precisa ser válida;
+   - organização assinada precisa ser a mesma do contexto do launcher;
+   - UID autenticado precisa ser o mesmo UID esperado.
+6. Em qualquer divergência, o cliente faz sign-out e falha fechado.
+7. Depois do login, autorização e escopos são re-resolvidos server-side; o payload do navegador não é autoridade de RBAC.
 
-- `POST` obrigatório;
-- `application/json` obrigatório;
-- shape estrito do body: somente a propriedade `code`;
-- código com formato e tamanho estritos;
-- `Cache-Control: no-store, no-cache, must-revalidate`;
-- `Pragma: no-cache` e `Expires: 0`;
-- `X-Content-Type-Options: nosniff`;
-- lookup apenas pelo hash SHA-256;
-- validade temporal por `expiresAt`;
-- consumo único e proteção contra replay concorrente por transação atômica;
-- binding com `appId`, versão, `uid`, `organizationId` e `accessSource` armazenados server-side;
-- mensagens de erro externas deliberadamente reduzidas para não revelar se o código não existe, expirou ou contém dados inválidos.
+### 1.2 Fluxo de código de uso único — `ecosystemHandoffs/{codeHash}`
 
-Há logs server-side de sucesso, rejeição e falha com duração, mas isso não equivale por si só a um contrato completo de auditoria persistente.
+O Hub também mantém um emissor específico em `POST /api/ecosystem/nestfinance/handoff/issue`.
 
-## 3. O que este repositório não confirma sobre a emissão no Hub
+Esse emissor foi verificado no repositório do Hub e:
 
-O NestFinance contém o **consumidor** do Handoff e o formato que ele espera encontrar em `ecosystemHandoffs/{codeHash}`. Este repositório, isoladamente, não prova como o Hub cria esses documentos.
+1. exige feature flag e URL de destino configurada;
+2. exige autenticação;
+3. valida organização por `resolveEcosystemAppAccess()`;
+4. gera `crypto.randomBytes(32).toString('base64url')`;
+5. calcula SHA-256 do código;
+6. persiste somente o hash como ID de `ecosystemHandoffs/{codeHash}`;
+7. grava `version: 1`, `appId: 'nestfinance'`, UID, organização, `accessSource`, estado `issued`, timestamps e `consumedAt: null`;
+8. usa TTL de 90 segundos;
+9. retorna uma URL `/auth/handoff?code=...`.
 
-Portanto continuam dependentes de verificação coordenada no Hub:
+No NestFinance, o resgate:
 
-- geração criptograficamente aleatória do código bruto;
-- confirmação de que somente o hash é persistido pelo emissor;
-- valor exato do TTL usado na emissão;
-- regras de elegibilidade anteriores à emissão (membership, instalação, entitlement, appAccess, permissions e scopes);
-- comportamento quando o usuário troca de organização antes ou depois da emissão;
-- origem e semântica exata de `accessSource`.
+1. aceita somente código URL-safe de 43 caracteres;
+2. remove o código da URL antes do resgate;
+3. envia somente `{ code }` a `POST /api/auth/handoff/redeem`;
+4. calcula SHA-256 e lê exclusivamente `ecosystemHandoffs/{codeHash}`;
+5. valida app, versão, estado, UID, organização, `accessSource` e expiração;
+6. consome o documento atomicamente em transação Firestore;
+7. marca `status: 'consumed'`, `consumedAt` e `consumedBy: 'nestfinance-redeem-v1'`;
+8. emite Firebase Custom Token com as claims `mn_*`;
+9. depois do sign-in, o cliente também valida as claims assinadas antes de navegar.
 
-## 4. Pendências ainda não implementadas ou não confirmadas no NestFinance
+## 2. Autoridade depois do Handoff
 
-Os seguintes itens **não devem ser tratados como implementados** apenas com base no código atual do NestFinance:
+O Handoff estabelece identidade e contexto de organização, mas não substitui autorização canônica.
 
-- binding explícito com `sessionVersion`;
-- validação explícita de `Origin`/origem do navegador no handler de resgate;
-- rate limit específico do endpoint de Handoff;
-- política CORS específica do Handoff além do comportamento padrão da aplicação/plataforma;
-- App Check no endpoint de resgate;
-- auditoria durável específica de emissão/consumo além dos logs existentes;
-- contrato coordenado de logout com o Hub;
+O NestFinance:
+
+- usa `verifyIdToken(token, true)` nas rotas financeiras sensíveis;
+- trata `mn_organization_id` como organização vinculada quando a sessão veio do Handoff;
+- rejeita conflito entre organização assinada e `x-organization-id`;
+- lê `users/{uid}` server-side;
+- usa somente `systemRole` canônico para autoridade global;
+- valida organização server-side;
+- usa `organizations/{orgId}/members/{uid}` como membership canônica quando aplicável;
+- revalida entitlement, `appAccess.nestFinance`, permissions, capabilities e scopes;
+- aplica isolamento por `financeEntityId`.
+
+Papéis organizacionais como `owner` não se tornam automaticamente papéis globais do ecossistema.
+
+## 3. Controles confirmados
+
+### 3.1 Código de uso único
+
+Estão confirmados:
+
+- aleatoriedade criptográfica no emissor;
+- persistência do hash, não do código bruto;
+- TTL de 90 segundos;
+- autorização canônica antes da emissão;
+- lookup somente pelo hash;
+- consumo único;
+- proteção contra replay concorrente por transação atômica;
+- mensagens externas reduzidas no resgate;
+- headers `no-store`, `Pragma: no-cache` e `nosniff` no consumidor.
+
+### 3.2 Launcher `ecosystem_ctx`
+
+Estão confirmados:
+
+- autorização canônica antes da emissão;
+- TTL de resposta de 5 minutos;
+- vínculo app + organização no token assinado;
+- validação UID/organização no cliente antes de navegar;
+- ausência de roles/permissions/scopes como autoridade serializada;
+- re-resolução server-side depois do login.
+
+Esse fluxo não possui o mesmo documento de consumo único do fluxo por código. Portanto não deve ser descrito como tendo a mesma semântica de replay do `ecosystemHandoffs`.
+
+## 4. Pendências ainda abertas
+
+Os itens abaixo continuam **não fechados** e exigem slices próprios:
+
+- `sessionVersion` canônico e revogação coordenada por mudança de sessão;
+- rate limit específico dos endpoints de emissão/resgate;
+- validação explícita de `Origin` onde fizer sentido;
+- política CORS específica do Handoff em vez de depender apenas da configuração geral;
+- App Check, se adotado para esses endpoints;
+- auditoria durável e consultável de emissão, consumo, rejeição e revogação;
+- contrato coordenado de logout;
 - contrato completo de troca de organização;
 - retorno explícito ao Hub após logout ou negação de acesso;
-- revogação coordenada do Handoff por mudança de sessão no Hub.
+- E2E automatizado Hub → NestFinance cobrindo os dois protocolos em ambiente integrado;
+- estratégia explícita de descontinuação do protocolo legado, caso o `ecosystem_ctx` seja declarado único protocolo canônico.
 
-Esses itens exigem slices próprios e não devem ser inferidos.
+## 5. `sessionVersion` — estado atual
 
-## 5. Estado de proteção contra replay
+Não foi encontrado um `sessionVersion`, `tokenVersion` ou equivalente canônico implementado no Hub neste estado verificado.
 
-A proteção contra replay está **parcialmente implementada e confirmada** no lado NestFinance:
+Por isso o NestFinance **não deve inventar um contador local paralelo**.
 
-- o documento precisa estar `issued`;
-- `consumedAt` precisa estar `null`;
-- o consumo ocorre em transação Firestore;
-- o primeiro resgate válido muda o estado para `consumed`;
-- tentativas posteriores falham como Handoff inválido/expirado.
+A fase correta precisa coordenar:
 
-Isso protege o uso único do mesmo Handoff armazenado. Ainda não existe, neste contrato confirmado, binding explícito com `sessionVersion` ou outro mecanismo de revogação coordenada por mudança de sessão no Hub.
+1. fonte canônica no Hub;
+2. valor incluído no Handoff;
+3. claim assinada;
+4. comparação server-side no NestFinance;
+5. comportamento em refresh token;
+6. incremento/revogação em logout global, troca crítica de sessão ou ação administrativa;
+7. testes de sessão antiga após incremento.
 
-## 6. Autoridade e RBAC depois do Handoff
+Até essa fase existir, a revogação depende dos mecanismos atuais do Firebase Auth, da verificação de token revogado e da re-resolução server-side de acesso/organização.
 
-O Custom Token transporta o contexto mínimo necessário para entrar no NestFinance, mas não transforma dados vindos do navegador em autoridade.
+## 6. Replay — estado preciso
 
-O resolver canônico do NestFinance:
+### Fluxo de código
 
-- lê `users/{uid}` server-side;
-- usa somente `systemRole` para autoridade global;
-- valida a organização server-side;
-- aplica o gate atual de desenvolvimento;
-- quando aplicável, usa `organizations/{orgId}/members/{uid}` como membership canônica e valida `enabledApps`, entitlement e `appAccess.nestFinance`.
+A proteção contra replay está implementada no nível da aplicação:
 
-Papéis organizacionais como `owner` não são papéis globais do ecossistema.
+- documento precisa estar `issued`;
+- `consumedAt` precisa estar nulo;
+- consumo é transacional;
+- primeiro resgate válido muda o estado;
+- resgates posteriores do mesmo Handoff falham.
 
-## 7. Próximas decisões coordenadas
+### Fluxo `ecosystem_ctx`
 
-Antes de declarar o Handoff totalmente fechado entre Hub e NestFinance, devem ser reconciliados com o repositório do Hub e certificados separadamente:
+O contexto possui expiração curta e binding assinado, mas não possui hoje um registro NestFinance de consumo único equivalente ao documento `ecosystemHandoffs`.
 
-1. emissão e TTL canônicos;
-2. `sessionVersion`/revogação;
-3. rate limit e proteção antiabuso;
-4. App Check, se adotado;
-5. política de origem/CORS;
-6. auditoria durável de emissão e consumo;
-7. logout;
-8. troca de organização;
-9. retorno ao Hub;
-10. testes end-to-end Hub → NestFinance para uso único, expiração, replay, sessão revogada e organização incorreta.
+Consequentemente, “binding curto e validado” e “uso único persistido” devem permanecer conceitos distintos na documentação e nos testes.
 
-Até essa certificação, o Handoff deve ser descrito como **resgate NestFinance implementado e protegido por uso único**, com **contrato cross-app ainda parcialmente pendente**.
+## 7. Próximas fases recomendadas
+
+A sequência técnica recomendada para fechar o contrato cross-app é:
+
+1. manter os claims `mn_*` certificados em Hub e NestFinance;
+2. implementar `sessionVersion`/revogação coordenada;
+3. definir rate limiting e proteção antiabuso;
+4. decidir Origin/CORS/App Check;
+5. criar auditoria durável;
+6. fechar logout/troca de organização/retorno ao Hub;
+7. adicionar E2E integrado dos dois protocolos;
+8. decidir se o fluxo legado por código permanece como fallback ou será formalmente descontinuado.
+
+Até lá, a descrição correta é:
+
+> **O Handoff Hub → NestFinance está funcional e fortemente vinculado a identidade/organização nos dois protocolos atuais; o código de uso único possui replay protection transacional, enquanto revogação coordenada de sessão, antiabuso, auditoria durável e ciclo completo de logout/troca de organização ainda estão pendentes.**
