@@ -114,18 +114,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const startTime = Date.now();
+  const codeHash = createHash('sha256').update(code).digest('hex');
+  let auditUid = '';
+  let auditOrganizationId = '';
+  let auditSessionVersion = 0;
 
   try {
-    const codeHash = createHash('sha256').update(code).digest('hex');
     const docRef = firestore.collection('ecosystemHandoffs').doc(codeHash);
 
     let uid = '';
     let organizationId = '';
     let accessSource = '';
     let sessionVersion = 0;
-    let auditUid = '';
-    let auditOrganizationId = '';
-    let auditSessionVersion = 0;
     const successAuditRef = firestore.collection('ecosystemHandoffAudit').doc();
 
     // Atomic Consumption + durable audit
