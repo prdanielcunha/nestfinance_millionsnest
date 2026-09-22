@@ -14,7 +14,8 @@ service cloud.firestore {
       return data.keys().hasAny([
         'systemRole', 'globalRole', 'appRole', 'role', 'organizationRole',
         'capabilities', 'permissions', 'scopes', 'appAccess', 'entitlement',
-        'entitlements', 'lifetimeAccess', 'isGlobalAccess'
+        'entitlements', 'lifetimeAccess', 'isGlobalAccess',
+        'ecosystemSessionVersion', 'ecosystemSessionVersionUpdatedAt'
       ]);
     }
 
@@ -22,7 +23,8 @@ service cloud.firestore {
       return incoming().diff(resource.data).affectedKeys().hasAny([
         'systemRole', 'globalRole', 'appRole', 'role', 'organizationRole',
         'capabilities', 'permissions', 'scopes', 'appAccess', 'entitlement',
-        'entitlements', 'lifetimeAccess', 'isGlobalAccess'
+        'entitlements', 'lifetimeAccess', 'isGlobalAccess',
+        'ecosystemSessionVersion', 'ecosystemSessionVersionUpdatedAt'
       ]);
     }
 
@@ -138,16 +140,40 @@ service cloud.firestore {
       );
     }
 
+    function hasNestFinanceHandoffNamespace() {
+      return isAuthenticated() && (
+        'mn_app_id' in request.auth.token ||
+        'mn_handoff_version' in request.auth.token ||
+        'mn_organization_id' in request.auth.token ||
+        'mn_session_version' in request.auth.token
+      );
+    }
+
+    function hasCurrentNestFinanceSession() {
+      return !hasNestFinanceHandoffNamespace() || (
+        request.auth.token.get('mn_app_id', '') == 'nestfinance' &&
+        request.auth.token.get('mn_handoff_version', 0) == 1 &&
+        request.auth.token.get('mn_organization_id', '') is string &&
+        request.auth.token.get('mn_session_version', 0) is int &&
+        request.auth.token.get('mn_session_version', 0) >= 1 &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        request.auth.token.get('mn_session_version', 0) ==
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('ecosystemSessionVersion', 1)
+      );
+    }
+
     function canAccessNestFinanceDevelopment() {
       return (
         isAuthenticated() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'global_admin', 'ecosystem_owner']
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('systemRole', '') in ['ceo', 'global_admin', 'ecosystem_owner', 'founder']
       );
     }
 
     function canReadNestFinance(orgId) {
-      return canAccessNestFinanceDevelopment() && isOrgActive(orgId);
+      return canAccessNestFinanceDevelopment() &&
+             hasCurrentNestFinanceSession() &&
+             isOrgActive(orgId);
     }
 
     // ==========================================
