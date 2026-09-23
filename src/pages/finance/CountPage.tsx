@@ -3,16 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarDays,
-  Camera,
   CheckCircle2,
   ChevronRight,
-  FileText,
   ShieldCheck,
   ShieldX,
-  Smartphone,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, FlowHelp, Surface } from '@/src/components/foundation';
+import { Button, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -22,6 +19,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
 import { countPaperService } from '@/src/services/countPaperService';
 import { COUNT_COPY } from './count/countCopy';
+import { CountStartJourney, type CountStartMode } from './count/CountStartJourney';
 import { formatReviewDate, formatReviewMoney } from './transactions/transactionReviewModel';
 
 function localDateInputValue() {
@@ -137,7 +135,7 @@ export default function CountPage() {
 function CountHomeContent() {
   const navigate = useNavigate();
   const { accessState } = useAuth();
-  const { activeFinanceEntityId } = useFinanceEntity();
+  const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const simpleCopy = SIMPLE_MODE_COPY[language];
@@ -147,10 +145,6 @@ function CountHomeContent() {
   const [items, setItems] = useState<CountSessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [creationMode, setCreationMode] = useState<'digital' | 'paper' | 'free_form'>('digital');
-  const [serviceLabel, setServiceLabel] = useState('');
-  const [serviceDate, setServiceDate] = useState(localDateInputValue());
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(false);
   const epochRef = useRef(0);
@@ -181,11 +175,15 @@ function CountHomeContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId]);
 
-  const handleCreate = async () => {
-    const normalizedLabel = serviceLabel.trim();
-    if (!normalizedLabel || !serviceDate || !canCreate || creating) return;
+  const handleCreate = async (input: {
+    serviceLabel: string;
+    serviceDate: string;
+    mode: CountStartMode;
+  }) => {
+    const normalizedLabel = input.serviceLabel.trim();
+    if (!normalizedLabel || !input.serviceDate || !canCreate || creating) return;
 
-    const fingerprint = `${activeFinanceEntityId}|${serviceDate}|${normalizedLabel}`;
+    const fingerprint = `${activeFinanceEntityId}|${input.serviceDate}|${normalizedLabel}`;
     if (!createAttemptRef.current || createAttemptRef.current.fingerprint !== fingerprint) {
       createAttemptRef.current = { fingerprint, key: makeToken('idcount_create') };
     }
@@ -198,15 +196,16 @@ function CountHomeContent() {
         activeFinanceEntityId || '',
         {
           serviceLabel: normalizedLabel,
-          serviceDate,
+          serviceDate: input.serviceDate,
           idempotencyKey: createAttemptRef.current.key,
           requestId: makeToken('req'),
         },
       );
       createAttemptRef.current = null;
-      if (creationMode === 'free_form') {
+
+      if (input.mode === 'free_form') {
         navigate(APP_ROUTES.countFreeFormCapture.replace(':sessionId', result.sessionId));
-      } else if (creationMode === 'paper') {
+      } else if (input.mode === 'paper') {
         try {
           const form = await countPaperService.generate(organizationId, activeFinanceEntityId || '', {
             countSessionId: result.sessionId,
@@ -219,6 +218,8 @@ function CountHomeContent() {
         } catch {
           navigate(APP_ROUTES.countPaperForms);
         }
+      } else if (input.mode === 'voice') {
+        navigate(APP_ROUTES.countVoice.replace(':sessionId', result.sessionId));
       } else {
         navigate(APP_ROUTES.countSession.replace(':sessionId', result.sessionId));
       }
@@ -249,95 +250,14 @@ function CountHomeContent() {
           </header>
 
           {canCreate ? (
-            <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
-              <div>
-                <h2 className="text-lg font-semibold text-text-primary">{simpleCopy.title}</h2>
-                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-muted">{simpleCopy.body}</p>
-              </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreationMode('digital');
-                    setShowCreate(true);
-                    setCreateError(false);
-                  }}
-                  className="group rounded-2xl border border-border-subtle bg-surface-elevated p-5 text-left transition hover:border-accent-primary/30 hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-                    <Smartphone className="h-6 w-6" aria-hidden="true" />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold text-text-primary">{simpleCopy.digitalTitle}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{simpleCopy.digitalBody}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent-primary">
-                    {copy.newSession}
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreationMode('free_form');
-                    setShowCreate(true);
-                    setCreateError(false);
-                  }}
-                  className="group rounded-2xl border border-border-subtle bg-surface-elevated p-5 text-left transition hover:border-accent-primary/30 hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-                    <Camera className="h-6 w-6" aria-hidden="true" />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold text-text-primary">{simpleCopy.freeFormTitle}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{simpleCopy.freeFormBody}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent-primary">
-                    {simpleCopy.freeFormAction}
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreationMode('paper');
-                    setShowCreate(true);
-                    setCreateError(false);
-                  }}
-                  className="group rounded-2xl border border-border-subtle bg-surface-elevated p-5 text-left transition hover:border-accent-primary/30 hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-                    <FileText className="h-6 w-6" aria-hidden="true" />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold text-text-primary">{simpleCopy.paperTitle}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{simpleCopy.paperBody}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent-primary">
-                    {simpleCopy.paperCreate}
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                  </span>
-                </button>
-              </div>
-              <FlowHelp
-                title={simpleCopy.helpTitle}
-                openLabel={simpleCopy.helpOpen}
-                closeLabel={simpleCopy.helpClose}
-              >
-                <p>{simpleCopy.helpBody}</p>
-              </FlowHelp>
-
-              <button
-                type="button"
-                onClick={() => navigate(APP_ROUTES.countCapture)}
-                className="mt-4 flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border-subtle bg-surface-secondary/40 px-4 py-3 text-left transition hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-elevated text-accent-primary">
-                  <Camera className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-text-primary">{simpleCopy.filledSheet}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-text-muted">{simpleCopy.filledSheetBody}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-              </button>
-            </Surface>
+            <CountStartJourney
+              language={language}
+              entityName={activeFinanceEntityName}
+              items={items}
+              creating={creating}
+              createError={createError}
+              onStart={handleCreate}
+            />
           ) : null}
 
           <Surface variant="secondary" radius="xl" className="border-accent-primary/15 bg-accent-primary/5 p-5 sm:p-6">
@@ -350,62 +270,6 @@ function CountHomeContent() {
               </div>
             </div>
           </Surface>
-
-          {showCreate ? (
-            <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_13rem]">
-                <label className="block">
-                  <span className="text-base font-medium text-text-primary">{copy.serviceLabel}</span>
-                  <input
-                    autoFocus
-                    type="text"
-                    maxLength={120}
-                    value={serviceLabel}
-                    onChange={(event) => {
-                      setServiceLabel(event.target.value);
-                      createAttemptRef.current = null;
-                      setCreateError(false);
-                    }}
-                    placeholder={copy.serviceLabelPlaceholder}
-                    className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary outline-none placeholder:text-text-muted/60 focus:border-accent-primary"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-base font-medium text-text-primary">{copy.serviceDate}</span>
-                  <input
-                    type="date"
-                    value={serviceDate}
-                    onChange={(event) => {
-                      setServiceDate(event.target.value);
-                      createAttemptRef.current = null;
-                      setCreateError(false);
-                    }}
-                    className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary outline-none focus:border-accent-primary"
-                  />
-                </label>
-              </div>
-              {createError ? (
-                <div className="mt-4 flex gap-3 rounded-2xl border border-semantic-danger/20 bg-semantic-danger/10 p-4 text-sm text-text-primary" role="alert">
-                  <AlertCircle className="h-5 w-5 shrink-0 text-semantic-danger" aria-hidden="true" />
-                  <p>{copy.safeError}</p>
-                </div>
-              ) : null}
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Button variant="secondary" size="lg" fullWidth onClick={() => setShowCreate(false)} disabled={creating}>
-                  {copy.cancel}
-                </Button>
-                <Button size="lg" fullWidth onClick={() => void handleCreate()} disabled={creating || !serviceLabel.trim() || !serviceDate}>
-                  {creating
-                    ? copy.creating
-                    : creationMode === 'paper'
-                      ? simpleCopy.paperCreate
-                      : creationMode === 'free_form'
-                        ? simpleCopy.freeFormAction
-                        : copy.create}
-                </Button>
-              </div>
-            </Surface>
-          ) : null}
 
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-text-muted">
