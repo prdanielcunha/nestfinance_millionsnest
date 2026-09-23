@@ -11,6 +11,7 @@ import {
   type AccessibleFinanceEntity,
 } from '@/src/services/financeEntitiesService';
 import { selectPreferredFinanceEntity } from '@/src/contexts/financeEntitySelection';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 
 interface FinanceEntityContextType {
   activeFinanceEntityId: string | null;
@@ -56,6 +57,9 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       if (id) {
+        recordFinanceJourneyMetric('entity_selection', {
+          dedupeKey: `entity_selection:${id}`,
+        });
         sessionStorage.setItem(ACTIVE_ID_KEY, id);
         localStorage.setItem(ACTIVE_ID_KEY, id);
         setLastUsedFinanceEntityId(id);
@@ -81,6 +85,9 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await listAccessibleFinanceEntities();
+      recordFinanceJourneyMetric('login', {
+        dedupeKey: `login:${result.organizationId}`,
+      });
       const entities = result.entities;
       setAccessibleFinanceEntities(entities);
 
