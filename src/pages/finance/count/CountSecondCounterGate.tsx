@@ -10,6 +10,9 @@ import { formatReviewDate } from '../transactions/transactionReviewModel';
 type Props = {
   session: CountSessionDetail;
   currentUserUid: string | null;
+  organizationId: string;
+  financeEntityId: string;
+  canEdit: boolean;
   onReload: () => void | Promise<void>;
 };
 
@@ -23,6 +26,9 @@ const COPY = {
     copied: 'Código copiado',
     share: 'Compartilhar',
     refresh: 'Atualizar status',
+    newCode: 'Gerar novo código',
+    refreshingCode: 'Gerando novo código…',
+    refreshError: 'Não foi possível gerar outro código agora.',
     back: 'Voltar às contagens',
     assigned: (name: string) => `${name} assumiu a segunda contagem.`,
     waiting: 'Aguardando outra pessoa entrar com o código.',
@@ -41,6 +47,9 @@ const COPY = {
     copied: 'Code copied',
     share: 'Share',
     refresh: 'Refresh status',
+    newCode: 'Generate new code',
+    refreshingCode: 'Generating new code…',
+    refreshError: 'Could not generate another code right now.',
     back: 'Back to counts',
     assigned: (name: string) => `${name} claimed the second count.`,
     waiting: 'Waiting for another person to enter the code.',
@@ -59,6 +68,9 @@ const COPY = {
     copied: 'Código copiado',
     share: 'Compartir',
     refresh: 'Actualizar estado',
+    newCode: 'Generar nuevo código',
+    refreshingCode: 'Generando nuevo código…',
+    refreshError: 'No fue posible generar otro código ahora.',
     back: 'Volver a conteos',
     assigned: (name: string) => `${name} asumió el segundo conteo.`,
     waiting: 'Esperando que otra persona ingrese con el código.',
@@ -70,11 +82,20 @@ const COPY = {
   },
 } as const;
 
-export function CountSecondCounterGate({ session, currentUserUid, onReload }: Props) {
+export function CountSecondCounterGate({
+  session,
+  currentUserUid,
+  organizationId,
+  financeEntityId,
+  canEdit,
+  onReload,
+}: Props) {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const copy = COPY[language];
   const [copied, setCopied] = useState(false);
+  const [refreshingCode, setRefreshingCode] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
 
   const firstUser = Boolean(currentUserUid && session.firstCounterUid === currentUserUid);
   const assignedToOther = Boolean(
@@ -95,6 +116,25 @@ export function CountSecondCounterGate({ session, currentUserUid, onReload }: Pr
     await navigator.clipboard.writeText(joinCode);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  const refreshCode = async () => {
+    if (!canEdit || refreshingCode || !firstUser || session.secondCountAssignedToUid) return;
+    setRefreshingCode(true);
+    setRefreshError(false);
+    try {
+      await countService.refreshSecondInvite(organizationId, financeEntityId, {
+        countSessionId: session.id,
+        expectedVersion: session.version,
+        idempotencyKey: `idcount_invite_${crypto.randomUUID()}`,
+        requestId: `req_${crypto.randomUUID()}`,
+      });
+      await onReload();
+    } catch {
+      setRefreshError(true);
+    } finally {
+      setRefreshingCode(false);
+    }
   };
 
   const shareCode = async () => {
@@ -150,6 +190,9 @@ export function CountSecondCounterGate({ session, currentUserUid, onReload }: Pr
           ) : (
             <FlowFeedback tone="info" title={copy.waiting} className="mt-5" />
           )}
+          {refreshError ? (
+            <FlowFeedback tone="error" title={copy.refreshError} className="mt-4" />
+          ) : null}
 
           {joinCode && !session.secondCountAssignedToUid ? (
             <div className="mt-5 rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-5 text-center">
@@ -176,11 +219,22 @@ export function CountSecondCounterGate({ session, currentUserUid, onReload }: Pr
           ) : null}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
-              {copy.back}
-            </Button>
+            {!session.secondCountAssignedToUid ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                disabled={!canEdit || refreshingCode}
+                onClick={() => void refreshCode()}
+              >
+                {refreshingCode ? copy.refreshingCode : copy.newCode}
+              </Button>
+            ) : null}
             <Button size="lg" fullWidth onClick={() => void onReload()}>
               {copy.refresh}
+            </Button>
+            <Button variant="ghost" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)} className="sm:col-span-2">
+              {copy.back}
             </Button>
           </div>
         </Surface>
