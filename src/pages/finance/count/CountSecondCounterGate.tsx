@@ -9,7 +9,6 @@ import { formatReviewDate } from '../transactions/transactionReviewModel';
 
 type Props = {
   session: CountSessionDetail;
-  currentUserUid: string | null;
   organizationId: string;
   financeEntityId: string;
   canEdit: boolean;
@@ -84,7 +83,6 @@ const COPY = {
 
 export function CountSecondCounterGate({
   session,
-  currentUserUid,
   organizationId,
   financeEntityId,
   canEdit,
@@ -97,10 +95,9 @@ export function CountSecondCounterGate({
   const [refreshingCode, setRefreshingCode] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
 
-  const firstUser = Boolean(currentUserUid && session.firstCounterUid === currentUserUid);
+  const firstUser = session.currentUserIsFirstCounter === true;
   const assignedToOther = Boolean(
-    session.secondCountAssignedToUid &&
-    session.secondCountAssignedToUid !== currentUserUid,
+    session.secondCounterAssigned && !session.currentUserIsSecondCounter,
   );
   const assignedName = session.secondCountAssignedToLabel || (
     language === 'PT' ? 'Outra pessoa' : language === 'ES' ? 'Otra persona' : 'Another person'
@@ -119,7 +116,7 @@ export function CountSecondCounterGate({
   };
 
   const refreshCode = async () => {
-    if (!canEdit || refreshingCode || !firstUser || session.secondCountAssignedToUid) return;
+    if (!canEdit || refreshingCode || !firstUser || session.secondCounterAssigned) return;
     setRefreshingCode(true);
     setRefreshError(false);
     try {
@@ -185,7 +182,7 @@ export function CountSecondCounterGate({
           <h1 className="text-2xl font-semibold text-text-primary">{copy.title}</h1>
           <p className="mt-2 text-base leading-relaxed text-text-muted">{copy.body}</p>
 
-          {session.secondCountAssignedToUid ? (
+          {session.secondCounterAssigned ? (
             <FlowFeedback tone="success" title={copy.assigned(assignedName)} className="mt-5" />
           ) : (
             <FlowFeedback tone="info" title={copy.waiting} className="mt-5" />
@@ -194,7 +191,7 @@ export function CountSecondCounterGate({
             <FlowFeedback tone="error" title={copy.refreshError} className="mt-4" />
           ) : null}
 
-          {joinCode && !session.secondCountAssignedToUid ? (
+          {joinCode && !session.secondCounterAssigned ? (
             <div className="mt-5 rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-5 text-center">
               <p className="nf-helper-text font-semibold uppercase tracking-[0.12em] text-text-muted">
                 {copy.code}
@@ -219,7 +216,7 @@ export function CountSecondCounterGate({
           ) : null}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {!session.secondCountAssignedToUid ? (
+            {!session.secondCounterAssigned ? (
               <Button
                 variant="secondary"
                 size="lg"
