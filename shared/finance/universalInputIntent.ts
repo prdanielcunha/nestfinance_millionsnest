@@ -129,7 +129,7 @@ export function classifyUniversalDocumentIntent(input: {
 
   if (/\b(extrato|statement|bank statement|estado de cuenta)\b/.test(text)) return 'bank_statement';
   if (/\b(darf|das|imposto|tributo|tax|fiscal tax)\b/.test(text)) return 'tax_document';
-  if (/\b(nota fiscal|nf-e|nfe|invoice|fatura|factura)\b/.test(text)) return 'invoice';
+  if (/\b(nota[-_\s]+fiscal|nf[-_\s]?e|nfe|invoice|fatura|factura)\b/.test(text)) return 'invoice';
   if (/\b(comprovante|pix|transferencia|payment proof|proof of payment|pago|pagamento|pago)\b/.test(text)) return 'payment_proof';
   if (/\b(recibo|receipt|ticket)\b/.test(text)) return 'receipt';
   return 'other';
