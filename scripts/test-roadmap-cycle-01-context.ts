@@ -36,6 +36,7 @@ const serverMetrics = read('server/vercel-handlers/finance/journeyMetricsRecord.
 const gateway = read('api/finance-gateway.ts');
 const cloudrunRoutes = read('cloudrunRoutes.ts');
 const vercel = read('vercel.json');
+const firestoreRules = read('firestore.rules');
 
 verify('Today delegates missing context to canonical selector', today.includes('<FinanceEntitySelectionState canManageFinance={canManageFinance} />'));
 verify('Today no longer calls the management entity list', !today.includes('/api/finance/entities/list'));
@@ -51,6 +52,7 @@ verify('client metrics buffer locally before server flush', clientMetrics.includ
 verify('metrics cover login, selection, start and completion', ['login', 'entity_selection', 'flow_start', 'flow_complete'].every((metric) => clientMetrics.includes(`'${metric}'`)));
 verify('server metrics are organization-scoped aggregates', serverMetrics.includes("collection('organizations')") && serverMetrics.includes("collection('financeProductMetrics')"));
 verify('server metrics do not persist user identity fields', !serverMetrics.includes('userId:') && !serverMetrics.includes('actorUid:') && !serverMetrics.includes('email:'));
+verify('product metrics remain server-only in Firestore Rules', firestoreRules.includes("'financeProductMetrics'") && firestoreRules.includes('match /financeProductMetrics/{document=**} {') && firestoreRules.includes('allow read, create, update, delete: if false;'));
 verify('gateway exposes metrics operation', gateway.includes("case 'journey-metrics-record'"));
 verify('Cloud Run exposes metrics route', cloudrunRoutes.includes('"/api/finance/metrics/record"'));
 verify('legacy rollback route stays in parity', vercel.includes('"/api/finance/metrics/record"'));
