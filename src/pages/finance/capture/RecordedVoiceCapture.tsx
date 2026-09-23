@@ -248,7 +248,7 @@ export function RecordedVoiceCapture({
         </div>
       ) : null}
 
-      {error ? <FlowFeedback className="mt-3" tone="danger" title={error} /> : null}
+      {error ? <FlowFeedback className="mt-3" tone="error" title={error} /> : null}
     </div>
   );
 }
