@@ -205,7 +205,7 @@ function CountVoiceQuickContent() {
   }, [loading, storageKey, values]);
 
   const total = useMemo(
-    () => Object.values(values).reduce((sum, value) => sum + value, 0),
+    () => (Object.values(values) as number[]).reduce((sum, value) => sum + value, 0),
     [values],
   );
 
