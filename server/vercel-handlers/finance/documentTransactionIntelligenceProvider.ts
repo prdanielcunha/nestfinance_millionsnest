@@ -236,14 +236,17 @@ async function callVertexAi(input: {
   }
 }
 
+export function getDocumentTransactionModelName() {
+  return process.env.NESTFINANCE_DOCUMENT_VISION_MODEL ||
+    process.env.NESTFINANCE_COUNT_CAPTURE_VISION_MODEL ||
+    'gemini-2.5-flash';
+}
+
 function productionProvider(): DocumentTransactionIntelligenceProvider {
   return {
     async analyze(input) {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-      const model =
-        process.env.NESTFINANCE_DOCUMENT_VISION_MODEL ||
-        process.env.NESTFINANCE_COUNT_CAPTURE_VISION_MODEL ||
-        'gemini-2.5-flash';
+      const model = getDocumentTransactionModelName();
 
       if (apiKey) {
         const result = await callGeminiDeveloperApi({ ...input, apiKey, model });

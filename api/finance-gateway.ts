@@ -85,6 +85,10 @@ import universalEvidenceReview from '../server/vercel-handlers/finance/universal
 import universalEvidenceAnalyzeTransaction from '../server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.js';
 import voiceTranscriptionCreate from '../server/vercel-handlers/finance/voiceTranscriptionCreate.js';
 import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
+import intelligenceCorrectionsSave from '../server/vercel-handlers/finance/intelligenceCorrectionsSave.js';
+import intelligenceCorrectionsList from '../server/vercel-handlers/finance/intelligenceCorrectionsList.js';
+import intelligenceCorrectionsRemove from '../server/vercel-handlers/finance/intelligenceCorrectionsRemove.js';
+import intelligenceEngineSummary from '../server/vercel-handlers/finance/intelligenceEngineSummary.js';
 import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelligenceSignalsDetail.js';
 import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
 import attentionBackfillApply from '../server/vercel-handlers/finance/attentionBackfillApply.js';
@@ -200,6 +204,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'universal-evidence-analyze-transaction': return universalEvidenceAnalyzeTransaction(req, res);
     case 'voice-transcription-create': return voiceTranscriptionCreate(req, res);
     case 'intelligence-signals-summary': return intelligenceSignalsSummary(req, res);
+    case 'intelligence-corrections-save': return intelligenceCorrectionsSave(req, res);
+    case 'intelligence-corrections-list': return intelligenceCorrectionsList(req, res);
+    case 'intelligence-corrections-remove': return intelligenceCorrectionsRemove(req, res);
+    case 'intelligence-engine-summary': return intelligenceEngineSummary(req, res);
     case 'intelligence-signals-detail': return intelligenceSignalsDetail(req, res);
     case 'attention-backfill-preview': return attentionBackfillPreview(req, res);
     case 'attention-backfill-apply': return attentionBackfillApply(req, res);
