@@ -84,7 +84,7 @@ async function callDedicatedTranscribe(input: {
   model: string;
 }) {
   const ai: any = new GoogleGenAI({ apiKey: input.apiKey });
-  if (!ai?.files?.upload || !ai?.interactions?.create) throw new Error('VOICE_TRANSCRIBE_SDK_UNAVAILABLE');
+  if (!ai?.files?.upload) throw new Error('VOICE_TRANSCRIBE_SDK_UNAVAILABLE');
 
   const { writeFile, unlink } = await import('node:fs/promises');
   const { join } = await import('node:path');
@@ -97,20 +97,29 @@ async function callDedicatedTranscribe(input: {
       file: path,
       config: { mime_type: input.mimeType },
     });
-    const interaction = await Promise.race([
-      ai.interactions.create({
-        model: input.model,
-        input: [{ type: 'audio', uri: uploaded.uri, mime_type: uploaded.mimeType || input.mimeType }],
-        generation_config: {
-          transcription_config: {
-            language_codes: [localeCode(input.locale)],
-            custom_vocabulary: [...VOICE_FINANCE_VOCABULARY],
-            mode: 'smart',
-          },
+    const interactionResponse = await Promise.race([
+      fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': input.apiKey,
         },
+        body: JSON.stringify({
+          model: input.model,
+          input: [{ type: 'audio', uri: uploaded.uri, mime_type: uploaded.mimeType || input.mimeType }],
+          generation_config: {
+            transcription_config: {
+              language_codes: [localeCode(input.locale)],
+              custom_vocabulary: [...VOICE_FINANCE_VOCABULARY],
+              mode: 'smart',
+            },
+          },
+        }),
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('VOICE_TRANSCRIPTION_TIMEOUT')), PROVIDER_TIMEOUT_MS)),
-    ]) as any;
+    ]) as Response;
+    if (!interactionResponse.ok) throw new Error('VOICE_TRANSCRIPTION_PROVIDER_UNAVAILABLE');
+    const interaction = await interactionResponse.json() as any;
     const transcript = normalizeVoiceTranscript(interaction?.output_text);
     if (!transcript) throw new Error('VOICE_TRANSCRIPTION_EMPTY');
     return transcript;
