@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -50,6 +51,7 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
   const [accessibleFinanceEntities, setAccessibleFinanceEntities] = useState<AccessibleFinanceEntity[]>([]);
   const [accessibleFinanceEntitiesLoading, setAccessibleFinanceEntitiesLoading] = useState(true);
   const [accessibleFinanceEntitiesError, setAccessibleFinanceEntitiesError] = useState(false);
+  const metricsOrganizationIdRef = useRef<string | null>(null);
 
   const setActiveFinanceEntityId = useCallback((id: string | null, name?: string) => {
     setActiveFinanceEntityIdState(id);
@@ -57,9 +59,13 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       if (id) {
-        recordFinanceJourneyMetric('entity_selection', {
-          dedupeKey: `entity_selection:${id}`,
-        });
+        const metricsOrganizationId = metricsOrganizationIdRef.current;
+        if (metricsOrganizationId) {
+          recordFinanceJourneyMetric('entity_selection', {
+            organizationId: metricsOrganizationId,
+            dedupeKey: `entity_selection:${id}`,
+          });
+        }
         sessionStorage.setItem(ACTIVE_ID_KEY, id);
         localStorage.setItem(ACTIVE_ID_KEY, id);
         setLastUsedFinanceEntityId(id);
@@ -85,8 +91,10 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await listAccessibleFinanceEntities();
+      metricsOrganizationIdRef.current = result.organizationId;
       recordFinanceJourneyMetric('login', {
-        dedupeKey: `login:${result.organizationId}`,
+        organizationId: result.organizationId,
+        dedupeKey: 'login',
       });
       const entities = result.entities;
       setAccessibleFinanceEntities(entities);
@@ -103,6 +111,7 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
       return entities;
     } catch {
+      metricsOrganizationIdRef.current = null;
       setAccessibleFinanceEntities([]);
       setAccessibleFinanceEntitiesError(true);
       setActiveFinanceEntityId(null);
