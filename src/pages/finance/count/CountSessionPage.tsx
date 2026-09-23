@@ -127,7 +127,7 @@ export default function CountSessionPage() {
 function CountSessionContent() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { accessState, user } = useAuth();
+  const { accessState } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
@@ -609,13 +609,12 @@ function CountSessionContent() {
   if (session.status === 'counting_b') {
     const assignedToCurrentUser =
       !session.secondCountInviteRequired ||
-      Boolean(user?.uid && session.secondCountAssignedToUid === user.uid);
+      session.currentUserIsSecondCounter === true;
 
     if (!assignedToCurrentUser) {
       return (
         <CountSecondCounterGate
           session={session}
-          currentUserUid={user?.uid || null}
           organizationId={organizationId}
           financeEntityId={activeFinanceEntityId || ''}
           canEdit={canEdit}
