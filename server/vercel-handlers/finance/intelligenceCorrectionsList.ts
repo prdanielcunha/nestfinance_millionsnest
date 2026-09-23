@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { financeEntityId }=req.body||{};
     if (typeof financeEntityId !== 'string') return res.status(400).json({ error:'INVALID_PARAMETERS' });
-    const { db, organizationId }=await resolveFinanceRequestContext(req,'finance.manage');
+    const { db, organizationId }=await resolveFinanceRequestContext(req,'finance.review');
     const snap=await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId)
       .collection('intelligenceCorrections').orderBy('updatedAt','desc').limit(100).get();
     return res.status(200).json({ items:snap.docs.map(doc=>({ id:doc.id, ...doc.data(), updatedAt:toIso(doc.data().updatedAt) })) });
