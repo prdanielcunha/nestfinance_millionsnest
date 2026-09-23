@@ -6,6 +6,7 @@ import { Button, Surface } from '@/src/components/foundation';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { transactionsService } from '@/src/services/transactionsService';
 import {
   universalEvidenceInboxService,
@@ -80,6 +81,11 @@ export function DocumentTransactionAnalysisCard({
   const analysisEnvelope = evidence.transactionAnalysis;
   const analysis = analysisEnvelope?.analysis || null;
   const organizationId = accessState.organizationId || '';
+  const canManageIntelligence = hasEffectiveCapability(accessState, 'finance.manage');
+  const rememberedDirection = analysisEnvelope?.governance?.correctionHints.find((hint) => hint.fieldKey === 'transaction_kind')?.correctedValue;
+  const originalDirection = analysis?.transactionKind.value === 'income' || analysis?.transactionKind.value === 'expense'
+    ? analysis.transactionKind.value
+    : '';
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState(false);
@@ -91,6 +97,7 @@ export function DocumentTransactionAnalysisCard({
   const [occurredAt, setOccurredAt] = useState('');
   const [counterparty, setCounterparty] = useState('');
   const [description, setDescription] = useState('');
+  const [rememberDirectionCorrection, setRememberDirectionCorrection] = useState(false);
   const draftAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
@@ -105,9 +112,11 @@ export function DocumentTransactionAnalysisCard({
       return;
     }
     setDirection(
-      analysis.transactionKind.value === 'income' || analysis.transactionKind.value === 'expense'
-        ? analysis.transactionKind.value
-        : '',
+      rememberedDirection === 'income' || rememberedDirection === 'expense'
+        ? rememberedDirection
+        : analysis.transactionKind.value === 'income' || analysis.transactionKind.value === 'expense'
+          ? analysis.transactionKind.value
+          : '',
     );
     setAmountRaw(
       analysis.totalAmountCents.value !== null
@@ -118,6 +127,7 @@ export function DocumentTransactionAnalysisCard({
     setCounterparty(analysis.counterpartyName.value || '');
     setDescription(analysis.description.value || '');
     setAckTax(false);
+    setRememberDirectionCorrection(false);
     setDraftError(false);
     draftAttemptRef.current = null;
   }, [analysisEnvelope?.generatedAt, evidence.evidenceId, evidence.version]);
@@ -342,6 +352,12 @@ export function DocumentTransactionAnalysisCard({
             </select>
           </label>
 
+          {rememberedDirection === 'income' || rememberedDirection === 'expense' ? (
+            <p className="sm:col-span-2 rounded-xl border border-accent-primary/20 bg-accent-primary/5 p-3 text-sm text-text-secondary">
+              {language === 'PT' ? 'Aplicamos uma correção que você pediu para lembrar. Revise antes de continuar.' : language === 'ES' ? 'Aplicamos una corrección que pediste recordar. Revísala antes de continuar.' : 'A correction you asked us to remember was applied. Review it before continuing.'}
+            </p>
+          ) : null}
+
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{copy.amount}</span>
             <div className="relative mt-2">
@@ -421,6 +437,18 @@ export function DocumentTransactionAnalysisCard({
           {analysis.payerTaxId.value ? <InfoRow label={copy.payerTaxId} value={formatCnpj(analysis.payerTaxId.value)} /> : null}
           {analysis.payeeTaxId.value ? <InfoRow label={copy.payeeTaxId} value={formatCnpj(analysis.payeeTaxId.value)} /> : null}
         </div>
+
+        {canManageIntelligence && originalDirection && direction && originalDirection !== direction ? (
+          <label className="mt-5 flex min-h-12 items-start gap-3 rounded-xl border border-border-subtle bg-surface-secondary/50 p-4 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={rememberDirectionCorrection}
+              onChange={(event) => setRememberDirectionCorrection(event.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+            <span>{language === 'PT' ? 'Lembrar esta correção para documentos desse tipo. Você pode editar ou remover depois.' : language === 'ES' ? 'Recordar esta corrección para documentos de este tipo. Puedes editarla o eliminarla después.' : 'Remember this correction for documents of this type. You can edit or remove it later.'}</span>
+          </label>
+        ) : null}
 
         {taxNeedsAcknowledgement ? (
           <label className="mt-5 flex min-h-12 items-start gap-3 rounded-xl border border-border-subtle bg-surface-secondary/50 p-4 text-sm text-text-secondary">
