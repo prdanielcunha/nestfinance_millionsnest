@@ -12,7 +12,7 @@ import {
   ShieldX,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, Surface } from '@/src/components/foundation';
+import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -387,6 +387,19 @@ function CountSessionContent() {
   }
 
   const activeLabel = copy.entryLabels[activeType];
+  const stepNumber = step === 'choose' ? 1 : step === 'count' ? 2 : 3;
+  const stepTitle =
+    step === 'choose'
+      ? copy.stepChoose
+      : step === 'count'
+        ? copy.countTitle(activeLabel)
+        : copy.stepReview;
+  const stepDescription =
+    step === 'choose'
+      ? copy.chooseBody
+      : step === 'count'
+        ? copy.entryDescriptions[activeType]
+        : copy.reviewBody;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-28 md:pb-8">
@@ -410,46 +423,34 @@ function CountSessionContent() {
             </div>
           </header>
 
-          <div className="grid grid-cols-3 gap-2" aria-label={copy.sessionTitle}>
-            {([
-              ['choose', copy.stepChoose],
-              ['count', copy.stepCount],
-              ['review', copy.stepReview],
-            ] as const).map(([value, label], index) => (
-              <div key={value} className="text-center">
-                <div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${step === value ? 'border-accent-primary bg-accent-primary text-white' : 'border-border-subtle bg-surface-elevated text-text-muted'}`}>
-                  {index + 1}
-                </div>
-                <p className={`mt-1 text-xs font-medium ${step === value ? 'text-text-primary' : 'text-text-muted'}`}>{label}</p>
-              </div>
-            ))}
-          </div>
+          <FlowStepHeader
+            currentStep={stepNumber}
+            totalSteps={3}
+            eyebrow={copy.sessionTitle}
+            title={stepTitle}
+            description={stepDescription}
+          />
 
           {conflict ? (
-            <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-warning/20 bg-semantic-warning/10 p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-semantic-warning" aria-hidden="true" />
-                <div>
-                  <p className="font-semibold text-text-primary">{copy.conflictTitle}</p>
-                  <p className="mt-1 text-sm text-text-secondary">{copy.conflictBody}</p>
-                </div>
-              </div>
-              <Button className="mt-4" variant="secondary" fullWidth onClick={() => void loadSession()}>
-                {copy.reload}
-              </Button>
-            </Surface>
+            <FlowFeedback
+              tone="warning"
+              title={copy.conflictTitle}
+              action={(
+                <Button variant="secondary" fullWidth onClick={() => void loadSession()}>
+                  {copy.reload}
+                </Button>
+              )}
+            >
+              <p>{copy.conflictBody}</p>
+            </FlowFeedback>
           ) : null}
 
           {saveError && !conflict ? (
-            <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-4">
-              <div className="flex gap-3 text-sm text-text-primary">
-                <AlertCircle className="h-5 w-5 shrink-0 text-semantic-danger" aria-hidden="true" />
-                <p>{copy.safeError}</p>
-              </div>
+            <FlowFeedback tone="error" title={copy.safeError}>
               {supportCode ? (
-                <p className="mt-3 break-all pl-8 font-mono text-xs text-text-muted">{copy.supportCode}: {supportCode}</p>
+                <p className="mt-2 break-all font-mono nf-helper-text">{copy.supportCode}: {supportCode}</p>
               ) : null}
-            </Surface>
+            </FlowFeedback>
           ) : null}
 
           {step === 'choose' ? (
@@ -474,7 +475,7 @@ function CountSessionContent() {
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-text-primary">{copy.entryLabels[type]}</p>
                               {existing ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-[11px] font-semibold text-semantic-success">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-xs font-semibold text-semantic-success">
                                   <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                                   {copy.counted}
                                 </span>
@@ -657,26 +658,22 @@ function CountSessionContent() {
                 </div>
               </Surface>
 
-              <Surface variant="secondary" radius="xl" className="border-semantic-warning/20 bg-semantic-warning/10 p-5 sm:p-6">
-                <div className="flex gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-semantic-warning" aria-hidden="true" />
-                  <div>
-                    <h3 className="font-semibold text-text-primary">{copy.firstCountSaved}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-text-secondary">{copy.firstCountSavedBody}</p>
-                    <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.secondCountSafety}</p>
-                    <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noPosting}</p>
+              <FlowConfirmation
+                title={copy.firstCountSaved}
+                description={(
+                  <div className="space-y-2">
+                    <p>{copy.firstCountSavedBody}</p>
+                    <p className="nf-helper-text text-text-muted">{copy.secondCountSafety}</p>
+                    <p className="nf-helper-text text-text-muted">{copy.noPosting}</p>
                   </div>
-                </div>
-              </Surface>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)} disabled={startingSecond}>
-                  {copy.returnToCount}
-                </Button>
-                <Button size="lg" fullWidth onClick={() => void startSecondCount()} disabled={startingSecond || !canEdit || entries.length === 0}>
-                  {startingSecond ? copy.startingSecond : copy.startSecond}
-                </Button>
-              </div>
+                )}
+                cancelLabel={copy.returnToCount}
+                confirmLabel={startingSecond ? copy.startingSecond : copy.startSecond}
+                onCancel={() => navigate(APP_ROUTES.count)}
+                onConfirm={() => void startSecondCount()}
+                busy={startingSecond}
+                disabled={!canEdit || entries.length === 0}
+              />
             </>
           ) : null}
         </div>
