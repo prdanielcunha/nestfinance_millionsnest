@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { financeEntityId } = req.body || {};
     if (typeof financeEntityId !== 'string' || !financeEntityId.trim()) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    const { db, organizationId } = await resolveFinanceRequestContext(req, 'finance.manage');
+    const { db, organizationId } = await resolveFinanceRequestContext(req, 'finance.review');
     const [usageSnap, correctionsSnap, benchmarkSnap] = await Promise.all([
       db.collection('organizations').doc(organizationId).collection('financeIntelligenceUsage').doc(intelligenceDayKey()).get(),
       db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId)
