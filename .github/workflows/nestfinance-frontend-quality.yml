@@ -111,6 +111,9 @@ jobs:
       - name: Verify Review document context
         run: npm run test:transaction-review-evidence-context
 
+      - name: Verify Review related history
+        run: npm run test:transaction-review-related-history
+
       - name: Verify Transaction Detail 2.0 overview
         run: npx tsx scripts/test-transaction-detail-overview.ts
 

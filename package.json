@@ -54,7 +54,9 @@
     "test:transaction-saved-views": "tsx scripts/test-transaction-saved-views.ts",
     "test:transaction-combined-filters": "tsx scripts/test-transaction-combined-filters.ts",
     "test:transaction-universal-search": "tsx scripts/test-transaction-universal-search.ts",
-    "test:transaction-review-evidence-context": "tsx scripts/test-transaction-review-evidence-context.ts"
+    "test:transaction-review-evidence-context": "tsx scripts/test-transaction-review-evidence-context.ts",
+    "test:transaction-review-related-history": "tsx scripts/test-transaction-review-related-history.ts",
+    "test:cross-app-final-certification": "npm run test:auth-session && tsx scripts/test-handoff-token-binding.ts && tsx scripts/test-handoff-session-enforcement.ts && tsx scripts/test-direct-entry-session-version.ts && tsx scripts/test-handoff-redeem-security.ts && tsx scripts/test-ecosystem-session-lifecycle.ts && tsx scripts/test-finance-request-context.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
