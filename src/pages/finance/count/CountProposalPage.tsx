@@ -168,12 +168,12 @@ function makeToken(prefix: string) {
 }
 
 function buildInitialSelections(preview: CountProposalPreview): SelectionState {
-  const empty = {
+  const empty: SelectionState = {
     tithe: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
     offering: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
     other: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
     pix: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
-  } satisfies SelectionState;
+  };
 
   for (const line of preview.lines) {
     empty[line.entryType] = {
