@@ -75,6 +75,7 @@ assert.ok(startSecond.includes("joinCode"));
 assert.ok(joinSecond.includes('COUNT_INDEPENDENT_COUNTER_REQUIRED'));
 assert.ok(joinSecond.includes('session.countA?.countedByUid || session.countA?.enteredByUid'));
 assert.ok(joinSecond.includes('session.secondCountAssignedToUid'));
+assert.ok(joinSecond.includes('secondCountInviteCode: FieldValue.delete()'));
 assert.ok(joinSecond.includes('COUNT_JOIN_CODE_EXPIRED'));
 assert.ok(joinSecond.includes("action: 'count.second_counter_joined'"));
 assert.ok(joinSecond.includes('blindMaterial: true'));
@@ -102,7 +103,9 @@ assert.ok(detail.includes('session.comparison = null'));
 assert.ok(detail.includes('session.recountAttempts = []'));
 assert.ok(detail.includes('currentUserIsFirstCounter'));
 assert.ok(detail.includes('currentUserIsSecondCounter'));
-assert.ok(detail.includes("data.status === 'counting_b' && data.secondCountStartedByUid === uid"));
+assert.ok(detail.includes("data.status === 'counting_b'"));
+assert.ok(detail.includes('data.secondCountStartedByUid === uid'));
+assert.ok(detail.includes('!data.secondCountAssignedToUid'));
 
 assert.ok(service.includes('joinSecondCount'));
 assert.ok(service.includes('refreshSecondInvite'));
