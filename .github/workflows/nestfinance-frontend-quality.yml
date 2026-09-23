@@ -21,6 +21,15 @@ on:
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
       - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/benchmark-document-intelligence.ts"
+      - "shared/finance/intelligenceGovernance.ts"
+      - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsSave.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsList.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsRemove.ts"
+      - "server/vercel-handlers/finance/intelligenceEngineSummary.ts"
+      - "src/pages/finance/inbox/IntelligenceEnginePanel.tsx"
       - "scripts/benchmark-voice-transcription.ts"
       - "shared/finance/voiceTranscription.ts"
       - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
@@ -86,6 +95,15 @@ on:
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
       - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/benchmark-document-intelligence.ts"
+      - "shared/finance/intelligenceGovernance.ts"
+      - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsSave.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsList.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsRemove.ts"
+      - "server/vercel-handlers/finance/intelligenceEngineSummary.ts"
+      - "src/pages/finance/inbox/IntelligenceEnginePanel.tsx"
       - "scripts/benchmark-voice-transcription.ts"
       - "shared/finance/voiceTranscription.ts"
       - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
@@ -182,6 +200,9 @@ jobs:
 
       - name: Verify roadmap cycle 07 recorded voice capture
         run: npm run test:roadmap-cycle-07
+
+      - name: Verify roadmap cycle 08 governed intelligence engine
+        run: npm run test:roadmap-cycle-08
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
