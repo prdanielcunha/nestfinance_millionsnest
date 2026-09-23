@@ -13,15 +13,15 @@ interface Translations {
 export const TRANSLATIONS: Translations = {
   // Navigation
   nav_hoje: { PT: 'Hoje', EN: 'Today', ES: 'Hoy' },
-  nav_movimentacoes: { PT: 'Movimentações', EN: 'Transactions', ES: 'Movimientos' },
+  nav_movimentacoes: { PT: 'Entradas e saídas', EN: 'Money in and out', ES: 'Entradas y salidas' },
   nav_cultos: { PT: 'Contagem', EN: 'Count', ES: 'Conteo' },
-  nav_capturas: { PT: 'Documentos', EN: 'Documents', ES: 'Documentos' },
-  nav_revisar: { PT: 'Revisão', EN: 'Review', ES: 'Revisión' },
-  nav_conferir: { PT: 'Conciliação', EN: 'Reconciliation', ES: 'Conciliación' },
+  nav_capturas: { PT: 'Comprovantes', EN: 'Receipts', ES: 'Comprobantes' },
+  nav_revisar: { PT: 'Conferir', EN: 'Check', ES: 'Revisar' },
+  nav_conferir: { PT: 'Conferir com o banco', EN: 'Check with the bank', ES: 'Comparar con el banco' },
   nav_mais: { PT: 'Mais', EN: 'More', ES: 'Más' },
   nav_config: { PT: 'Configurações', EN: 'Settings', ES: 'Ajustes' },
   nav_reports: { PT: 'Relatórios', EN: 'Reports', ES: 'Informes' },
-  nav_audit: { PT: 'Auditoria', EN: 'Audit', ES: 'Auditoría' },
+  nav_audit: { PT: 'Histórico', EN: 'History', ES: 'Historial' },
 
   // MorePage
   more_title: { PT: 'Mais Opções', EN: 'More Options', ES: 'Más Opciones' },
@@ -39,14 +39,14 @@ export const TRANSLATIONS: Translations = {
 
   // Select Entity Page
   select_entity_title: { PT: 'Onde você quer trabalhar?', EN: 'Where do you want to work?', ES: '¿Dónde quieres trabajar?' },
-  select_entity_desc: { PT: 'Escolha a igreja para acessar os dados financeiros.', EN: 'Choose the church to access financial data.', ES: 'Elija la iglesia para acceder a los datos financieros.' },
+  select_entity_desc: { PT: 'Escolha a igreja onde você quer trabalhar agora.', EN: 'Choose the church you want to work with now.', ES: 'Elige la iglesia en la que quieres trabajar ahora.' },
   select_entity_last_used: { PT: 'Última usada', EN: 'Last used', ES: 'Última usada' },
   select_entity_access: { PT: 'Acessar finanças', EN: 'Access finance', ES: 'Acceder a finanzas' },
   select_entity_prepare_title: { PT: 'Tornar estas organizações utilizáveis', EN: 'Make these organizations usable', ES: 'Hacer que estas organizaciones sean utilizables' },
   select_entity_prepare_desc: { PT: 'Preparação pendente', EN: 'Pending setup', ES: 'Configuración pendiente' },
   select_entity_prepare_btn: { PT: 'Preparar', EN: 'Prepare', ES: 'Preparar' },
   select_entity_none: { PT: 'Nenhuma organização disponível', EN: 'No organizations available', ES: 'Ninguna organización disponible' },
-  select_entity_none_desc: { PT: 'Você não possui igrejas aptas para gerenciar finanças no momento.', EN: 'You do not have churches ready to manage finances at the moment.', ES: 'No tiene iglesias listas para administrar finanzas en este momento.' },
+  select_entity_none_desc: { PT: 'Nenhuma igreja está disponível para o seu perfil agora.', EN: 'No church is available for your profile right now.', ES: 'No hay ninguna iglesia disponible para tu perfil ahora.' },
   select_entity_current_church: { PT: 'Igreja atual', EN: 'Current church', ES: 'Iglesia actual' },
   select_entity_switch_btn: { PT: 'Trocar', EN: 'Switch', ES: 'Cambiar' },
   select_entity_modal_title: { PT: 'Selecionar igreja', EN: 'Select church', ES: 'Seleccionar iglesia' },
@@ -55,7 +55,7 @@ export const TRANSLATIONS: Translations = {
   // General Status & Loading & Errors
   status_loading: { PT: 'Carregando...', EN: 'Loading...', ES: 'Cargando...' },
   status_error_title: { PT: 'Falha ao carregar dados financeiros', EN: 'Failed to load financial data', ES: 'Error al cargar los datos financieros' },
-  status_error_desc: { PT: 'Não foi possível validar a estrutura organizacional base. Verifique sua conexão ou tente novamente.', EN: 'Could not validate the base organizational structure. Check your connection or try again.', ES: 'No se pudo validar la estructura organizacional base. Verifique su conexión o intente nuevamente.' },
+  status_error_desc: { PT: 'Não foi possível carregar seus dados agora. Verifique a internet e tente novamente.', EN: 'Your data could not be loaded right now. Check your connection and try again.', ES: 'No fue posible cargar tus datos ahora. Revisa la conexión e inténtalo de nuevo.' },
   status_partial_error_desc: { PT: 'Alguns dados não puderam ser carregados. Tente novamente.', EN: 'Some data could not be loaded. Try again.', ES: 'Algunos datos no se pudieron cargar. Inténtalo de nuevo.' },
   status_error_short: { PT: 'Erro', EN: 'Error', ES: 'Error' },
   status_ok: { PT: 'OK', EN: 'OK', ES: 'OK' },
@@ -75,17 +75,17 @@ export const TRANSLATIONS: Translations = {
   needs_attention_title: { PT: 'Precisa de você', EN: 'Needs attention', ES: 'Necesita tu atención' },
   action_correction_title: { PT: 'Movimentações devolvidas', EN: 'Returned transactions', ES: 'Transacciones devueltas' },
   action_correction_desc: { PT: 'Você tem {count} lançamento(s) devolvido(s) para correção.', EN: 'You have {count} transaction(s) returned for correction.', ES: 'Tiene {count} transacción(es) devuelta(s) para corrección.' },
-  action_correction_cta: { PT: 'Corrigir lançamentos', EN: 'Correct transactions', ES: 'Corregir transacciones' },
+  action_correction_cta: { PT: 'Corrigir agora', EN: 'Fix now', ES: 'Corregir ahora' },
 
   action_review_title: { PT: 'Aguardando revisão', EN: 'Awaiting review', ES: 'Esperando revisión' },
-  action_review_desc: { PT: 'Existem {count} lançamento(s) pendente(s) de aprovação na sua central.', EN: 'There are {count} transaction(s) pending approval in your center.', ES: 'Hay {count} transacción(es) pendiente(s) de aprobación en su centro.' },
+  action_review_desc: { PT: 'Existem {count} registro(s) esperando sua conferência.', EN: 'There are {count} record(s) waiting for your check.', ES: 'Hay {count} registro(s) esperando tu revisión.' },
   action_review_cta: { PT: 'Revisar agora', EN: 'Review now', ES: 'Revisar ahora' },
 
   action_draft_title: { PT: 'Rascunhos incompletos', EN: 'Incomplete drafts', ES: 'Borradores incompletos' },
   action_draft_desc: { PT: 'Você tem {count} rascunho(s) salvo(s) aguardando preenchimento.', EN: 'You have {count} saved draft(s) awaiting completion.', ES: 'Tiene {count} borrador(es) guardado(s) esperando ser completado(s).' },
   action_draft_cta: { PT: 'Continuar preenchendo', EN: 'Continue filling', ES: 'Continuar llenando' },
 
-  action_approved_title: { PT: 'Aprovadas para lançamento', EN: 'Approved for posting', ES: 'Aprobadas para registro' },
+  action_approved_title: { PT: 'Conferidas e aprovadas', EN: 'Checked and approved', ES: 'Revisadas y aprobadas' },
   action_approved_desc: { PT: 'Existem {count} movimentação(ões) aprovada(s) aguardando o próximo passo.', EN: 'There are {count} approved transaction(s) awaiting the next step.', ES: 'Hay {count} transacción(es) aprobada(s) esperando el siguiente paso.' },
   action_approved_cta: { PT: 'Ver aprovadas', EN: 'View approved', ES: 'Ver aprovadas' },
 
@@ -94,7 +94,7 @@ export const TRANSLATIONS: Translations = {
   action_register_cta: { PT: 'Registrar', EN: 'Register', ES: 'Registrar' },
 
   action_unauthorized_title: { PT: 'Acesso somente leitura', EN: 'Read-only access', ES: 'Acceso de solo lectura' },
-  action_unauthorized_desc: { PT: 'Seu papel atual permite visualizar os dados, mas sem realizar lançamentos.', EN: 'Your current role allows you to view data, but not post transactions.', ES: 'Su función actual le permite ver datos, pero no registrar transacciones.' },
+  action_unauthorized_desc: { PT: 'Seu perfil permite consultar os dados, mas não criar ou alterar registros.', EN: 'Your profile can view data, but cannot create or change records.', ES: 'Tu perfil puede consultar datos, pero no crear ni cambiar registros.' },
 
   // Operational Summary Section
   operational_summary_title: { PT: 'Resumo Operacional', EN: 'Operational Summary', ES: 'Resumen Operacional' },
