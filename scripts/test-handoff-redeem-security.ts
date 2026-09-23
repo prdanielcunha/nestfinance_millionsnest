@@ -102,6 +102,16 @@ async function call(requestCode: string, origin = 'https://nestfinance.millionsn
 }
 
 try {
+  const malformed = await call('invalid');
+  assert.equal(malformed.statusCode, 400);
+  assert.equal(malformed.body.error, 'HANDOFF_INVALID_OR_EXPIRED');
+  const rateLimitsAfterMalformed = await db.collection('ecosystemHandoffRateLimits').get();
+  assert.equal(
+    rateLimitsAfterMalformed.docs.length,
+    0,
+    'malformed handoff must be rejected before durable rate limiting or Firestore lookup',
+  );
+
   const wrongOrigin = await call(code, 'https://evil.example');
   assert.equal(wrongOrigin.statusCode, 403);
   assert.equal(wrongOrigin.body.error, 'ORIGIN_NOT_ALLOWED');
