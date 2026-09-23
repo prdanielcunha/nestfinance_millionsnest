@@ -21,6 +21,7 @@ on:
       - "scripts/test-direct-entry-session-version.ts"
       - "scripts/test-handoff-redeem-security.ts"
       - "scripts/test-ecosystem-session-lifecycle.ts"
+      - "scripts/test-finance-request-context.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-auth-quality.yml"
@@ -84,6 +85,9 @@ jobs:
 
       - name: Verify ecosystem exit and recovery lifecycle
         run: npx tsx scripts/test-ecosystem-session-lifecycle.ts
+
+      - name: Verify final cross-app certification bundle
+        run: npm run test:cross-app-final-certification
 
       - name: Verify public auth contracts
         run: npm run check:api-contracts

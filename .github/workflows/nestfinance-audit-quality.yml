@@ -8,8 +8,12 @@ on:
       - "server/vercel-handlers/finance/auditList.ts"
       - "shared/finance/auditReadModel.ts"
       - "src/pages/finance/AuditPage.tsx"
+      - "src/pages/finance/transactions/TransactionReviewHistoryPanel.tsx"
+      - "src/pages/finance/transactions/transactionReviewHistoryCopy.ts"
+      - "src/pages/finance/transactions/transactionReviewHistoryModel.ts"
       - "src/services/auditService.ts"
       - "scripts/test-audit-read-model.ts"
+      - "scripts/test-transaction-review-related-history.ts"
       - "scripts/test-audit-read-model-emulator.ts"
       - "scripts/check-api-contracts.mjs"
       - "firestore.indexes.json"
@@ -56,6 +60,9 @@ jobs:
 
       - name: Audit authority and UX
         run: npx tsx scripts/test-audit-read-model.ts
+
+      - name: Review related history authority and UX
+        run: npm run test:transaction-review-related-history
 
       - name: Install emulator tools
         run: npm install firebase-tools@15.27.0 tsx@4.21.0 --no-save
