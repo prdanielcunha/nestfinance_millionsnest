@@ -97,6 +97,7 @@ import reconciliationReadiness from '../server/vercel-handlers/finance/reconcili
 import reconciliationStatementPrepare from '../server/vercel-handlers/finance/reconciliationStatementPrepare.js';
 import reconciliationMatchPreview from '../server/vercel-handlers/finance/reconciliationMatchPreview.js';
 import reconciliationConfirm from '../server/vercel-handlers/finance/reconciliationConfirm.js';
+import reconciliationExceptionJustify from '../server/vercel-handlers/finance/reconciliationExceptionJustify.js';
 import reconciliationReverse from '../server/vercel-handlers/finance/reconciliationReverse.js';
 import reconciliationProgress from '../server/vercel-handlers/finance/reconciliationProgress.js';
 import auditList from '../server/vercel-handlers/finance/auditList.js';
@@ -216,6 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'reconciliation-statement-prepare': return reconciliationStatementPrepare(req, res);
     case 'reconciliation-match-preview': return reconciliationMatchPreview(req, res);
     case 'reconciliation-confirm': return reconciliationConfirm(req, res);
+    case 'reconciliation-exception-justify': return reconciliationExceptionJustify(req, res);
     case 'reconciliation-reverse': return reconciliationReverse(req, res);
     case 'reconciliation-progress': return reconciliationProgress(req, res);
     case 'audit-list': return auditList(req, res);
