@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payloadForHash = {
       serviceLabel: normalizedLabel,
       serviceDate: normalizedDate,
-      policySnapshot: { doubleCountRequired: true, policyVersion: 1, source: 'safe_default_v1' },
+      policySnapshot: { doubleCountRequired: true, requireIndependentCounter: true, policyVersion: 2, source: 'safe_default_v2' },
     };
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_session_create', idempotencyKey);
     const payloadHash = hashPayload(payloadForHash);
@@ -53,11 +53,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           status: 'counting_a',
           policySnapshot: {
             doubleCountRequired: true,
-            policyVersion: 1,
-            source: 'safe_default_v1',
+            requireIndependentCounter: true,
+            policyVersion: 2,
+            source: 'safe_default_v2',
             capturedAt: FieldValue.serverTimestamp(),
           },
-          countA: { entries: [], totalCents: 0, countedByUid: null, enteredByUid: null, savedAt: null },
+          countA: { entries: [], totalCents: 0, countedByUid: null, countedByLabel: null, enteredByUid: null, enteredByLabel: null, savedAt: null },
           createdByUid: uid,
           updatedByUid: uid,
           version: 1,
@@ -76,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requestId,
           idempotencyKey,
           afterHash: payloadHash,
-          metadata: { serviceDate: normalizedDate, status: 'counting_a', doubleCountRequired: true },
+          metadata: { serviceDate: normalizedDate, status: 'counting_a', doubleCountRequired: true, requireIndependentCounter: true },
           createdAt: FieldValue.serverTimestamp(),
         });
         stageFinanceFact(transaction, db, {
@@ -91,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             serviceDate: normalizedDate,
             status: 'counting_a',
             doubleCountRequired: true,
-            policyVersion: 1,
+            policyVersion: 2,
           },
           sourceRefs: [
             { kind: 'record', ref: sessionRef.path, version: 1 },
