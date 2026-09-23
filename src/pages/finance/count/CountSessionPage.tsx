@@ -147,10 +147,26 @@ function CountSessionContent() {
   const [saveError, setSaveError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
+  const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
 
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
   const secondStartAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
     if (!organizationId || !activeFinanceEntityId || !sessionId) return;
