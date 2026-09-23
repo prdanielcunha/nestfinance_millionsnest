@@ -9,7 +9,7 @@ export type OfflineCaptureRecord = {
   file: File;
   sourceKind: UniversalEvidenceSourceKind;
   intent: UniversalEvidenceDocumentType;
-  keys: { start: string; finalize: string; analyze: string };
+  keys: { start: string; finalize: string; classify: string; analyze: string };
   savedAt: number;
 };
 
