@@ -91,6 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         transaction.update(sessionRef, {
           status: nextStatus,
+          workflowState: comparison.matched ? 'counted' : FieldValue.delete(),
           countB: {
             entries: normalizedEntries,
             totalCents,
