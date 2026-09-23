@@ -6,7 +6,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   try{
     const {financeEntityId,correctionId}=req.body||{};
     if(typeof financeEntityId!=='string'||typeof correctionId!=='string'||!/^[a-f0-9]{32}$/.test(correctionId)) return res.status(400).json({error:'INVALID_PARAMETERS'});
-    const {db,organizationId}=await resolveFinanceRequestContext(req,'finance.manage');
+    const {db,organizationId}=await resolveFinanceRequestContext(req,'finance.review');
     await db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId)
       .collection('intelligenceCorrections').doc(correctionId).delete();
     return res.status(200).json({correctionId,removed:true});
