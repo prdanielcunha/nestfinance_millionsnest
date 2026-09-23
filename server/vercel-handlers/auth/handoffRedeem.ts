@@ -33,6 +33,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
   }
 
+  // Payload Shape and Properties Validation
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
+  }
+
+  const keys = Object.keys(body);
+  if (keys.length !== 1 || keys[0] !== 'code') {
+    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
+  }
+
+  // Payload Type and Format Validation
+  const code = body.code;
+  if (typeof code !== 'string' || code.length !== 43 || !/^[A-Za-z0-9_-]+$/.test(code)) {
+    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
+  }
+
   // Admin Init
   let auth;
   let firestore;
@@ -94,23 +111,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: 'RATE_LIMITED',
       retryAfterSeconds: rateLimit.retryAfterSeconds,
     });
-  }
-
-  // Payload Shape and Properties Validation
-  const body = req.body;
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
-  }
-
-  const keys = Object.keys(body);
-  if (keys.length !== 1 || keys[0] !== 'code') {
-    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
-  }
-
-  // Payload Type and Format Validation
-  const code = body.code;
-  if (typeof code !== 'string' || code.length !== 43 || !/^[A-Za-z0-9_-]+$/.test(code)) {
-    return res.status(400).json({ error: 'HANDOFF_INVALID_OR_EXPIRED' });
   }
 
   const startTime = Date.now();
