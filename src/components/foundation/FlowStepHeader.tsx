@@ -4,6 +4,7 @@ export interface FlowStepHeaderProps {
   currentStep: number;
   totalSteps: number;
   title: string;
+  stepLabel: string;
   description?: string;
   eyebrow?: string;
   trailing?: ReactNode;
@@ -13,6 +14,7 @@ export function FlowStepHeader({
   currentStep,
   totalSteps,
   title,
+  stepLabel,
   description,
   eyebrow,
   trailing,
@@ -24,7 +26,7 @@ export function FlowStepHeader({
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <p className="nf-helper-text font-semibold uppercase tracking-[0.14em] text-accent-primary">
-          {eyebrow ? `${eyebrow} · ` : ''}Passo {safeCurrent} de {safeTotal}
+          {eyebrow ? `${eyebrow} · ` : ''}{stepLabel}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
           {title}
