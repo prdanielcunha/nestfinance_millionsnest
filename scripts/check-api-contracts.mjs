@@ -66,6 +66,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-detail', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-save-first-count', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-start-second-count', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-join-second-count', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-refresh-second-invite', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-submit-second-count', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-start-recount', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-submit-recount', exposure: 'gateway' },
