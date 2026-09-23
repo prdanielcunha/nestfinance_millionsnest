@@ -193,6 +193,7 @@ export default function UniversalCapturePage() {
           classified: false,
           keys: record.keys,
         }) satisfies QueueItem);
+        if (restored.length > 0) setNotice(copy.restoredOffline);
         return [...current, ...restored].slice(0, MAX_BATCH);
       });
     });
@@ -377,6 +378,37 @@ export default function UniversalCapturePage() {
     }
   };
 
+  const setItemIntent = async (item: QueueItem, intent: UniversalEvidenceDocumentType) => {
+    patchItem(item.id, { intent, editingIntent: false, classified: false });
+    if (organizationId && activeFinanceEntityId && ['queued', 'error'].includes(item.status)) {
+      await universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+    }
+  };
+
+  const removeItem = async (item: QueueItem) => {
+    setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+    if (organizationId && activeFinanceEntityId) {
+      await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+    }
+  };
+
+  const clearFinished = async () => {
+    const completed = items.filter((item) => finished(item.status));
+    setItems((current) => current.filter((item) => !finished(item.status)));
+    if (organizationId && activeFinanceEntityId) {
+      await Promise.all(completed.map((item) =>
+        universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id),
+      ));
+    }
+  };
+
   const retryItem = async (item: QueueItem) => {
     if (processingRef.current) return;
     processingRef.current = true;
@@ -457,7 +489,9 @@ export default function UniversalCapturePage() {
         <Surface variant="elevated" radius="xl" className="p-6 text-center text-text-secondary">{copy.noEntity}</Surface>
       ) : (
         <>
-          <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
+          <UniversalQuickTextEntry initialText={sharedText} />
+
+          <Surface variant="glass" radius="xl" className="mt-5 p-5 sm:p-6">
             <div className="grid gap-3 sm:grid-cols-2">
               <Button size="lg" onClick={() => choose('camera')}>
                 <Camera className="h-5 w-5" aria-hidden="true" />
@@ -521,6 +555,30 @@ export default function UniversalCapturePage() {
                           {item.status === 'analysis_unavailable' ? (
                             <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.preservedAfterAnalysisError}</p>
                           ) : null}
+                          <div className="mt-3 rounded-xl border border-border-subtle bg-surface-base p-3">
+                            <p className="nf-helper-text text-text-muted">
+                              {copy.intentPrefix}: <span className="font-semibold text-text-primary">{copy.intentLabels[item.intent]}</span>
+                            </p>
+                            {item.editingIntent ? (
+                              <select
+                                value={item.intent}
+                                onChange={(event) => void setItemIntent(item, event.target.value as UniversalEvidenceDocumentType)}
+                                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-elevated px-3 text-sm text-text-primary"
+                              >
+                                {Object.entries(copy.intentLabels).map(([value, label]) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                              </select>
+                            ) : null}
+                            <Button
+                              className="mt-2"
+                              variant="ghost"
+                              disabled={!['queued', 'error'].includes(item.status)}
+                              onClick={() => patchItem(item.id, { editingIntent: !item.editingIntent })}
+                            >
+                              {item.editingIntent ? copy.intentClose : copy.intentWrong}
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
@@ -543,7 +601,7 @@ export default function UniversalCapturePage() {
                           <Button
                             variant="ghost"
                             disabled={processing}
-                            onClick={() => setItems((current) => current.filter((candidate) => candidate.id !== item.id))}
+                            onClick={() => void removeItem(item)}
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             {copy.remove}
@@ -560,7 +618,7 @@ export default function UniversalCapturePage() {
                   <Plus className="h-5 w-5" aria-hidden="true" />
                   {copy.addMore}
                 </Button>
-                <Button size="lg" disabled={processing || !hasProcessable} onClick={() => void processAll()}>
+                <Button size="lg" disabled={processing || !hasProcessable || !online} onClick={() => void processAll()}>
                   {processing ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" /> : <FileSearch className="h-5 w-5" aria-hidden="true" />}
                   {processing ? copy.processingBatch : copy.processAll}
                 </Button>
@@ -571,7 +629,7 @@ export default function UniversalCapturePage() {
                   <Button
                     variant="ghost"
                     disabled={processing}
-                    onClick={() => setItems((current) => current.filter((item) => !finished(item.status)))}
+                    onClick={() => void clearFinished()}
                   >
                     {copy.clearFinished}
                   </Button>
