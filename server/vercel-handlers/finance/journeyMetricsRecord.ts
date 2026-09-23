@@ -12,7 +12,7 @@ type MetricUpdate = {
   count: number;
 };
 
-function parseCounts(input: unknown): MetricUpdate[] | null {
+export function parseJourneyMetricCounts(input: unknown): MetricUpdate[] | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   const entries = Object.entries(input as Record<string, unknown>);
   if (entries.length === 0 || entries.length > 16) return null;
@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 
-  const updates = parseCounts(req.body?.counts);
+  const updates = parseJourneyMetricCounts(req.body?.counts);
   if (!updates) {
     return res.status(400).json({ error: 'INVALID_METRICS_PAYLOAD' });
   }
