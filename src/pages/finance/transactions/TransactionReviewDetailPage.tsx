@@ -20,6 +20,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import {
   formatReviewDate,
   formatReviewMoney,
@@ -91,6 +92,7 @@ function TransactionReviewDetailContent() {
   const { language } = useLanguage();
   const copy = TRANSACTION_REVIEW_DETAIL_COPY[language];
   const { getTransactionDetail, returnToDraft, approveForPosting } = useTransactions();
+  const online = useOnlineStatus();
 
   const [data, setData] = useState<any>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -196,7 +198,7 @@ function TransactionReviewDetailContent() {
   }, [activeFinanceEntityId, transactionId]);
 
   const handleApprove = async () => {
-    if (actionState || !data?.transaction) return;
+    if (actionState || !data?.transaction || !online) return;
     if (data.transaction.status !== 'ready_for_review') {
       setLoadState('state_changed');
       return;
@@ -376,7 +378,7 @@ function TransactionReviewDetailContent() {
     copy.reviewIssueLabels[String(issue?.code || '')] || copy.unknownReviewIssue,
   );
   const reviewBlocked = blockingIssues.length > 0;
-  const approvalDisabled = reviewBlocked || actionState !== null;
+  const approvalDisabled = reviewBlocked || actionState !== null || !online;
   const primaryAccount = transaction.accountSnapshot?.name || transaction.accountName;
   const destinationAccount = transaction.destinationAccountSnapshot?.name;
   const liabilityAccount = transaction.liabilityAccountSnapshot?.name;
@@ -557,6 +559,11 @@ function TransactionReviewDetailContent() {
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-text-secondary">{copy.decisionBody}</p>
                 <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noBalanceChange}</p>
+                {!online ? (
+                  <p className="mt-3 rounded-xl border border-semantic-warning/20 bg-semantic-warning/10 p-3 text-xs leading-relaxed text-text-secondary" role="status">
+                    {copy.offlineApproval}
+                  </p>
+                ) : null}
                 {nextReviewId ? (
                   <p className="mt-2 text-xs leading-relaxed text-accent-primary">
                     {copy.continueNextHint}
