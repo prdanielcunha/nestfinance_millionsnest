@@ -19,6 +19,13 @@ on:
       - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "scripts/test-roadmap-cycle-04-double-count.ts"
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "shared/finance/universalInputIntent.ts"
+      - "src/services/universalCaptureOfflineQueue.ts"
+      - "src/services/shareTargetService.ts"
+      - "src/pages/finance/capture/UniversalQuickTextEntry.tsx"
+      - "public/nestfinance-share-target-sw.js"
+      - "public/brand/nestfinance/nest-flow-signature/v1/manifest/site.webmanifest"
       - "shared/finance/countProposal.ts"
       - "server/vercel-handlers/finance/countProposalHelpers.ts"
       - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
@@ -70,6 +77,13 @@ on:
       - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "scripts/test-roadmap-cycle-04-double-count.ts"
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "shared/finance/universalInputIntent.ts"
+      - "src/services/universalCaptureOfflineQueue.ts"
+      - "src/services/shareTargetService.ts"
+      - "src/pages/finance/capture/UniversalQuickTextEntry.tsx"
+      - "public/nestfinance-share-target-sw.js"
+      - "public/brand/nestfinance/nest-flow-signature/v1/manifest/site.webmanifest"
       - "shared/finance/countProposal.ts"
       - "server/vercel-handlers/finance/countProposalHelpers.ts"
       - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
@@ -148,6 +162,9 @@ jobs:
 
       - name: Verify roadmap cycle 05 Count proposals
         run: npm run test:roadmap-cycle-05
+
+      - name: Verify roadmap cycle 06 universal input
+        run: npm run test:roadmap-cycle-06
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
