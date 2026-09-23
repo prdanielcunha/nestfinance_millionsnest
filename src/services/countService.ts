@@ -219,6 +219,26 @@ export const countService = {
     }>(organizationId, 'count-sessions-start-second-count', { financeEntityId, ...input });
   },
 
+  async refreshSecondInvite(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      countSessionId: string;
+      expectedVersion: number;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ) {
+    return post<{
+      countSessionId: string;
+      version: number;
+      status: 'counting_b';
+      joinCode: string;
+      expiresAt: string;
+      requestId?: string;
+    }>(organizationId, 'count-sessions-refresh-second-invite', { financeEntityId, ...input });
+  },
+
   async joinSecondCount(
     organizationId: string,
     financeEntityId: string,
