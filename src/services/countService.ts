@@ -66,14 +66,15 @@ export type CountSessionDetail = {
   recountAttempts: CountRecountAttempt[];
   recountAttemptCount: number;
   activeRecountAttemptNumber?: number | null;
-  firstCounterUid?: string | null;
   firstCounterLabel?: string | null;
-  secondCountStartedByUid?: string | null;
+  currentUserIsFirstCounter?: boolean;
   secondCountStartedByLabel?: string | null;
   secondCountStartedAt?: string | null;
-  secondCountAssignedToUid?: string | null;
+  currentUserStartedSecondCount?: boolean;
+  secondCounterAssigned?: boolean;
   secondCountAssignedToLabel?: string | null;
   secondCountAssignedAt?: string | null;
+  currentUserIsSecondCounter?: boolean;
   secondCountInviteRequired?: boolean;
   secondCountInviteExpiresAt?: string | null;
   secondCountJoinCode?: string | null;
