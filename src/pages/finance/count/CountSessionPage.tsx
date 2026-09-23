@@ -616,6 +616,9 @@ function CountSessionContent() {
         <CountSecondCounterGate
           session={session}
           currentUserUid={user?.uid || null}
+          organizationId={organizationId}
+          financeEntityId={activeFinanceEntityId || ''}
+          canEdit={canEdit}
           onReload={() => loadSession()}
         />
       );
