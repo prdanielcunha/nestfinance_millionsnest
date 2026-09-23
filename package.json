@@ -62,7 +62,9 @@
     "test:roadmap-cycle-03": "tsx scripts/test-roadmap-cycle-03-count-journey.ts",
     "test:roadmap-cycle-04": "tsx scripts/test-roadmap-cycle-04-double-count.ts",
     "test:roadmap-cycle-05": "tsx scripts/test-roadmap-cycle-05-count-to-proposals.ts",
-    "test:roadmap-cycle-06": "tsx scripts/test-roadmap-cycle-06-universal-input.ts"
+    "test:roadmap-cycle-06": "tsx scripts/test-roadmap-cycle-06-universal-input.ts",
+    "test:roadmap-cycle-07": "tsx scripts/test-roadmap-cycle-07-voice.ts",
+    "benchmark:voice-transcription": "tsx scripts/benchmark-voice-transcription.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

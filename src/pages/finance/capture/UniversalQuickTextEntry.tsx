@@ -13,6 +13,7 @@ import {
   type UniversalInputPaymentMethod,
 } from '@/shared/finance/universalInputIntent';
 import { formatReviewMoney } from '../transactions/transactionReviewModel';
+import { RecordedVoiceCapture } from './RecordedVoiceCapture';
 
 type RecognitionConstructor = new () => {
   lang: string;
@@ -354,6 +355,13 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
         className="mt-4 w-full rounded-2xl border border-border-subtle bg-surface-base p-4 text-base leading-relaxed text-text-primary outline-none focus:border-accent-primary"
       />
 
+      <RecordedVoiceCapture
+        onTranscript={(transcript) => {
+          setText(transcript);
+          interpret(transcript);
+        }}
+      />
+
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Button variant="secondary" disabled={!text.trim()} onClick={() => interpret()}>
           {copy.interpret}
@@ -382,6 +390,15 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
 
       {correcting ? (
         <div className="mt-4 grid gap-4 rounded-2xl border border-border-subtle bg-surface-secondary/40 p-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <RecordedVoiceCapture
+              mode="correction"
+              onTranscript={(transcript) => {
+                setText(transcript);
+                interpret(transcript);
+              }}
+            />
+          </div>
           <label>
             <span className="nf-helper-text font-semibold text-text-muted">{copy.direction}</span>
             <select

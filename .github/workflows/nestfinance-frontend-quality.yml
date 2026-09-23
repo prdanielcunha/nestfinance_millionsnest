@@ -20,6 +20,13 @@ on:
       - "scripts/test-roadmap-cycle-04-double-count.ts"
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/benchmark-voice-transcription.ts"
+      - "shared/finance/voiceTranscription.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionCreate.ts"
+      - "src/services/voiceCaptureService.ts"
+      - "src/pages/finance/capture/RecordedVoiceCapture.tsx"
       - "shared/finance/universalInputIntent.ts"
       - "src/services/universalCaptureOfflineQueue.ts"
       - "src/services/shareTargetService.ts"
@@ -78,6 +85,13 @@ on:
       - "scripts/test-roadmap-cycle-04-double-count.ts"
       - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/benchmark-voice-transcription.ts"
+      - "shared/finance/voiceTranscription.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionCreate.ts"
+      - "src/services/voiceCaptureService.ts"
+      - "src/pages/finance/capture/RecordedVoiceCapture.tsx"
       - "shared/finance/universalInputIntent.ts"
       - "src/services/universalCaptureOfflineQueue.ts"
       - "src/services/shareTargetService.ts"
@@ -165,6 +179,9 @@ jobs:
 
       - name: Verify roadmap cycle 06 universal input
         run: npm run test:roadmap-cycle-06
+
+      - name: Verify roadmap cycle 07 recorded voice capture
+        run: npm run test:roadmap-cycle-07
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
