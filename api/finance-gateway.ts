@@ -83,6 +83,7 @@ import universalEvidencePdfText from '../server/vercel-handlers/finance/universa
 import universalEvidenceClassify from '../server/vercel-handlers/finance/universalEvidenceClassify.js';
 import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
 import universalEvidenceAnalyzeTransaction from '../server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.js';
+import voiceTranscriptionCreate from '../server/vercel-handlers/finance/voiceTranscriptionCreate.js';
 import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
 import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelligenceSignalsDetail.js';
 import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
@@ -197,6 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'universal-evidence-classify': return universalEvidenceClassify(req, res);
     case 'universal-evidence-review': return universalEvidenceReview(req, res);
     case 'universal-evidence-analyze-transaction': return universalEvidenceAnalyzeTransaction(req, res);
+    case 'voice-transcription-create': return voiceTranscriptionCreate(req, res);
     case 'intelligence-signals-summary': return intelligenceSignalsSummary(req, res);
     case 'intelligence-signals-detail': return intelligenceSignalsDetail(req, res);
     case 'attention-backfill-preview': return attentionBackfillPreview(req, res);
