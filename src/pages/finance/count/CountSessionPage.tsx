@@ -400,6 +400,12 @@ function CountSessionContent() {
       : step === 'count'
         ? copy.entryDescriptions[activeType]
         : copy.reviewBody;
+  const stepProgress =
+    language === 'EN'
+      ? `Step ${stepNumber} of 3`
+      : language === 'ES'
+        ? `Paso ${stepNumber} de 3`
+        : `Passo ${stepNumber} de 3`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-28 md:pb-8">
@@ -428,6 +434,7 @@ function CountSessionContent() {
             totalSteps={3}
             eyebrow={copy.sessionTitle}
             title={stepTitle}
+            stepLabel={stepProgress}
             description={stepDescription}
           />
 
