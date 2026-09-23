@@ -337,6 +337,7 @@ export default function UniversalCapturePage() {
         await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
         return;
       }
+      await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
       await analyzeAccepted(item, result.evidenceId, result.version);
     } catch (error: any) {
       const code = String(error?.code || error?.message || '');
