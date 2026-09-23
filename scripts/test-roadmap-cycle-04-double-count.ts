@@ -21,6 +21,7 @@ const startJourney = read('src/pages/finance/count/CountStartJourney.tsx');
 const routes = read('src/app/router/routes.ts');
 const router = read('src/app/router/index.tsx');
 const gateway = read('api/finance-gateway.ts');
+const firestoreRules = read('firestore.rules');
 
 const comparison = compareCountEntries(
   [
@@ -42,7 +43,7 @@ const comparison = compareCountEntries(
 );
 
 assert.equal(comparison.matched, false);
-assert.equal(comparison.totalDeltaCents, -5000);
+assert.equal(comparison.totalDeltaCents, -10000);
 const titheDifference = comparison.differences.find((item) => item.type === 'tithe');
 assert.ok(titheDifference);
 assert.equal(titheDifference?.countAMethod, 'denominations');
@@ -132,6 +133,10 @@ assert.ok(!panels.includes('text-[11px]'));
 
 assert.ok(gateway.includes('count-sessions-join-second-count'));
 assert.ok(gateway.includes('count-sessions-refresh-second-invite'));
+
+assert.ok(firestoreRules.includes("'financeEntities'"));
+assert.ok(firestoreRules.includes('function isServerOnlyFinanceCollection'));
+assert.ok(firestoreRules.includes('!isServerOnlyFinanceCollection(app)'));
 
 for (const source of [joinPage, gate, panels, joinSecond, refreshInvite, submitSecond]) {
   assert.ok(!source.includes('approve-for-posting'));
