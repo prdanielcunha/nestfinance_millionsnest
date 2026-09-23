@@ -124,6 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           secondCountAssignedToUid: uid,
           secondCountAssignedToLabel: actorLabel,
           secondCountAssignedAt: FieldValue.serverTimestamp(),
+          secondCountInviteCode: FieldValue.delete(),
           updatedByUid: uid,
           version: nextVersion,
           updatedAt: FieldValue.serverTimestamp(),
