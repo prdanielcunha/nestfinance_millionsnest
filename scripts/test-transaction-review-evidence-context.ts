@@ -138,8 +138,9 @@ verify(
 );
 verify(
   'AI-assisted evidence differences do not enter approval blocking',
-  detail.includes('const approvalDisabled = reviewBlocked || actionState !== null;') &&
-    !detail.includes('approvalDisabled = reviewBlocked || evidence'),
+  detail.includes('const approvalDisabled = reviewBlocked || actionState !== null || !online;') &&
+    !detail.includes('approvalDisabled = reviewBlocked || evidence') &&
+    !detail.includes('approvalDisabled = reviewBlocked || analysis'),
 );
 verify(
   'preview object URLs are revoked on close and cleanup',
