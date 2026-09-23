@@ -354,7 +354,7 @@ export function CountBlindWorkspace({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-text-primary">{copy.entryLabels[type]}</p>
-                              {existing ? <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-[11px] font-semibold text-semantic-success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />{copy.counted}</span> : null}
+                              {existing ? <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-xs font-semibold text-semantic-success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />{copy.counted}</span> : null}
                             </div>
                             <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.entryDescriptions[type]}</p>
                             {existing ? <p className="mt-3 text-lg font-semibold tabular-nums text-text-primary">{formatReviewMoney(existing.totalCents, language, 'BRL')}</p> : null}
