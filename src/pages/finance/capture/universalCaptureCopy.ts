@@ -1,6 +1,6 @@
 import type { Language } from '@/src/contexts/LanguageContext';
 
-export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = {
+export const UNIVERSAL_CAPTURE_COPY = {
   PT: {
     title: 'Capturar',
     subtitle: 'Envie um comprovante ou documento financeiro.',
@@ -51,6 +51,12 @@ export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = 
     preservedAfterAnalysisError: 'O original foi salvo com segurança. Você pode abrir o Inbox ou tentar a análise novamente.',
     openInbox: 'Abrir Inbox',
     privacyBatch: 'A IA apenas prepara sugestões. Nenhum documento é lançado, aprovado ou contabilizado automaticamente.',
+    offlineQueued: 'Sem internet. Os arquivos ficaram guardados neste aparelho e poderão ser enviados quando a conexão voltar.',
+    restoredOffline: 'Retomamos arquivos que estavam guardados neste aparelho.',
+    intentPrefix: 'Entendi como',
+    intentWrong: 'Entendeu errado?',
+    intentClose: 'Fechar correção',
+    intentLabels: { receipt: 'Recibo', payment_proof: 'Comprovante de pagamento', invoice: 'Nota ou fatura', bank_statement: 'Extrato bancário', tax_document: 'Documento de imposto', other: 'Outro documento' },
   },
   EN: {
     title: 'Capture',
@@ -102,6 +108,12 @@ export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = 
     preservedAfterAnalysisError: 'The original was saved safely. You can open Inbox or retry the analysis.',
     openInbox: 'Open Inbox',
     privacyBatch: 'AI only prepares suggestions. No document is posted, approved, or accounted for automatically.',
+    offlineQueued: 'You are offline. Files are saved on this device and can be sent when the connection returns.',
+    restoredOffline: 'We restored files that were saved on this device.',
+    intentPrefix: 'I understood this as',
+    intentWrong: 'Did I get it wrong?',
+    intentClose: 'Close correction',
+    intentLabels: { receipt: 'Receipt', payment_proof: 'Payment proof', invoice: 'Invoice or bill', bank_statement: 'Bank statement', tax_document: 'Tax document', other: 'Other document' },
   },
   ES: {
     title: 'Capturar',
@@ -153,5 +165,11 @@ export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = 
     preservedAfterAnalysisError: 'El original fue guardado de forma segura. Puedes abrir el Inbox o intentar el análisis nuevamente.',
     openInbox: 'Abrir Inbox',
     privacyBatch: 'La IA solo prepara sugerencias. Ningún documento se contabiliza, aprueba o registra automáticamente.',
+    offlineQueued: 'Estás sin internet. Los archivos quedaron guardados en este dispositivo y podrán enviarse cuando vuelva la conexión.',
+    restoredOffline: 'Retomamos archivos guardados en este dispositivo.',
+    intentPrefix: 'Entendí esto como',
+    intentWrong: '¿Entendió mal?',
+    intentClose: 'Cerrar corrección',
+    intentLabels: { receipt: 'Recibo', payment_proof: 'Comprobante de pago', invoice: 'Factura', bank_statement: 'Extracto bancario', tax_document: 'Documento fiscal', other: 'Otro documento' },
   },
-};
+} as const satisfies Record<Language, Record<string, string | Record<string, string>>>;

@@ -52,6 +52,7 @@ export type TransactionReviewDetailCopy = {
   decisionTitle: string;
   decisionBody: string;
   noBalanceChange: string;
+  offlineApproval: string;
   approveButton: string;
   approving: string;
   approveConfirmTitle: string;
@@ -135,6 +136,7 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     decisionTitle: 'Sua decisão',
     decisionBody: 'Aprovar confirma esta segunda conferência e envia a movimentação para o próximo passo controlado.',
     noBalanceChange: 'Esta ação não lança a movimentação e não altera saldos.',
+    offlineApproval: 'A aprovação fica bloqueada sem internet para que o servidor revalide a decisão antes de registrá-la.',
     approveButton: 'Aprovar conferência',
     approving: 'Aprovando...',
     approveConfirmTitle: 'Confirmar conferência',
@@ -238,6 +240,7 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     decisionTitle: 'Your decision',
     decisionBody: 'Approval confirms this second review and sends the transaction to the next controlled step.',
     noBalanceChange: 'This action does not post the transaction or change balances.',
+    offlineApproval: 'Approval is blocked while offline so the server can revalidate the decision before recording it.',
     approveButton: 'Approve review',
     approving: 'Approving...',
     approveConfirmTitle: 'Confirm review',
@@ -341,6 +344,7 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     decisionTitle: 'Tu decisión',
     decisionBody: 'Aprobar confirma esta segunda revisión y envía el movimiento al siguiente paso controlado.',
     noBalanceChange: 'Esta acción no registra el movimiento ni modifica saldos.',
+    offlineApproval: 'La aprobación queda bloqueada sin internet para que el servidor revalide la decisión antes de registrarla.',
     approveButton: 'Aprobar revisión',
     approving: 'Aprobando...',
     approveConfirmTitle: 'Confirmar revisión',
