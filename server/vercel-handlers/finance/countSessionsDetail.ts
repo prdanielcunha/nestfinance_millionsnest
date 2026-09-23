@@ -12,7 +12,12 @@ function serializeCount(value: any) {
     entries: Array.isArray(value.entries) ? value.entries : [],
     totalCents: Number(value.totalCents || 0),
     countedByUid: value.countedByUid || null,
+    countedByLabel: value.countedByLabel || null,
     enteredByUid: value.enteredByUid || null,
+    enteredByLabel: value.enteredByLabel || null,
+    source: value.source || null,
+    sourceProvenance: value.sourceProvenance || null,
+    sourceCaptureId: value.sourceCaptureId || null,
     savedAt: toIso(value.savedAt),
     sealedAt: toIso(value.sealedAt),
   };
@@ -38,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { countSessionId } = req.body || {};
     if (!isValidCountSessionId(countSessionId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, organizationId, financeEntityId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, financeEntityId } = await resolveFinanceRequestContext(req, 'finance.view');
     const snapshot = await db
       .collection('organizations')
       .doc(organizationId)
@@ -65,6 +70,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       materialHidden,
       recountAttemptCount: Array.isArray(data.recountAttempts) ? data.recountAttempts.length : 0,
       activeRecountAttemptNumber: data.status === 'recounting' ? Number(data.activeRecount?.attemptNumber || 0) : null,
+      firstCounterUid: data.countA?.countedByUid || null,
+      firstCounterLabel: data.countA?.countedByLabel || null,
+      secondCountStartedByUid: data.secondCountStartedByUid || null,
+      secondCountStartedByLabel: data.secondCountStartedByLabel || null,
+      secondCountStartedAt: toIso(data.secondCountStartedAt),
+      secondCountAssignedToUid: data.secondCountAssignedToUid || null,
+      secondCountAssignedToLabel: data.secondCountAssignedToLabel || null,
+      secondCountAssignedAt: toIso(data.secondCountAssignedAt),
+      secondCountInviteRequired: data.secondCountInviteRequired === true,
+      secondCountInviteExpiresAt: toIso(data.secondCountInviteExpiresAt),
+      secondCountJoinCode:
+        data.status === 'counting_b' && data.secondCountStartedByUid === uid
+          ? data.secondCountInviteCode || null
+          : null,
     };
 
     if (materialHidden) {
@@ -86,7 +105,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             entries: Array.isArray(attempt.entries) ? attempt.entries : [],
             totalCents: Number(attempt.totalCents || 0),
             countedByUid: attempt.countedByUid || null,
+            countedByLabel: attempt.countedByLabel || null,
             enteredByUid: attempt.enteredByUid || null,
+            enteredByLabel: attempt.enteredByLabel || null,
             sealedAt: toIso(attempt.sealedAt),
             matchesA: attempt.matchesA === true,
             matchesB: attempt.matchesB === true,
