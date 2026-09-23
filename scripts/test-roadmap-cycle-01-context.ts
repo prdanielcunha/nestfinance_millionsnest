@@ -39,6 +39,7 @@ const vercel = read('vercel.json');
 
 verify('Today delegates missing context to canonical selector', today.includes('<FinanceEntitySelectionState canManageFinance={canManageFinance} />'));
 verify('Today no longer calls the management entity list', !today.includes('/api/finance/entities/list'));
+verify('Today readiness is bound to the active entity', today.includes('loadedFinanceEntityId !== activeFinanceEntityId') && today.includes('setLoadedFinanceEntityId(null)'));
 verify('selector uses server-scoped accessible entities', selector.includes('accessibleFinanceEntities'));
 verify('selector configures entities through the correct route', selector.includes('APP_ROUTES.financeSettingsEntities'));
 verify('selector delays skeleton until 600ms', selector.includes('setTimeout(() => setShowSkeleton(true), 600)'));
