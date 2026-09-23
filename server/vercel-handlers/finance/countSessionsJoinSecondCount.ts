@@ -90,8 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (session.secondCountInviteCodeHash !== codeHash) throw new Error('COUNT_JOIN_CODE_NOT_FOUND');
         if (
           session.policySnapshot?.requireIndependentCounter !== false &&
-          session.countA?.countedByUid &&
-          session.countA.countedByUid === uid
+          (session.countA?.countedByUid || session.countA?.enteredByUid) &&
+          (session.countA?.countedByUid || session.countA?.enteredByUid) === uid
         ) {
           throw new Error('COUNT_INDEPENDENT_COUNTER_REQUIRED');
         }
