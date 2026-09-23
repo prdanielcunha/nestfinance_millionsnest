@@ -95,9 +95,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { query, filters = {}, limit: requestedLimit = 50 } = req.body || {};
     const normalizedQuery = normalizeTransactionSearchQuery(query);
-    if (!normalizedQuery) {
-      return res.status(400).json({ error: 'INVALID_SEARCH_QUERY' });
-    }
 
     const direction =
       typeof filters.direction === 'string' && filters.direction
@@ -110,6 +107,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const order = filters.order === 'oldest' ? 'oldest' : 'newest';
     const occurredFrom = normalizeOptionalDate(filters.occurredFrom);
     const occurredTo = normalizeOptionalDate(filters.occurredTo);
+    const amountMinCents =
+      filters.amountMinCents === undefined || filters.amountMinCents === null || filters.amountMinCents === ''
+        ? null
+        : Number(filters.amountMinCents);
+    const amountMaxCents =
+      filters.amountMaxCents === undefined || filters.amountMaxCents === null || filters.amountMaxCents === ''
+        ? null
+        : Number(filters.amountMaxCents);
+    const hasStructuredFilter =
+      direction !== 'all' ||
+      status !== 'all' ||
+      Boolean(occurredFrom) ||
+      Boolean(occurredTo) ||
+      amountMinCents !== null ||
+      amountMaxCents !== null;
+    if (!normalizedQuery && !hasStructuredFilter) {
+      return res.status(400).json({ error: 'INVALID_SEARCH_QUERY' });
+    }
 
     if (
       !(TRANSACTION_WORKSPACE_DIRECTIONS as readonly string[]).includes(direction) ||
@@ -119,6 +134,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (occurredFrom === undefined || occurredTo === undefined) {
       return res.status(400).json({ error: 'INVALID_SEARCH_DATE_FILTER' });
+    }
+    if (
+      (amountMinCents !== null && (!Number.isSafeInteger(amountMinCents) || amountMinCents < 0)) ||
+      (amountMaxCents !== null && (!Number.isSafeInteger(amountMaxCents) || amountMaxCents < 0)) ||
+      (amountMinCents !== null && amountMaxCents !== null && amountMinCents > amountMaxCents)
+    ) {
+      return res.status(400).json({ error: 'INVALID_SEARCH_AMOUNT_FILTER' });
     }
     if (
       occurredFrom &&
@@ -159,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sourceTruncated = false;
     let searchMode: 'index' | 'canonical_fallback' = 'canonical_fallback';
 
-    if (indexCertified) {
+    if (indexCertified && normalizedQuery) {
       searchMode = 'index';
       const indexSnapshot = await getTransactionSearchIndexRef(
         db,
@@ -203,16 +225,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (direction !== 'all' && txDirection !== direction) return false;
         if (status !== 'all' && data.status !== status) return false;
 
+        const amountCents = Number(data.amountCents);
+        if (amountMinCents !== null && (!Number.isSafeInteger(amountCents) || amountCents < amountMinCents)) return false;
+        if (amountMaxCents !== null && (!Number.isSafeInteger(amountCents) || amountCents > amountMaxCents)) return false;
+
         const occurredAt = toIso(data.occurredAt);
         if (!occurredAt) return false;
         const occurredMs = Date.parse(occurredAt);
         if (fromMs !== null && occurredMs < fromMs) return false;
         if (toMs !== null && occurredMs > toMs) return false;
 
-        return transactionMatchesSearchQuery(
-          { ...data, id: doc.id, transactionId: doc.id },
-          normalizedQuery.normalized,
-        );
+        return normalizedQuery
+          ? transactionMatchesSearchQuery(
+              { ...data, id: doc.id, transactionId: doc.id },
+              normalizedQuery.normalized,
+            )
+          : true;
       })
       .sort((left, right) => {
         const leftMs = Date.parse(toIso(left.data()?.occurredAt) || '') || 0;
@@ -284,7 +312,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       items,
-      query: normalizedQuery.normalized,
+      query: normalizedQuery?.normalized || '',
       searchMode,
       indexCertified,
       sourceTruncated,
