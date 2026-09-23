@@ -58,6 +58,13 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
   // Finance mutations/reads must reject revoked Firebase sessions, matching auth/session/resolve.
   const decodedToken = await admin.auth.verifyIdToken(token, true);
   const uid = decodedToken.uid;
+  const rawActorLabel =
+    typeof decodedToken.name === 'string' && decodedToken.name.trim()
+      ? decodedToken.name.trim()
+      : typeof decodedToken.email === 'string' && decodedToken.email.trim()
+        ? decodedToken.email.split('@')[0]
+        : uid;
+  const actorLabel = rawActorLabel.slice(0, 120);
   const handoff = resolveHandoffBinding(decodedToken as Record<string, unknown>);
 
   // Handoff token organization is canonical. Header remains only for compatibility/consistency checking.
@@ -98,7 +105,7 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     capability: requiredCapability
   });
 
-  return { admin, db, uid, organizationId, financeEntityId, sessionList, context };
+  return { admin, db, uid, actorLabel, organizationId, financeEntityId, sessionList, context };
 }
 
 function canonicalPermissions(sessionList: any): string[] {

@@ -53,6 +53,8 @@ import countSessionsCreate from '../server/vercel-handlers/finance/countSessions
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
 import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
+import countSessionsRefreshSecondInvite from '../server/vercel-handlers/finance/countSessionsRefreshSecondInvite.js';
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
@@ -163,6 +165,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-detail': return countSessionsDetail(req, res);
     case 'count-sessions-save-first-count': return countSessionsSaveFirstCount(req, res);
     case 'count-sessions-start-second-count': return countSessionsStartSecondCount(req, res);
+    case 'count-sessions-join-second-count': return countSessionsJoinSecondCount(req, res);
+    case 'count-sessions-refresh-second-invite': return countSessionsRefreshSecondInvite(req, res);
     case 'count-sessions-submit-second-count': return countSessionsSubmitSecondCount(req, res);
     case 'count-sessions-start-recount': return countSessionsStartRecount(req, res);
     case 'count-sessions-submit-recount': return countSessionsSubmitRecount(req, res);

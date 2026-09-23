@@ -5,6 +5,7 @@ import countSessionsCreate from '../server/vercel-handlers/finance/countSessions
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
 import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
@@ -48,17 +49,21 @@ async function run() {
   const orgId = `org_count_${crypto.randomBytes(4).toString('hex')}`;
   const entityA = `ent_a_${crypto.randomBytes(4).toString('hex')}`;
   const entityB = `ent_b_${crypto.randomBytes(4).toString('hex')}`;
-  const uid = `usr_count_${crypto.randomBytes(4).toString('hex')}`;
+  const uidA = `usr_count_a_${crypto.randomBytes(4).toString('hex')}`;
+  const uidB = `usr_count_b_${crypto.randomBytes(4).toString('hex')}`;
 
   await db.collection('organizations').doc(orgId).set({ name: 'Count Emulator Org', status: 'active' });
-  await db.collection('users').doc(uid).set({ displayName: 'Count Emulator User', systemRole: 'ceo' });
+  await db.collection('users').doc(uidA).set({ displayName: 'Count Emulator A', systemRole: 'ceo' });
+  await db.collection('users').doc(uidB).set({ displayName: 'Count Emulator B', systemRole: 'ceo' });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityA).set({ name: 'Entity A', active: true });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityB).set({ name: 'Entity B', active: true });
 
   const originalVerify = admin.auth.verifyIdToken;
+  let activeUid = uidA;
   admin.auth.verifyIdToken = async () => ({
-    uid,
-    email: `${uid}@test.com`,
+    uid: activeUid,
+    name: activeUid === uidA ? 'Count Emulator A' : 'Count Emulator B',
+    email: `${activeUid}@test.com`,
     mn_app_id: 'nestfinance',
     mn_handoff_version: 1,
     mn_organization_id: orgId,
@@ -113,7 +118,12 @@ async function run() {
     const sessionDoc = await sessionRef.get();
     verify(sessionDoc.exists, 'Count session persisted below the requested finance entity');
     verify(sessionDoc.data()?.policySnapshot?.doubleCountRequired === true, 'session snapshot requires second count by safe default');
-    verify(sessionDoc.data()?.policySnapshot?.source === 'safe_default_v1', 'session stores explicit safe-default policy source');
+    verify(
+      sessionDoc.data()?.policySnapshot?.source === 'safe_default_v2' &&
+        sessionDoc.data()?.policySnapshot?.policyVersion === 2 &&
+        sessionDoc.data()?.policySnapshot?.requireIndependentCounter === true,
+      'session stores explicit independent-counter safe-default policy',
+    );
 
     const listed = await call(countSessionsList, { financeEntityId: entityA });
     verify(listed.statusCode === 200 && listed.body.items.some((item: any) => item.id === sessionId), 'entity A lists its Count session');
@@ -151,8 +161,8 @@ async function run() {
     const afterSave = await sessionRef.get();
     verify(afterSave.data()?.countA?.entries?.find((entry: any) => entry.type === 'tithe')?.totalCents === 25600, 'server recomputes denomination total instead of trusting client subtotal');
     verify(afterSave.data()?.countA?.totalCents === 44734, 'server computes deterministic first-count grand total');
-    verify(afterSave.data()?.countA?.countedByUid === uid, 'countedByUid is persisted explicitly');
-    verify(afterSave.data()?.countA?.enteredByUid === uid, 'enteredByUid is persisted as a distinct field');
+    verify(afterSave.data()?.countA?.countedByUid === uidA, 'countedByUid is persisted explicitly');
+    verify(afterSave.data()?.countA?.enteredByUid === uidA, 'enteredByUid is persisted as a distinct field');
     verify(afterSave.data()?.status === 'counting_a', 'saving Count A does not close or advance the session');
 
     const retriedSave = await call(countSessionsSaveFirstCount, { ...saveBody, requestId: randomRequest() });
@@ -198,6 +208,43 @@ async function run() {
     });
     verify(crossSecondSubmit.statusCode === 404, 'Count B cannot be submitted through another finance entity');
 
+    const samePersonJoin = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityA,
+      joinCode: secondStarted.body.joinCode,
+      idempotencyKey: randomKey(),
+      requestId: randomRequest(),
+    });
+    verify(
+      samePersonJoin.statusCode === 403 &&
+        samePersonJoin.body.error === 'COUNT_INDEPENDENT_COUNTER_REQUIRED',
+      'first counter cannot assume independent Count B',
+    );
+
+    activeUid = uidB;
+    const joinedSecond = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityA,
+      joinCode: secondStarted.body.joinCode,
+      idempotencyKey: randomKey(),
+      requestId: randomRequest(),
+    });
+    verify(
+      joinedSecond.statusCode === 200 &&
+        joinedSecond.body.version === 4 &&
+        joinedSecond.body.countSessionId === sessionId,
+      'verified second identity assumes blind Count B through the invite',
+    );
+
+    const assignedBlindDetail = await call(countSessionsDetail, {
+      financeEntityId: entityA,
+      countSessionId: sessionId,
+    });
+    verify(
+      assignedBlindDetail.body.session.materialHidden === true &&
+        assignedBlindDetail.body.session.currentUserIsSecondCounter === true &&
+        assignedBlindDetail.body.session.countA === null,
+      'assigned second counter remains blind while identity is server-bound',
+    );
+
     const secondKey = randomKey();
     const secondEntries = [
       { type: 'tithe', method: 'total', totalCents: 25600 },
@@ -207,13 +254,13 @@ async function run() {
     const secondBody = {
       financeEntityId: entityA,
       countSessionId: sessionId,
-      expectedVersion: 3,
+      expectedVersion: 4,
       entries: secondEntries,
       idempotencyKey: secondKey,
       requestId: randomRequest(),
     };
     const secondSealed = await call(countSessionsSubmitSecondCount, secondBody);
-    verify(secondSealed.statusCode === 200 && secondSealed.body.version === 4 && secondSealed.body.status === 'divergent' && secondSealed.body.matched === false, 'Count B seal compares and records divergent state');
+    verify(secondSealed.statusCode === 200 && secondSealed.body.version === 5 && secondSealed.body.status === 'divergent' && secondSealed.body.matched === false, 'Count B seal compares and records divergent state');
     verify(secondSealed.body.comparison === undefined && secondSealed.body.totalCents === undefined && secondSealed.body.entries === undefined, 'second-count mutation response keeps idempotency cache free of A/B material');
     const divergenceSignalId = buildFinanceSignalId({
       organizationId: orgId,
@@ -232,7 +279,7 @@ async function run() {
     );
     const divergenceOpenedAt = openDivergenceSignal?.openedAt?.toMillis?.();
     const secondRetry = await call(countSessionsSubmitSecondCount, { ...secondBody, requestId: randomRequest() });
-    verify(secondRetry.statusCode === 200 && secondRetry.body.version === 4 && secondRetry.body.status === 'divergent' && secondRetry.body.comparison === undefined, 'ambiguous Count B retry remains material-free');
+    verify(secondRetry.statusCode === 200 && secondRetry.body.version === 5 && secondRetry.body.status === 'divergent' && secondRetry.body.comparison === undefined, 'ambiguous Count B retry remains material-free');
 
     const divergentDetail = await call(countSessionsDetail, { financeEntityId: entityA, countSessionId: sessionId });
     verify(divergentDetail.body.session.materialHidden === false && divergentDetail.body.session.countA?.totalCents === 44734 && divergentDetail.body.session.countB?.totalCents === 44834, 'sealed divergent detail may reveal both preserved counts');
@@ -242,14 +289,14 @@ async function run() {
     const recountStartBody = {
       financeEntityId: entityA,
       countSessionId: sessionId,
-      expectedVersion: 4,
+      expectedVersion: 5,
       idempotencyKey: recountStartKey,
       requestId: randomRequest(),
     };
     const recountStarted = await call(countSessionsStartRecount, recountStartBody);
-    verify(recountStarted.statusCode === 200 && recountStarted.body.version === 5 && recountStarted.body.status === 'recounting' && recountStarted.body.attemptNumber === 1, 'divergence starts a numbered blind recount');
+    verify(recountStarted.statusCode === 200 && recountStarted.body.version === 6 && recountStarted.body.status === 'recounting' && recountStarted.body.attemptNumber === 1, 'divergence starts a numbered blind recount');
     const recountStartRetry = await call(countSessionsStartRecount, { ...recountStartBody, requestId: randomRequest() });
-    verify(recountStartRetry.statusCode === 200 && recountStartRetry.body.version === 5 && recountStartRetry.body.attemptNumber === 1, 'recount start is idempotent');
+    verify(recountStartRetry.statusCode === 200 && recountStartRetry.body.version === 6 && recountStartRetry.body.attemptNumber === 1, 'recount start is idempotent');
 
     const blindSecondReplay = await call(countSessionsSubmitSecondCount, { ...secondBody, requestId: randomRequest() });
     verify(blindSecondReplay.statusCode === 200 && blindSecondReplay.body.comparison === undefined && blindSecondReplay.body.totalCents === undefined && blindSecondReplay.body.entries === undefined, 'replaying sealed Count B during blind recount cannot recover prior comparison material');
@@ -262,7 +309,7 @@ async function run() {
     const recountBody = {
       financeEntityId: entityA,
       countSessionId: sessionId,
-      expectedVersion: 5,
+      expectedVersion: 6,
       entries: [
         { type: 'tithe', method: 'total', totalCents: 25600 },
         { type: 'offering', method: 'total', totalCents: 12345 },
@@ -272,9 +319,9 @@ async function run() {
       requestId: randomRequest(),
     };
     const recountSealed = await call(countSessionsSubmitRecount, recountBody);
-    verify(recountSealed.statusCode === 200 && recountSealed.body.version === 6 && recountSealed.body.status === 'matched' && recountSealed.body.resolvedBy === 'recount_matches_a', 'recount resolves only when it matches preserved Count A or B');
+    verify(recountSealed.statusCode === 200 && recountSealed.body.version === 7 && recountSealed.body.status === 'matched' && recountSealed.body.resolvedBy === 'recount_matches_a', 'recount resolves only when it matches preserved Count A or B');
     const recountRetry = await call(countSessionsSubmitRecount, { ...recountBody, requestId: randomRequest() });
-    verify(recountRetry.statusCode === 200 && recountRetry.body.version === 6 && recountRetry.body.resolvedBy === 'recount_matches_a', 'sealed recount retry is idempotent');
+    verify(recountRetry.statusCode === 200 && recountRetry.body.version === 7 && recountRetry.body.resolvedBy === 'recount_matches_a', 'sealed recount retry is idempotent');
     const resolvedDivergenceSignal = (await db.collection('intelligenceSignals').doc(divergenceSignalId).get()).data();
     verify(
       resolvedDivergenceSignal?.status === 'resolved' &&
@@ -307,7 +354,7 @@ async function run() {
     const auditByAction = new Map(audits.docs.map((doc: any) => [doc.data()?.action, doc.data()]));
     const actions = [...auditByAction.keys()];
     verify(
-      ['count.session_created', 'count.first_count_saved', 'count.second_count_started', 'count.second_count_sealed', 'count.recount_started', 'count.recount_sealed'].every((action) => actions.includes(action)),
+      ['count.session_created', 'count.first_count_saved', 'count.second_count_started', 'count.second_counter_joined', 'count.second_count_sealed', 'count.recount_started', 'count.recount_sealed'].every((action) => actions.includes(action)),
       'Count H1/H2 transitions are auditable',
     );
     const firstAuditMetadata = auditByAction.get('count.first_count_saved')?.metadata || {};
@@ -320,9 +367,9 @@ async function run() {
       .map((doc: any) => doc.data())
       .filter((fact: any) => fact.organizationId === orgId && fact.entityType === 'count_session' && fact.entityId === sessionId);
     const factTypes = countFacts.map((fact: any) => fact.eventType);
-    verify(countFacts.length === 6, 'Count lifecycle emits one canonical fact per committed business transition despite retries');
+    verify(countFacts.length === 7, 'Count lifecycle emits one canonical fact per committed business transition despite retries');
     verify(factTypes.filter((type: string) => type === 'COUNT_OPENED').length === 1, 'Count lifecycle preserves a single COUNT_OPENED fact');
-    verify(factTypes.filter((type: string) => type === 'COUNT_UPDATED').length === 3, 'Count lifecycle records first-save, second-check start and recount start as progress facts');
+    verify(factTypes.filter((type: string) => type === 'COUNT_UPDATED').length === 4, 'Count lifecycle records first-save, second-check start, verified second-counter join and recount start as progress facts');
     verify(factTypes.filter((type: string) => type === 'COUNT_DIVERGENCE_FOUND').length === 1, 'Count divergence becomes a canonical attention fact');
     verify(factTypes.filter((type: string) => type === 'COUNT_COMPLETED').length === 1, 'resolved recount becomes a canonical completion fact');
 
@@ -343,7 +390,7 @@ async function run() {
     );
     verify(
       Array.isArray(divergenceFact?.sourceRefs) &&
-        divergenceFact.sourceRefs.some((source: any) => source.kind === 'record' && source.version === 4) &&
+        divergenceFact.sourceRefs.some((source: any) => source.kind === 'record' && source.version === 5) &&
         divergenceFact.sourceRefs.some((source: any) => source.kind === 'audit'),
       'divergence fact remains traceable to the authoritative Count record and audit event',
     );

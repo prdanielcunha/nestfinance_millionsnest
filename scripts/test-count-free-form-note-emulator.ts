@@ -6,6 +6,7 @@ import countFreeFormCapturesExtractCandidates from '../server/vercel-handlers/fi
 import countCapturesSaveReview from '../server/vercel-handlers/finance/countCapturesSaveReview.js';
 import countCapturesApplyToCount from '../server/vercel-handlers/finance/countCapturesApplyToCount.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
 
 class MockRes {
   statusCode = 200;
@@ -30,11 +31,13 @@ async function run() {
   const orgId = 'org_freeform_' + suffix;
   const entityId = 'fent_freeform_' + suffix;
   const otherEntityId = 'fent_freeform_other_' + suffix;
-  const uid = 'usr_freeform_' + suffix;
+  const uidA = 'usr_freeform_a_' + suffix;
+  const uidB = 'usr_freeform_b_' + suffix;
   const sessionId = 'cnt_' + crypto.randomBytes(12).toString('hex');
 
   await db.collection('organizations').doc(orgId).set({ name: 'Free Form Test', status: 'active' });
-  await db.collection('users').doc(uid).set({ displayName: 'Count Tester', systemRole: 'ceo' });
+  await db.collection('users').doc(uidA).set({ displayName: 'Count Tester A', systemRole: 'ceo' });
+  await db.collection('users').doc(uidB).set({ displayName: 'Count Tester B', systemRole: 'ceo' });
   const entityRef = db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityId);
   await entityRef.set({ id: entityId, organizationId: orgId, displayName: 'Church A', active: true });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(otherEntityId).set({
@@ -50,7 +53,7 @@ async function run() {
     status: 'counting_a',
     policySnapshot: { doubleCountRequired: true, policyVersion: 1, source: 'test' },
     version: 1,
-    createdByUid: uid,
+    createdByUid: uidA,
   });
 
   const objects = new Map<string, { bytes: Buffer; contentType: string }>();
@@ -84,7 +87,16 @@ async function run() {
   };
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, email: uid + '@test.com', mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
+  let activeUid = uidA;
+  admin.auth.verifyIdToken = async () => ({
+    uid: activeUid,
+    name: activeUid === uidA ? 'Count Tester A' : 'Count Tester B',
+    email: activeUid + '@test.com',
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
+    mn_organization_id: orgId,
+    mn_session_version: 1,
+  }) as any;
 
   const call = async (handler: any, body: any) => {
     const req = {
@@ -210,6 +222,29 @@ async function run() {
       requestId: token('req'),
     });
     verify(startB.statusCode === 200 && startB.body.status === 'counting_b', 'canonical blind Count B starts normally');
+
+    const samePersonJoin = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityId,
+      joinCode: startB.body.joinCode,
+      idempotencyKey: token('idem'),
+      requestId: token('req'),
+    });
+    verify(
+      samePersonJoin.statusCode === 403 && samePersonJoin.body.error === 'COUNT_INDEPENDENT_COUNTER_REQUIRED',
+      'first free-form counter cannot assume blind Count B',
+    );
+
+    activeUid = uidB;
+    const joined = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityId,
+      joinCode: startB.body.joinCode,
+      idempotencyKey: token('idem'),
+      requestId: token('req'),
+    });
+    verify(
+      joined.statusCode === 200 && joined.body.countSessionId === sessionId,
+      'second free-form counter assumes Count B through the invite',
+    );
 
     const second = await makeCapture('count_b');
     const applyB = await call(countCapturesApplyToCount, {

@@ -36,6 +36,7 @@ import {
 } from '@/shared/finance/count';
 import { COUNT_COPY } from './countCopy';
 import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
+import { CountSecondCounterGate } from './CountSecondCounterGate';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
 
 const AUTOSAVE_COPY = {
@@ -605,7 +606,35 @@ function CountSessionContent() {
     );
   }
 
-  if (session.status === 'counting_b' || session.status === 'recounting') {
+  if (session.status === 'counting_b') {
+    const assignedToCurrentUser =
+      !session.secondCountInviteRequired ||
+      session.currentUserIsSecondCounter === true;
+
+    if (!assignedToCurrentUser) {
+      return (
+        <CountSecondCounterGate
+          session={session}
+          organizationId={organizationId}
+          financeEntityId={activeFinanceEntityId || ''}
+          canEdit={canEdit}
+          onReload={() => loadSession()}
+        />
+      );
+    }
+
+    return (
+      <CountBlindWorkspace
+        session={session}
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId || ''}
+        canEdit={canEdit}
+        onReload={() => loadSession()}
+      />
+    );
+  }
+
+  if (session.status === 'recounting') {
     return (
       <CountBlindWorkspace
         session={session}

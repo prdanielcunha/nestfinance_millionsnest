@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, Surface } from '@/src/components/foundation';
+import { Button, FlowFeedback, Surface } from '@/src/components/foundation';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { countService, type CountSessionDetail } from '@/src/services/countService';
@@ -44,6 +44,79 @@ type BlindProps = {
 
 type ResultProps = BlindProps;
 
+const RESULT_COPY = {
+  PT: {
+    responsible: 'Responsável pela segunda contagem',
+    verifiedCounter: 'Segundo contador verificado',
+    matchSentence: (value: string) => `As duas contagens conferem em ${value}.`,
+    divergentSentence: (value: string) => `Existe uma diferença total de ${value}. Veja exatamente onde ela aparece.`,
+    method: 'Método',
+    denominations: 'Cédulas e moedas diferentes',
+    countMethod: 'Total direto',
+    denominationMethod: 'Por cédulas e moedas',
+    evidenceA: 'Ver foto/comprovante da contagem 1',
+    evidenceB: 'Ver foto/comprovante da contagem 2',
+    countedBy: 'Contado por',
+    registeredAt: 'Registrado em',
+    correct: 'Correto',
+    recount: 'Contar novamente',
+    help: 'Pedir ajuda',
+    helpTitle: 'Como resolver sem adivinhar',
+    helpBody: 'Não escolha um valor no escuro. Faça uma nova contagem independente; se a diferença continuar, confira as fotos/comprovantes e peça ao responsável financeiro para revisar a evidência.',
+    closeHelp: 'Fechar ajuda',
+  },
+  EN: {
+    responsible: 'Second-count owner',
+    verifiedCounter: 'Verified second counter',
+    matchSentence: (value: string) => `Both counts match at ${value}.`,
+    divergentSentence: (value: string) => `There is a total difference of ${value}. See exactly where it appears.`,
+    method: 'Method',
+    denominations: 'Different notes and coins',
+    countMethod: 'Direct total',
+    denominationMethod: 'By notes and coins',
+    evidenceA: 'View photo/evidence for count 1',
+    evidenceB: 'View photo/evidence for count 2',
+    countedBy: 'Counted by',
+    registeredAt: 'Recorded at',
+    correct: 'Correct',
+    recount: 'Count again',
+    help: 'Ask for help',
+    helpTitle: 'Resolve it without guessing',
+    helpBody: 'Do not choose a value blindly. Run another independent count; if the difference remains, review the photos/evidence and ask the finance owner to inspect it.',
+    closeHelp: 'Close help',
+  },
+  ES: {
+    responsible: 'Responsable del segundo conteo',
+    verifiedCounter: 'Segundo contador verificado',
+    matchSentence: (value: string) => `Los dos conteos coinciden en ${value}.`,
+    divergentSentence: (value: string) => `Existe una diferencia total de ${value}. Mira exactamente dónde aparece.`,
+    method: 'Método',
+    denominations: 'Billetes y monedas diferentes',
+    countMethod: 'Total directo',
+    denominationMethod: 'Por billetes y monedas',
+    evidenceA: 'Ver foto/comprobante del conteo 1',
+    evidenceB: 'Ver foto/comprobante del conteo 2',
+    countedBy: 'Contado por',
+    registeredAt: 'Registrado en',
+    correct: 'Correcto',
+    recount: 'Contar de nuevo',
+    help: 'Pedir ayuda',
+    helpTitle: 'Cómo resolver sin adivinar',
+    helpBody: 'No elijas un valor a ciegas. Haz un nuevo conteo independiente; si la diferencia continúa, revisa las fotos/comprobantes y pide al responsable financiero que revise la evidencia.',
+    closeHelp: 'Cerrar ayuda',
+  },
+} as const;
+
+function formatAuditTimestamp(value: string | null | undefined, language: 'PT' | 'EN' | 'ES') {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(
+    language === 'EN' ? 'en-US' : language === 'ES' ? 'es-ES' : 'pt-BR',
+    { dateStyle: 'short', timeStyle: 'short' },
+  ).format(date);
+}
+
 function makeToken(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `${prefix}_${crypto.randomUUID()}`;
@@ -70,6 +143,7 @@ export function CountBlindWorkspace({
   const navigate = useNavigate();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const resultCopy = RESULT_COPY[language];
   const [entries, setEntries] = useState<NormalizedCountEntry[]>([]);
   const [step, setStep] = useState<BlindStep>('choose');
   const [activeType, setActiveType] = useState<CountEntryType>('tithe');
@@ -225,6 +299,17 @@ export function CountBlindWorkspace({
             </div>
           </Surface>
 
+          {!isRecount ? (
+            <Surface variant="secondary" radius="lg" className="p-4">
+              <p className="nf-helper-text font-semibold uppercase tracking-[0.1em] text-text-muted">
+                {resultCopy.responsible}
+              </p>
+              <p className="mt-1 text-base font-semibold text-text-primary">
+                {session.secondCountAssignedToLabel || resultCopy.verifiedCounter}
+              </p>
+            </Surface>
+          ) : null}
+
           {!isRecount && canEdit ? (
             <Button
               variant="secondary"
@@ -269,7 +354,7 @@ export function CountBlindWorkspace({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-text-primary">{copy.entryLabels[type]}</p>
-                              {existing ? <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-[11px] font-semibold text-semantic-success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />{copy.counted}</span> : null}
+                              {existing ? <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-xs font-semibold text-semantic-success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />{copy.counted}</span> : null}
                             </div>
                             <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.entryDescriptions[type]}</p>
                             {existing ? <p className="mt-3 text-lg font-semibold tabular-nums text-text-primary">{formatReviewMoney(existing.totalCents, language, 'BRL')}</p> : null}
@@ -368,11 +453,17 @@ export function CountResultPanel({
   const navigate = useNavigate();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const resultCopy = RESULT_COPY[language];
   const [starting, setStarting] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const attemptRef = useRef<{ identity: string; key: string } | null>(null);
   const matched = session.status === 'matched';
+  const totalDifference = Math.abs(session.comparison?.totalDeltaCents || 0);
+  const resultSentence = matched
+    ? resultCopy.matchSentence(formatReviewMoney(session.countA?.totalCents || 0, language, 'BRL'))
+    : resultCopy.divergentSentence(formatReviewMoney(totalDifference, language, 'BRL'));
 
   const startRecount = async () => {
     if (!canEdit || starting || session.status !== 'divergent') return;
@@ -413,19 +504,148 @@ export function CountResultPanel({
             <div className="flex items-start gap-3">{matched ? <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-semantic-success" aria-hidden="true" /> : <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-semantic-warning" aria-hidden="true" />}<div><h2 className="text-xl font-semibold text-text-primary">{matched ? copy.matchTitle : copy.divergentTitle}</h2><p className="mt-1 text-sm leading-relaxed text-text-muted">{matched ? copy.matchBody : copy.divergentBody}</p><p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noPosting}</p></div></div>
           </Surface>
 
+          <Surface variant="secondary" radius="xl" className="p-5 sm:p-6" role="status" aria-live="polite">
+            <p className="text-lg font-semibold leading-relaxed text-text-primary">{resultSentence}</p>
+          </Surface>
+
           {session.countA && session.countB ? (
             <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
               <h3 className="font-semibold text-text-primary">{copy.comparisonTitle}</h3>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2"><Surface variant="secondary" radius="lg" className="p-4"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.countA}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-text-primary">{formatReviewMoney(session.countA.totalCents, language, 'BRL')}</p></Surface><Surface variant="secondary" radius="lg" className="p-4"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.countB}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-text-primary">{formatReviewMoney(session.countB.totalCents, language, 'BRL')}</p></Surface></div>
-              {!matched && session.comparison?.differences?.length ? <div className="mt-5 divide-y divide-border-subtle rounded-2xl border border-border-subtle">{session.comparison.differences.map((difference) => <div key={difference.type} className="grid grid-cols-[1fr_auto] gap-4 p-4"><div><p className="font-medium text-text-primary">{copy.entryLabels[difference.type]}</p><p className="mt-1 text-xs text-text-muted">{copy.countA}: {formatReviewMoney(difference.countATotalCents, language, 'BRL')} · {copy.countB}: {formatReviewMoney(difference.countBTotalCents, language, 'BRL')}</p></div><p className="text-sm font-semibold tabular-nums text-semantic-warning">{copy.difference}: {formatReviewMoney(Math.abs(difference.deltaCents), language, 'BRL')}</p></div>)}</div> : null}
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {([
+                  [copy.countA, session.countA],
+                  [copy.countB, session.countB],
+                ] as const).map(([label, count]) => (
+                  <Surface key={label} variant="secondary" radius="lg" className="p-4">
+                    <p className="nf-helper-text font-semibold uppercase tracking-[0.1em] text-text-muted">{label}</p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums text-text-primary">
+                      {formatReviewMoney(count.totalCents, language, 'BRL')}
+                    </p>
+                    <p className="mt-3 nf-helper-text text-text-muted">
+                      {resultCopy.countedBy}: {count.countedByLabel || count.enteredByLabel || '—'}
+                    </p>
+                    <p className="mt-1 nf-helper-text text-text-muted">
+                      {resultCopy.registeredAt}: {formatAuditTimestamp(count.sealedAt || count.savedAt, language)}
+                    </p>
+                  </Surface>
+                ))}
+              </div>
+              {!matched && session.comparison?.differences?.length ? (
+                <div className="mt-5 divide-y divide-border-subtle rounded-2xl border border-border-subtle">
+                  {session.comparison.differences.map((difference) => (
+                    <div key={difference.type} className="p-4">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <div>
+                          <p className="font-medium text-text-primary">{copy.entryLabels[difference.type]}</p>
+                          <p className="mt-1 nf-helper-text text-text-muted">
+                            {copy.countA}: {formatReviewMoney(difference.countATotalCents, language, 'BRL')} · {copy.countB}: {formatReviewMoney(difference.countBTotalCents, language, 'BRL')}
+                          </p>
+                          <p className="mt-1 nf-helper-text text-text-muted">
+                            {resultCopy.method}: {difference.countAMethod === 'denominations' ? resultCopy.denominationMethod : resultCopy.countMethod} → {difference.countBMethod === 'denominations' ? resultCopy.denominationMethod : resultCopy.countMethod}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold tabular-nums text-semantic-warning">
+                          {copy.difference}: {formatReviewMoney(Math.abs(difference.deltaCents), language, 'BRL')}
+                        </p>
+                      </div>
+                      {difference.denominationDifferences?.length ? (
+                        <div className="mt-3 rounded-xl bg-surface-secondary p-3">
+                          <p className="nf-helper-text font-semibold text-text-secondary">{resultCopy.denominations}</p>
+                          <div className="mt-2 grid gap-1">
+                            {difference.denominationDifferences.map((item) => (
+                              <p key={item.denominationCents} className="nf-helper-text tabular-nums text-text-muted">
+                                {formatReviewMoney(item.denominationCents, language, 'BRL')}: {copy.countA} {item.countAQuantity} · {copy.countB} {item.countBQuantity}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {session.countA.sourceCaptureId || session.countB.sourceCaptureId ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {session.countA.sourceCaptureId ? (
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      onClick={() => navigate(APP_ROUTES.countCaptureReview.replace(':captureId', session.countA!.sourceCaptureId!))}
+                    >
+                      {resultCopy.evidenceA}
+                    </Button>
+                  ) : null}
+                  {session.countB.sourceCaptureId ? (
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      onClick={() => navigate(APP_ROUTES.countCaptureReview.replace(':captureId', session.countB!.sourceCaptureId!))}
+                    >
+                      {resultCopy.evidenceB}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </Surface>
           ) : null}
 
-          {session.recountAttemptCount > 0 ? <Surface variant="secondary" radius="xl" className="p-5"><div className="flex gap-3"><RotateCcw className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" /><div><p className="font-semibold text-text-primary">{copy.recountHistory}</p><p className="mt-1 text-sm text-text-muted">{copy.recountAttempt(session.recountAttemptCount)}</p><p className="mt-2 text-xs text-text-muted">{copy.originalEvidence}</p></div></div></Surface> : null}
+          {session.recountAttemptCount > 0 ? (
+            <Surface variant="secondary" radius="xl" className="p-5">
+              <div className="flex gap-3">
+                <RotateCcw className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-text-primary">{copy.recountHistory}</p>
+                  <p className="mt-1 text-sm text-text-muted">{copy.recountAttempt(session.recountAttemptCount)}</p>
+                  <p className="mt-2 nf-helper-text text-text-muted">{copy.originalEvidence}</p>
+                  {session.recountAttempts.length ? (
+                    <div className="mt-4 divide-y divide-border-subtle rounded-xl border border-border-subtle bg-surface-base">
+                      {session.recountAttempts.map((attempt) => (
+                        <div key={attempt.attemptNumber} className="p-3">
+                          <p className="text-sm font-semibold text-text-primary">
+                            {language === 'PT'
+                              ? `Recontagem ${attempt.attemptNumber}`
+                              : language === 'ES'
+                                ? `Reconteo ${attempt.attemptNumber}`
+                                : `Recount ${attempt.attemptNumber}`}
+                          </p>
+                          <p className="mt-1 nf-helper-text text-text-muted">
+                            {resultCopy.countedBy}: {attempt.countedByLabel || attempt.enteredByLabel || '—'} · {resultCopy.registeredAt}: {formatAuditTimestamp(attempt.sealedAt, language)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </Surface>
+          ) : null}
 
           {error ? <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-4"><p className="text-sm text-text-primary">{copy.safeError}</p>{supportCode ? <p className="mt-2 break-all font-mono text-xs text-text-muted">{copy.supportCode}: {supportCode}</p> : null}</Surface> : null}
 
-          {!matched ? <Button size="lg" fullWidth onClick={() => void startRecount()} disabled={starting || !canEdit}>{starting ? copy.startingRecount : copy.startRecount}</Button> : null}
+          {showHelp ? (
+            <FlowFeedback tone="info" title={resultCopy.helpTitle}>
+              <p>{resultCopy.helpBody}</p>
+              <Button className="mt-4" variant="secondary" fullWidth onClick={() => setShowHelp(false)}>
+                {resultCopy.closeHelp}
+              </Button>
+            </FlowFeedback>
+          ) : null}
+
+          {matched ? (
+            <Button size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
+              {resultCopy.correct}
+            </Button>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button size="lg" fullWidth onClick={() => void startRecount()} disabled={starting || !canEdit}>
+                {starting ? copy.startingRecount : resultCopy.recount}
+              </Button>
+              <Button variant="secondary" size="lg" fullWidth onClick={() => setShowHelp(true)}>
+                {resultCopy.help}
+              </Button>
+            </div>
+          )}
           <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>{copy.returnToCount}</Button>
         </div>
       </div>

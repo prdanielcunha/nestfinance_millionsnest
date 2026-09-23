@@ -7,21 +7,18 @@ import { stageFinanceFact } from './factStream.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
-import { hasActiveCountCaptureExtractionLease } from '../../../shared/finance/countCaptureExtraction.js';
 
-const SECOND_COUNT_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-const SECOND_COUNT_INVITE_TTL_MS = 4 * 60 * 60 * 1000;
+const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const TTL_MS = 4 * 60 * 60 * 1000;
 
-function generateSecondCountCode() {
+function generateCode() {
   const bytes = randomBytes(10);
   let code = '';
-  for (let index = 0; index < 10; index += 1) {
-    code += SECOND_COUNT_CODE_ALPHABET[bytes[index] % SECOND_COUNT_CODE_ALPHABET.length];
-  }
+  for (let index = 0; index < 10; index += 1) code += ALPHABET[bytes[index] % ALPHABET.length];
   return code;
 }
 
-function hashSecondCountCode(code: string) {
+function codeHash(code: string) {
   return createHash('sha256').update(code).digest('hex');
 }
 
@@ -42,7 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(
+      req,
+      'finance.create_drafts',
+    );
     const sessionRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -51,12 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .collection('countSessions')
       .doc(countSessionId);
 
-    const payloadHash = hashPayload({ countSessionId, expectedVersion, action: 'start_second_count' });
+    const payloadHash = hashPayload({ countSessionId, expectedVersion, action: 'refresh_second_invite' });
     const keyHash = buildIdempotencyKeyHash(
       organizationId,
       financeEntityId,
       uid,
-      'count_second_count_start',
+      'count_second_invite_refresh',
       idempotencyKey,
     );
 
@@ -72,30 +72,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
-        if (session.status !== 'counting_a') throw new Error('COUNT_INVALID_STATE');
+        if (session.status !== 'counting_b') throw new Error('COUNT_INVALID_STATE');
         if (Number(session.version) !== expectedVersion) throw new Error('COUNT_VERSION_CONFLICT');
-        if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0 || !session.countA?.savedAt) {
-          throw new Error('COUNT_FIRST_COUNT_REQUIRED');
-        }
-        if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
+        if (session.secondCountStartedByUid !== uid) throw new Error('COUNT_INVITE_REFRESH_FORBIDDEN');
+        if (session.secondCountAssignedToUid) throw new Error('COUNT_SECOND_COUNTER_ALREADY_ASSIGNED');
 
-        const nextVersion = expectedVersion + 1;
-        const joinCode = generateSecondCountCode();
-        const codeHash = hashSecondCountCode(joinCode);
-        const expiresAtMs = Date.now() + SECOND_COUNT_INVITE_TTL_MS;
-        const inviteRef = db
+        const joinCode = generateCode();
+        const nextHash = codeHash(joinCode);
+        const expiresAtMs = Date.now() + TTL_MS;
+        const nextInviteRef = db
           .collection('organizations')
           .doc(organizationId)
           .collection('financeEntities')
           .doc(financeEntityId)
           .collection('countSecondInvites')
-          .doc(codeHash);
+          .doc(nextHash);
 
-        transaction.set(inviteRef, {
+        const previousHash = typeof session.secondCountInviteCodeHash === 'string'
+          ? session.secondCountInviteCodeHash
+          : null;
+        if (previousHash && previousHash !== nextHash) {
+          const previousInviteRef = db
+            .collection('organizations')
+            .doc(organizationId)
+            .collection('financeEntities')
+            .doc(financeEntityId)
+            .collection('countSecondInvites')
+            .doc(previousHash);
+          transaction.delete(previousInviteRef);
+        }
+
+        transaction.set(nextInviteRef, {
           organizationId,
           financeEntityId,
           countSessionId,
-          codeHash,
+          codeHash: nextHash,
           createdByUid: uid,
           createdByLabel: actorLabel,
           createdAt: FieldValue.serverTimestamp(),
@@ -105,25 +116,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           claimedAt: null,
         });
 
+        const nextVersion = expectedVersion + 1;
         transaction.update(sessionRef, {
-          status: 'counting_b',
-          countB: {
-            entries: [],
-            totalCents: 0,
-            countedByUid: null,
-            countedByLabel: null,
-            enteredByUid: null,
-            enteredByLabel: null,
-            sealedAt: null,
-          },
-          secondCountStartedByUid: uid,
-          secondCountStartedByLabel: actorLabel,
-          secondCountStartedAt: FieldValue.serverTimestamp(),
-          secondCountAssignedToUid: null,
-          secondCountAssignedToLabel: null,
-          secondCountAssignedAt: null,
-          secondCountInviteRequired: true,
-          secondCountInviteCodeHash: codeHash,
+          secondCountInviteCodeHash: nextHash,
           secondCountInviteCode: joinCode,
           secondCountInviteExpiresAt: Timestamp.fromMillis(expiresAtMs),
           updatedByUid: uid,
@@ -140,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           actor: uid,
           resource: 'count_session',
           resourceId: countSessionId,
-          action: 'count.second_count_started',
+          action: 'count.second_invite_refreshed',
           requestId,
           idempotencyKey,
           afterHash: payloadHash,
@@ -149,7 +144,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             versionAfter: nextVersion,
             status: 'counting_b',
             blindMaterial: true,
-            independentCounterRequired: session.policySnapshot?.requireIndependentCounter !== false,
             inviteExpiresAt: new Date(expiresAtMs).toISOString(),
           },
           createdAt: FieldValue.serverTimestamp(),
@@ -166,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             financeEntityId,
             status: 'counting_b',
             version: nextVersion,
-            stage: 'second_count_started',
+            stage: 'second_invite_refreshed',
             blind: true,
           },
           sourceRefs: [
@@ -187,19 +181,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
-    console.error('Count Second Count Start Error:', error);
+    console.error('Count Second Invite Refresh Error:', error);
     const message = String(error?.message || '');
     if (message.startsWith('COUNT_')) {
-      const status = ['COUNT_VERSION_CONFLICT', 'COUNT_CAPTURE_EXTRACTION_IN_PROGRESS'].includes(message)
+      const status = [
+        'COUNT_VERSION_CONFLICT',
+        'COUNT_SECOND_COUNTER_ALREADY_ASSIGNED',
+      ].includes(message)
         ? 409
         : message === 'COUNT_SESSION_NOT_FOUND'
           ? 404
-          : 400;
+          : message === 'COUNT_INVITE_REFRESH_FORBIDDEN'
+            ? 403
+            : 400;
       return res.status(status).json({ error: message });
     }
-    if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
+    if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
+      return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
+    }
     if (message === 'FORBIDDEN_FINANCE_ACCESS') return res.status(403).json({ error: 'FORBIDDEN' });
-    if (error.status === 401 || error.status === 403) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
+    if (error.status === 401 || error.status === 403) {
+      return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
+    }
     if (['auth/id-token-revoked', 'auth/id-token-expired', 'auth/invalid-id-token'].includes(error.code)) {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }

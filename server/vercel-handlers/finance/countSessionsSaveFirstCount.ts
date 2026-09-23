@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const normalizedEntries = normalizeCountEntries(entries);
     const totalCents = calculateCountEntriesTotalCents(normalizedEntries);
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const sessionsRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -70,7 +70,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             entries: normalizedEntries,
             totalCents,
             countedByUid: uid,
+            countedByLabel: actorLabel,
             enteredByUid: uid,
+            enteredByLabel: actorLabel,
             savedAt: FieldValue.serverTimestamp(),
           },
           updatedByUid: uid,
