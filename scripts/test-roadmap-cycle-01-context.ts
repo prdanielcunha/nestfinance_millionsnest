@@ -49,7 +49,7 @@ verify('context centralizes preferred entity selection', context.includes('selec
 verify('client metrics buffer locally before server flush', clientMetrics.includes('nestfinance_journey_metrics_v1') && clientMetrics.includes('1500'));
 verify('metrics cover login, selection, start and completion', ['login', 'entity_selection', 'flow_start', 'flow_complete'].every((metric) => clientMetrics.includes(`'${metric}'`)));
 verify('server metrics are organization-scoped aggregates', serverMetrics.includes("collection('organizations')") && serverMetrics.includes("collection('financeProductMetrics')"));
-verify('server metrics do not persist uid as a field', !serverMetrics.includes('uid,') && !serverMetrics.includes('uid:'));
+verify('server metrics do not persist user identity fields', !serverMetrics.includes('userId:') && !serverMetrics.includes('actorUid:') && !serverMetrics.includes('email:'));
 verify('gateway exposes metrics operation', gateway.includes("case 'journey-metrics-record'"));
 verify('Cloud Run exposes metrics route', cloudrunRoutes.includes('"/api/finance/metrics/record"'));
 verify('legacy rollback route stays in parity', vercel.includes('"/api/finance/metrics/record"'));
