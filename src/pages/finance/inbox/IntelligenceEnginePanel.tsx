@@ -70,7 +70,8 @@ export function IntelligenceEnginePanel() {
     </div>
     <div className="mt-5 grid gap-3">
       {items.length===0?<p className="text-sm text-text-muted">{copy.empty}</p>:items.map((item)=>{
-        const [value,setValue]=[String(item.correctedValue||''),(next:string)=>setItems(current=>current.map(row=>row.id===item.id?{...row,correctedValue:next}:row))];
+        const value = String(item.correctedValue || '');
+        const setValue = (next:string) => setItems(current=>current.map(row=>row.id===item.id?{...row,correctedValue:next}:row));
         return <div key={item.id} className="rounded-xl border border-border-subtle bg-surface-secondary/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{item.documentType} · {item.fieldKey}</p>
           <p className="mt-1 text-sm text-text-secondary">{item.suggestedValue} →</p>
