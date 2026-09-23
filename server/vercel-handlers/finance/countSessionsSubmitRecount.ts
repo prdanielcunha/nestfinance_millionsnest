@@ -104,6 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         transaction.update(sessionRef, {
           status: nextStatus,
+          workflowState: matched ? 'counted' : FieldValue.delete(),
           recountAttempts: [...previousAttempts, sealedAttempt],
           activeRecount: FieldValue.delete(),
           resolution: {
