@@ -37,6 +37,7 @@ import {
 import { UniversalEvidencePdfReadinessCard } from './UniversalEvidencePdfReadinessCard';
 import { UniversalEvidenceHumanReviewCard } from './UniversalEvidenceHumanReviewCard';
 import { DocumentTransactionAnalysisCard } from './DocumentTransactionAnalysisCard';
+import { IntelligenceEnginePanel } from './IntelligenceEnginePanel';
 
 const VALID_EVIDENCE_ID = /^evd_[a-f0-9]{32}$/;
 const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -85,6 +86,7 @@ function EvidenceDetailContent() {
   const canResolve =
     hasEffectiveCapability(accessState, 'finance.review') ||
     hasEffectiveCapability(accessState, 'finance.manage');
+  const canManage = hasEffectiveCapability(accessState, 'finance.manage');
 
   const [evidence, setEvidence] = useState<UniversalEvidenceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -331,6 +333,8 @@ function EvidenceDetailContent() {
             canCreateDraft={canClassify}
             onChanged={() => loadDetail(epochRef.current)}
           />
+
+          {canManage ? <IntelligenceEnginePanel /> : null}
 
           <UniversalEvidenceHumanReviewCard
             evidence={evidence}
