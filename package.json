@@ -57,7 +57,8 @@
     "test:transaction-review-evidence-context": "tsx scripts/test-transaction-review-evidence-context.ts",
     "test:transaction-review-related-history": "tsx scripts/test-transaction-review-related-history.ts",
     "test:cross-app-final-certification": "npm run test:auth-session && tsx scripts/test-handoff-token-binding.ts && tsx scripts/test-handoff-session-enforcement.ts && tsx scripts/test-direct-entry-session-version.ts && tsx scripts/test-handoff-redeem-security.ts && tsx scripts/test-ecosystem-session-lifecycle.ts && tsx scripts/test-finance-request-context.ts",
-    "test:roadmap-cycle-01": "tsx scripts/test-roadmap-cycle-01-context.ts"
+    "test:roadmap-cycle-01": "tsx scripts/test-roadmap-cycle-01-context.ts",
+    "test:roadmap-cycle-02": "tsx scripts/test-roadmap-cycle-02-accessibility.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
