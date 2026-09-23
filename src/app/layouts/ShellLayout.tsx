@@ -7,7 +7,7 @@ import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHor
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
-import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
+import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode, type FinanceInterfaceRole } from '@/src/lib/financeExperience';
 import { buildFinanceNavigation } from '@/src/lib/financeNavigationModel';
 import {
   chooseCurrentSessionOrganization,
@@ -61,6 +61,7 @@ const SHELL_COPY: Record<Language, {
   commandActions: string;
   backToHub: string;
   signOut: string;
+  skipToContent: string;
 }> = {
   PT: {
     profile: 'Perfil',
@@ -68,7 +69,7 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Selecionar idioma',
     closeActions: 'Fechar atalhos de registro',
     capture: 'Capturar comprovante',
-    workspace: 'Experiência',
+    workspace: 'Perfil de uso',
     switchOrganization: 'Trocar organização',
     switchOrganizationTitle: 'Escolher organização',
     switchOrganizationText: 'Você continuará no NestFinance. O acesso será validado novamente antes da troca.',
@@ -82,6 +83,7 @@ const SHELL_COPY: Record<Language, {
     commandActions: 'Ações rápidas',
     backToHub: 'Voltar ao MillionsNest',
     signOut: 'Sair do NestFinance',
+    skipToContent: 'Pular para o conteúdo',
   },
   EN: {
     profile: 'Profile',
@@ -89,7 +91,7 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Select language',
     closeActions: 'Close record shortcuts',
     capture: 'Capture receipt',
-    workspace: 'Experience',
+    workspace: 'Usage profile',
     switchOrganization: 'Switch organization',
     switchOrganizationTitle: 'Choose organization',
     switchOrganizationText: 'You will stay in NestFinance. Access is revalidated before switching.',
@@ -103,6 +105,7 @@ const SHELL_COPY: Record<Language, {
     commandActions: 'Quick actions',
     backToHub: 'Back to MillionsNest',
     signOut: 'Sign out of NestFinance',
+    skipToContent: 'Skip to content',
   },
   ES: {
     profile: 'Perfil',
@@ -110,7 +113,7 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Seleccionar idioma',
     closeActions: 'Cerrar accesos de registro',
     capture: 'Capturar comprobante',
-    workspace: 'Experiencia',
+    workspace: 'Perfil de uso',
     switchOrganization: 'Cambiar organización',
     switchOrganizationTitle: 'Elegir organización',
     switchOrganizationText: 'Seguirás en NestFinance. El acceso se vuelve a validar antes del cambio.',
@@ -124,6 +127,7 @@ const SHELL_COPY: Record<Language, {
     commandActions: 'Acciones rápidas',
     backToHub: 'Volver a MillionsNest',
     signOut: 'Salir de NestFinance',
+    skipToContent: 'Saltar al contenido',
   },
 };
 
@@ -152,6 +156,27 @@ const EXPERIENCE_LABELS: Record<Language, Record<FinanceExperienceMode, string>>
   },
 };
 
+const INTERFACE_ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, string>> = {
+  PT: {
+    volunteer: 'Voluntário',
+    treasurer: 'Tesoureiro',
+    administrator: 'Administrador',
+    accountant: 'Contador',
+  },
+  EN: {
+    volunteer: 'Volunteer',
+    treasurer: 'Treasurer',
+    administrator: 'Administrator',
+    accountant: 'Accountant',
+  },
+  ES: {
+    volunteer: 'Voluntario',
+    treasurer: 'Tesorero',
+    administrator: 'Administrador',
+    accountant: 'Contador',
+  },
+};
+
 const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'PT', label: 'PT' },
   { value: 'EN', label: 'EN' },
@@ -172,7 +197,7 @@ function LanguageSwitcher({ language, setLanguage, compact = false }: { language
 
   return (
     <label className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
-      <span className={compact ? 'sr-only' : 'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted'}>
+      <span className={compact ? 'sr-only' : 'flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted'}>
         {!compact ? <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : null}
         {copy.language}
       </span>
@@ -211,6 +236,7 @@ function ShellLayoutInner() {
   const profileName = accessState.profile?.displayName || copy.profile;
   const profilePhoto = accessState.profile?.photoURL;
   const experienceMode = getFinanceExperienceMode(accessState);
+  const interfaceRole = getFinanceInterfaceRole(accessState);
 
   const [fabOpen, setFabOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -342,6 +368,7 @@ function ShellLayoutInner() {
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
+      <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
       <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
         <div className="flex h-16 items-center border-b border-border-subtle px-6">
           <NestFinanceLogo layout="horizontal" compact className="h-7 w-auto" />
@@ -349,7 +376,7 @@ function ShellLayoutInner() {
 
         <div className="flex-1 space-y-1 overflow-y-auto p-4">
           <div className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-surface-secondary px-3 py-3">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_organization')}</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-muted">{t('shell_organization')}</p>
             <p className="truncate text-sm font-medium" title={orgName}>{orgName}</p>
             {activeFinanceEntityName ? (
               <div className="mt-2 flex items-center gap-1.5 border-t border-border-subtle/40 pt-2">
@@ -364,7 +391,7 @@ function ShellLayoutInner() {
                 type="button"
                 onClick={openOrganizationSwitcher}
                 disabled={organizationSwitcherLoading}
-                className="nf-interactive mt-3 flex min-h-10 w-full items-center justify-between rounded-lg border border-border-subtle bg-background-base px-3 text-xs font-medium text-text-secondary hover:border-border-strong hover:text-text-primary disabled:opacity-60"
+                className="nf-interactive mt-3 flex min-h-11 w-full items-center justify-between rounded-lg border border-border-subtle bg-background-base px-3 text-xs font-medium text-text-secondary hover:border-border-strong hover:text-text-primary disabled:opacity-60"
               >
                 <span>{copy.switchOrganization}</span>
                 <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden="true" />
@@ -379,14 +406,14 @@ function ShellLayoutInner() {
           >
             <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">{copy.commandOpen}</span>
-            <kbd className="rounded-md border border-border-subtle bg-surface-secondary px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">
+            <kbd className="rounded-md border border-border-subtle bg-surface-secondary px-1.5 py-0.5 text-xs font-semibold text-text-muted">
               ⌘K
             </kbd>
           </button>
 
           <nav className="space-y-1" aria-label={t('shell_principal')}>
             <div className="mb-2">
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_principal')}</p>
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-text-muted">{t('shell_principal')}</p>
               {primaryNavigation.map((item) => (
                 <NavLink
                   key={item.id}
@@ -407,7 +434,7 @@ function ShellLayoutInner() {
 
             {moreNavigation.length > 0 ? (
               <div>
-                <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{t('shell_more')}</p>
+                <p className="mb-2 mt-4 px-3 text-xs font-semibold uppercase tracking-wider text-text-muted">{t('shell_more')}</p>
                 {moreNavigation.map((item) => (
                   <NavLink
                     key={item.id}
@@ -445,8 +472,8 @@ function ShellLayoutInner() {
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium" title={profileName}>{profileName}</p>
-              <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wider text-text-muted">
-                {copy.workspace}: {EXPERIENCE_LABELS[language][experienceMode]}
+              <p className="mt-0.5 truncate text-xs font-medium uppercase tracking-wider text-text-muted">
+                {copy.workspace}: {INTERFACE_ROLE_LABELS[language][interfaceRole]}
               </p>
             </div>
           </div>
@@ -457,7 +484,7 @@ function ShellLayoutInner() {
               <button
                 type="button"
                 onClick={returnToMillionsNest}
-                className="nf-interactive flex min-h-10 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+                className="nf-interactive flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{copy.backToHub}</span>
@@ -465,7 +492,7 @@ function ShellLayoutInner() {
               <button
                 type="button"
                 onClick={() => void signOutNestFinanceAndReturnToHub()}
-                className="nf-interactive flex min-h-10 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-muted hover:bg-surface-secondary hover:text-text-primary"
+                className="nf-interactive flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-muted hover:bg-surface-secondary hover:text-text-primary"
               >
                 <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{copy.signOut}</span>
@@ -475,12 +502,12 @@ function ShellLayoutInner() {
         </div>
       </aside>
 
-      <main className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
+      <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border-subtle bg-surface-default/95 px-3 backdrop-blur-xl md:hidden">
           <div className="flex min-w-0 items-center gap-2">
             <NestFinanceLogo layout="horizontal" compact className="h-6 w-auto shrink-0" />
             {activeFinanceEntityName ? (
-              <span className="max-w-[110px] truncate rounded-lg bg-accent-primary/10 px-2 py-1 text-[11px] font-semibold text-accent-primary">
+              <span className="max-w-[110px] truncate rounded-lg bg-accent-primary/10 px-2 py-1 text-xs font-semibold text-accent-primary">
                 {activeFinanceEntityName}
               </span>
             ) : null}
@@ -498,13 +525,13 @@ function ShellLayoutInner() {
               </button>
             ) : null}
             <LanguageSwitcher language={language} setLanguage={setLanguage} compact />
-            <div className="hidden max-w-[76px] truncate text-[10px] font-medium text-text-secondary min-[390px]:block" title={orgName}>
+            <div className="hidden max-w-[76px] truncate text-xs font-medium text-text-secondary min-[390px]:block" title={orgName}>
               {orgName}
             </div>
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="nf-operational mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>
@@ -593,7 +620,7 @@ function ShellLayoutInner() {
             }
           >
             <item.icon className="h-5 w-5" aria-hidden="true" />
-            <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t(item.labelKey)}</span>
+            <span className="w-full truncate px-1 text-center text-xs leading-none">{t(item.labelKey)}</span>
           </NavLink>
         ))}
         {moreNavigation.length > 0 ? (
@@ -606,7 +633,7 @@ function ShellLayoutInner() {
             }
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-            <span className="w-full truncate px-1 text-center text-[10px] leading-none">{t('nav_mais')}</span>
+            <span className="w-full truncate px-1 text-center text-xs leading-none">{t('nav_mais')}</span>
           </NavLink>
         ) : null}
       </nav>
@@ -660,7 +687,7 @@ function ShellLayoutInner() {
                   >
                     <span className="truncate">{organization.name}</span>
                     {organization.id === accessState.organizationId ? (
-                      <span className="ml-3 text-[10px] font-semibold uppercase tracking-wider">{language === 'PT' ? 'Atual' : language === 'EN' ? 'Current' : 'Actual'}</span>
+                      <span className="ml-3 text-xs font-semibold uppercase tracking-wider">{language === 'PT' ? 'Atual' : language === 'EN' ? 'Current' : 'Actual'}</span>
                     ) : null}
                   </button>
                 ))}

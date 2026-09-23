@@ -16,7 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Surface } from '@/src/components/foundation';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import type { FinanceExperienceMode } from '@/src/lib/financeExperience';
+import type { FinanceExperienceMode, FinanceInterfaceRole } from '@/src/lib/financeExperience';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import {
   buildTodayWorkspace,
@@ -28,6 +28,7 @@ import {
 
 type Props = {
   mode: FinanceExperienceMode;
+  interfaceRole: FinanceInterfaceRole;
   entityName: string | null;
   snapshot: TodayWorkspaceSnapshot;
   authority: TodayWorkspaceAuthority;
@@ -187,6 +188,27 @@ const MODE_COPY: Record<Language, Record<FinanceExperienceMode, ModeCopy>> = {
   },
 };
 
+const ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, string>> = {
+  PT: {
+    volunteer: 'Voluntário',
+    treasurer: 'Tesoureiro',
+    administrator: 'Administrador',
+    accountant: 'Contador',
+  },
+  EN: {
+    volunteer: 'Volunteer',
+    treasurer: 'Treasurer',
+    administrator: 'Administrator',
+    accountant: 'Accountant',
+  },
+  ES: {
+    volunteer: 'Voluntario',
+    treasurer: 'Tesorero',
+    administrator: 'Administrador',
+    accountant: 'Contador',
+  },
+};
+
 const TASK_COPY: Record<Language, Record<TodayWorkspaceTaskKind, { label: (count: number) => string; action: string }>> = {
   PT: {
     returned_corrections: { label: (count) => `${count} ${count === 1 ? 'correção devolvida' : 'correções devolvidas'}`, action: 'Corrigir' },
@@ -283,7 +305,7 @@ const SHORTCUT_META: Record<TodayWorkspaceShortcutKind, { route: string; icon: t
   settings: { route: APP_ROUTES.financeSettings, icon: Settings },
 };
 
-export function RoleWorkspacePanel({ mode, entityName, snapshot, authority }: Props) {
+export function RoleWorkspacePanel({ mode, interfaceRole, entityName, snapshot, authority }: Props) {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const copy = MODE_COPY[language][mode];
@@ -294,7 +316,7 @@ export function RoleWorkspacePanel({ mode, entityName, snapshot, authority }: Pr
       <div className="border-b border-border-subtle p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-primary">{copy.eyebrow}</p>
+            <p className="nf-helper-text font-semibold uppercase tracking-[0.18em] text-accent-primary">{copy.eyebrow} · {ROLE_LABELS[language][interfaceRole]}</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] text-text-primary sm:text-3xl">{copy.title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{copy.subtitle}</p>
           </div>
