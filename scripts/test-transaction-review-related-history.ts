@@ -136,8 +136,9 @@ verify(
 );
 verify(
   'audit history does not enter approval authority',
-  detail.includes('const approvalDisabled = reviewBlocked || actionState !== null;') &&
-    !detail.includes('approvalDisabled = reviewBlocked || history'),
+  detail.includes('const approvalDisabled = reviewBlocked || actionState !== null || !online;') &&
+    !detail.includes('approvalDisabled = reviewBlocked || history') &&
+    !detail.includes('approvalDisabled = reviewBlocked || audit'),
 );
 
 for (const language of ['PT', 'EN', 'ES'] as const) {
