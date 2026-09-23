@@ -12,6 +12,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../lib/firebase';
+import { markNestFinanceSessionOrigin } from './ecosystemSessionLifecycle';
 
 const DIRECT_APP_NAME = 'nestfinance-direct-entry';
 const REDIRECT_PENDING_KEY = 'nf_direct_google_redirect_pending';
@@ -83,6 +84,7 @@ async function exchange(
   ) {
     await signInWithCustomToken(firebaseAuth, data.customToken);
     if (source === 'direct_identity') {
+      markNestFinanceSessionOrigin('direct');
       await signOut(directAuth).catch(() => undefined);
     }
     return {

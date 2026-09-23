@@ -1,9 +1,19 @@
 import { EcosystemAccessState } from '../types/access';
 import { firebaseAuth } from '../lib/firebase';
+import {
+  clearNestFinanceSessionLifecycle,
+  recoverRevokedHubSession,
+} from './ecosystemSessionLifecycle';
 
 let cachedSessionPromise: Promise<EcosystemAccessState> | null = null;
 let cachedSessionToken: string | null = null;
 let cachedSessionResult: EcosystemAccessState | null = null;
+
+export function clearSessionResolutionCache(): void {
+  cachedSessionPromise = null;
+  cachedSessionToken = null;
+  cachedSessionResult = null;
+}
 
 export function getCachedSessionResult(): EcosystemAccessState | null {
   return cachedSessionResult;
@@ -13,9 +23,7 @@ export async function resolveEcosystemSession(forceRefresh = false): Promise<Eco
   const currentUser = firebaseAuth.currentUser;
   
   if (!currentUser) {
-    cachedSessionPromise = null;
-    cachedSessionToken = null;
-    cachedSessionResult = null;
+    clearSessionResolutionCache();
     return { status: 'unauthenticated' };
   }
 
@@ -38,8 +46,15 @@ export async function resolveEcosystemSession(forceRefresh = false): Promise<Eco
       });
 
       if (response.status === 401) {
-        await firebaseAuth.signOut();
+        await firebaseAuth.signOut().catch(() => undefined);
+        cachedSessionPromise = null;
+        cachedSessionToken = null;
         cachedSessionResult = { status: 'unauthenticated' };
+
+        const returnTo = `${window.location.pathname || '/finance'}${window.location.search || ''}`;
+        if (!recoverRevokedHubSession(returnTo)) {
+          clearNestFinanceSessionLifecycle();
+        }
         return cachedSessionResult;
       }
 
