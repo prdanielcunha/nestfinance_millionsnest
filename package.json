@@ -64,7 +64,9 @@
     "test:roadmap-cycle-05": "tsx scripts/test-roadmap-cycle-05-count-to-proposals.ts",
     "test:roadmap-cycle-06": "tsx scripts/test-roadmap-cycle-06-universal-input.ts",
     "test:roadmap-cycle-07": "tsx scripts/test-roadmap-cycle-07-voice.ts",
-    "benchmark:voice-transcription": "tsx scripts/benchmark-voice-transcription.ts"
+    "benchmark:voice-transcription": "tsx scripts/benchmark-voice-transcription.ts",
+    "test:roadmap-cycle-08": "tsx scripts/test-roadmap-cycle-08-intelligence-engine.ts",
+    "benchmark:document-intelligence": "tsx scripts/benchmark-document-intelligence.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
