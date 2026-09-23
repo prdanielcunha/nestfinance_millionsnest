@@ -58,6 +58,8 @@ import countSessionsRefreshSecondInvite from '../server/vercel-handlers/finance/
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
+import countSessionsProposalPreview from '../server/vercel-handlers/finance/countSessionsProposalPreview.js';
+import countSessionsCreateProposedDrafts from '../server/vercel-handlers/finance/countSessionsCreateProposedDrafts.js';
 import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
 import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
 import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
@@ -170,6 +172,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-submit-second-count': return countSessionsSubmitSecondCount(req, res);
     case 'count-sessions-start-recount': return countSessionsStartRecount(req, res);
     case 'count-sessions-submit-recount': return countSessionsSubmitRecount(req, res);
+    case 'count-sessions-proposal-preview': return countSessionsProposalPreview(req, res);
+    case 'count-sessions-create-proposed-drafts': return countSessionsCreateProposedDrafts(req, res);
     case 'count-paper-forms-generate': return countPaperFormsGenerate(req, res);
     case 'count-paper-forms-detail': return countPaperFormsDetail(req, res);
     case 'count-captures-start': return countCapturesStart(req, res);
