@@ -448,6 +448,7 @@ export function TodayActionCenter() {
   const [countFailed, setCountFailed] = useState(false);
   const [inboxFailed, setInboxFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
+  const [loadedFinanceEntityId, setLoadedFinanceEntityId] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
@@ -523,31 +524,47 @@ export function TodayActionCenter() {
   }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadedFinanceEntityId(null);
+    setSummary(null);
+    setCountItems([]);
+    setInboxSummary(null);
+    setSignalSummary(null);
+    setExplanation(null);
+    setExplanationOpen(false);
+    setRecent([]);
+
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) {
-      setSummary(null);
-      setCountItems([]);
-      setInboxSummary(null);
-      setSignalSummary(null);
-      setExplanation(null);
-      setExplanationOpen(false);
-      setRecent([]);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
+
     recordFinanceJourneyMetric('flow_start', {
       flow: 'today_entry',
       dedupeKey: `today_entry:start:${organizationId}:${activeFinanceEntityId}`,
     });
-    void loadSummary();
-    void loadCounts();
-    void loadInbox();
-    void loadSignals();
-    void loadRecent();
+
+    void Promise.all([
+      loadSummary(),
+      loadCounts(),
+      loadInbox(),
+      loadSignals(),
+      loadRecent(),
+    ]).then(() => {
+      if (!cancelled) setLoadedFinanceEntityId(activeFinanceEntityId);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
 
   useEffect(() => {
     if (
       !activeFinanceEntityId ||
       !organizationId ||
+      loadedFinanceEntityId !== activeFinanceEntityId ||
       summary === null ||
       inboxSummary === null ||
       summaryLoading ||
@@ -566,6 +583,7 @@ export function TodayActionCenter() {
     });
   }, [
     activeFinanceEntityId,
+    loadedFinanceEntityId,
     countFailed,
     countLoading,
     inboxFailed,
