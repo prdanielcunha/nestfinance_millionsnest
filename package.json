@@ -60,7 +60,8 @@
     "test:roadmap-cycle-01": "tsx scripts/test-roadmap-cycle-01-context.ts",
     "test:roadmap-cycle-02": "tsx scripts/test-roadmap-cycle-02-accessibility.ts",
     "test:roadmap-cycle-03": "tsx scripts/test-roadmap-cycle-03-count-journey.ts",
-    "test:roadmap-cycle-04": "tsx scripts/test-roadmap-cycle-04-double-count.ts"
+    "test:roadmap-cycle-04": "tsx scripts/test-roadmap-cycle-04-double-count.ts",
+    "test:roadmap-cycle-05": "tsx scripts/test-roadmap-cycle-05-count-to-proposals.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
