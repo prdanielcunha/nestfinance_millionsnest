@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button } from './Button';
 
 export interface FlowConfirmationProps {
@@ -22,12 +22,14 @@ export function FlowConfirmation({
   busy = false,
   disabled = false,
 }: FlowConfirmationProps) {
+  const titleId = useId();
+
   return (
     <section
-      aria-labelledby="flow-confirmation-title"
+      aria-labelledby={titleId}
       className="rounded-2xl border border-border-subtle bg-surface-elevated p-5"
     >
-      <h2 id="flow-confirmation-title" className="text-xl font-semibold text-text-primary">
+      <h2 id={titleId} className="text-xl font-semibold text-text-primary">
         {title}
       </h2>
       {description ? <div className="mt-2 leading-relaxed text-text-secondary">{description}</div> : null}
