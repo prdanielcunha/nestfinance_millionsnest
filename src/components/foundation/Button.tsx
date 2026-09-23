@@ -23,8 +23,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  md: 'min-h-11 px-4 py-2.5 text-sm rounded-xl',
-  lg: 'min-h-12 px-5 py-3 text-base rounded-2xl',
+  md: 'min-h-[3.25rem] px-4 py-3 text-base rounded-xl',
+  lg: 'min-h-14 px-5 py-3.5 text-base rounded-2xl',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
