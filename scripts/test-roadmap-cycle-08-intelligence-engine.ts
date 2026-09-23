@@ -5,9 +5,9 @@ import {
   DOCUMENT_INTELLIGENCE_PROMPT_REVISION,
   normalizeCorrectionValue,
 } from '../shared/finance/intelligenceGovernance';
-import { buildDocumentTransactionAnalysis, DOCUMENT_TRANSACTION_PROVIDER_FIELD_KEYS } from '../shared/finance/documentTransactionIntelligence';
+import { buildDocumentTransactionAnalysis, DOCUMENT_TRANSACTION_PROVIDER_FIELD_KEYS, type DocumentTransactionProviderField } from '../shared/finance/documentTransactionIntelligence';
 
-const fields=DOCUMENT_TRANSACTION_PROVIDER_FIELD_KEYS.map((key)=>({key,status:'absent' as const,observation:''}));
+const fields: DocumentTransactionProviderField[]=DOCUMENT_TRANSACTION_PROVIDER_FIELD_KEYS.map((key)=>({key,status:'absent',observation:''}));
 for(const field of fields){
   if(field.key==='document_type'){field.status='recognized';field.observation='receipt';}
   if(field.key==='transaction_kind'){field.status='recognized';field.observation='expense';}
