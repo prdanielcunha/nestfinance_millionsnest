@@ -70,6 +70,7 @@ console.log('✅ denomination detail must exactly match reviewed top-level total
 
 const handler = readFileSync('server/vercel-handlers/finance/countCapturesApplyToCount.ts', 'utf8');
 const home = readFileSync('src/pages/finance/CountPage.tsx', 'utf8');
+const startJourney = readFileSync('src/pages/finance/count/CountStartJourney.tsx', 'utf8');
 const review = readFileSync('src/pages/finance/count/CountCaptureReviewPage.tsx', 'utf8');
 const extraction = readFileSync('src/pages/finance/count/CountCaptureExtractionPanel.tsx', 'utf8');
 const paper = readFileSync('src/pages/finance/count/CountPaperFormPage.tsx', 'utf8');
@@ -88,10 +89,11 @@ for (const forbidden of ['financeTransactions', 'financeJournalEntries', 'financ
   verify(!handler.includes(forbidden), 'paper apply handler never references ' + forbidden);
 }
 
-verify(home.includes('Contar no celular') && home.includes('Use paper') && home.includes('Usar papel'), 'simple entry mode is localized and explicit');
-verify(home.includes('Tenho uma Folha Count oficial preenchida'), 'Count home keeps direct official completed-sheet capture');
-verify(home.includes('Fotografar meu papel') && home.includes("creationMode === 'free_form'"), 'Count home distinguishes free-form paper from the official Count Sheet');
-verify(home.includes("creationMode === 'paper'"), 'paper-first creation is a first-class path');
+verify(home.includes('CountStartJourney'), 'Count home delegates creation to the guided start journey');
+verify(startJourney.includes('No celular') && startJourney.includes('On the phone') && startJourney.includes('En el celular'), 'simple phone entry mode is localized and explicit');
+verify(startJourney.includes('Já tenho uma folha oficial preenchida'), 'guided Count start keeps direct official completed-sheet capture');
+verify(startJourney.includes('Fotografar meu papel') && home.includes("input.mode === 'free_form'"), 'guided Count start distinguishes free-form paper from the official Count Sheet');
+verify(startJourney.includes("start('paper')") && home.includes("input.mode === 'paper'"), 'paper-first creation remains a first-class guided path');
 verify(paper.includes('Fotografar folha preenchida'), 'print screen connects directly back to photo capture');
 verify(extraction.includes('void run()'), 'safe assisted top-level reading can start automatically');
 verify(extraction.includes('Opcional: abra o detalhamento'), '33-cell denomination review is optional in simple mode');
