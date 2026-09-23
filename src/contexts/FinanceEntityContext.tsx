@@ -10,6 +10,7 @@ import {
   listAccessibleFinanceEntities,
   type AccessibleFinanceEntity,
 } from '@/src/services/financeEntitiesService';
+import { selectPreferredFinanceEntity } from '@/src/contexts/financeEntitySelection';
 
 interface FinanceEntityContextType {
   activeFinanceEntityId: string | null;
@@ -85,12 +86,7 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
       const sessionId = safeStorageRead(sessionStorage, ACTIVE_ID_KEY);
       const rememberedId = safeStorageRead(localStorage, ACTIVE_ID_KEY);
-      const validSession = entities.find((entity) => entity.id === sessionId);
-      const validRemembered = entities.find((entity) => entity.id === rememberedId);
-      const selected =
-        validSession ||
-        validRemembered ||
-        (entities.length === 1 ? entities[0] : undefined);
+      const selected = selectPreferredFinanceEntity(entities, sessionId, rememberedId);
 
       if (selected) {
         setActiveFinanceEntityId(selected.id, selected.displayName);
