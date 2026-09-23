@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { selectPreferredFinanceEntity } from '../src/contexts/financeEntitySelection';
+import { parseJourneyMetricCounts } from '../server/vercel-handlers/finance/journeyMetricsRecord';
 
 let passed = 0;
 let failed = 0;
@@ -24,6 +25,15 @@ verify('multiple entities require a choice without memory', selectPreferredFinan
 verify('valid session selection wins', selectPreferredFinanceEntity([churchA, churchB], 'church-b', 'church-a')?.id === 'church-b');
 verify('valid remembered selection is restored', selectPreferredFinanceEntity([churchA, churchB], null, 'church-b')?.id === 'church-b');
 verify('stale remembered entity is ignored', selectPreferredFinanceEntity([churchA, churchB], null, 'church-x') === undefined);
+
+verify('metrics parser accepts bounded aggregate payloads', parseJourneyMetricCounts({
+  login: 1,
+  'flow_start:today_entry': 2,
+  'flow_complete:today_entry': 1,
+})?.length === 3);
+verify('metrics parser rejects unknown metric names', parseJourneyMetricCounts({ user_email: 1 }) === null);
+verify('metrics parser rejects unsafe flow keys', parseJourneyMetricCounts({ 'flow_start:../../tenant': 1 }) === null);
+verify('metrics parser rejects abusive counts', parseJourneyMetricCounts({ login: 101 }) === null);
 
 const read = (relativePath: string) =>
   fs.readFileSync(path.resolve(relativePath), 'utf8');
