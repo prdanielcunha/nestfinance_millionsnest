@@ -83,7 +83,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       secondCountInviteRequired: data.secondCountInviteRequired === true,
       secondCountInviteExpiresAt: toIso(data.secondCountInviteExpiresAt),
       secondCountJoinCode:
-        data.status === 'counting_b' && data.secondCountStartedByUid === uid
+        data.status === 'counting_b' &&
+        data.secondCountStartedByUid === uid &&
+        !data.secondCountAssignedToUid
           ? data.secondCountInviteCode || null
           : null,
     };
