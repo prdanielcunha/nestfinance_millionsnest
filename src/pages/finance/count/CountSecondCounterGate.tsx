@@ -4,7 +4,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, FlowFeedback, Surface } from '@/src/components/foundation';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useLanguage } from '@/src/contexts/LanguageContext';
-import type { CountSessionDetail } from '@/src/services/countService';
+import { countService, type CountSessionDetail } from '@/src/services/countService';
 import { formatReviewDate } from '../transactions/transactionReviewModel';
 
 type Props = {
@@ -95,7 +95,9 @@ export function CountSecondCounterGate({
   const [refreshingCode, setRefreshingCode] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
 
-  const firstUser = session.currentUserIsFirstCounter === true;
+  const firstUser =
+    session.currentUserIsFirstCounter === true ||
+    session.currentUserStartedSecondCount === true;
   const assignedToOther = Boolean(
     session.secondCounterAssigned && !session.currentUserIsSecondCounter,
   );
