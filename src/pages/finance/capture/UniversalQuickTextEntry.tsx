@@ -58,6 +58,7 @@ const COPY = {
     sentenceIncome: (amount: string, payment: string, date: string) => `Entrada de ${amount}${payment ? ` via ${payment}` : ''}${date ? ` em ${date}` : ''}.`,
     sentenceTransfer: (amount: string, date: string) => `Transferência de ${amount}${date ? ` em ${date}` : ''}.`,
     incomplete: 'Ainda faltam tipo, valor ou data. Corrija abaixo antes de criar o rascunho.',
+    transferNeedsAccounts: 'Transferências precisam das contas de origem e destino. Use o cadastro guiado para completar com segurança.',
     noEffect: 'Vou criar apenas um rascunho. Nada será aprovado, conciliado ou contabilizado automaticamente.',
     saveOffline: 'Guardar neste aparelho',
     savedOffline: 'Guardado neste aparelho. Quando a internet voltar, você poderá criar o rascunho.',
@@ -98,6 +99,7 @@ const COPY = {
     sentenceIncome: (amount: string, payment: string, date: string) => `Income of ${amount}${payment ? ` via ${payment}` : ''}${date ? ` on ${date}` : ''}.`,
     sentenceTransfer: (amount: string, date: string) => `Transfer of ${amount}${date ? ` on ${date}` : ''}.`,
     incomplete: 'Type, amount, or date is still missing. Correct it below before creating the draft.',
+    transferNeedsAccounts: 'Transfers need source and destination accounts. Use the guided form to complete them safely.',
     noEffect: 'I will create only a draft. Nothing will be approved, reconciled, or posted automatically.',
     saveOffline: 'Save on this device',
     savedOffline: 'Saved on this device. When you are back online, you can create the draft.',
@@ -138,6 +140,7 @@ const COPY = {
     sentenceIncome: (amount: string, payment: string, date: string) => `Entrada de ${amount}${payment ? ` vía ${payment}` : ''}${date ? ` el ${date}` : ''}.`,
     sentenceTransfer: (amount: string, date: string) => `Transferencia de ${amount}${date ? ` el ${date}` : ''}.`,
     incomplete: 'Todavía falta tipo, valor o fecha. Corrígelo abajo antes de crear el borrador.',
+    transferNeedsAccounts: 'Las transferencias necesitan cuenta de origen y destino. Usa el formulario guiado para completarlas con seguridad.',
     noEffect: 'Crearé solamente un borrador. Nada será aprobado, conciliado o contabilizado automáticamente.',
     saveOffline: 'Guardar en este dispositivo',
     savedOffline: 'Guardado en este dispositivo. Cuando vuelva internet, podrás crear el borrador.',
@@ -256,7 +259,7 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
     recognition.start();
   };
 
-  const ready = Boolean(direction && amountCents && amountCents > 0 && occurredAt);
+  const ready = Boolean(direction && direction !== 'transfer' && amountCents && amountCents > 0 && occurredAt);
 
   const amountLabel = amountCents
     ? formatReviewMoney(amountCents, language, 'BRL')
@@ -368,7 +371,9 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
         <div className="mt-5 rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-5" aria-live="polite">
           <p className="nf-helper-text font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.understood}</p>
           <p className="mt-2 text-lg font-semibold leading-relaxed text-text-primary">{sentence}</p>
-          <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.noEffect}</p>
+          <p className="mt-2 text-sm leading-relaxed text-text-muted">
+            {direction === 'transfer' ? copy.transferNeedsAccounts : copy.noEffect}
+          </p>
           <Button className="mt-4" variant="ghost" onClick={() => setCorrecting((value) => !value)}>
             {correcting ? copy.closeCorrection : copy.wrong}
           </Button>
@@ -447,9 +452,15 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
       {interpreted ? (
         <div className="mt-5">
           {online ? (
-            <Button size="lg" fullWidth disabled={!ready || creating} onClick={() => void createDraft()}>
-              {creating ? copy.creating : copy.create}
-            </Button>
+            direction === 'transfer' ? (
+              <Button size="lg" fullWidth onClick={() => navigate(APP_ROUTES.transactionCreate + '?type=transfer')}>
+                {copy.transfer}
+              </Button>
+            ) : (
+              <Button size="lg" fullWidth disabled={!ready || creating} onClick={() => void createDraft()}>
+                {creating ? copy.creating : copy.create}
+              </Button>
+            )
           ) : (
             <Button size="lg" fullWidth disabled={!text.trim()} onClick={saveLocal}>
               {copy.saveOffline}
