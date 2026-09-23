@@ -229,6 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           resultingStatus = comparison.matched ? 'matched' : 'divergent';
           transaction.update(resolved.sessionRef, {
             status: resultingStatus,
+            workflowState: comparison.matched ? 'counted' : FieldValue.delete(),
             countB: {
               entries: applyPlan.entries,
               totalCents,

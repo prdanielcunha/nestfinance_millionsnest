@@ -32,6 +32,7 @@ import {
 } from './transactionReviewDetailCopy';
 import { TransactionReviewEvidencePanel } from './TransactionReviewEvidencePanel';
 import { TransactionReviewHistoryPanel } from './TransactionReviewHistoryPanel';
+import { CountTransactionProvenance } from './CountTransactionProvenance';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'state_changed';
 type ActionState = 'approve' | 'return' | null;
@@ -485,6 +486,8 @@ function TransactionReviewDetailContent() {
                   </div>
                 </div>
               </Surface>
+
+              <CountTransactionProvenance countSource={transaction.countSource} />
 
               <TransactionReviewEvidencePanel
                 evidenceIds={transaction.evidenceIds}

@@ -78,6 +78,39 @@ export type CountSessionDetail = {
   secondCountInviteRequired?: boolean;
   secondCountInviteExpiresAt?: string | null;
   secondCountJoinCode?: string | null;
+  workflowState?: 'counted' | 'reviewed' | 'deposited' | 'reconciled' | 'closed' | null;
+  countProposal?: {
+    status?: string | null;
+    transactionIds?: string[];
+    sourceVersion?: number | null;
+    createdByLabel?: string | null;
+    createdAt?: string | null;
+  } | null;
+};
+
+export type CountProposalPreview = {
+  countSessionId: string;
+  countVersion: number;
+  serviceLabel: string;
+  serviceDate: string;
+  workflowState: 'counted' | 'reviewed' | 'deposited' | 'reconciled' | 'closed' | null;
+  firstCounterLabel?: string | null;
+  secondCounterLabel?: string | null;
+  sourceCaptureIds: string[];
+  lines: Array<{
+    lineId: string;
+    entryType: 'tithe' | 'offering' | 'other' | 'pix';
+    amountCents: number;
+    paymentMethod: 'cash' | 'pix';
+    suggestedAccountId: string | null;
+    suggestedCategoryId: string | null;
+    missingFields: string[];
+  }>;
+  accountOptions: Array<{ id: string; name: string; type: string; nature?: string | null; templateKey?: string | null }>;
+  categoryOptions: Array<{ id: string; name: string; kind: 'income' }>;
+  fundOptions: Array<{ id: string; name: string }>;
+  alreadyCreated: boolean;
+  transactionIds: string[];
 };
 
 export type CountApiError = Error & {
@@ -295,6 +328,44 @@ export const countService = {
       attemptNumber: number;
       requestId?: string;
     }>(organizationId, 'count-sessions-start-recount', { financeEntityId, ...input });
+  },
+
+  async proposalPreview(
+    organizationId: string,
+    financeEntityId: string,
+    countSessionId: string,
+  ) {
+    return post<{ preview: CountProposalPreview; requestId?: string }>(
+      organizationId,
+      'count-sessions-proposal-preview',
+      { financeEntityId, countSessionId },
+    );
+  },
+
+  async createProposedDrafts(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      countSessionId: string;
+      expectedVersion: number;
+      selections: Array<{
+        entryType: 'tithe' | 'offering' | 'other' | 'pix';
+        accountId: string;
+        categoryId: string;
+        fundId?: string | null;
+      }>;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ) {
+    return post<{
+      countSessionId: string;
+      version: number;
+      workflowState: 'reviewed';
+      transactionIds: string[];
+      replayed: boolean;
+      requestId?: string;
+    }>(organizationId, 'count-sessions-create-proposed-drafts', { financeEntityId, ...input });
   },
 
   async submitRecount(

@@ -64,6 +64,10 @@ const RESULT_COPY = {
     helpTitle: 'Como resolver sem adivinhar',
     helpBody: 'Não escolha um valor no escuro. Faça uma nova contagem independente; se a diferença continuar, confira as fotos/comprovantes e peça ao responsável financeiro para revisar a evidência.',
     closeHelp: 'Fechar ajuda',
+    prepareEntries: 'Preparar lançamentos',
+    openReview: 'Abrir lançamentos em conferência',
+    workflow: 'Etapa atual',
+    workflowLabels: { counted: 'Contado', reviewed: 'Em conferência', deposited: 'Depositado', reconciled: 'Conferido com o banco', closed: 'Fechado' },
   },
   EN: {
     responsible: 'Second-count owner',
@@ -84,6 +88,10 @@ const RESULT_COPY = {
     helpTitle: 'Resolve it without guessing',
     helpBody: 'Do not choose a value blindly. Run another independent count; if the difference remains, review the photos/evidence and ask the finance owner to inspect it.',
     closeHelp: 'Close help',
+    prepareEntries: 'Prepare entries',
+    openReview: 'Open entries in review',
+    workflow: 'Current stage',
+    workflowLabels: { counted: 'Counted', reviewed: 'In review', deposited: 'Deposited', reconciled: 'Checked with bank', closed: 'Closed' },
   },
   ES: {
     responsible: 'Responsable del segundo conteo',
@@ -104,6 +112,10 @@ const RESULT_COPY = {
     helpTitle: 'Cómo resolver sin adivinar',
     helpBody: 'No elijas un valor a ciegas. Haz un nuevo conteo independiente; si la diferencia continúa, revisa las fotos/comprobantes y pide al responsable financiero que revise la evidencia.',
     closeHelp: 'Cerrar ayuda',
+    prepareEntries: 'Preparar movimientos',
+    openReview: 'Abrir movimientos en revisión',
+    workflow: 'Etapa actual',
+    workflowLabels: { counted: 'Contado', reviewed: 'En revisión', deposited: 'Depositado', reconciled: 'Conferido con el banco', closed: 'Cerrado' },
   },
 } as const;
 
@@ -461,6 +473,8 @@ export function CountResultPanel({
   const attemptRef = useRef<{ identity: string; key: string } | null>(null);
   const matched = session.status === 'matched';
   const totalDifference = Math.abs(session.comparison?.totalDeltaCents || 0);
+  const workflowState = session.workflowState || (matched ? 'counted' : null);
+  const proposalCreated = Boolean(session.countProposal?.transactionIds?.length);
   const resultSentence = matched
     ? resultCopy.matchSentence(formatReviewMoney(session.countA?.totalCents || 0, language, 'BRL'))
     : resultCopy.divergentSentence(formatReviewMoney(totalDifference, language, 'BRL'));
@@ -506,6 +520,11 @@ export function CountResultPanel({
 
           <Surface variant="secondary" radius="xl" className="p-5 sm:p-6" role="status" aria-live="polite">
             <p className="text-lg font-semibold leading-relaxed text-text-primary">{resultSentence}</p>
+            {workflowState ? (
+              <p className="mt-3 nf-helper-text text-text-muted">
+                {resultCopy.workflow}: {resultCopy.workflowLabels[workflowState]}
+              </p>
+            ) : null}
           </Surface>
 
           {session.countA && session.countB ? (
@@ -633,9 +652,22 @@ export function CountResultPanel({
           ) : null}
 
           {matched ? (
-            <Button size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
-              {resultCopy.correct}
-            </Button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                size="lg"
+                fullWidth
+                onClick={() => navigate(
+                  proposalCreated
+                    ? APP_ROUTES.financeReview
+                    : APP_ROUTES.countProposal.replace(':sessionId', session.id),
+                )}
+              >
+                {proposalCreated ? resultCopy.openReview : resultCopy.prepareEntries}
+              </Button>
+              <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
+                {resultCopy.correct}
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               <Button size="lg" fullWidth onClick={() => void startRecount()} disabled={starting || !canEdit}>
@@ -646,7 +678,7 @@ export function CountResultPanel({
               </Button>
             </div>
           )}
-          <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>{copy.returnToCount}</Button>
+          {!matched ? <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>{copy.returnToCount}</Button> : null}
         </div>
       </div>
     </div>

@@ -18,6 +18,13 @@ on:
       - "scripts/test-roadmap-cycle-02-accessibility.ts"
       - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "scripts/test-roadmap-cycle-04-double-count.ts"
+      - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "shared/finance/countProposal.ts"
+      - "server/vercel-handlers/finance/countProposalHelpers.ts"
+      - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
+      - "server/vercel-handlers/finance/countSessionsCreateProposedDrafts.ts"
+      - "src/pages/finance/count/CountProposalPage.tsx"
+      - "src/pages/finance/transactions/CountTransactionProvenance.tsx"
       - "server/vercel-handlers/finance/countSessionsStartSecondCount.ts"
       - "server/vercel-handlers/finance/countSessionsJoinSecondCount.ts"
       - "server/vercel-handlers/finance/countSessionsRefreshSecondInvite.ts"
@@ -62,6 +69,13 @@ on:
       - "scripts/test-roadmap-cycle-02-accessibility.ts"
       - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "scripts/test-roadmap-cycle-04-double-count.ts"
+      - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "shared/finance/countProposal.ts"
+      - "server/vercel-handlers/finance/countProposalHelpers.ts"
+      - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
+      - "server/vercel-handlers/finance/countSessionsCreateProposedDrafts.ts"
+      - "src/pages/finance/count/CountProposalPage.tsx"
+      - "src/pages/finance/transactions/CountTransactionProvenance.tsx"
       - "server/vercel-handlers/finance/countSessionsStartSecondCount.ts"
       - "server/vercel-handlers/finance/countSessionsJoinSecondCount.ts"
       - "server/vercel-handlers/finance/countSessionsRefreshSecondInvite.ts"
@@ -131,6 +145,9 @@ jobs:
 
       - name: Verify roadmap cycle 04 independent double Count
         run: npm run test:roadmap-cycle-04
+
+      - name: Verify roadmap cycle 05 Count proposals
+        run: npm run test:roadmap-cycle-05
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
