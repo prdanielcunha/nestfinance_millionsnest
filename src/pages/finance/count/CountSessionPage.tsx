@@ -238,6 +238,38 @@ function CountSessionContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId, sessionId]);
 
+  useEffect(() => {
+    if (
+      loading ||
+      !session ||
+      session.status !== 'counting_a' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+      activeType,
+      method,
+      totalRaw,
+      quantities,
+      step,
+    });
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    loading,
+    method,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+  ]);
+
   const entriesByType = useMemo(() => {
     const map = new Map<CountEntryType, NormalizedCountEntry>();
     entries.forEach((entry) => map.set(entry.type, entry));
@@ -293,6 +325,129 @@ function CountSessionContent() {
     const others = entries.filter((entry) => entry.type !== activeType).map(toDraftEntry);
     return normalizeCountEntries([...others, draft]);
   };
+
+  useEffect(() => {
+    if (
+      !canEdit ||
+      !session ||
+      session.status !== 'counting_a' ||
+      step !== 'count' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    let nextEntries: NormalizedCountEntry[];
+    try {
+      const draft: CountEntryDraft = {
+        type: activeType,
+        method: activeType === 'pix' ? 'total' : method,
+        totalCents: workingTotal,
+        denominations:
+          activeType !== 'pix' && method === 'denominations' ? quantities : {},
+      };
+      const others = entries
+        .filter((entry) => entry.type !== activeType)
+        .map(toDraftEntry);
+      nextEntries = normalizeCountEntries([...others, draft]);
+    } catch {
+      return;
+    }
+
+    const nextDraftEntries = nextEntries.map(toDraftEntry);
+    const nextMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: nextDraftEntries,
+    });
+    const canonicalMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: entries.map(toDraftEntry),
+    });
+
+    if (nextMaterial === canonicalMaterial) {
+      setCloudSaveState('saved');
+      return;
+    }
+
+    if (!online) {
+      setCloudSaveState('local');
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (autosaveInFlightRef.current) return;
+      autosaveInFlightRef.current = true;
+      setCloudSaveState('saving');
+
+      const identity = `${session.id}|${session.version}|${nextMaterial}`;
+      if (!autosaveAttemptRef.current || autosaveAttemptRef.current.identity !== identity) {
+        autosaveAttemptRef.current = {
+          identity,
+          key: makeToken('idcount_autosave'),
+        };
+      }
+
+      const actionEpoch = epochRef.current;
+      const idempotencyKey = autosaveAttemptRef.current.key;
+      void countService
+        .saveFirstCount(organizationId, activeFinanceEntityId, {
+          countSessionId: session.id,
+          expectedVersion: session.version,
+          entries: nextDraftEntries,
+          idempotencyKey,
+          requestId: makeToken('req'),
+        })
+        .then((response) => {
+          if (actionEpoch !== epochRef.current) return;
+          autosaveAttemptRef.current = null;
+          setEntries(response.entries);
+          setSession((current) => {
+            if (!current) return current;
+            const currentCountA = current.countA || { entries: [], totalCents: 0 };
+            return {
+              ...current,
+              version: response.version,
+              countA: {
+                ...currentCountA,
+                entries: response.entries,
+                totalCents: response.totalCents,
+              },
+            };
+          });
+          setCloudSaveState('saved');
+        })
+        .catch((error: any) => {
+          if (actionEpoch !== epochRef.current) return;
+          if (error?.code === 'COUNT_VERSION_CONFLICT') {
+            setConflict(true);
+          }
+          setCloudSaveState('local');
+        })
+        .finally(() => {
+          autosaveInFlightRef.current = false;
+        });
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    canEdit,
+    entries,
+    method,
+    online,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+    workingTotal,
+  ]);
 
   const saveCurrentEntry = async () => {
     if (!canEdit || !session || saving || session.status !== 'counting_a') return;
