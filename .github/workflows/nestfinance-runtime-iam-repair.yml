@@ -1,0 +1,88 @@
+name: NestFinance Runtime IAM Repair
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nestfinance-runtime-iam-repair
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: millionsnest
+  RUNTIME_SERVICE_ACCOUNT: mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout infrastructure contract
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Authenticate with MillionsNest production WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
+          service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
+
+      - name: Grant least-privilege NestFinance runtime access
+        shell: bash
+        run: |
+          set -euo pipefail
+          MEMBER="serviceAccount:${RUNTIME_SERVICE_ACCOUNT}"
+
+          # Canonical users, organizations, memberships and finance data.
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="$MEMBER" \
+            --role="roles/datastore.user" \
+            --condition=None \
+            --quiet
+
+          # verifyIdToken(token, true) checks revocation through Firebase Auth.
+          # Viewer is sufficient; the runtime must not administer users.
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="$MEMBER" \
+            --role="roles/firebaseauth.viewer" \
+            --condition=None \
+            --quiet
+
+          # Direct entry and Hub handoff issue Firebase custom tokens. Limit
+          # signing authority to the runtime service account itself.
+          gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SERVICE_ACCOUNT" \
+            --project="$PROJECT_ID" \
+            --member="$MEMBER" \
+            --role="roles/iam.serviceAccountTokenCreator" \
+            --condition=None \
+            --quiet
+
+      - name: Verify runtime IAM contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          MEMBER="serviceAccount:${RUNTIME_SERVICE_ACCOUNT}"
+
+          PROJECT_POLICY="$(gcloud projects get-iam-policy "$PROJECT_ID" --format=json)"
+          SERVICE_POLICY="$(gcloud iam service-accounts get-iam-policy "$RUNTIME_SERVICE_ACCOUNT" --project="$PROJECT_ID" --format=json)"
+
+          PROJECT_POLICY="$PROJECT_POLICY" SERVICE_POLICY="$SERVICE_POLICY" MEMBER="$MEMBER" node <<'NODE'
+          const project = JSON.parse(process.env.PROJECT_POLICY);
+          const service = JSON.parse(process.env.SERVICE_POLICY);
+          const member = process.env.MEMBER;
+
+          const has = (policy, role) => (policy.bindings || []).some(
+            (binding) => binding.role === role && (binding.members || []).includes(member),
+          );
+
+          for (const role of ['roles/datastore.user', 'roles/firebaseauth.viewer']) {
+            if (!has(project, role)) throw new Error(`Missing runtime project role: ${role}`);
+          }
+          if (!has(service, 'roles/iam.serviceAccountTokenCreator')) {
+            throw new Error('Missing self-scoped custom-token signing role');
+          }
+
+          console.log('NESTFINANCE_RUNTIME_IAM_OK');
+          NODE
