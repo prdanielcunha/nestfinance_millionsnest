@@ -28,7 +28,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
-import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
+import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode } from '@/src/lib/financeExperience';
 import {
   transactionsService,
   type TransactionsActionSummary,
@@ -416,6 +416,7 @@ export function TodayActionCenter() {
 
   const organizationId = accessState.organization?.id || '';
   const experienceMode = getFinanceExperienceMode(accessState);
+  const interfaceRole = getFinanceInterfaceRole(accessState);
   const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
@@ -892,6 +893,7 @@ export function TodayActionCenter() {
 
       <RoleWorkspacePanel
         mode={experienceMode}
+        interfaceRole={interfaceRole}
         entityName={activeFinanceEntityName}
         snapshot={workspaceSnapshot}
         authority={workspaceAuthority}
@@ -939,7 +941,7 @@ export function TodayActionCenter() {
                 <priorityPresentation.icon className="h-6 w-6" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
                   {priority.kind === 'clear' ? copy.everythingClear : copy.attention}
                 </p>
                 <h2 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:text-xl">{priorityPresentation.title}</h2>
@@ -987,7 +989,7 @@ export function TodayActionCenter() {
                       {copy.verifiedReasonText}
                     </p>
                     {explanation.explanation.recordedAt ? (
-                      <p className="mt-2 text-[11px] font-medium text-text-muted">
+                      <p className="mt-2 text-xs font-medium text-text-muted">
                         {copy.sourceRecorded(
                           formatRelativeDate(explanation.explanation.recordedAt, language, copy),
                         )}
@@ -1114,7 +1116,7 @@ export function TodayActionCenter() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-text-primary">{(transaction as any).description || directionLabel}</span>
-                        <span className="hidden shrink-0 rounded-md bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-muted sm:inline">{statusLabel}</span>
+                        <span className="hidden shrink-0 rounded-md bg-surface-secondary px-2 py-1 text-xs font-semibold text-text-muted sm:inline">{statusLabel}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
                         <span>{directionLabel}</span>
