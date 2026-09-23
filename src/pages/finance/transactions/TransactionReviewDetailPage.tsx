@@ -31,6 +31,7 @@ import {
   type ReviewReturnReason,
 } from './transactionReviewDetailCopy';
 import { TransactionReviewEvidencePanel } from './TransactionReviewEvidencePanel';
+import { TransactionReviewHistoryPanel } from './TransactionReviewHistoryPanel';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'state_changed';
 type ActionState = 'approve' | 'return' | null;
@@ -489,6 +490,11 @@ function TransactionReviewDetailContent() {
                 evidenceIds={transaction.evidenceIds}
                 transaction={transaction}
                 allocations={allocations}
+              />
+
+              <TransactionReviewHistoryPanel
+                transactionId={transaction.id}
+                evidenceIds={transaction.evidenceIds}
               />
 
               <Surface variant="elevated" radius="xl" className="overflow-hidden">
