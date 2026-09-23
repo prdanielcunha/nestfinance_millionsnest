@@ -60,9 +60,13 @@ function parseDate(text: string, now: Date) {
 }
 
 function parseAmountCents(text: string) {
-  const candidates = Array.from(
-    text.matchAll(/(?:r\$|brl|\$)?\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)/g),
-  );
+  const explicit = text.match(/(?:r\$|brl|\$)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)/);
+  const withoutDates = text
+    .replace(/\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b/g, ' ')
+    .replace(/\b\d{1,2}[/-]\d{1,2}(?:[/-](?:20)?\d{2})?\b/g, ' ');
+  const candidates = explicit
+    ? [explicit]
+    : Array.from(withoutDates.matchAll(/\b(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)\b/g));
   if (!candidates.length) return null;
 
   for (const match of candidates) {
