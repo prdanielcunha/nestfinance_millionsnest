@@ -88,6 +88,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         !data.secondCountAssignedToUid
           ? data.secondCountInviteCode || null
           : null,
+      workflowState: data.workflowState || (data.status === 'matched' ? 'counted' : null),
+      countProposal: data.countProposal ? {
+        status: data.countProposal.status || null,
+        transactionIds: Array.isArray(data.countProposal.transactionIds) ? data.countProposal.transactionIds : [],
+        sourceVersion: Number(data.countProposal.sourceVersion || 0) || null,
+        createdByLabel: data.countProposal.createdByLabel || null,
+        createdAt: toIso(data.countProposal.createdAt),
+      } : null,
     };
 
     if (materialHidden) {
