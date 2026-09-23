@@ -590,7 +590,36 @@ export function CountResultPanel({
             </Surface>
           ) : null}
 
-          {session.recountAttemptCount > 0 ? <Surface variant="secondary" radius="xl" className="p-5"><div className="flex gap-3"><RotateCcw className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" /><div><p className="font-semibold text-text-primary">{copy.recountHistory}</p><p className="mt-1 text-sm text-text-muted">{copy.recountAttempt(session.recountAttemptCount)}</p><p className="mt-2 text-xs text-text-muted">{copy.originalEvidence}</p></div></div></Surface> : null}
+          {session.recountAttemptCount > 0 ? (
+            <Surface variant="secondary" radius="xl" className="p-5">
+              <div className="flex gap-3">
+                <RotateCcw className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-text-primary">{copy.recountHistory}</p>
+                  <p className="mt-1 text-sm text-text-muted">{copy.recountAttempt(session.recountAttemptCount)}</p>
+                  <p className="mt-2 nf-helper-text text-text-muted">{copy.originalEvidence}</p>
+                  {session.recountAttempts.length ? (
+                    <div className="mt-4 divide-y divide-border-subtle rounded-xl border border-border-subtle bg-surface-base">
+                      {session.recountAttempts.map((attempt) => (
+                        <div key={attempt.attemptNumber} className="p-3">
+                          <p className="text-sm font-semibold text-text-primary">
+                            {language === 'PT'
+                              ? `Recontagem ${attempt.attemptNumber}`
+                              : language === 'ES'
+                                ? `Reconteo ${attempt.attemptNumber}`
+                                : `Recount ${attempt.attemptNumber}`}
+                          </p>
+                          <p className="mt-1 nf-helper-text text-text-muted">
+                            {resultCopy.countedBy}: {attempt.countedByLabel || attempt.enteredByLabel || '—'} · {resultCopy.registeredAt}: {formatAuditTimestamp(attempt.sealedAt, language)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </Surface>
+          ) : null}
 
           {error ? <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-4"><p className="text-sm text-text-primary">{copy.safeError}</p>{supportCode ? <p className="mt-2 break-all font-mono text-xs text-text-muted">{copy.supportCode}: {supportCode}</p> : null}</Surface> : null}
 
