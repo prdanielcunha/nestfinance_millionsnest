@@ -23,6 +23,7 @@ import type {
 import { Button, Surface } from '@/src/components/foundation';
 import { EcosystemOverviewPanel } from '@/src/components/finance/EcosystemOverviewPanel';
 import { RoleWorkspacePanel } from '@/src/components/finance/RoleWorkspacePanel';
+import { FinanceEntitySelectionState } from '@/src/components/finance/FinanceEntitySelectionState';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
@@ -822,20 +823,7 @@ export function TodayActionCenter() {
     return (
       <div className="space-y-6 pb-4">
         <EcosystemOverviewPanel />
-        <div className="mx-auto flex min-h-[48vh] max-w-2xl items-center justify-center">
-          <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-              <Clock3 className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{copy.noEntityTitle}</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{copy.noEntityText}</p>
-            {hasEffectiveCapability(accessState, 'organization.manage_entities') ? (
-              <Button variant="primary" size="lg" className="mt-6" onClick={() => navigate(APP_ROUTES.financeSettings)}>
-                {copy.chooseEntity}
-              </Button>
-            ) : null}
-          </Surface>
-        </div>
+        <FinanceEntitySelectionState canManageFinance={canManageFinance} />
       </div>
     );
   }
