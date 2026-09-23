@@ -245,13 +245,35 @@ export default function UniversalCapturePage() {
 
   const analyzeAccepted = async (item: QueueItem, evidenceId: string, evidenceVersion: number) => {
     patchItem(item.id, { status: 'analyzing', evidenceId, evidenceVersion });
+    let analysisVersion = evidenceVersion;
+    let classified = item.classified;
     try {
+      if (!classified) {
+        const classification = await universalEvidenceInboxService.classify(
+          organizationId,
+          activeFinanceEntityId || '',
+          {
+            evidenceId,
+            expectedVersion: evidenceVersion,
+            documentType: item.intent,
+            idempotencyKey: item.keys.classify,
+            requestId: universalCaptureService.token('req'),
+          },
+        );
+        analysisVersion = classification.version;
+        classified = true;
+        patchItem(item.id, {
+          classified: true,
+          evidenceVersion: analysisVersion,
+        });
+      }
+
       const analyzed = await universalEvidenceInboxService.analyzeTransaction(
         organizationId,
         activeFinanceEntityId || '',
         {
           evidenceId,
-          expectedVersion: evidenceVersion,
+          expectedVersion: analysisVersion,
           locale: language,
           idempotencyKey: item.keys.analyze,
           requestId: universalCaptureService.token('req'),
@@ -261,18 +283,34 @@ export default function UniversalCapturePage() {
         status: 'ready',
         evidenceId,
         evidenceVersion: analyzed.version,
+        classified,
       });
+      if (activeFinanceEntityId) {
+        await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+      }
     } catch {
       patchItem(item.id, {
         status: 'analysis_unavailable',
         evidenceId,
-        evidenceVersion,
+        evidenceVersion: analysisVersion,
+        classified,
       });
     }
   };
 
   const processItem = async (item: QueueItem) => {
     if (!organizationId || !activeFinanceEntityId) return;
+    if (!online) {
+      await universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent: item.intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+      return;
+    }
 
     if (item.status === 'analysis_unavailable' && item.evidenceId && item.evidenceVersion) {
       await analyzeAccepted(item, item.evidenceId, item.evidenceVersion);
@@ -295,6 +333,7 @@ export default function UniversalCapturePage() {
           evidenceId: result.evidenceId,
           evidenceVersion: result.version,
         });
+        await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
         return;
       }
       await analyzeAccepted(item, result.evidenceId, result.version);
@@ -313,7 +352,10 @@ export default function UniversalCapturePage() {
   };
 
   const processAll = async () => {
-    if (processingRef.current || !organizationId || !activeFinanceEntityId) return;
+    if (processingRef.current || !organizationId || !activeFinanceEntityId || !online) {
+      if (!online) setNotice(copy.offlineQueued);
+      return;
+    }
     const pinned = { organizationId, financeEntityId: activeFinanceEntityId };
     processingRef.current = true;
     setProcessing(true);
