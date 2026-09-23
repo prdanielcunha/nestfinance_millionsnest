@@ -42,6 +42,24 @@ import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
+const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string }> = {
+  PT: {
+    title: 'Vai contar um culto?',
+    body: 'Comece por aqui. O NestFinance já usa a igreja ativa e guia uma decisão por vez.',
+    action: 'Iniciar contagem',
+  },
+  EN: {
+    title: 'Counting a service?',
+    body: 'Start here. NestFinance already uses the active church and guides one decision at a time.',
+    action: 'Start count',
+  },
+  ES: {
+    title: '¿Vas a contar un culto?',
+    body: 'Empieza aquí. NestFinance ya usa la iglesia activa y guía una decisión por vez.',
+    action: 'Iniciar conteo',
+  },
+};
+
 type Direction = 'income' | 'expense' | 'transfer';
 
 type TodayCopy = {
@@ -890,6 +908,31 @@ export function TodayActionCenter() {
   return (
     <div className="space-y-6 pb-4">
       <EcosystemOverviewPanel />
+
+      {canCount ? (
+        <Surface variant="glass" radius="xl" className="border-accent-primary/25 bg-accent-primary/5 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="nf-helper-text font-semibold uppercase tracking-[0.14em] text-accent-primary">
+                {copy.today}
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+                {COUNT_PRIMARY_COPY[language].title}
+              </h2>
+              <p className="mt-2 leading-relaxed text-text-secondary">
+                {COUNT_PRIMARY_COPY[language].body}
+              </p>
+            </div>
+            <Button
+              size="lg"
+              className="w-full shrink-0 sm:w-auto"
+              onClick={() => navigate(APP_ROUTES.count)}
+            >
+              {COUNT_PRIMARY_COPY[language].action}
+            </Button>
+          </div>
+        </Surface>
+      ) : null}
 
       <RoleWorkspacePanel
         mode={experienceMode}

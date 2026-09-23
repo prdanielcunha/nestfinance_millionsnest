@@ -16,6 +16,7 @@ on:
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-roadmap-cycle-01-context.ts"
       - "scripts/test-roadmap-cycle-02-accessibility.ts"
+      - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
@@ -51,6 +52,7 @@ on:
       - "scripts/test-finance-context-bar-i18n.ts"
       - "scripts/test-roadmap-cycle-01-context.ts"
       - "scripts/test-roadmap-cycle-02-accessibility.ts"
+      - "scripts/test-roadmap-cycle-03-count-journey.ts"
       - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
@@ -107,6 +109,9 @@ jobs:
 
       - name: Verify roadmap cycle 02 accessibility gate
         run: npm run test:roadmap-cycle-02
+
+      - name: Verify roadmap cycle 03 guided Count journey
+        run: npm run test:roadmap-cycle-03
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts

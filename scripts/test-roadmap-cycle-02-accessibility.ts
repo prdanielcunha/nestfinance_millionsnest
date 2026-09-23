@@ -60,6 +60,7 @@ async function run() {
     flowHelp,
     flowConfirmation,
     countPage,
+    countStartJourney,
     countSession,
     today,
     roleWorkspace,
@@ -74,6 +75,7 @@ async function run() {
     read('src/components/foundation/FlowHelp.tsx'),
     read('src/components/foundation/FlowConfirmation.tsx'),
     read('src/pages/finance/CountPage.tsx'),
+    read('src/pages/finance/count/CountStartJourney.tsx'),
     read('src/pages/finance/count/CountSessionPage.tsx'),
     read('src/pages/finance/TodayActionCenter.tsx'),
     read('src/components/finance/RoleWorkspacePanel.tsx'),
@@ -111,7 +113,7 @@ async function run() {
   assert.ok(!shell.includes('text-[10px]'));
   assert.ok(!shell.includes('text-[11px]'));
 
-  for (const source of [countPage, countSession, today, roleWorkspace]) {
+  for (const source of [countPage, countStartJourney, countSession, today, roleWorkspace]) {
     assert.ok(!source.includes('text-[10px]'), 'Operational source contains 10px text');
     assert.ok(!source.includes('text-[11px]'), 'Operational source contains 11px text');
   }
@@ -126,7 +128,7 @@ async function run() {
   assert.ok(countSession.includes('FlowStepHeader'));
   assert.ok(countSession.includes('FlowFeedback'));
   assert.ok(countSession.includes('FlowConfirmation'));
-  assert.ok(countPage.includes('FlowHelp'));
+  assert.ok(countStartJourney.includes('FlowHelp'));
 
   assert.ok(languageContext.includes("PT: 'Conferir com o banco'"));
   assert.ok(languageContext.includes("PT: 'Comprovantes'"));

@@ -11,6 +11,8 @@ export const APP_ROUTES = {
   financeSettingsCategories: '/finance/settings/categories',
   count: '/finance/count',
   countSession: '/finance/count/:sessionId',
+  countTraining: '/finance/count/training',
+  countVoice: '/finance/count/:sessionId/voice',
   countPaperForms: '/finance/count/forms',
   countPaperForm: '/finance/count/forms/:formId',
   countCapture: '/finance/count/capture',

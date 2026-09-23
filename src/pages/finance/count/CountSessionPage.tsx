@@ -12,7 +12,7 @@ import {
   ShieldX,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, Surface } from '@/src/components/foundation';
+import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, SpeakInstructionButton, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -20,6 +20,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionDetail } from '@/src/services/countService';
+import { countDraftPersistence } from '@/src/services/countDraftPersistence';
 import {
   COUNT_DENOMINATIONS_CENTS,
   COUNT_ENTRY_TYPES,
@@ -36,6 +37,33 @@ import {
 import { COUNT_COPY } from './countCopy';
 import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
+
+const AUTOSAVE_COPY = {
+  PT: {
+    listen: 'Ouvir instrução',
+    stop: 'Parar instrução',
+    saving: 'Salvando na nuvem…',
+    cloud: 'Salvo na nuvem',
+    local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    restored: 'Retomamos seu rascunho salvo neste aparelho.',
+  },
+  EN: {
+    listen: 'Listen to instruction',
+    stop: 'Stop instruction',
+    saving: 'Saving to cloud…',
+    cloud: 'Saved to cloud',
+    local: 'Saved on this device. The cloud will update when the connection returns.',
+    restored: 'We restored the draft saved on this device.',
+  },
+  ES: {
+    listen: 'Escuchar instrucción',
+    stop: 'Detener instrucción',
+    saving: 'Guardando en la nube…',
+    cloud: 'Guardado en la nube',
+    local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    restored: 'Restauramos el borrador guardado en este dispositivo.',
+  },
+} as const;
 
 type Step = 'choose' | 'count' | 'review';
 
@@ -102,6 +130,7 @@ function CountSessionContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
@@ -119,10 +148,26 @@ function CountSessionContent() {
   const [saveError, setSaveError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
+  const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
 
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
   const secondStartAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
     if (!organizationId || !activeFinanceEntityId || !sessionId) return;
@@ -131,6 +176,8 @@ function CountSessionContent() {
     setConflict(false);
     setSaveError(false);
     setSupportCode(null);
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     try {
       const response = await countService.detail(
         organizationId,
@@ -139,9 +186,34 @@ function CountSessionContent() {
       );
       if (currentEpoch !== epochRef.current) return;
       setSession(response.session);
-      setEntries(response.session.status === 'counting_a' ? response.session.countA?.entries || [] : []);
+      const serverEntries =
+        response.session.status === 'counting_a' ? response.session.countA?.entries || [] : [];
+      setEntries(serverEntries);
+
+      if (response.session.status === 'counting_a') {
+        const localDraft = countDraftPersistence.load(
+          organizationId,
+          activeFinanceEntityId,
+          sessionId,
+        );
+        if (localDraft) {
+          setActiveType(localDraft.activeType);
+          setMethod(localDraft.method);
+          setTotalRaw(localDraft.totalRaw);
+          setQuantities({ ...localDraft.quantities });
+          setStep(localDraft.step);
+          setRestoredDraft(true);
+        } else {
+          setStep('choose');
+        }
+      } else {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
+
       saveAttemptRef.current = null;
       secondStartAttemptRef.current = null;
+      autosaveAttemptRef.current = null;
+      autosaveInFlightRef.current = false;
     } catch (error: any) {
       if (currentEpoch !== epochRef.current) return;
       setSupportCode(error?.details?.requestId || null);
@@ -156,12 +228,48 @@ function CountSessionContent() {
     setSession(null);
     setEntries([]);
     setStep('choose');
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     saveAttemptRef.current = null;
     secondStartAttemptRef.current = null;
+    autosaveAttemptRef.current = null;
+    autosaveInFlightRef.current = false;
     if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
     // Canonical Count scope is organization + finance entity + session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId, sessionId]);
+
+  useEffect(() => {
+    if (
+      loading ||
+      !session ||
+      session.status !== 'counting_a' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+      activeType,
+      method,
+      totalRaw,
+      quantities,
+      step,
+    });
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    loading,
+    method,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+  ]);
 
   const entriesByType = useMemo(() => {
     const map = new Map<CountEntryType, NormalizedCountEntry>();
@@ -195,6 +303,7 @@ function CountSessionContent() {
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
+    setRestoredDraft(false);
     setStep('count');
   };
 
@@ -219,8 +328,137 @@ function CountSessionContent() {
     return normalizeCountEntries([...others, draft]);
   };
 
+  useEffect(() => {
+    if (
+      !canEdit ||
+      !session ||
+      session.status !== 'counting_a' ||
+      step !== 'count' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    let nextEntries: NormalizedCountEntry[];
+    try {
+      const draft: CountEntryDraft = {
+        type: activeType,
+        method: activeType === 'pix' ? 'total' : method,
+        totalCents: workingTotal,
+        denominations:
+          activeType !== 'pix' && method === 'denominations' ? quantities : {},
+      };
+      const others = entries
+        .filter((entry) => entry.type !== activeType)
+        .map(toDraftEntry);
+      nextEntries = normalizeCountEntries([...others, draft]);
+    } catch {
+      return;
+    }
+
+    const nextDraftEntries = nextEntries.map(toDraftEntry);
+    const nextMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: nextDraftEntries,
+    });
+    const canonicalMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: entries.map(toDraftEntry),
+    });
+
+    if (nextMaterial === canonicalMaterial) {
+      setCloudSaveState('saved');
+      return;
+    }
+
+    if (!online) {
+      setCloudSaveState('local');
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (autosaveInFlightRef.current) return;
+      autosaveInFlightRef.current = true;
+      setCloudSaveState('saving');
+
+      const identity = `${session.id}|${session.version}|${nextMaterial}`;
+      if (!autosaveAttemptRef.current || autosaveAttemptRef.current.identity !== identity) {
+        autosaveAttemptRef.current = {
+          identity,
+          key: makeToken('idcount_autosave'),
+        };
+      }
+
+      const actionEpoch = epochRef.current;
+      const idempotencyKey = autosaveAttemptRef.current.key;
+      void countService
+        .saveFirstCount(organizationId, activeFinanceEntityId, {
+          countSessionId: session.id,
+          expectedVersion: session.version,
+          entries: nextDraftEntries,
+          idempotencyKey,
+          requestId: makeToken('req'),
+        })
+        .then((response) => {
+          if (actionEpoch !== epochRef.current) return;
+          autosaveAttemptRef.current = null;
+          setEntries(response.entries);
+          setSession((current) => {
+            if (!current) return current;
+            const currentCountA = current.countA || { entries: [], totalCents: 0 };
+            return {
+              ...current,
+              version: response.version,
+              countA: {
+                ...currentCountA,
+                entries: response.entries,
+                totalCents: response.totalCents,
+              },
+            };
+          });
+          setCloudSaveState('saved');
+        })
+        .catch((error: any) => {
+          if (actionEpoch !== epochRef.current) return;
+          if (error?.code === 'COUNT_VERSION_CONFLICT') {
+            setConflict(true);
+          }
+          setCloudSaveState('local');
+        })
+        .finally(() => {
+          autosaveInFlightRef.current = false;
+        });
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    canEdit,
+    entries,
+    method,
+    online,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+    workingTotal,
+  ]);
+
   const saveCurrentEntry = async () => {
-    if (!canEdit || !session || saving || session.status !== 'counting_a') return;
+    if (
+      !canEdit ||
+      !session ||
+      saving ||
+      cloudSaveState === 'saving' ||
+      session.status !== 'counting_a'
+    ) return;
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -264,6 +502,7 @@ function CountSessionContent() {
       saveAttemptRef.current = null;
       setSupportCode(null);
       setEntries(response.entries);
+      setCloudSaveState('saved');
       setSession((current) => {
         if (!current) return current;
         const currentCountA = current.countA || { entries: [], totalCents: 0 };
@@ -285,6 +524,7 @@ function CountSessionContent() {
         setSaveError(false);
       } else {
         setSaveError(true);
+        if (!online) setCloudSaveState('local');
       }
       setSupportCode(error?.details?.requestId || requestId);
     } finally {
@@ -313,6 +553,9 @@ function CountSessionContent() {
       secondStartAttemptRef.current = null;
       setStartingSecond(false);
       setSupportCode(null);
+      if (activeFinanceEntityId && sessionId) {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
       await loadSession();
     } catch (error: any) {
       if (error?.code === 'COUNT_VERSION_CONFLICT') {
@@ -437,6 +680,28 @@ function CountSessionContent() {
             stepLabel={stepProgress}
             description={stepDescription}
           />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <SpeakInstructionButton
+              text={`${stepTitle}. ${stepDescription}`}
+              language={language}
+              label={autosaveCopy.listen}
+              stopLabel={autosaveCopy.stop}
+            />
+            <p className="nf-helper-text text-text-muted" role="status" aria-live="polite">
+              {cloudSaveState === 'saving'
+                ? autosaveCopy.saving
+                : cloudSaveState === 'saved'
+                  ? autosaveCopy.cloud
+                  : cloudSaveState === 'local'
+                    ? autosaveCopy.local
+                    : ''}
+            </p>
+          </div>
+
+          {restoredDraft ? (
+            <FlowFeedback tone="info" title={autosaveCopy.restored} />
+          ) : null}
 
           {conflict ? (
             <FlowFeedback
@@ -620,7 +885,7 @@ function CountSessionContent() {
                 <Button variant="secondary" size="lg" fullWidth onClick={() => setStep('choose')} disabled={saving}>
                   {copy.back}
                 </Button>
-                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || !canEdit}>
+                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || cloudSaveState === 'saving' || !canEdit}>
                   {saving ? copy.saving : copy.saveEntry}
                 </Button>
               </div>

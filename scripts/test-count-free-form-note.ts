@@ -55,6 +55,7 @@ const review = readFileSync('server/vercel-handlers/finance/countCapturesSaveRev
 const apply = readFileSync('server/vercel-handlers/finance/countCapturesApplyToCount.ts', 'utf8');
 const page = readFileSync('src/pages/finance/count/CountFreeFormCapturePage.tsx', 'utf8');
 const home = readFileSync('src/pages/finance/CountPage.tsx', 'utf8');
+const startJourney = readFileSync('src/pages/finance/count/CountStartJourney.tsx', 'utf8');
 const reviewPage = readFileSync('src/pages/finance/count/CountCaptureReviewPage.tsx', 'utf8');
 const panel = readFileSync('src/pages/finance/count/CountCaptureExtractionPanel.tsx', 'utf8');
 const service = readFileSync('src/services/countCaptureService.ts', 'utf8');
@@ -76,7 +77,7 @@ verify(apply.includes("count.first_count_imported_from_reviewed_note") && apply.
 verify(apply.includes('sourceProvenance: provenance'), 'canonical Count keeps explicit source provenance');
 verify(page.includes('forceFullFrame: true'), 'free-form UI never assumes official sheet geometry');
 verify(page.includes('min-h-') && page.includes('Tirar foto') && page.includes('Take photo') && page.includes('Tomar foto'), 'capture UX is touch-friendly and localized');
-verify(home.includes('Fotografar meu papel') && home.includes('Photograph my paper') && home.includes('Fotografiar mi papel'), 'free-form paper is a first-class PT/EN/ES Count mode');
+verify(startJourney.includes('Fotografar meu papel') && startJourney.includes('Photograph my paper') && startJourney.includes('Fotografiar mi papel') && home.includes("input.mode === 'free_form'"), 'free-form paper is a first-class PT/EN/ES guided Count mode');
 verify(reviewPage.includes("capture?.provenance === 'free_form_note'"), 'review screen explicitly distinguishes free-form evidence');
 verify(panel.includes('extractFreeFormCandidates') && panel.includes('!freeForm && showDenominations'), 'free-form review uses full-frame extraction and hides denomination detail');
 verify(service.includes('count-free-form-captures-start') && service.includes('count-free-form-captures-finalize') && service.includes('count-free-form-captures-extract-candidates'), 'client uses three certified free-form operations');
