@@ -48,7 +48,7 @@ service cloud.firestore {
         'financeJournalEntries', 'financeJournalLines', 'financeAggregates',
         'financeReconciliations', 'financeReconciliationSessions', 'financeReconciliationLineLocks',
         'financeReconciliationReversals', 'financePeriodCloseReviews',
-        'financeSearchCoverage'
+        'financeSearchCoverage', 'financeProductMetrics'
       ];
     }
     
@@ -353,6 +353,9 @@ service cloud.firestore {
         allow read, create, update, delete: if false;
       }
       match /financeSearchCoverage/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeProductMetrics/{document=**} {
         allow read, create, update, delete: if false;
       }
       match /financeFunds/{id} {
