@@ -93,7 +93,7 @@ async function run() {
   assert.ok(directEntry.includes("'current_session'"));
 
   assert.ok(financeEntityContext.includes('refreshAccessibleFinanceEntities'));
-  assert.ok(financeEntityContext.includes('validRemembered'));
+  assert.ok(financeEntityContext.includes('selectPreferredFinanceEntity'));
   assert.ok(financeEntityContext.includes('setActiveFinanceEntityId(null)'));
   assert.ok(financeEntityService.includes('/api/finance/entities/accessible'));
   assert.ok(financeEntitySelector.includes('hasFinanceEntityScope(session, document.id)'));
