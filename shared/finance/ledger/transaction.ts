@@ -26,6 +26,16 @@ export type TransactionBase = {
   counterparty?: string;
   evidenceIds: EvidenceId[];
   evidenceJustification?: string;
+  countSource?: {
+    countSessionId: string;
+    countVersion: number;
+    countEntryType: 'tithe' | 'offering' | 'other' | 'pix';
+    sourceCaptureIds: string[];
+    firstCounterLabel?: string | null;
+    secondCounterLabel?: string | null;
+    serviceLabel?: string;
+    serviceDate?: string;
+  };
   reconciliationStatus: 'unreconciled' | 'reconciled';
   reconciliationId?: string;
   reconciliationEvidenceId?: EvidenceId;
