@@ -352,6 +352,21 @@ service cloud.firestore {
       match /financeEntities/{entityId}/universalEvidenceHashes/{id} {
         allow read, create, update, delete: if false;
       }
+      match /financeEntities/{entityId}/intelligenceCache/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/intelligenceAttempts/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/intelligenceCorrections/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeIntelligenceUsage/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeIntelligenceBenchmarks/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeSearchCoverage/{document=**} {
         allow read, create, update, delete: if false;
       }
