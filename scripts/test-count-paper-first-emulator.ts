@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import countCapturesApplyToCount from '../server/vercel-handlers/finance/countCapturesApplyToCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
 import { buildCountPaperIdentity } from '../server/vercel-handlers/finance/countPaperHelpers.js';
 
 class MockRes {
@@ -24,17 +25,28 @@ async function run() {
   const orgId = 'org_paperapply_' + suffix;
   const entityA = 'ent_paper_a_' + suffix;
   const entityB = 'ent_paper_b_' + suffix;
-  const uid = 'usr_paper_' + suffix;
+  const uidA = 'usr_paper_a_' + suffix;
+  const uidB = 'usr_paper_b_' + suffix;
 
   await db.collection('organizations').doc(orgId).set({ name: 'Paper First Org', status: 'active' });
-  await db.collection('users').doc(uid).set({ displayName: 'Paper First User', systemRole: 'ceo' });
+  await db.collection('users').doc(uidA).set({ displayName: 'Paper First A', systemRole: 'ceo' });
+  await db.collection('users').doc(uidB).set({ displayName: 'Paper First B', systemRole: 'ceo' });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityA).set({ name: 'Entity A', active: true });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityB).set({ name: 'Entity B', active: true });
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, email: uid + '@test.com', mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
+  let activeUid = uidA;
+  admin.auth.verifyIdToken = async () => ({
+    uid: activeUid,
+    name: activeUid === uidA ? 'Paper First A' : 'Paper First B',
+    email: activeUid + '@test.com',
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
+    mn_organization_id: orgId,
+    mn_session_version: 1,
+  }) as any;
 
-  const call = async (body: any) => {
+  const callHandler = async (handler: any, body: any) => {
     const req = {
       method: 'POST',
       headers: { authorization: 'Bearer paper_apply_test', 'x-organization-id': orgId },
@@ -42,9 +54,15 @@ async function run() {
       query: {},
     };
     const res = new MockRes();
-    await countCapturesApplyToCount(req as any, res as any);
+    await handler(req as any, res as any);
     return res;
   };
+
+  const call = async (body: any) => {
+    return callHandler(countCapturesApplyToCount, body);
+  };
+
+  const joinSecond = async (body: any) => callHandler(countSessionsJoinSecondCount, body);
 
   const randomKey = () => 'idpaperapply_' + crypto.randomBytes(12).toString('hex');
   const randomRequest = () => 'req_' + crypto.randomBytes(12).toString('hex');
@@ -143,7 +161,7 @@ async function run() {
     verify(firstDoc.countA?.entries?.find((entry: any) => entry.type === 'tithe')?.totalCents === 30000, 'paper Count A preserves tithe value');
     verify(firstDoc.countA?.entries?.find((entry: any) => entry.type === 'offering')?.totalCents === 40000, 'paper Count A preserves offering value');
     verify(firstDoc.countA?.source === 'count_capture' && firstDoc.countA?.sourceCaptureId === captureA, 'Count A stores paper evidence lineage');
-    verify(firstDoc.countA?.countedByUid === null && firstDoc.countA?.enteredByUid === uid, 'paper counter identity is not falsely inferred from authenticated typist');
+    verify(firstDoc.countA?.countedByUid === null && firstDoc.countA?.enteredByUid === uidA, 'paper counter identity is not falsely inferred from authenticated typist');
 
     const captureAfterA = (await entitiesRef.doc(entityA).collection('countCaptures').doc(captureA).get()).data() || {};
     verify(captureAfterA.appliedToCount?.countSessionId === sessionA && captureAfterA.appliedToCount?.stage === 'count_a', 'capture stores immutable application lineage');
@@ -168,7 +186,67 @@ async function run() {
     });
     verify(crossEntity.statusCode === 404, 'paper capture cannot cross finance entities');
 
-    await sessionRef.update({ status: 'counting_b', version: 3 });
+    const joinCode = '7K4M9P2XQH';
+    const joinCodeHash = crypto.createHash('sha256').update(joinCode).digest('hex');
+    await sessionRef.update({
+      status: 'counting_b',
+      version: 3,
+      policySnapshot: {
+        doubleCountRequired: true,
+        requireIndependentCounter: true,
+        source: 'safe_default_v2',
+        policyVersion: 2,
+      },
+      secondCountInviteRequired: true,
+      secondCountInviteCodeHash: joinCodeHash,
+      secondCountInviteCode: joinCode,
+      secondCountInviteExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      secondCountStartedByUid: uidA,
+      secondCountStartedByLabel: 'Paper First A',
+    });
+    await entitiesRef.doc(entityA).collection('countSecondInvites').doc(joinCodeHash).set({
+      organizationId: orgId,
+      financeEntityId: entityA,
+      countSessionId: sessionA,
+      codeHash: joinCodeHash,
+      createdByUid: uidA,
+      createdByLabel: 'Paper First A',
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      claimedByUid: null,
+      claimedByLabel: null,
+      claimedAt: null,
+    });
+
+    const samePersonJoin = await joinSecond({
+      financeEntityId: entityA,
+      joinCode,
+      idempotencyKey: randomKey(),
+      requestId: randomRequest(),
+    });
+    verify(
+      samePersonJoin.statusCode === 403 && samePersonJoin.body.error === 'COUNT_INDEPENDENT_COUNTER_REQUIRED',
+      'paper Count B cannot be assumed by the first accountable user',
+    );
+
+    activeUid = uidB;
+    const joined = await joinSecond({
+      financeEntityId: entityA,
+      joinCode,
+      idempotencyKey: randomKey(),
+      requestId: randomRequest(),
+    });
+    verify(
+      joined.statusCode === 200 && joined.body.countSessionId === sessionA,
+      'second paper counter assumes the blind session through the invite',
+    );
+
+    const assignedSession = (await sessionRef.get()).data() || {};
+    verify(
+      assignedSession.secondCountAssignedToUid === uidB && assignedSession.version === 4,
+      'second-counter assignment is bound to the verified second identity',
+    );
+
     const formB = 'cpf_' + crypto.randomBytes(8).toString('hex');
     const captureB = 'cpc_' + crypto.randomBytes(12).toString('hex');
     await seedReviewedPaper({ sessionId: sessionA, stage: 'count_b', captureId: captureB, formId: formB });
@@ -202,8 +280,19 @@ async function run() {
           { type: 'pix', channel: 'pix', method: 'total', totalCents: 12000, denominations: {} },
         ],
         totalCents: 87000,
+        countedByUid: null,
+        enteredByUid: uidA,
+        enteredByLabel: 'Paper First A',
       },
-      policySnapshot: { doubleCountRequired: true, source: 'safe_default_v1', policyVersion: 1 },
+      policySnapshot: {
+        doubleCountRequired: true,
+        requireIndependentCounter: true,
+        source: 'safe_default_v2',
+        policyVersion: 2,
+      },
+      secondCountInviteRequired: true,
+      secondCountAssignedToUid: uidB,
+      secondCountAssignedToLabel: 'Paper First B',
       version: 2,
     });
     const formD = 'cpf_' + crypto.randomBytes(8).toString('hex');
