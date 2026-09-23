@@ -125,6 +125,29 @@ assert.doesNotMatch(
   'Application production release must never self-modify project IAM',
 );
 
+const runtimeIamRepair = fs.readFileSync('.github/workflows/nestfinance-runtime-iam-repair.yml', 'utf8');
+const runtimeIamTriggerBlock = runtimeIamRepair.slice(
+  runtimeIamRepair.indexOf('on:'),
+  runtimeIamRepair.indexOf('permissions:'),
+);
+assert.match(runtimeIamTriggerBlock, /workflow_dispatch:/, 'Runtime IAM repair must require explicit manual dispatch');
+assert.doesNotMatch(runtimeIamTriggerBlock, /\bpush:|pull_request:/, 'Runtime IAM repair must never run automatically');
+for (const required of [
+  'mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com',
+  'roles/datastore.user',
+  'roles/firebaseauth.viewer',
+  'roles/iam.serviceAccountTokenCreator',
+  'gcloud iam service-accounts add-iam-policy-binding',
+  'NESTFINANCE_RUNTIME_IAM_OK',
+]) {
+  assert.ok(runtimeIamRepair.includes(required), `Runtime IAM repair contract missing: ${required}`);
+}
+assert.doesNotMatch(
+  runtimeIamRepair,
+  /roles\/firebaseauth\.admin|roles\/owner|roles\/editor/,
+  'Runtime IAM repair must not grant broad administrative roles',
+);
+
 for (const legacyWorkflow of [
   '.github/workflows/firebase-hosting-deploy.yml',
   '.github/workflows/cloudrun-private-deploy.yml',
