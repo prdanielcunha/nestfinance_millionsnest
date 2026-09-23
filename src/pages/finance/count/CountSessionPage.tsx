@@ -36,6 +36,7 @@ import {
 } from '@/shared/finance/count';
 import { COUNT_COPY } from './countCopy';
 import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
+import { CountSecondCounterGate } from './CountSecondCounterGate';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
 
 const AUTOSAVE_COPY = {
@@ -126,7 +127,7 @@ export default function CountSessionPage() {
 function CountSessionContent() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
@@ -605,7 +606,33 @@ function CountSessionContent() {
     );
   }
 
-  if (session.status === 'counting_b' || session.status === 'recounting') {
+  if (session.status === 'counting_b') {
+    const assignedToCurrentUser =
+      !session.secondCountInviteRequired ||
+      Boolean(user?.uid && session.secondCountAssignedToUid === user.uid);
+
+    if (!assignedToCurrentUser) {
+      return (
+        <CountSecondCounterGate
+          session={session}
+          currentUserUid={user?.uid || null}
+          onReload={() => loadSession()}
+        />
+      );
+    }
+
+    return (
+      <CountBlindWorkspace
+        session={session}
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId || ''}
+        canEdit={canEdit}
+        onReload={() => loadSession()}
+      />
+    );
+  }
+
+  if (session.status === 'recounting') {
     return (
       <CountBlindWorkspace
         session={session}
