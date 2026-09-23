@@ -198,6 +198,7 @@ function EvidenceDetailContent() {
     if (sourceKind === 'photo') return copy.sourcePhoto;
     if (sourceKind === 'file') return copy.sourceFile;
     if (sourceKind === 'clipboard') return copy.sourceClipboard;
+    if (sourceKind === 'share_target') return copy.sourceShareTarget;
     return copy.sourceUnknown;
   };
 
