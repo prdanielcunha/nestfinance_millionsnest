@@ -12,6 +12,7 @@ import type {
   ReconciliationReverseResponse,
 } from '../../shared/finance/reconciliationReversal.js';
 import type { ReconciliationProgressResponse } from '../../shared/finance/reconciliationProgress.js';
+import type { ReconciliationExceptionJustificationRequest, ReconciliationExceptionJustificationResponse } from '../../shared/finance/reconciliationExceptionJustification.js';
 
 async function buildHeaders(organizationId: string) {
   const auth = getAuth();
@@ -145,6 +146,25 @@ export const reconciliationService = {
       throw await parseError(response, 'RECONCILIATION_REVERSE_FAILED');
     }
 
+    return response.json();
+  },
+
+  async justifyException(
+    organizationId: string,
+    request: ReconciliationExceptionJustificationRequest,
+  ): Promise<ReconciliationExceptionJustificationResponse> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(
+      `${FINANCE_GATEWAY_PATH}?operation=reconciliation-exception-justify`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      },
+    );
+    if (!response.ok) {
+      throw await parseError(response, 'RECONCILIATION_EXCEPTION_JUSTIFY_FAILED');
+    }
     return response.json();
   },
 
