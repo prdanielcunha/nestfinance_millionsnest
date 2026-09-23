@@ -352,6 +352,9 @@ service cloud.firestore {
       match /financeEntities/{entityId}/universalEvidenceHashes/{id} {
         allow read, create, update, delete: if false;
       }
+      match /financeEntities/{entityId}/reconciliationExceptionJustifications/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeEntities/{entityId}/intelligenceCache/{document=**} {
         allow read, create, update, delete: if false;
       }
