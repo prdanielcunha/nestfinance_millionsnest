@@ -15,13 +15,14 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import {
   UNIVERSAL_EVIDENCE_MAX_BYTES,
   isUniversalEvidenceMime,
@@ -29,7 +30,12 @@ import {
 } from '@/shared/finance/universalEvidence';
 import { universalCaptureService } from '@/src/services/universalCaptureService';
 import { universalEvidenceInboxService } from '@/src/services/universalEvidenceInboxService';
+import { universalCaptureOfflineQueue } from '@/src/services/universalCaptureOfflineQueue';
+import { consumeShareTarget } from '@/src/services/shareTargetService';
+import { classifyUniversalDocumentIntent } from '@/shared/finance/universalInputIntent';
+import type { UniversalEvidenceDocumentType } from '@/shared/finance/universalEvidenceReview';
 import { UNIVERSAL_CAPTURE_COPY } from './universalCaptureCopy';
+import { UniversalQuickTextEntry } from './UniversalQuickTextEntry';
 
 const MAX_BATCH = 20;
 type QueueStatus =
@@ -51,9 +57,13 @@ type QueueItem = {
   status: QueueStatus;
   evidenceId: string | null;
   evidenceVersion: number | null;
+  intent: UniversalEvidenceDocumentType;
+  editingIntent: boolean;
+  classified: boolean;
   keys: {
     start: string;
     finalize: string;
+    classify: string;
     analyze: string;
   };
 };
@@ -72,19 +82,23 @@ function classifyFile(file: File): QueueStatus {
 
 export default function UniversalCapturePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language } = useLanguage();
   const copy = UNIVERSAL_CAPTURE_COPY[language];
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { accessState } = useAuth();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const canCapture = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const online = useOnlineStatus();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceRef = useRef<UniversalEvidenceSourceKind>('file');
   const processingRef = useRef(false);
   const contextRef = useRef({ organizationId, financeEntityId: activeFinanceEntityId || '' });
+  const restoredScopeRef = useRef('');
 
   const [items, setItems] = useState<QueueItem[]>([]);
+  const [sharedText, setSharedText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const clipboardAvailable = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.read);
@@ -110,7 +124,11 @@ export default function UniversalCapturePage() {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   };
 
-  const addFiles = (files: File[], sourceKind: UniversalEvidenceSourceKind) => {
+  const addFiles = (
+    files: File[],
+    sourceKind: UniversalEvidenceSourceKind,
+    intentText = '',
+  ) => {
     if (!organizationId || !activeFinanceEntityId) {
       setNotice(copy.noEntity);
       return;
@@ -129,15 +147,71 @@ export default function UniversalCapturePage() {
       status: classifyFile(file),
       evidenceId: null,
       evidenceVersion: null,
+      intent: classifyUniversalDocumentIntent({ filename: file.name, sharedText: intentText }),
+      editingIntent: false,
+      classified: false,
       keys: {
         start: universalCaptureService.token('idevidence_start'),
         finalize: universalCaptureService.token('idevidence_finalize'),
+        classify: universalCaptureService.token('idevidence_classify'),
         analyze: universalCaptureService.token('idevidence_analysis'),
       },
     }) satisfies QueueItem);
 
     setItems((current) => [...current, ...nextItems]);
+    for (const item of nextItems) {
+      if (item.status !== 'queued') continue;
+      void universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent: item.intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+    }
   };
+
+  useEffect(() => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    const scope = `${organizationId}:${activeFinanceEntityId}`;
+    if (restoredScopeRef.current === scope) return;
+    restoredScopeRef.current = scope;
+    void universalCaptureOfflineQueue.list(organizationId, activeFinanceEntityId).then((records) => {
+      if (contextRef.current.organizationId !== organizationId || contextRef.current.financeEntityId !== activeFinanceEntityId) return;
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        const restored = records.filter((record) => !known.has(record.id)).map((record) => ({
+          id: record.id,
+          file: record.file,
+          sourceKind: record.sourceKind,
+          status: classifyFile(record.file),
+          evidenceId: null,
+          evidenceVersion: null,
+          intent: record.intent,
+          editingIntent: false,
+          classified: false,
+          keys: record.keys,
+        }) satisfies QueueItem);
+        return [...current, ...restored].slice(0, MAX_BATCH);
+      });
+    });
+  }, [organizationId, activeFinanceEntityId]);
+
+  useEffect(() => {
+    const shareTargetId = searchParams.get('shareTarget');
+    if (!shareTargetId || !organizationId || !activeFinanceEntityId) return;
+    void consumeShareTarget(shareTargetId).then((payload) => {
+      if (!payload) return;
+      if (payload.text) setSharedText(payload.text);
+      if (payload.files.length > 0) addFiles(payload.files, 'share_target', payload.text);
+      const next = new URLSearchParams(searchParams);
+      next.delete('shareTarget');
+      setSearchParams(next, { replace: true });
+    });
+    // Consume each share-target id once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, activeFinanceEntityId, searchParams.get('shareTarget')]);
 
   const choose = (source: UniversalEvidenceSourceKind) => {
     sourceRef.current = source;
