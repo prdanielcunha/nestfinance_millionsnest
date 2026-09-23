@@ -14,6 +14,8 @@ on:
       - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-roadmap-cycle-01-context.ts"
+      - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
       - "scripts/test-transaction-review-queue.ts"
@@ -46,6 +48,8 @@ on:
       - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-roadmap-cycle-01-context.ts"
+      - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
       - "scripts/test-transaction-review-queue.ts"
@@ -95,6 +99,9 @@ jobs:
 
       - name: Verify finance context localization
         run: npx tsx scripts/test-finance-context-bar-i18n.ts
+
+      - name: Verify roadmap cycle 01 context gate
+        run: npm run test:roadmap-cycle-01
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
