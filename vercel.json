@@ -92,6 +92,10 @@
       "destination": "/api/finance-gateway?operation=entities-accessible"
     },
     {
+      "source": "/api/finance/metrics/record",
+      "destination": "/api/finance-gateway?operation=journey-metrics-record"
+    },
+    {
       "source": "/api/finance/ecosystem/overview",
       "destination": "/api/finance-gateway?operation=ecosystem-overview"
     },

@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -10,6 +11,8 @@ import {
   listAccessibleFinanceEntities,
   type AccessibleFinanceEntity,
 } from '@/src/services/financeEntitiesService';
+import { selectPreferredFinanceEntity } from '@/src/contexts/financeEntitySelection';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 
 interface FinanceEntityContextType {
   activeFinanceEntityId: string | null;
@@ -48,6 +51,7 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
   const [accessibleFinanceEntities, setAccessibleFinanceEntities] = useState<AccessibleFinanceEntity[]>([]);
   const [accessibleFinanceEntitiesLoading, setAccessibleFinanceEntitiesLoading] = useState(true);
   const [accessibleFinanceEntitiesError, setAccessibleFinanceEntitiesError] = useState(false);
+  const metricsOrganizationIdRef = useRef<string | null>(null);
 
   const setActiveFinanceEntityId = useCallback((id: string | null, name?: string) => {
     setActiveFinanceEntityIdState(id);
@@ -55,6 +59,13 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       if (id) {
+        const metricsOrganizationId = metricsOrganizationIdRef.current;
+        if (metricsOrganizationId) {
+          recordFinanceJourneyMetric('entity_selection', {
+            organizationId: metricsOrganizationId,
+            dedupeKey: `entity_selection:${id}`,
+          });
+        }
         sessionStorage.setItem(ACTIVE_ID_KEY, id);
         localStorage.setItem(ACTIVE_ID_KEY, id);
         setLastUsedFinanceEntityId(id);
@@ -80,17 +91,17 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await listAccessibleFinanceEntities();
+      metricsOrganizationIdRef.current = result.organizationId;
+      recordFinanceJourneyMetric('login', {
+        organizationId: result.organizationId,
+        dedupeKey: 'login',
+      });
       const entities = result.entities;
       setAccessibleFinanceEntities(entities);
 
       const sessionId = safeStorageRead(sessionStorage, ACTIVE_ID_KEY);
       const rememberedId = safeStorageRead(localStorage, ACTIVE_ID_KEY);
-      const validSession = entities.find((entity) => entity.id === sessionId);
-      const validRemembered = entities.find((entity) => entity.id === rememberedId);
-      const selected =
-        validSession ||
-        validRemembered ||
-        (entities.length === 1 ? entities[0] : undefined);
+      const selected = selectPreferredFinanceEntity(entities, sessionId, rememberedId);
 
       if (selected) {
         setActiveFinanceEntityId(selected.id, selected.displayName);
@@ -100,6 +111,7 @@ export function FinanceEntityProvider({ children }: { children: ReactNode }) {
 
       return entities;
     } catch {
+      metricsOrganizationIdRef.current = null;
       setAccessibleFinanceEntities([]);
       setAccessibleFinanceEntitiesError(true);
       setActiveFinanceEntityId(null);

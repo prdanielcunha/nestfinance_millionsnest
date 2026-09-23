@@ -23,6 +23,7 @@ import type {
 import { Button, Surface } from '@/src/components/foundation';
 import { EcosystemOverviewPanel } from '@/src/components/finance/EcosystemOverviewPanel';
 import { RoleWorkspacePanel } from '@/src/components/finance/RoleWorkspacePanel';
+import { FinanceEntitySelectionState } from '@/src/components/finance/FinanceEntitySelectionState';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
@@ -38,6 +39,7 @@ import {
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
 import { needsAttentionService } from '@/src/services/needsAttentionService';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
@@ -446,6 +448,7 @@ export function TodayActionCenter() {
   const [countFailed, setCountFailed] = useState(false);
   const [inboxFailed, setInboxFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
+  const [loadedFinanceEntityId, setLoadedFinanceEntityId] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
@@ -521,22 +524,78 @@ export function TodayActionCenter() {
   }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadedFinanceEntityId(null);
+    setSummary(null);
+    setCountItems([]);
+    setInboxSummary(null);
+    setSignalSummary(null);
+    setExplanation(null);
+    setExplanationOpen(false);
+    setRecent([]);
+
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) {
-      setSummary(null);
-      setCountItems([]);
-      setInboxSummary(null);
-      setSignalSummary(null);
-      setExplanation(null);
-      setExplanationOpen(false);
-      setRecent([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'today_entry',
+      dedupeKey: `today_entry:start:${organizationId}:${activeFinanceEntityId}`,
+    });
+
+    void Promise.all([
+      loadSummary(),
+      loadCounts(),
+      loadInbox(),
+      loadSignals(),
+      loadRecent(),
+    ]).then(() => {
+      if (!cancelled) setLoadedFinanceEntityId(activeFinanceEntityId);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+  useEffect(() => {
+    if (
+      !activeFinanceEntityId ||
+      !organizationId ||
+      loadedFinanceEntityId !== activeFinanceEntityId ||
+      summary === null ||
+      inboxSummary === null ||
+      summaryLoading ||
+      countLoading ||
+      inboxLoading ||
+      summaryFailed ||
+      countFailed ||
+      inboxFailed
+    ) {
       return;
     }
-    void loadSummary();
-    void loadCounts();
-    void loadInbox();
-    void loadSignals();
-    void loadRecent();
-  }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+    recordFinanceJourneyMetric('flow_complete', {
+      organizationId,
+      flow: 'today_entry',
+      dedupeKey: `today_entry:complete:${organizationId}:${activeFinanceEntityId}`,
+    });
+  }, [
+    activeFinanceEntityId,
+    loadedFinanceEntityId,
+    countFailed,
+    countLoading,
+    inboxFailed,
+    inboxLoading,
+    inboxSummary,
+    organizationId,
+    summary,
+    summaryFailed,
+    summaryLoading,
+  ]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
@@ -822,20 +881,7 @@ export function TodayActionCenter() {
     return (
       <div className="space-y-6 pb-4">
         <EcosystemOverviewPanel />
-        <div className="mx-auto flex min-h-[48vh] max-w-2xl items-center justify-center">
-          <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-              <Clock3 className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{copy.noEntityTitle}</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{copy.noEntityText}</p>
-            {hasEffectiveCapability(accessState, 'organization.manage_entities') ? (
-              <Button variant="primary" size="lg" className="mt-6" onClick={() => navigate(APP_ROUTES.financeSettings)}>
-                {copy.chooseEntity}
-              </Button>
-            ) : null}
-          </Surface>
-        </div>
+        <FinanceEntitySelectionState canManageFinance={canManageFinance} />
       </div>
     );
   }
