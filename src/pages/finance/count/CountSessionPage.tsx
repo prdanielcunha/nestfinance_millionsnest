@@ -12,7 +12,7 @@ import {
   ShieldX,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, Surface } from '@/src/components/foundation';
+import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, SpeakInstructionButton, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -20,6 +20,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionDetail } from '@/src/services/countService';
+import { countDraftPersistence } from '@/src/services/countDraftPersistence';
 import {
   COUNT_DENOMINATIONS_CENTS,
   COUNT_ENTRY_TYPES,
@@ -36,6 +37,33 @@ import {
 import { COUNT_COPY } from './countCopy';
 import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
+
+const AUTOSAVE_COPY = {
+  PT: {
+    listen: 'Ouvir instrução',
+    stop: 'Parar instrução',
+    saving: 'Salvando na nuvem…',
+    cloud: 'Salvo na nuvem',
+    local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    restored: 'Retomamos seu rascunho salvo neste aparelho.',
+  },
+  EN: {
+    listen: 'Listen to instruction',
+    stop: 'Stop instruction',
+    saving: 'Saving to cloud…',
+    cloud: 'Saved to cloud',
+    local: 'Saved on this device. The cloud will update when the connection returns.',
+    restored: 'We restored the draft saved on this device.',
+  },
+  ES: {
+    listen: 'Escuchar instrucción',
+    stop: 'Detener instrucción',
+    saving: 'Guardando en la nube…',
+    cloud: 'Guardado en la nube',
+    local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    restored: 'Restauramos el borrador guardado en este dispositivo.',
+  },
+} as const;
 
 type Step = 'choose' | 'count' | 'review';
 
