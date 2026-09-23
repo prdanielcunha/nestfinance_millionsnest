@@ -130,6 +130,7 @@ function CountSessionContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
@@ -302,6 +303,7 @@ function CountSessionContent() {
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
+    setRestoredDraft(false);
     setStep('count');
   };
 
@@ -450,7 +452,13 @@ function CountSessionContent() {
   ]);
 
   const saveCurrentEntry = async () => {
-    if (!canEdit || !session || saving || session.status !== 'counting_a') return;
+    if (
+      !canEdit ||
+      !session ||
+      saving ||
+      cloudSaveState === 'saving' ||
+      session.status !== 'counting_a'
+    ) return;
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -494,6 +502,7 @@ function CountSessionContent() {
       saveAttemptRef.current = null;
       setSupportCode(null);
       setEntries(response.entries);
+      setCloudSaveState('saved');
       setSession((current) => {
         if (!current) return current;
         const currentCountA = current.countA || { entries: [], totalCents: 0 };
@@ -515,6 +524,7 @@ function CountSessionContent() {
         setSaveError(false);
       } else {
         setSaveError(true);
+        if (!online) setCloudSaveState('local');
       }
       setSupportCode(error?.details?.requestId || requestId);
     } finally {
@@ -543,6 +553,9 @@ function CountSessionContent() {
       secondStartAttemptRef.current = null;
       setStartingSecond(false);
       setSupportCode(null);
+      if (activeFinanceEntityId && sessionId) {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
       await loadSession();
     } catch (error: any) {
       if (error?.code === 'COUNT_VERSION_CONFLICT') {
@@ -667,6 +680,28 @@ function CountSessionContent() {
             stepLabel={stepProgress}
             description={stepDescription}
           />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <SpeakInstructionButton
+              text={`${stepTitle}. ${stepDescription}`}
+              language={language}
+              label={autosaveCopy.listen}
+              stopLabel={autosaveCopy.stop}
+            />
+            <p className="nf-helper-text text-text-muted" role="status" aria-live="polite">
+              {cloudSaveState === 'saving'
+                ? autosaveCopy.saving
+                : cloudSaveState === 'saved'
+                  ? autosaveCopy.cloud
+                  : cloudSaveState === 'local'
+                    ? autosaveCopy.local
+                    : ''}
+            </p>
+          </div>
+
+          {restoredDraft ? (
+            <FlowFeedback tone="info" title={autosaveCopy.restored} />
+          ) : null}
 
           {conflict ? (
             <FlowFeedback
@@ -850,7 +885,7 @@ function CountSessionContent() {
                 <Button variant="secondary" size="lg" fullWidth onClick={() => setStep('choose')} disabled={saving}>
                   {copy.back}
                 </Button>
-                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || !canEdit}>
+                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || cloudSaveState === 'saving' || !canEdit}>
                   {saving ? copy.saving : copy.saveEntry}
                 </Button>
               </div>
