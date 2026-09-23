@@ -541,6 +541,7 @@ export function TodayActionCenter() {
     }
 
     recordFinanceJourneyMetric('flow_start', {
+      organizationId,
       flow: 'today_entry',
       dedupeKey: `today_entry:start:${organizationId}:${activeFinanceEntityId}`,
     });
@@ -578,6 +579,7 @@ export function TodayActionCenter() {
     }
 
     recordFinanceJourneyMetric('flow_complete', {
+      organizationId,
       flow: 'today_entry',
       dedupeKey: `today_entry:complete:${organizationId}:${activeFinanceEntityId}`,
     });
