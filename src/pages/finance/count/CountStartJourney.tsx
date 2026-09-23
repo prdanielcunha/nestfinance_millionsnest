@@ -11,7 +11,7 @@ import {
 import type { Language } from '@/src/contexts/LanguageContext';
 import type { CountSessionListItem } from '@/src/services/countService';
 
-export type CountStartMode = 'digital' | 'free_form' | 'voice';
+export type CountStartMode = 'digital' | 'free_form' | 'paper' | 'voice';
 
 type Props = {
   language: Language;
@@ -69,7 +69,8 @@ const COPY = {
     photo: 'Fotografar meu papel',
     photoBody: 'Use uma folha ou caderno que você já preencheu.',
     sheet: 'Folha do NestFinance',
-    sheetBody: 'Leia uma folha oficial já preenchida, usando QR/referência.',
+    sheetBody: 'Crie a folha oficial do NestFinance para imprimir e preencher.',
+    filledSheet: 'Já tenho uma folha oficial preenchida',
     voice: 'Falar os valores',
     voiceBody: 'Dite um valor por vez. Se o navegador não ouvir, você pode digitar.',
     listen: 'Ouvir instrução',
@@ -106,7 +107,8 @@ const COPY = {
     photo: 'Photograph my paper',
     photoBody: 'Use a sheet or notebook you already filled in.',
     sheet: 'NestFinance sheet',
-    sheetBody: 'Read an official completed sheet using its QR/reference.',
+    sheetBody: 'Create the official NestFinance sheet to print and fill in.',
+    filledSheet: 'I already have a completed official sheet',
     voice: 'Speak the amounts',
     voiceBody: 'Dictate one amount at a time. If the browser cannot listen, you can type.',
     listen: 'Listen to instruction',
@@ -143,7 +145,8 @@ const COPY = {
     photo: 'Fotografiar mi papel',
     photoBody: 'Usa una hoja o cuaderno que ya hayas llenado.',
     sheet: 'Hoja de NestFinance',
-    sheetBody: 'Lee una hoja oficial completada usando su QR/referencia.',
+    sheetBody: 'Crea la hoja oficial de NestFinance para imprimir y completar.',
+    filledSheet: 'Ya tengo una hoja oficial completada',
     voice: 'Hablar los valores',
     voiceBody: 'Dicta un valor por vez. Si el navegador no puede escuchar, puedes escribir.',
     listen: 'Escuchar instrucción',
@@ -349,13 +352,20 @@ export function CountStartJourney({
           <Option
             title={copy.sheet}
             body={copy.sheetBody}
-            onClick={() => navigate(APP_ROUTES.countCapture)}
+            onClick={() => void start('paper')}
           />
           <Option
             title={copy.voice}
             body={copy.voiceBody}
             onClick={() => void start('voice')}
           />
+          <button
+            type="button"
+            onClick={() => navigate(APP_ROUTES.countCapture)}
+            className="nf-interactive min-h-[3.25rem] rounded-xl px-4 text-left font-semibold text-accent-primary sm:col-span-2"
+          >
+            {copy.filledSheet}
+          </button>
           <div className="sm:col-span-2">
             <Button
               variant="secondary"
