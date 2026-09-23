@@ -11,7 +11,12 @@ export type CountRecord = {
   entries: NormalizedCountEntry[];
   totalCents: number;
   countedByUid?: string | null;
+  countedByLabel?: string | null;
   enteredByUid?: string | null;
+  enteredByLabel?: string | null;
+  source?: string | null;
+  sourceProvenance?: string | null;
+  sourceCaptureId?: string | null;
   savedAt?: string | null;
   sealedAt?: string | null;
 };
@@ -45,6 +50,7 @@ export type CountSessionDetail = {
   version: number;
   policySnapshot: {
     doubleCountRequired?: boolean;
+    requireIndependentCounter?: boolean;
     policyVersion?: number;
     source?: string;
   };
@@ -60,6 +66,17 @@ export type CountSessionDetail = {
   recountAttempts: CountRecountAttempt[];
   recountAttemptCount: number;
   activeRecountAttemptNumber?: number | null;
+  firstCounterUid?: string | null;
+  firstCounterLabel?: string | null;
+  secondCountStartedByUid?: string | null;
+  secondCountStartedByLabel?: string | null;
+  secondCountStartedAt?: string | null;
+  secondCountAssignedToUid?: string | null;
+  secondCountAssignedToLabel?: string | null;
+  secondCountAssignedAt?: string | null;
+  secondCountInviteRequired?: boolean;
+  secondCountInviteExpiresAt?: string | null;
+  secondCountJoinCode?: string | null;
 };
 
 export type CountApiError = Error & {
@@ -196,8 +213,28 @@ export const countService = {
       countSessionId: string;
       version: number;
       status: 'counting_b';
+      joinCode: string;
+      expiresAt: string;
       requestId?: string;
     }>(organizationId, 'count-sessions-start-second-count', { financeEntityId, ...input });
+  },
+
+  async joinSecondCount(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      joinCode: string;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ) {
+    return post<{
+      countSessionId: string;
+      version: number;
+      status: 'counting_b';
+      assignedToLabel?: string | null;
+      requestId?: string;
+    }>(organizationId, 'count-sessions-join-second-count', { financeEntityId, ...input });
   },
 
   async submitSecondCount(
