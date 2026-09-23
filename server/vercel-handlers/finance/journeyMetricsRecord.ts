@@ -21,12 +21,12 @@ function parseCounts(input: unknown): MetricUpdate[] | null {
   let total = 0;
 
   for (const [key, value] of entries) {
-    if (!Number.isInteger(value) || Number(value) < 1 || Number(value) > 100) return null;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 100) return null;
     const [metric, flow, ...rest] = key.split(':');
     if (!METRICS.has(metric) || rest.length > 0) return null;
     if (flow !== undefined && !FLOW_PATTERN.test(flow)) return null;
 
-    const count = Number(value);
+    const count = value;
     total += count;
     if (total > 200) return null;
     updates.push({ metric, ...(flow ? { flow } : {}), count });
