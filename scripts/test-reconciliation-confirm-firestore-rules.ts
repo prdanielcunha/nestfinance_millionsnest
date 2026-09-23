@@ -49,6 +49,7 @@ try {
     });
     await setDoc(doc(context.firestore(), 'users/' + uid), {
       systemRole: 'ceo',
+      ecosystemSessionVersion: 2,
     });
     await setDoc(doc(context.firestore(), path), {
       reconciliationId,
@@ -75,12 +76,29 @@ try {
   });
 
   const db = env.authenticatedContext(uid, {
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
     mn_organization_id: orgId,
+    mn_session_version: 2,
     systemRole: 'ceo',
   }).firestore();
+  const staleDb = env.authenticatedContext(uid, {
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
+    mn_organization_id: orgId,
+    mn_session_version: 1,
+    systemRole: 'ceo',
+  }).firestore();
+  const directGoogleDb = env.authenticatedContext(uid, {}).firestore();
 
-  await ok(getDoc(doc(db, path)), 'authorized browser can read server-created reconciliation trace');
-  await ok(getDoc(doc(db, sessionPath)), 'authorized browser can read server-created reconciliation session');
+  await ok(getDoc(doc(db, path)), 'current handoff can read server-created reconciliation trace');
+  await ok(getDoc(doc(db, sessionPath)), 'current handoff can read server-created reconciliation session');
+  await denied(getDoc(doc(staleDb, path)), 'revoked handoff cannot read reconciliation trace');
+  await ok(getDoc(doc(directGoogleDb, path)), 'direct Google session preserves canonical CEO read access');
+  await denied(
+    updateDoc(doc(directGoogleDb, 'users/' + uid), { ecosystemSessionVersion: 1 }),
+    'browser cannot rewrite canonical ecosystem session version',
+  );
   await denied(
     setDoc(
       doc(

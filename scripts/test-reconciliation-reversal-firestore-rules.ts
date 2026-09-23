@@ -50,6 +50,7 @@ try {
     });
     await setDoc(doc(context.firestore(), 'users/' + uid), {
       systemRole: 'ceo',
+      ecosystemSessionVersion: 1,
     });
     await setDoc(doc(context.firestore(), lockPath), {
       lineLockId: lockId,
@@ -74,7 +75,10 @@ try {
   });
 
   const db = env.authenticatedContext(uid, {
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
     mn_organization_id: orgId,
+    mn_session_version: 1,
     systemRole: 'ceo',
   }).firestore();
 

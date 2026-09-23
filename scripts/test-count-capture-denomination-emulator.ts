@@ -73,7 +73,7 @@ async function run() {
   });
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com`, mn_organization_id: orgId }) as any;
+  admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com`, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
   const call = async (handler: any, body: any) => {
     const req = { method: 'POST', headers: { authorization: 'Bearer denomination_test', 'x-organization-id': orgId }, body, query: {} };
     const res = new MockRes(); await handler(req as any, res as any); return res;

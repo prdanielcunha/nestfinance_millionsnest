@@ -317,7 +317,7 @@ await db.collection('organizations').doc(orgId).collection('financeReconciliatio
 await seedTx(candidateTx, 40000, '2026-09-05T12:00:00.000Z');
 
 const originalVerify = admin.auth.verifyIdToken;
-admin.auth.verifyIdToken = async () => ({ uid, mn_organization_id: orgId }) as any;
+admin.auth.verifyIdToken = async () => ({ uid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 
 const call = async (evidenceId: string, financeEntityId = entityId) => {
   const req = {

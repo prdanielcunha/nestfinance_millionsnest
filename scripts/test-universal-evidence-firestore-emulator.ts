@@ -20,7 +20,7 @@ await db.collection('organizations').doc(orgId).set({ name: 'I1 Org', status: 'a
 for (const id of [entityA, entityB]) await db.collection('organizations').doc(orgId).collection('financeEntities').doc(id).set({ name: id, active: true });
 const originalVerify = admin.auth.verifyIdToken;
 let verifiedUid = uid;
-admin.auth.verifyIdToken = async () => ({ uid: verifiedUid, mn_organization_id: orgId }) as any;
+admin.auth.verifyIdToken = async () => ({ uid: verifiedUid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 const call = async (handler: any, body: any, headerOrg = orgId) => { const req = { method: 'POST', headers: { authorization: 'Bearer i1_test', 'x-organization-id': headerOrg }, body, query: {} }; const res = new MockRes(); await handler(req as any, res as any); return res; };
 const key = () => `idevidence_${randomBytes(12).toString('hex')}`, request = () => `req_${randomBytes(12).toString('hex')}`;
 const startBody = (entity: string, idempotencyKey = key()) => ({ financeEntityId: entity, originalFilename: 'receipt.png', declaredMimeType: 'image/png', byteSize: png.length, originalSha256: sha(png), sourceKind: 'photo', idempotencyKey, requestId: request() });

@@ -149,7 +149,7 @@ await seedStatement(entities.ready, 'evd_' + '6'.repeat(32), {
 
 const originalVerify = admin.auth.verifyIdToken;
 admin.auth.verifyIdToken = async () =>
-  ({ uid, mn_organization_id: orgId }) as any;
+  ({ uid, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
 
 const call = async (financeEntityId: string) => {
   const req = {

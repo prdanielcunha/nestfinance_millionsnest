@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Building2 } from 'lucide-react';
+import { Building2, ExternalLink, LogOut } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
 import {
   canManageFinanceEntities,
@@ -10,11 +10,19 @@ import {
 import { getFinanceExperienceMode } from '@/src/lib/financeExperience';
 import { buildFinanceNavigation, type FinanceNavigationId } from '@/src/lib/financeNavigationModel';
 import { CANONICAL_NAVIGATION } from '@/src/app/layouts/ShellLayout';
-import { useLanguage } from '@/src/contexts/LanguageContext';
+import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
+import { returnToMillionsNest, signOutNestFinanceAndReturnToHub } from '@/src/services/ecosystemExitService';
+
+const ACCOUNT_COPY: Record<Language, { title: string; hub: string; signOut: string }> = {
+  PT: { title: 'Conta', hub: 'Voltar ao MillionsNest', signOut: 'Sair do NestFinance' },
+  EN: { title: 'Account', hub: 'Back to MillionsNest', signOut: 'Sign out of NestFinance' },
+  ES: { title: 'Cuenta', hub: 'Volver a MillionsNest', signOut: 'Salir de NestFinance' },
+};
 
 export default function MorePage() {
   const { accessState } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const accountCopy = ACCOUNT_COPY[language];
   const experienceMode = getFinanceExperienceMode(accessState);
   const navigation = buildFinanceNavigation(experienceMode, {
     canView: hasEffectiveCapability(accessState, 'finance.view'),
@@ -74,6 +82,26 @@ export default function MorePage() {
           ))}
         </section>
       ) : null}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-text-muted">{accountCopy.title}</h2>
+        <button
+          type="button"
+          onClick={returnToMillionsNest}
+          className="press-fx flex min-h-14 items-center rounded-xl border border-border-strong bg-surface-secondary p-4 text-left transition-colors hover:bg-surface-elevated"
+        >
+          <ExternalLink className="mr-4 h-5 w-5 text-text-secondary" aria-hidden="true" />
+          <span className="font-medium text-text-primary">{accountCopy.hub}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void signOutNestFinanceAndReturnToHub()}
+          className="press-fx flex min-h-14 items-center rounded-xl border border-border-subtle bg-background-base p-4 text-left transition-colors hover:bg-surface-secondary"
+        >
+          <LogOut className="mr-4 h-5 w-5 text-text-muted" aria-hidden="true" />
+          <span className="font-medium text-text-secondary">{accountCopy.signOut}</span>
+        </button>
+      </section>
     </div>
   );
 }

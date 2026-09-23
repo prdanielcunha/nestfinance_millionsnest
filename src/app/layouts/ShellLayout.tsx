@@ -3,7 +3,7 @@ import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks, Search } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks, Search, LogOut, ExternalLink } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
@@ -18,6 +18,7 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { Button } from '@/src/components/foundation';
 import { FinanceCommandPalette } from '@/src/components/finance/FinanceCommandPalette';
 import type { FinancePaletteCommand } from '@/src/lib/financeCommandPaletteModel';
+import { returnToMillionsNest, signOutNestFinanceAndReturnToHub } from '@/src/services/ecosystemExitService';
 
 export type NavigationItem = {
   id: string;
@@ -58,6 +59,8 @@ const SHELL_COPY: Record<Language, {
   commandEmpty: string;
   commandNavigation: string;
   commandActions: string;
+  backToHub: string;
+  signOut: string;
 }> = {
   PT: {
     profile: 'Perfil',
@@ -77,6 +80,8 @@ const SHELL_COPY: Record<Language, {
     commandEmpty: 'Nenhum destino encontrado.',
     commandNavigation: 'Navegação',
     commandActions: 'Ações rápidas',
+    backToHub: 'Voltar ao MillionsNest',
+    signOut: 'Sair do NestFinance',
   },
   EN: {
     profile: 'Profile',
@@ -96,6 +101,8 @@ const SHELL_COPY: Record<Language, {
     commandEmpty: 'No destination found.',
     commandNavigation: 'Navigation',
     commandActions: 'Quick actions',
+    backToHub: 'Back to MillionsNest',
+    signOut: 'Sign out of NestFinance',
   },
   ES: {
     profile: 'Perfil',
@@ -115,6 +122,8 @@ const SHELL_COPY: Record<Language, {
     commandEmpty: 'No se encontró ningún destino.',
     commandNavigation: 'Navegación',
     commandActions: 'Acciones rápidas',
+    backToHub: 'Volver a MillionsNest',
+    signOut: 'Salir de NestFinance',
   },
 };
 
@@ -444,6 +453,24 @@ function ShellLayoutInner() {
 
           <div className="mt-4 border-t border-border-subtle pt-3">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
+            <div className="mt-3 grid gap-1">
+              <button
+                type="button"
+                onClick={returnToMillionsNest}
+                className="nf-interactive flex min-h-10 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{copy.backToHub}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOutNestFinanceAndReturnToHub()}
+                className="nf-interactive flex min-h-10 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-muted hover:bg-surface-secondary hover:text-text-primary"
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{copy.signOut}</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>

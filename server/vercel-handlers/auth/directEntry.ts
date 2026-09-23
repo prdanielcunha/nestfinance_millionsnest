@@ -17,6 +17,30 @@ function isInactive(value: any): boolean {
   return value?.disabled === true || ['inactive', 'suspended', 'disabled', 'removed', 'revoked', 'archived'].includes(cleanString(value?.status).toLowerCase());
 }
 
+function normalizeSessionVersion(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : 1;
+}
+
+function hasHandoffNamespace(decoded: Record<string, unknown>): boolean {
+  return ['mn_app_id', 'mn_handoff_version', 'mn_organization_id', 'mn_session_version']
+    .some((key) => decoded[key] !== undefined && decoded[key] !== null);
+}
+
+function hasValidCurrentHandoffBinding(decoded: Record<string, unknown>, canonicalSessionVersion: number): boolean {
+  if (!hasHandoffNamespace(decoded)) return true;
+
+  return (
+    decoded.mn_app_id === 'nestfinance' &&
+    decoded.mn_handoff_version === 1 &&
+    typeof decoded.mn_organization_id === 'string' &&
+    decoded.mn_organization_id.trim() !== '' &&
+    typeof decoded.mn_session_version === 'number' &&
+    Number.isSafeInteger(decoded.mn_session_version) &&
+    decoded.mn_session_version >= 1 &&
+    decoded.mn_session_version === canonicalSessionVersion
+  );
+}
+
 function collectCandidateOrganizationIds(userData: Record<string, any>): string[] {
   const ids = new Set<string>();
   const add = (value: unknown) => {
@@ -41,12 +65,19 @@ function collectCandidateOrganizationIds(userData: Record<string, any>): string[
   return Array.from(ids).slice(0, MAX_ORGANIZATIONS);
 }
 
-async function issueScopedToken(auth: any, uid: string, organizationId: string, accessSource: string) {
+async function issueScopedToken(
+  auth: any,
+  uid: string,
+  organizationId: string,
+  accessSource: string,
+  sessionVersion: number,
+) {
   return auth.createCustomToken(uid, {
     mn_app_id: 'nestfinance',
     mn_organization_id: organizationId,
     mn_handoff_version: 1,
     mn_access_source: accessSource,
+    mn_session_version: sessionVersion,
   });
 }
 
@@ -92,6 +123,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userData = userDoc.data() || {};
   if (isInactive(userData)) return res.status(403).json({ error: 'NO_NESTFINANCE_ACCESS' });
 
+  const canonicalSessionVersion = normalizeSessionVersion(userData.ecosystemSessionVersion);
+  if (!hasValidCurrentHandoffBinding(decoded as Record<string, unknown>, canonicalSessionVersion)) {
+    return res.status(401).json({ error: 'UNAUTHORIZED' });
+  }
+
   if (requestedOrganizationId) {
     try {
       const selectedId = cleanString(requestedOrganizationId);
@@ -105,6 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         uid,
         selectedId,
         resolution.accessSource,
+        canonicalSessionVersion,
       );
       return res.status(200).json({
         status: 'ready',
@@ -156,7 +193,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (eligible.length === 1) {
     const selected = eligible[0];
-    const customToken = await issueScopedToken(admin.auth, uid, selected.id, selected.accessSource);
+    const customToken = await issueScopedToken(
+      admin.auth,
+      uid,
+      selected.id,
+      selected.accessSource,
+      canonicalSessionVersion,
+    );
     return res.status(200).json({
       status: 'ready',
       customToken,

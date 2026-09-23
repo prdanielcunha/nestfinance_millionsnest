@@ -25,7 +25,13 @@ async function run() {
   let observedCheckRevoked: boolean | undefined;
   admin.auth.verifyIdToken = async (_token: string, checkRevoked?: boolean) => {
     observedCheckRevoked = checkRevoked;
-    return { uid, mn_organization_id: orgId } as any;
+    return {
+      uid,
+      mn_app_id: 'nestfinance',
+      mn_handoff_version: 1,
+      mn_organization_id: orgId,
+      mn_session_version: 1,
+    } as any;
   };
 
   let passed = 0;
