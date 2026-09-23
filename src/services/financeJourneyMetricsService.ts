@@ -24,15 +24,13 @@ function safeReadQueue(): MetricQueue {
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
-        ([key, value]) =>
-          typeof key === 'string' &&
-          typeof value === 'number' &&
-          Number.isInteger(value) &&
-          value > 0,
-      ),
-    );
+    const queue: MetricQueue = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+        queue[key] = value;
+      }
+    }
+    return queue;
   } catch {
     return {};
   }
