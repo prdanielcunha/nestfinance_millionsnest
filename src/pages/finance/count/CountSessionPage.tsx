@@ -175,6 +175,8 @@ function CountSessionContent() {
     setConflict(false);
     setSaveError(false);
     setSupportCode(null);
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     try {
       const response = await countService.detail(
         organizationId,
@@ -183,9 +185,34 @@ function CountSessionContent() {
       );
       if (currentEpoch !== epochRef.current) return;
       setSession(response.session);
-      setEntries(response.session.status === 'counting_a' ? response.session.countA?.entries || [] : []);
+      const serverEntries =
+        response.session.status === 'counting_a' ? response.session.countA?.entries || [] : [];
+      setEntries(serverEntries);
+
+      if (response.session.status === 'counting_a') {
+        const localDraft = countDraftPersistence.load(
+          organizationId,
+          activeFinanceEntityId,
+          sessionId,
+        );
+        if (localDraft) {
+          setActiveType(localDraft.activeType);
+          setMethod(localDraft.method);
+          setTotalRaw(localDraft.totalRaw);
+          setQuantities({ ...localDraft.quantities });
+          setStep(localDraft.step);
+          setRestoredDraft(true);
+        } else {
+          setStep('choose');
+        }
+      } else {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
+
       saveAttemptRef.current = null;
       secondStartAttemptRef.current = null;
+      autosaveAttemptRef.current = null;
+      autosaveInFlightRef.current = false;
     } catch (error: any) {
       if (currentEpoch !== epochRef.current) return;
       setSupportCode(error?.details?.requestId || null);
@@ -200,8 +227,12 @@ function CountSessionContent() {
     setSession(null);
     setEntries([]);
     setStep('choose');
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     saveAttemptRef.current = null;
     secondStartAttemptRef.current = null;
+    autosaveAttemptRef.current = null;
+    autosaveInFlightRef.current = false;
     if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
     // Canonical Count scope is organization + finance entity + session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
