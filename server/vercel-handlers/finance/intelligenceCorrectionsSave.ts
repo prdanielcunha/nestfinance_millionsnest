@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (typeof financeEntityId !== 'string' || typeof documentType !== 'string' || !isIntelligenceCorrectionField(fieldKey) || !suggested || !corrected || suggested === corrected) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
-    const { db, uid, organizationId } = await resolveFinanceRequestContext(req, 'finance.manage');
+    const { db, uid, organizationId } = await resolveFinanceRequestContext(req, 'finance.review');
     const correctionId = correctionIdFor(documentType.slice(0, 60), fieldKey, suggested);
     const ref = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId)
       .collection('intelligenceCorrections').doc(correctionId);
