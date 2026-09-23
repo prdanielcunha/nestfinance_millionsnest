@@ -23,9 +23,11 @@ assert.ok(home.includes("input.mode === 'paper'"));
 assert.ok(home.includes("input.mode === 'voice'"));
 assert.ok(home.includes('countPaperService.generate'));
 
-assert.ok(start.includes("title={copy.contextTitle}"));
-assert.ok(start.includes("title={copy.detailsTitle}"));
-assert.ok(start.includes("title={copy.methodTitle}"));
+assert.ok(start.includes("step === 'context'"));
+assert.ok(start.includes('copy.contextTitle'));
+assert.ok(start.includes('copy.detailsTitle'));
+assert.ok(start.includes('copy.methodTitle'));
+assert.ok(start.includes('title={title}'));
 assert.ok(start.includes('FlowStepHeader'));
 assert.ok(start.includes("ACTIVE_STATUSES"));
 assert.ok(start.includes('copy.continue'));
