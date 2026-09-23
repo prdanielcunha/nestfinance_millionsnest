@@ -39,6 +39,7 @@ import {
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
 import { needsAttentionService } from '@/src/services/needsAttentionService';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 type Direction = 'income' | 'expense' | 'transfer';
@@ -532,12 +533,49 @@ export function TodayActionCenter() {
       setRecent([]);
       return;
     }
+    recordFinanceJourneyMetric('flow_start', {
+      flow: 'today_entry',
+      dedupeKey: `today_entry:start:${organizationId}:${activeFinanceEntityId}`,
+    });
     void loadSummary();
     void loadCounts();
     void loadInbox();
     void loadSignals();
     void loadRecent();
   }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+  useEffect(() => {
+    if (
+      !activeFinanceEntityId ||
+      !organizationId ||
+      summary === null ||
+      inboxSummary === null ||
+      summaryLoading ||
+      countLoading ||
+      inboxLoading ||
+      summaryFailed ||
+      countFailed ||
+      inboxFailed
+    ) {
+      return;
+    }
+
+    recordFinanceJourneyMetric('flow_complete', {
+      flow: 'today_entry',
+      dedupeKey: `today_entry:complete:${organizationId}:${activeFinanceEntityId}`,
+    });
+  }, [
+    activeFinanceEntityId,
+    countFailed,
+    countLoading,
+    inboxFailed,
+    inboxLoading,
+    inboxSummary,
+    organizationId,
+    summary,
+    summaryFailed,
+    summaryLoading,
+  ]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
