@@ -289,6 +289,11 @@ export function CountStartJourney({
           <Option title={copy.today} body={copy.todayBody} onClick={() => chooseContext('today')} />
           <Option title={copy.other} body={copy.otherBody} onClick={() => chooseContext('other')} />
           <Option
+            title={language === 'PT' ? 'Entrar como segundo contador' : language === 'ES' ? 'Entrar como segundo contador' : 'Join as second counter'}
+            body={language === 'PT' ? 'Recebeu um código? Entre sem ver os valores da primeira pessoa.' : language === 'ES' ? '¿Recibiste un código? Entra sin ver los valores de la primera persona.' : 'Received a code? Join without seeing the first person\'s values.'}
+            onClick={() => navigate(APP_ROUTES.countJoin)}
+          />
+          <Option
             title={copy.training}
             body={copy.trainingBody}
             onClick={() => navigate(APP_ROUTES.countTraining)}
