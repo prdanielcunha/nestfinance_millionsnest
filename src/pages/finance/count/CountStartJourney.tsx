@@ -4,6 +4,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import {
   Button,
   FlowFeedback,
+  FlowHelp,
   FlowStepHeader,
   SpeakInstructionButton,
   Surface,
@@ -75,6 +76,8 @@ const COPY = {
     voiceBody: 'Dite um valor por vez. Se o navegador não ouvir, você pode digitar.',
     listen: 'Ouvir instrução',
     stopListening: 'Parar instrução',
+    helpOpen: 'Preciso de ajuda',
+    helpClose: 'Fechar ajuda',
     startErrorTitle: 'Não foi possível iniciar agora',
     startErrorBody: 'Seus dados não foram perdidos. Confira a internet e tente novamente.',
     step: (value: number) => `Passo ${value} de 3`,
@@ -113,6 +116,8 @@ const COPY = {
     voiceBody: 'Dictate one amount at a time. If the browser cannot listen, you can type.',
     listen: 'Listen to instruction',
     stopListening: 'Stop instruction',
+    helpOpen: 'I need help',
+    helpClose: 'Close help',
     startErrorTitle: 'Could not start right now',
     startErrorBody: 'Your data was not lost. Check your connection and try again.',
     step: (value: number) => `Step ${value} of 3`,
@@ -151,6 +156,8 @@ const COPY = {
     voiceBody: 'Dicta un valor por vez. Si el navegador no puede escuchar, puedes escribir.',
     listen: 'Escuchar instrucción',
     stopListening: 'Detener instrucción',
+    helpOpen: 'Necesito ayuda',
+    helpClose: 'Cerrar ayuda',
     startErrorTitle: 'No fue posible comenzar ahora',
     startErrorBody: 'Tus datos no se perdieron. Revisa la conexión e inténtalo de nuevo.',
     step: (value: number) => `Paso ${value} de 3`,
@@ -335,6 +342,16 @@ export function CountStartJourney({
           </div>
         </div>
       ) : null}
+
+      <div className="mt-5">
+        <FlowHelp
+          title={title}
+          openLabel={copy.helpOpen}
+          closeLabel={copy.helpClose}
+        >
+          <p>{description}</p>
+        </FlowHelp>
+      </div>
 
       {step === 'method' ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
