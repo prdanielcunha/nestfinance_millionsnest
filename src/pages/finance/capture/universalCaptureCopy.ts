@@ -1,6 +1,6 @@
 import type { Language } from '@/src/contexts/LanguageContext';
 
-export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = {
+export const UNIVERSAL_CAPTURE_COPY = {
   PT: {
     title: 'Capturar',
     subtitle: 'Envie um comprovante ou documento financeiro.',
@@ -172,4 +172,4 @@ export const UNIVERSAL_CAPTURE_COPY: Record<Language, Record<string, string>> = 
     intentClose: 'Cerrar corrección',
     intentLabels: { receipt: 'Recibo', payment_proof: 'Comprobante de pago', invoice: 'Factura', bank_statement: 'Extracto bancario', tax_document: 'Documento fiscal', other: 'Otro documento' },
   },
-};
+} as const satisfies Record<Language, Record<string, string | Record<string, string>>>;
