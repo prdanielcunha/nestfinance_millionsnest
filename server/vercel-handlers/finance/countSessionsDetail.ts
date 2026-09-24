@@ -55,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!snapshot.exists) return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     const data = snapshot.data() || {};
+    if (data.status === 'discarded') return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     if (data.financeEntityId !== financeEntityId || data.organizationId !== organizationId) {
       return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     }
