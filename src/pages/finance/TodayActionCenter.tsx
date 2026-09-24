@@ -1110,7 +1110,7 @@ export function TodayActionCenter() {
             </div>
             <div className="mt-1 text-xs font-medium text-text-muted">{copy.dueSoonMetric}</div>
             {operational?.dueSoonTruncated ? (
-              <p className="mt-2 text-[11px] leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
+              <p className="mt-2 text-xs leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
             ) : null}
           </Surface>
           <Surface variant="secondary" radius="lg" className="p-4">
@@ -1123,7 +1123,7 @@ export function TodayActionCenter() {
             </div>
             <div className="mt-1 text-xs font-medium text-text-muted">{copy.balanceMetric}</div>
             {operational?.balance.state === 'unavailable' ? (
-              <p className="mt-2 text-[11px] leading-relaxed text-text-muted">{copy.balanceHint}</p>
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.balanceHint}</p>
             ) : null}
           </Surface>
         </div>
