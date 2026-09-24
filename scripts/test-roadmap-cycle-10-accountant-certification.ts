@@ -99,6 +99,8 @@ const files = {
   evidenceFinalize: await fs.readFile('server/vercel-handlers/finance/universalEvidenceFinalize.ts', 'utf8'),
   intelligence: await fs.readFile('server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.ts', 'utf8'),
   pilotDoc: await fs.readFile('docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md', 'utf8'),
+  authenticatedE2E: await fs.readFile('scripts/test-roadmap-cycle-10-authenticated-e2e-emulator.ts', 'utf8'),
+  emulatorWorkflow: await fs.readFile('.github/workflows/nestfinance-p06b-firestore-emulator.yml', 'utf8'),
 };
 
 verify(files.gateway.includes("case 'accountant-package-export'"), 'accountant package uses certified finance gateway');
@@ -131,6 +133,10 @@ verify(files.evidenceFinalize.includes("collection('universalEvidenceHashes')"),
 verify(files.evidenceFinalize.includes('duplicateOfEvidenceId'), 'duplicate provenance remains explicit');
 verify(files.intelligence.includes('INTELLIGENCE_DAILY_BUDGET_EXHAUSTED'), 'AI daily budget exhaustion is handled');
 verify(files.intelligence.includes("fallback: 'human_review'") && files.intelligence.includes('financialEffect: false'), 'AI quota/provider failure falls back to human review with no financial effect');
+
+verify(files.authenticatedE2E.includes('transactionsCreateDraft') && files.authenticatedE2E.includes('transactionsSubmitForReview') && files.authenticatedE2E.includes('accountantPackageExport'), 'authenticated synthetic E2E crosses capture, review readiness and accountant export');
+verify(files.authenticatedE2E.includes('financeJournalEntries') && files.authenticatedE2E.includes('assert.equal(journals.empty, true)'), 'authenticated synthetic E2E proves no posting side effect');
+verify(files.emulatorWorkflow.includes('test-roadmap-cycle-10-authenticated-e2e-emulator.ts'), 'authenticated synthetic E2E runs inside Firestore Emulator CI');
 
 verify(files.pilotDoc.includes('12 sessões humanas') && files.pilotDoc.includes('3 rodadas'), 'human certification protocol requires real three-round evidence');
 verify(files.pilotDoc.includes('certificação de postagem') || files.pilotDoc.includes('Certificação de postagem'), 'pilot documentation keeps posting certification separate');
