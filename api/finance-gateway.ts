@@ -111,6 +111,7 @@ import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCl
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
 import accountantPackageExport from '../server/vercel-handlers/finance/accountantPackageExport.js';
 import journeyMetricsRecord from '../server/vercel-handlers/finance/journeyMetricsRecord.js';
+import sinceLastVisitSummary from '../server/vercel-handlers/finance/sinceLastVisitSummary.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -234,6 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'reports-intelligence': return reportsIntelligence(req, res);
     case 'accountant-package-export': return accountantPackageExport(req, res);
     case 'journey-metrics-record': return journeyMetricsRecord(req, res);
+    case 'since-last-visit-summary': return sinceLastVisitSummary(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
