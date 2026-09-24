@@ -273,7 +273,7 @@ export function parseTransactionNaturalQuery(value: unknown, now = new Date()): 
     }
   }
 
-  const between=normalized.match(/\b(?:entre|between)\s+(?:r\$\s*)?([0-9][0-9.,]*)\s+(?:e|and|y)\s+(?:r\$\s*)?([0-9][0-9.,]*)\b/u);
+  const between=normalized.match(/\b(?:entre|between)\s+(?:r\$?\s*)?([0-9][0-9.,]*)\s+(?:e|and|y)\s+(?:r\$?\s*)?([0-9][0-9.,]*)\b/u);
   if(between){
     const a=parseNaturalMoney(between[1]), b=parseNaturalMoney(between[2]);
     if(a!==null&&b!==null){
@@ -282,12 +282,12 @@ export function parseTransactionNaturalQuery(value: unknown, now = new Date()): 
       consume('entre','between','e','and','y',between[1],between[2]);
     }
   } else {
-    const over=normalized.match(/\b(?:acima de|mais de|maior que|over|above|more than|mas de|mayor que)\s+(?:r\$\s*)?([0-9][0-9.,]*)\b/u);
+    const over=normalized.match(/\b(?:acima de|mais de|maior que|over|above|more than|mas de|mayor que)\s+(?:r\$?\s*)?([0-9][0-9.,]*)\b/u);
     if(over){
       const cents=parseNaturalMoney(over[1]);
       if(cents!==null){ filters.amountMinCents=cents+1; labels.push(`acima de ${cents/100}`); consume('acima','de','mais','maior','que','over','above','more','than','mas','mayor',over[1]); }
     }
-    const under=normalized.match(/\b(?:ate|abaixo de|menos de|menor que|under|below|less than|hasta|menos de|menor que)\s+(?:r\$\s*)?([0-9][0-9.,]*)\b/u);
+    const under=normalized.match(/\b(?:ate|abaixo de|menos de|menor que|under|below|less than|hasta|menos de|menor que)\s+(?:r\$?\s*)?([0-9][0-9.,]*)\b/u);
     if(under){
       const cents=parseNaturalMoney(under[1]);
       if(cents!==null){ filters.amountMaxCents=Math.max(0,cents-1); labels.push(`abaixo de ${cents/100}`); consume('ate','abaixo','de','menos','menor','que','under','below','less','than','hasta',under[1]); }
