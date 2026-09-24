@@ -54,22 +54,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { financeEntityId } = req.body || {};
+    const { financeEntityId, cursor, pageSize = AUDIT_READ_LIMIT } = req.body || {};
     if (typeof financeEntityId !== 'string' || !financeEntityId.trim()) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
+    if (cursor !== undefined && cursor !== null && (typeof cursor !== 'string' || !cursor.trim() || cursor.length > 180)) {
+      return res.status(400).json({ error: 'INVALID_CURSOR' });
+    }
+    const requestedPageSize = Number(pageSize);
+    if (!Number.isInteger(requestedPageSize) || requestedPageSize < 1) {
+      return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    }
+    const limit = Math.min(requestedPageSize, AUDIT_READ_LIMIT);
 
     const { db, organizationId, context } =
       await resolveFinanceRequestContext(req, 'finance.view');
 
-    const snapshot = await context.repository
-      .getAuditRef()
+    const auditRef = context.repository.getAuditRef();
+    let query: any = auditRef
       .where('financeEntityId', '==', financeEntityId)
       .orderBy('createdAt', 'desc')
-      .limit(AUDIT_READ_LIMIT + 1)
-      .get();
+      .limit(limit + 1);
 
-    const selected = snapshot.docs.slice(0, AUDIT_READ_LIMIT);
+    if (cursor) {
+      const cursorDoc = await auditRef.doc(cursor).get();
+      const cursorData = cursorDoc.data() || {};
+      if (
+        !cursorDoc.exists ||
+        cursorData.organizationId !== organizationId ||
+        cursorData.financeEntityId !== financeEntityId
+      ) {
+        return res.status(400).json({ error: 'INVALID_CURSOR' });
+      }
+      query = query.startAfter(cursorDoc);
+    }
+
+    const snapshot = await query.get();
+    const selected = snapshot.docs.slice(0, limit);
+    const hasMore = snapshot.docs.length > limit;
+    const nextCursor = hasMore && selected.length ? selected[selected.length - 1].id : undefined;
     const actorIds = Array.from(
       new Set(
         selected
@@ -107,8 +130,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       readOnly: true,
       financialMutation: false,
       auditMutation: false,
-      limit: AUDIT_READ_LIMIT,
-      truncated: snapshot.size > AUDIT_READ_LIMIT,
+      limit,
+      truncated: hasMore,
+      hasMore,
+      nextCursor,
       items,
     };
 
