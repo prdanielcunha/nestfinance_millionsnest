@@ -328,29 +328,36 @@ function AuditContent() {
 
   const [items, setItems] = useState<AuditTimelineItem[]>([]);
   const [truncated, setTruncated] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState('all');
 
   const organizationId = accessState.organizationId || '';
 
-  const load = async () => {
+  const load = async (cursor?: string) => {
     if (!organizationId || !activeFinanceEntityId) return;
-    setLoading(true);
+    if (cursor) setLoadingMore(true);
+    else setLoading(true);
     setFailed(false);
     try {
-      const response = await auditService.list(organizationId, activeFinanceEntityId);
-      setItems(response.items);
-      setTruncated(response.truncated);
+      const response = await auditService.list(organizationId, activeFinanceEntityId, cursor, 50);
+      setItems((current) => cursor ? [...current, ...response.items] : response.items);
+      setTruncated(response.hasMore);
+      setNextCursor(response.nextCursor);
     } catch {
       setFailed(true);
     } finally {
-      setLoading(false);
+      if (cursor) setLoadingMore(false);
+      else setLoading(false);
     }
   };
 
   useEffect(() => {
     setItems([]);
+    setNextCursor(undefined);
+    setTruncated(false);
     setFilter('all');
     setFailed(false);
     if (organizationId && activeFinanceEntityId) void load();
@@ -559,8 +566,18 @@ function AuditContent() {
                 </section>
               )}
 
-              {truncated ? (
-                <p className="text-center text-xs text-text-muted">{copy.truncated}</p>
+              {truncated && nextCursor ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-center text-xs text-text-muted">{copy.truncated}</p>
+                  <Button
+                    variant="secondary"
+                    disabled={loadingMore}
+                    onClick={() => void load(nextCursor)}
+                  >
+                    {loadingMore ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                    {copy.retry}
+                  </Button>
+                </div>
               ) : null}
 
               <Surface variant="subtle" radius="lg" className="flex gap-3 p-4">
