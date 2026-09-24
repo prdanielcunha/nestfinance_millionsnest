@@ -42,6 +42,14 @@ import {
   type TransactionCreateDirection,
 } from './transactionCreateModel';
 import { TRANSACTION_EDIT_COPY } from './transactionEditCopy';
+import {
+  describeAccount,
+  describeCategory,
+  describeFund,
+  describePaymentMethod,
+  fundBadge,
+  getTransactionOptionGuidance,
+} from './transactionOptionGuidance';
 
 const EDIT_PRESENCE_COPY = {
   PT: {
@@ -168,6 +176,7 @@ function TransactionEditGuidedContent() {
   const copy = TRANSACTION_CREATE_COPY[language];
   const editCopy = TRANSACTION_EDIT_COPY[language];
   const paymentLabels = PAYMENT_METHOD_LABELS[language];
+  const optionGuidance = getTransactionOptionGuidance(language);
   const { getTransactionDetail, updateDraft, submitForReview } = useTransactions();
 
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -1216,9 +1225,12 @@ function TransactionEditGuidedContent() {
                     options={availablePaymentMethods.map((method) => ({
                       value: method.code,
                       label: paymentLabels[method.code] || method.label,
+                      description: describePaymentMethod(language, method.code),
                     }))}
                     placeholder={copy.select}
                     allowClear
+                    clearDescription={optionGuidance.clearPayment}
+                    guidance={optionGuidance.paymentGuidance}
                     className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                   />
                   {paymentWarning ? (
@@ -1238,10 +1250,11 @@ function TransactionEditGuidedContent() {
                         setNotice(null);
                       }}
                       options={[
-                        { value: 'credit_card_bill', label: copy.settlementCreditCard },
-                        { value: 'reimbursement', label: copy.settlementReimbursement },
+                        { value: 'credit_card_bill', label: copy.settlementCreditCard, description: optionGuidance.settlement.credit_card_bill },
+                        { value: 'reimbursement', label: copy.settlementReimbursement, description: optionGuidance.settlement.reimbursement },
                       ]}
                       placeholder={copy.select}
+                      guidance={optionGuidance.settlementGuidance}
                       className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                     />
                   </label>
@@ -1256,8 +1269,13 @@ function TransactionEditGuidedContent() {
                       }}
                       options={accounts
                         .filter((account) => account.nature === 'liability' || account.id === liabilityAccountId)
-                        .map((account) => ({ value: account.id, label: accountLabel(account) }))}
+                        .map((account) => ({
+                          value: account.id,
+                          label: accountLabel(account),
+                          description: describeAccount(language, account),
+                        }))}
                       placeholder={copy.selectLiability}
+                      guidance={optionGuidance.accountGuidance}
                       className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                     />
                     {selectedLiability ? (
@@ -1289,8 +1307,10 @@ function TransactionEditGuidedContent() {
                     options={availableAccounts.map((account) => ({
                       value: account.id,
                       label: accountLabel(account),
+                      description: describeAccount(language, account),
                     }))}
                     placeholder={copy.selectAccount}
+                    guidance={optionGuidance.accountGuidance}
                     className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                   />
                   {selectedAccount ? (
@@ -1313,8 +1333,13 @@ function TransactionEditGuidedContent() {
                       }}
                       options={accounts
                         .filter((account) => account.id !== accountId)
-                        .map((account) => ({ value: account.id, label: accountLabel(account) }))}
+                        .map((account) => ({
+                          value: account.id,
+                          label: accountLabel(account),
+                          description: describeAccount(language, account),
+                        }))}
                       placeholder={copy.selectDestination}
+                      guidance={optionGuidance.accountGuidance}
                       className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                     />
                     {selectedDestination ? (
@@ -1499,8 +1524,10 @@ function TransactionEditGuidedContent() {
                               options={compatibleCategories.map((category) => ({
                                 value: category.id,
                                 label: category.name,
+                                description: describeCategory(language, category),
                               }))}
                               placeholder={copy.selectCategory}
+                              guidance={optionGuidance.categoryGuidance}
                               className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                             />
                           </label>
@@ -1510,9 +1537,17 @@ function TransactionEditGuidedContent() {
                             <FinanceSelect
                               value={allocation.fundId}
                               onChange={(value) => updateAllocation(index, 'fundId', value)}
-                              options={funds.map((fund) => ({ value: fund.id, label: fund.name }))}
+                              options={funds.map((fund) => ({
+                                value: fund.id,
+                                label: fund.name,
+                                description: describeFund(language, fund),
+                                badge: fundBadge(language, fund),
+                              }))}
                               placeholder={copy.noFund}
                               allowClear
+                              clearLabel={copy.noFund}
+                              clearDescription={optionGuidance.noFund}
+                              guidance={optionGuidance.fundGuidance}
                               className="mt-2 h-14 rounded-xl border border-border-subtle bg-surface-base text-base"
                             />
                           </label>

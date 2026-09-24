@@ -7,6 +7,12 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 export interface FinanceSelectOption {
   value: string;
   label: string;
+  /** Short, decision-oriented explanation shown inside the option list. */
+  description?: string;
+  /** Optional compact context, such as "Recommended" or "Restricted". */
+  badge?: string;
+  /** Additional searchable terms that do not need to be visible. */
+  keywords?: string[];
 }
 
 interface FinanceSelectProps {
@@ -19,6 +25,10 @@ interface FinanceSelectProps {
   emptyMessage?: string;
   searchPlaceholder?: string;
   allowClear?: boolean;
+  clearLabel?: string;
+  clearDescription?: string;
+  /** Brief guidance displayed before the options when the choice needs context. */
+  guidance?: string;
 }
 
 const UI_COPY: Record<Language, { clear: string; searchOptions: string; close: string }> = {
@@ -37,6 +47,9 @@ export function FinanceSelect({
   emptyMessage = 'Nenhuma opção',
   searchPlaceholder = 'Buscar...',
   allowClear = false,
+  clearLabel,
+  clearDescription,
+  guidance,
 }: FinanceSelectProps) {
   const { language } = useLanguage();
   const copy = UI_COPY[language];
@@ -61,14 +74,24 @@ export function FinanceSelect({
   const filteredOptions = useMemo(() => {
     if (!searchQuery.trim()) return options;
     const normalizedQuery = searchQuery.toLocaleLowerCase();
-    return options.filter((option) => option.label.toLocaleLowerCase().includes(normalizedQuery));
+    return options.filter((option) =>
+      [option.label, option.description, ...(option.keywords || [])]
+        .filter(Boolean)
+        .some((text) => text!.toLocaleLowerCase().includes(normalizedQuery)),
+    );
   }, [options, searchQuery]);
 
   const allItems = useMemo(() => {
     const items = [...filteredOptions];
-    if (allowClear) items.unshift({ value: '', label: copy.clear });
+    if (allowClear) {
+      items.unshift({
+        value: '',
+        label: clearLabel || copy.clear,
+        description: clearDescription,
+      });
+    }
     return items;
-  }, [allowClear, copy.clear, filteredOptions]);
+  }, [allowClear, clearDescription, clearLabel, copy.clear, filteredOptions]);
 
   const showSearch = options.length > 8;
 
@@ -148,7 +171,9 @@ export function FinanceSelect({
     }
 
     setSearchQuery('');
-    const initialItems = allowClear ? [{ value: '', label: copy.clear }, ...options] : options;
+    const initialItems = allowClear
+      ? [{ value: '', label: clearLabel || copy.clear }, ...options]
+      : options;
     const initialIndex = initialItems.findIndex((item) => item.value === value);
     setFocusedIndex(initialIndex >= 0 ? initialIndex : initialItems.length > 0 ? 0 : -1);
 
@@ -163,6 +188,12 @@ export function FinanceSelect({
 
   const renderList = () => (
     <>
+      {guidance ? (
+        <div className="shrink-0 border-b border-border-subtle bg-accent-primary/[0.045] px-5 py-3">
+          <p className="text-sm leading-relaxed text-text-secondary">{guidance}</p>
+        </div>
+      ) : null}
+
       {showSearch ? (
         <div className="shrink-0 border-b border-border-subtle p-4">
           <div className="relative">
@@ -204,7 +235,8 @@ export function FinanceSelect({
                 type="button"
                 role="option"
                 aria-selected={isSelected}
-                className={`nf-interactive mb-1 flex min-h-12 w-full items-center justify-between rounded-xl px-3 py-3 text-left ${
+                aria-label={option.description ? `${option.label}. ${option.description}` : option.label}
+                className={`nf-interactive mb-1 flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left ${
                   isSelected
                     ? 'bg-accent-primary/10 font-medium text-accent-primary'
                     : 'text-text-primary hover:bg-surface-secondary'
@@ -212,7 +244,21 @@ export function FinanceSelect({
                 onClick={() => handleSelect(option.value)}
                 onMouseEnter={() => setFocusedIndex(index)}
               >
-                <span className="truncate text-base">{option.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-base">{option.label}</span>
+                    {option.badge ? (
+                      <span className="shrink-0 rounded-full border border-border-subtle bg-surface-base px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                        {option.badge}
+                      </span>
+                    ) : null}
+                  </span>
+                  {option.description ? (
+                    <span className="mt-1 block text-sm font-normal leading-snug text-text-muted">
+                      {option.description}
+                    </span>
+                  ) : null}
+                </span>
                 {isSelected ? <Check className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" /> : null}
               </button>
             );
