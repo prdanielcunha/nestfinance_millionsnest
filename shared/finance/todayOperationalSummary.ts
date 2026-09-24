@@ -27,14 +27,17 @@ export function buildTodayOperationalBalance(input: {
   if (input.activeAssetAccounts.length === 0) {
     return { state: 'unavailable', amountCents: null, reason: 'no_asset_accounts' };
   }
-  if (input.activeAssetAccounts.some((account) => !Number.isSafeInteger(Number(account.openingBalanceCents)))) {
+  if (input.activeAssetAccounts.some((account) =>
+    typeof account.openingBalanceCents !== 'number' ||
+    !Number.isSafeInteger(account.openingBalanceCents)
+  )) {
     return { state: 'unavailable', amountCents: null, reason: 'opening_balance_incomplete' };
   }
   if (input.postedAdjustmentCount > 0) {
     return { state: 'unavailable', amountCents: null, reason: 'unsupported_adjustments' };
   }
   const opening = input.activeAssetAccounts.reduce(
-    (sum, account) => sum + Number(account.openingBalanceCents),
+    (sum, account) => sum + (account.openingBalanceCents as number),
     0,
   );
   return {
