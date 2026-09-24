@@ -29,6 +29,7 @@ type AuditCopy = {
   back: string;
   loading: string;
   retry: string;
+  loadMore: string;
   accessDeniedTitle: string;
   accessDeniedBody: string;
   errorTitle: string;
@@ -71,6 +72,7 @@ const COPY: Record<Language, AuditCopy> = {
     back: 'Voltar',
     loading: 'Carregando histórico verificável…',
     retry: 'Tentar novamente',
+    loadMore: 'Carregar mais',
     accessDeniedTitle: 'Acesso somente autorizado',
     accessDeniedBody: 'Seu perfil não pode visualizar a auditoria financeira desta igreja.',
     errorTitle: 'Não foi possível carregar a auditoria',
@@ -86,7 +88,7 @@ const COPY: Record<Language, AuditCopy> = {
     emptyTitle: 'Ainda não há atividade registrada',
     emptyText: 'Quando alguém criar, revisar ou conferir itens financeiros, o histórico aparecerá aqui.',
     emptyFilter: 'Nenhum evento corresponde a este filtro.',
-    truncated: 'Mostrando os 200 eventos mais recentes desta entidade.',
+    truncated: 'Há mais eventos neste histórico. Carregue a próxima página quando precisar.',
     details: 'Detalhes de auditoria',
     actor: 'Quem',
     when: 'Quando',
@@ -137,6 +139,7 @@ const COPY: Record<Language, AuditCopy> = {
     back: 'Back',
     loading: 'Loading verifiable history…',
     retry: 'Try again',
+    loadMore: 'Load more',
     accessDeniedTitle: 'Authorized access only',
     accessDeniedBody: 'Your current role cannot view financial audit history for this church.',
     errorTitle: 'Audit history could not be loaded',
@@ -152,7 +155,7 @@ const COPY: Record<Language, AuditCopy> = {
     emptyTitle: 'No activity has been recorded yet',
     emptyText: 'When someone creates, reviews, or checks financial items, the history will appear here.',
     emptyFilter: 'No event matches this filter.',
-    truncated: 'Showing the 200 most recent events for this entity.',
+    truncated: 'There are more events in this history. Load the next page when needed.',
     details: 'Audit details',
     actor: 'Who',
     when: 'When',
@@ -203,6 +206,7 @@ const COPY: Record<Language, AuditCopy> = {
     back: 'Volver',
     loading: 'Cargando historial verificable…',
     retry: 'Intentar de nuevo',
+    loadMore: 'Cargar más',
     accessDeniedTitle: 'Acceso solo autorizado',
     accessDeniedBody: 'Su perfil no puede ver la auditoría financiera de esta iglesia.',
     errorTitle: 'No fue posible cargar la auditoría',
@@ -218,7 +222,7 @@ const COPY: Record<Language, AuditCopy> = {
     emptyTitle: 'Todavía no hay actividad registrada',
     emptyText: 'Cuando alguien cree, revise o compruebe elementos financieros, el historial aparecerá aquí.',
     emptyFilter: 'Ningún evento coincide con este filtro.',
-    truncated: 'Mostrando los 200 eventos más recientes de esta entidad.',
+    truncated: 'Hay más eventos en este historial. Carga la siguiente página cuando la necesites.',
     details: 'Detalles de auditoría',
     actor: 'Quién',
     when: 'Cuándo',
@@ -328,29 +332,36 @@ function AuditContent() {
 
   const [items, setItems] = useState<AuditTimelineItem[]>([]);
   const [truncated, setTruncated] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState('all');
 
   const organizationId = accessState.organizationId || '';
 
-  const load = async () => {
+  const load = async (cursor?: string) => {
     if (!organizationId || !activeFinanceEntityId) return;
-    setLoading(true);
+    if (cursor) setLoadingMore(true);
+    else setLoading(true);
     setFailed(false);
     try {
-      const response = await auditService.list(organizationId, activeFinanceEntityId);
-      setItems(response.items);
-      setTruncated(response.truncated);
+      const response = await auditService.list(organizationId, activeFinanceEntityId, cursor, 50);
+      setItems((current) => cursor ? [...current, ...response.items] : response.items);
+      setTruncated(response.hasMore);
+      setNextCursor(response.nextCursor);
     } catch {
       setFailed(true);
     } finally {
-      setLoading(false);
+      if (cursor) setLoadingMore(false);
+      else setLoading(false);
     }
   };
 
   useEffect(() => {
     setItems([]);
+    setNextCursor(undefined);
+    setTruncated(false);
     setFilter('all');
     setFailed(false);
     if (organizationId && activeFinanceEntityId) void load();
@@ -559,8 +570,18 @@ function AuditContent() {
                 </section>
               )}
 
-              {truncated ? (
-                <p className="text-center text-xs text-text-muted">{copy.truncated}</p>
+              {truncated && nextCursor ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-center text-xs text-text-muted">{copy.truncated}</p>
+                  <Button
+                    variant="secondary"
+                    disabled={loadingMore}
+                    onClick={() => void load(nextCursor)}
+                  >
+                    {loadingMore ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                    {copy.loadMore}
+                  </Button>
+                </div>
               ) : null}
 
               <Surface variant="subtle" radius="lg" className="flex gap-3 p-4">

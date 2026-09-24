@@ -42,6 +42,7 @@ import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
+import { SinceLastVisitCard } from './SinceLastVisitCard';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string }> = {
   PT: {
@@ -1085,6 +1086,11 @@ export function TodayActionCenter() {
           ) : null}
         </Surface>
       )}
+
+      <SinceLastVisitCard
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId}
+      />
 
       <section aria-labelledby="today-operational-title">
         <div className="mb-3">

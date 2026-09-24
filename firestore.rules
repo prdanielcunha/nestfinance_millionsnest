@@ -343,6 +343,9 @@ service cloud.firestore {
       match /financeEntities/{entityId}/workspaceViewOwners/{ownerId}/{document=**} {
         allow read, create, update, delete: if false;
       }
+      match /financeEntities/{entityId}/editLocks/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeEntities/{entityId}/transactionSearchIndex/{document=**} {
         allow read, create, update, delete: if false;
       }
