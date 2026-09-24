@@ -67,7 +67,8 @@
     "benchmark:voice-transcription": "tsx scripts/benchmark-voice-transcription.ts",
     "test:roadmap-cycle-08": "tsx scripts/test-roadmap-cycle-08-intelligence-engine.ts",
     "benchmark:document-intelligence": "tsx scripts/benchmark-document-intelligence.ts",
-    "test:roadmap-cycle-09": "tsx scripts/test-roadmap-cycle-09-operational-close.ts"
+    "test:roadmap-cycle-09": "tsx scripts/test-roadmap-cycle-09-operational-close.ts",
+    "test:roadmap-cycle-10": "tsx scripts/test-roadmap-cycle-10-accountant-certification.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
