@@ -91,8 +91,10 @@ export function normalizeAccountantPackageLayout(value: unknown): AccountantPack
 
 function csvCell(value: unknown) {
   if (value === null || value === undefined) return '';
-  const text = Array.isArray(value) ? value.join(' | ') : String(value);
-  return '"' + text.replace(/"/g, '""') + '"';
+  const raw = Array.isArray(value) ? value.join(' | ') : String(value);
+  const normalized = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/gu, ' ');
+  const formulaSafe = /^[=+\-@]/u.test(normalized.trimStart()) ? "'" + normalized : normalized;
+  return '"' + formulaSafe.replace(/"/g, '""') + '"';
 }
 
 export function buildCsv(
