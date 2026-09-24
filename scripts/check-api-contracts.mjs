@@ -54,6 +54,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-create-draft', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-create-and-submit', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-update-draft', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-edit-presence-heartbeat', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-edit-presence-release', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-submit-review', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-return-to-draft', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-invalidate-approval', exposure: 'gateway' },
