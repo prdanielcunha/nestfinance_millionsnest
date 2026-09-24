@@ -111,6 +111,32 @@ export function useTransactions() {
     }
   }, [organizationId, activeFinanceEntityId]);
 
+  const discardDraft = useCallback(async (
+    transactionId: string,
+    expectedVersion: number,
+    idempotencyKey: string,
+    requestId: string,
+  ) => {
+    if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
+    setLoading(true);
+    setError(null);
+    try {
+      return await transactionsService.discardDraft(
+        organizationId,
+        activeFinanceEntityId,
+        transactionId,
+        expectedVersion,
+        idempotencyKey,
+        requestId,
+      );
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, activeFinanceEntityId]);
+
   const submitForReview = useCallback(async (transactionId: string, expectedVersion: number, idempotencyKey: string, requestId: string) => {
     if (!organizationId || !activeFinanceEntityId) throw new Error('Missing context');
     setLoading(true);
@@ -214,6 +240,7 @@ export function useTransactions() {
     createDraft,
     createAndSubmit,
     updateDraft,
+    discardDraft,
     submitForReview,
     returnToDraft,
     approveForPosting,

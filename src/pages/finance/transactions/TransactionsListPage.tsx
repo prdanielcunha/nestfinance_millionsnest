@@ -94,6 +94,7 @@ type TransactionsCopy = {
   category: string;
   noDescription: string;
   returnedHint: string;
+  draftDiscarded: string;
   searchPlaceholder: string;
   searchTooShort: string;
   searchEmptyTitle: string;
@@ -163,6 +164,7 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Categoria',
     noDescription: 'Movimentação sem descrição',
     returnedHint: 'Esta movimentação voltou para você ajustar antes de seguir.',
+    draftDiscarded: 'Rascunho descartado.',
     searchPlaceholder: 'Buscar descrição, pessoa, conta, método ou código',
     searchTooShort: 'Digite pelo menos 2 caracteres para pesquisar.',
     searchEmptyTitle: 'Nenhum resultado para esta busca',
@@ -230,6 +232,7 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Category',
     noDescription: 'Transaction without a description',
     returnedHint: 'This transaction was returned so you can adjust it before it continues.',
+    draftDiscarded: 'Draft discarded.',
     searchPlaceholder: 'Search description, person, account, method, or code',
     searchTooShort: 'Type at least 2 characters to search.',
     searchEmptyTitle: 'No results for this search',
@@ -297,6 +300,7 @@ const COPY: Record<Language, TransactionsCopy> = {
     category: 'Categoría',
     noDescription: 'Movimiento sin descripción',
     returnedHint: 'Este movimiento volvió para que lo ajustes antes de continuar.',
+    draftDiscarded: 'Borrador descartado.',
     searchPlaceholder: 'Buscar descripción, persona, cuenta, método o código',
     searchTooShort: 'Escribe al menos 2 caracteres para buscar.',
     searchEmptyTitle: 'No hay resultados para esta búsqueda',
@@ -471,6 +475,7 @@ function TransactionsListContent() {
   const copy = COPY[language];
 
   const [items, setItems] = useState<any[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorKind, setErrorKind] = useState<LoadErrorKind>(null);
@@ -812,6 +817,16 @@ function TransactionsListContent() {
             </div>
           </header>
 
+          {notice ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-2xl border border-semantic-success/20 bg-semantic-success/10 px-4 py-3 text-sm font-medium text-text-primary"
+            >
+              {notice}
+            </div>
+          ) : null}
+
           <Surface variant="glass" radius="lg" className="p-4 sm:p-5">
             <label className="relative block">
               <span className="sr-only">{copy.searchPlaceholder}</span>
@@ -1135,6 +1150,10 @@ function TransactionsListContent() {
       <TransactionInspector
         transactionId={inspectedTransactionId}
         onClose={closeInspector}
+        onDiscarded={(transactionId) => {
+          setItems((current) => current.filter((item) => item.id !== transactionId));
+          setNotice(copy.draftDiscarded);
+        }}
       />
     </div>
   );

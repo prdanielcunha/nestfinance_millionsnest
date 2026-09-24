@@ -11,6 +11,7 @@ import {
   Landmark,
   RefreshCw,
   Tags,
+  Trash2,
   Wallet,
   X,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { useTransactions } from '@/src/hooks/finance/useTransactions';
 type Props = {
   transactionId: string | null;
   onClose: () => void;
+  onDiscarded?: (transactionId: string) => void;
 };
 
 type InspectorCopy = {
@@ -34,6 +36,13 @@ type InspectorCopy = {
   close: string;
   openFull: string;
   edit: string;
+  discard: string;
+  discardTitle: string;
+  discardBody: string;
+  discardConfirm: string;
+  discarding: string;
+  discardFailed: string;
+  cancel: string;
   date: string;
   account: string;
   category: string;
@@ -66,6 +75,13 @@ const COPY: Record<Language, InspectorCopy> = {
     close: 'Fechar visão rápida',
     openFull: 'Abrir registro completo',
     edit: 'Editar movimentação',
+    discard: 'Descartar rascunho',
+    discardTitle: 'Descartar este rascunho?',
+    discardBody: 'As informações ainda não enviadas serão apagadas. Esta ação não pode ser desfeita.',
+    discardConfirm: 'Descartar',
+    discarding: 'Descartando…',
+    discardFailed: 'Não foi possível descartar o rascunho. Tente novamente.',
+    cancel: 'Cancelar',
     date: 'Data',
     account: 'Conta',
     category: 'Categoria',
@@ -96,6 +112,13 @@ const COPY: Record<Language, InspectorCopy> = {
     close: 'Close quick view',
     openFull: 'Open full record',
     edit: 'Edit transaction',
+    discard: 'Discard draft',
+    discardTitle: 'Discard this draft?',
+    discardBody: 'Information that has not been submitted will be deleted. This action cannot be undone.',
+    discardConfirm: 'Discard',
+    discarding: 'Discarding…',
+    discardFailed: 'The draft could not be discarded. Try again.',
+    cancel: 'Cancel',
     date: 'Date',
     account: 'Account',
     category: 'Category',
@@ -126,6 +149,13 @@ const COPY: Record<Language, InspectorCopy> = {
     close: 'Cerrar vista rápida',
     openFull: 'Abrir registro completo',
     edit: 'Editar movimiento',
+    discard: 'Descartar borrador',
+    discardTitle: '¿Descartar este borrador?',
+    discardBody: 'Se eliminará la información que aún no fue enviada. Esta acción no se puede deshacer.',
+    discardConfirm: 'Descartar',
+    discarding: 'Descartando…',
+    discardFailed: 'No fue posible descartar el borrador. Inténtalo de nuevo.',
+    cancel: 'Cancelar',
     date: 'Fecha',
     account: 'Cuenta',
     category: 'Categoría',
@@ -183,6 +213,13 @@ function statusLabel(status: string, copy: InspectorCopy) {
   return copy.statusOther;
 }
 
+function makeRequestToken(prefix: string) {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
 function directionMeta(direction: string, copy: InspectorCopy) {
   if (direction === 'income') {
     return { label: copy.income, Icon: ArrowDownLeft, className: 'bg-semantic-success/10 text-semantic-success' };
@@ -196,15 +233,18 @@ function directionMeta(direction: string, copy: InspectorCopy) {
   return { label: copy.other, Icon: Wallet, className: 'bg-surface-secondary text-text-secondary' };
 }
 
-export function TransactionInspector({ transactionId, onClose }: Props) {
+export function TransactionInspector({ transactionId, onClose, onDiscarded }: Props) {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const copy = COPY[language];
-  const { getTransactionDetail } = useTransactions();
+  const { getTransactionDetail, discardDraft } = useTransactions();
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [epoch, setEpoch] = useState(0);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardFailed, setDiscardFailed] = useState(false);
 
   useEffect(() => {
     if (!transactionId) {
@@ -215,6 +255,9 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
     }
 
     let active = true;
+    setDiscardConfirmOpen(false);
+    setDiscarding(false);
+    setDiscardFailed(false);
     setDetail(null);
     setLoading(true);
     setFailed(false);
@@ -263,6 +306,7 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
   const allocations = Array.isArray(detail?.allocations) ? detail.allocations : [];
   const readiness = detail?.reviewReadiness;
   const canEdit = Boolean(detail?.capabilities?.canEdit);
+  const canDiscard = canEdit && transaction?.status === 'draft';
   const amount = formatMoney(transaction?.amountCents, language, transaction?.currency || 'BRL');
   const occurredAt = formatDate(transaction?.occurredAt, language);
 
@@ -270,6 +314,27 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
 
   const fullRoute = APP_ROUTES.transactionDetail.replace(':transactionId', transactionId);
   const editRoute = APP_ROUTES.transactionEdit.replace(':transactionId', transactionId);
+
+  const handleDiscard = async () => {
+    if (!transaction || transaction.status !== 'draft' || discarding) return;
+    setDiscarding(true);
+    setDiscardFailed(false);
+    try {
+      await discardDraft(
+        transaction.id,
+        Number(transaction.version),
+        makeRequestToken('idsm'),
+        makeRequestToken('req'),
+      );
+      setDiscardConfirmOpen(false);
+      onDiscarded?.(transaction.id);
+      onClose();
+    } catch {
+      setDiscardFailed(true);
+    } finally {
+      setDiscarding(false);
+    }
+  };
 
   return (
     <div
@@ -415,6 +480,19 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
                 {copy.edit}
               </Button>
             ) : null}
+            {canDiscard ? (
+              <Button
+                variant="danger"
+                fullWidth
+                leadingIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => {
+                  setDiscardFailed(false);
+                  setDiscardConfirmOpen(true);
+                }}
+              >
+                {copy.discard}
+              </Button>
+            ) : null}
             <Button
               variant="primary"
               fullWidth
@@ -426,6 +504,55 @@ export function TransactionInspector({ transactionId, onClose }: Props) {
           </div>
         </footer>
       </aside>
+
+      {discardConfirmOpen && transaction ? (
+        <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/45 p-4 backdrop-blur-[2px] sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discard-draft-title"
+            aria-describedby="discard-draft-body"
+            className="w-full max-w-sm rounded-[24px] border border-border-subtle bg-surface-elevated p-6 shadow-2xl"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-semantic-danger/10 text-semantic-danger">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h2 id="discard-draft-title" className="mt-4 text-lg font-semibold text-text-primary">
+              {copy.discardTitle}
+            </h2>
+            <p id="discard-draft-body" className="mt-2 text-sm leading-relaxed text-text-secondary">
+              {copy.discardBody}
+            </p>
+            {discardFailed ? (
+              <p className="mt-4 rounded-xl border border-semantic-danger/20 bg-semantic-danger/10 p-3 text-sm text-text-primary" role="alert">
+                {copy.discardFailed}
+              </p>
+            ) : null}
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={discarding}
+                onClick={() => {
+                  setDiscardFailed(false);
+                  setDiscardConfirmOpen(false);
+                }}
+              >
+                {copy.cancel}
+              </Button>
+              <Button
+                variant="danger"
+                fullWidth
+                disabled={discarding}
+                leadingIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => void handleDiscard()}
+              >
+                {discarding ? copy.discarding : copy.discardConfirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

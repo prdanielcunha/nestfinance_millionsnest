@@ -280,6 +280,45 @@ export const transactionsService = {
     return res.json();
   },
 
+  async discardDraft(
+    organizationId: string,
+    financeEntityId: string,
+    transactionId: string,
+    expectedVersion: number,
+    idempotencyKey: string,
+    requestId: string,
+  ): Promise<{ deleted: boolean; transactionId: string }> {
+    const auth = getAuth();
+    const headers = new Headers();
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers.set('Authorization', 'Bearer ' + token);
+    }
+    headers.set('Content-Type', 'application/json');
+    headers.set('x-organization-id', organizationId);
+
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-discard-draft`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        financeEntityId,
+        transactionId,
+        expectedVersion,
+        idempotencyKey,
+        requestId,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const thrown: any = new Error(err.details || err.error || 'Failed to discard transaction draft');
+      thrown.details = err;
+      throw thrown;
+    }
+
+    return res.json();
+  },
+
   async submitForReview(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
     const auth = getAuth();
     const headers = new Headers();
