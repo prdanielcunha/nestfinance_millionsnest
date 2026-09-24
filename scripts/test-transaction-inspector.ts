@@ -56,4 +56,23 @@ assert.ok(
   'inspector ships localized copy in all supported languages',
 );
 
+assert.ok(
+  inspector.includes("const canDiscard = canEdit && transaction?.status === 'draft'") &&
+    inspector.includes('await discardDraft('),
+  'only editable draft transactions expose the discard mutation',
+);
+assert.ok(
+  inspector.includes('discardTitle') &&
+    inspector.includes('discardConfirm') &&
+    inspector.includes('discardFailed') &&
+    inspector.includes('aria-describedby="discard-draft-body"'),
+  'draft discard requires an accessible confirmation with recoverable failure state',
+);
+assert.ok(
+  list.includes('onDiscarded={(transactionId) => {') &&
+    list.includes('current.filter((item) => item.id !== transactionId)') &&
+    list.includes('setNotice(copy.draftDiscarded)'),
+  'discarded drafts disappear from the current list with localized success feedback',
+);
+
 console.log('✅ Premium transaction inspector preserves context, authority and responsive behavior');
