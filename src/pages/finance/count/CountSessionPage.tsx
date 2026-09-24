@@ -10,6 +10,7 @@ import {
   Plus,
   ShieldCheck,
   ShieldX,
+  Trash2,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, SpeakInstructionButton, Surface } from '@/src/components/foundation';
@@ -151,6 +152,9 @@ function CountSessionContent() {
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState(false);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
 
   const epochRef = useRef(0);
@@ -178,6 +182,7 @@ function CountSessionContent() {
     setSaveError(false);
     setSupportCode(null);
     setRestoredDraft(false);
+    setDiscardError(false);
     setCloudSaveState('idle');
     try {
       const response = await countService.detail(
@@ -569,6 +574,42 @@ function CountSessionContent() {
     }
   };
 
+  const discardSession = async () => {
+    if (
+      !canEdit ||
+      !session ||
+      session.status !== 'counting_a' ||
+      !activeFinanceEntityId ||
+      !sessionId ||
+      discarding ||
+      saving ||
+      cloudSaveState === 'saving'
+    ) {
+      return;
+    }
+
+    setDiscarding(true);
+    setDiscardError(false);
+    try {
+      await countService.discard(organizationId, activeFinanceEntityId, {
+        countSessionId: session.id,
+        expectedVersion: session.version,
+        idempotencyKey: makeToken('idcount_discard'),
+        requestId: makeToken('req'),
+      });
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      setDiscardConfirmOpen(false);
+      navigate(APP_ROUTES.count, { replace: true });
+    } catch (error: any) {
+      if (error?.code === 'COUNT_VERSION_CONFLICT') {
+        await loadSession();
+      }
+      setDiscardError(true);
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
@@ -693,12 +734,26 @@ function CountSessionContent() {
             >
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             </Button>
-            <div className="min-w-0 pt-1">
+            <div className="min-w-0 flex-1 pt-1">
               <h1 className="truncate text-2xl font-semibold tracking-tight text-text-primary">{session.serviceLabel}</h1>
               <p className="mt-1 text-sm text-text-muted">
                 {formatReviewDate(`${session.serviceDate}T12:00:00.000Z`, language)}
               </p>
             </div>
+            {canEdit ? (
+              <Button
+                variant="danger"
+                className="shrink-0"
+                disabled={discarding || saving || cloudSaveState === 'saving'}
+                leadingIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => {
+                  setDiscardError(false);
+                  setDiscardConfirmOpen(true);
+                }}
+              >
+                {copy.discardSession}
+              </Button>
+            ) : null}
           </header>
 
           <FlowStepHeader
@@ -979,6 +1034,55 @@ function CountSessionContent() {
           ) : null}
         </div>
       </div>
+
+      {discardConfirmOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-4 backdrop-blur-[2px] sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discard-count-session-title"
+            aria-describedby="discard-count-session-body"
+            className="w-full max-w-sm rounded-[24px] border border-border-subtle bg-surface-elevated p-6 shadow-2xl"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-semantic-danger/10 text-semantic-danger">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h2 id="discard-count-session-title" className="mt-4 text-lg font-semibold text-text-primary">
+              {copy.discardSessionTitle}
+            </h2>
+            <p id="discard-count-session-body" className="mt-2 text-sm leading-relaxed text-text-secondary">
+              {copy.discardSessionBody}
+            </p>
+            {discardError ? (
+              <p className="mt-4 rounded-xl border border-semantic-danger/20 bg-semantic-danger/10 p-3 text-sm text-text-primary" role="alert">
+                {copy.discardSessionError}
+              </p>
+            ) : null}
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={discarding}
+                onClick={() => {
+                  setDiscardError(false);
+                  setDiscardConfirmOpen(false);
+                }}
+              >
+                {copy.cancel}
+              </Button>
+              <Button
+                variant="danger"
+                fullWidth
+                disabled={discarding || saving || cloudSaveState === 'saving'}
+                leadingIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => void discardSession()}
+              >
+                {discarding ? copy.discardingSession : copy.discardSessionConfirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
