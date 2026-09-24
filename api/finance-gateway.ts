@@ -39,6 +39,8 @@ import transactionsSummary from '../server/vercel-handlers/finance/transactionsS
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
+import transactionEditPresenceHeartbeat from '../server/vercel-handlers/finance/transactionEditPresenceHeartbeat.js';
+import transactionEditPresenceRelease from '../server/vercel-handlers/finance/transactionEditPresenceRelease.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
@@ -107,7 +109,9 @@ import auditFactProjectionVerify from '../server/vercel-handlers/finance/auditFa
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
+import accountantPackageExport from '../server/vercel-handlers/finance/accountantPackageExport.js';
 import journeyMetricsRecord from '../server/vercel-handlers/finance/journeyMetricsRecord.js';
+import sinceLastVisitSummary from '../server/vercel-handlers/finance/sinceLastVisitSummary.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -162,6 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'accounts-repair-canonical': return accountsRepairCanonical(req, res);
     case 'accounts-configure-custom': return accountsConfigureCustom(req, res);
     case 'transactions-update-draft': return transactionsUpdateDraft(req, res);
+    case 'transaction-edit-presence-heartbeat': return transactionEditPresenceHeartbeat(req, res);
+    case 'transaction-edit-presence-release': return transactionEditPresenceRelease(req, res);
     case 'transactions-submit-review': return transactionsSubmitForReview(req, res);
     case 'transactions-return-to-draft': return transactionsReturnToDraft(req, res);
     case 'transactions-invalidate-approval': return transactionsInvalidateApproval(req, res);
@@ -227,7 +233,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'period-close-readiness': return periodCloseReadiness(req, res);
     case 'period-close-review-confirm': return periodCloseReviewConfirm(req, res);
     case 'reports-intelligence': return reportsIntelligence(req, res);
+    case 'accountant-package-export': return accountantPackageExport(req, res);
     case 'journey-metrics-record': return journeyMetricsRecord(req, res);
+    case 'since-last-visit-summary': return sinceLastVisitSummary(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }
