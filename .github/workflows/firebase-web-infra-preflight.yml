@@ -24,6 +24,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run check:api-contracts
+      - run: npm run test:count-session-discard
       - run: npm run check:saas-isolation
       - run: npm run test:firebase-infra
       - run: npm run build

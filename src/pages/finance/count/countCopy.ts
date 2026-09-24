@@ -13,6 +13,13 @@ export type CountCopy = {
   create: string;
   creating: string;
   cancel: string;
+  discardSession: string;
+  discardSessionTitle: string;
+  discardSessionBody: string;
+  discardSessionConfirm: string;
+  discardingSession: string;
+  discardSessionSuccess: string;
+  discardSessionError: string;
   recentSessions: string;
   emptyTitle: string;
   emptyBody: string;
@@ -108,6 +115,13 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Começar contagem',
     creating: 'Criando...',
     cancel: 'Cancelar',
+    discardSession: 'Descartar contagem',
+    discardSessionTitle: 'Descartar esta contagem?',
+    discardSessionBody: 'Esta contagem ainda está na primeira etapa. Ao descartar, ela será removida das contagens ativas e não poderá continuar para a segunda conferência.',
+    discardSessionConfirm: 'Descartar contagem',
+    discardingSession: 'Descartando...',
+    discardSessionSuccess: 'Contagem descartada.',
+    discardSessionError: 'Não foi possível descartar esta contagem. Atualize e tente novamente.',
     recentSessions: 'Contagens recentes',
     emptyTitle: 'Nenhuma contagem iniciada',
     emptyBody: 'Quando um culto for contado, ele aparecerá aqui para continuar e conferir.',
@@ -212,6 +226,13 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Start count',
     creating: 'Creating...',
     cancel: 'Cancel',
+    discardSession: 'Discard count',
+    discardSessionTitle: 'Discard this count?',
+    discardSessionBody: 'This count is still in its first stage. Discarding removes it from active counts and it cannot continue to the second review.',
+    discardSessionConfirm: 'Discard count',
+    discardingSession: 'Discarding...',
+    discardSessionSuccess: 'Count discarded.',
+    discardSessionError: 'This count could not be discarded. Refresh and try again.',
     recentSessions: 'Recent counts',
     emptyTitle: 'No count started',
     emptyBody: 'Once a service count starts, it will appear here so you can continue and review it.',
@@ -316,6 +337,13 @@ export const COUNT_COPY: Record<Language, CountCopy> = {
     create: 'Comenzar conteo',
     creating: 'Creando...',
     cancel: 'Cancelar',
+    discardSession: 'Descartar conteo',
+    discardSessionTitle: '¿Descartar este conteo?',
+    discardSessionBody: 'Este conteo todavía está en la primera etapa. Al descartarlo, se quitará de los conteos activos y no podrá continuar a la segunda revisión.',
+    discardSessionConfirm: 'Descartar conteo',
+    discardingSession: 'Descartando...',
+    discardSessionSuccess: 'Conteo descartado.',
+    discardSessionError: 'No fue posible descartar este conteo. Actualiza e inténtalo de nuevo.',
     recentSessions: 'Conteos recientes',
     emptyTitle: 'Ningún conteo iniciado',
     emptyBody: 'Cuando comience el conteo de un culto, aparecerá aquí para continuar y revisarlo.',

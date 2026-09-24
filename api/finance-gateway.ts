@@ -54,6 +54,7 @@ import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsC
 import countSessionsList from '../server/vercel-handlers/finance/countSessionsList.js';
 import countSessionsCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
+import countSessionsDiscard from '../server/vercel-handlers/finance/countSessionsDiscard.js';
 import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
 import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
@@ -179,6 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-list': return countSessionsList(req, res);
     case 'count-sessions-create': return countSessionsCreate(req, res);
     case 'count-sessions-detail': return countSessionsDetail(req, res);
+    case 'count-sessions-discard': return countSessionsDiscard(req, res);
     case 'count-sessions-save-first-count': return countSessionsSaveFirstCount(req, res);
     case 'count-sessions-start-second-count': return countSessionsStartSecondCount(req, res);
     case 'count-sessions-join-second-count': return countSessionsJoinSecondCount(req, res);
