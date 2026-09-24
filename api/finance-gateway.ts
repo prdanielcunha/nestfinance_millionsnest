@@ -39,6 +39,8 @@ import transactionsSummary from '../server/vercel-handlers/finance/transactionsS
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
+import transactionEditPresenceHeartbeat from '../server/vercel-handlers/finance/transactionEditPresenceHeartbeat.js';
+import transactionEditPresenceRelease from '../server/vercel-handlers/finance/transactionEditPresenceRelease.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
@@ -163,6 +165,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'accounts-repair-canonical': return accountsRepairCanonical(req, res);
     case 'accounts-configure-custom': return accountsConfigureCustom(req, res);
     case 'transactions-update-draft': return transactionsUpdateDraft(req, res);
+    case 'transaction-edit-presence-heartbeat': return transactionEditPresenceHeartbeat(req, res);
+    case 'transaction-edit-presence-release': return transactionEditPresenceRelease(req, res);
     case 'transactions-submit-review': return transactionsSubmitForReview(req, res);
     case 'transactions-return-to-draft': return transactionsReturnToDraft(req, res);
     case 'transactions-invalidate-approval': return transactionsInvalidateApproval(req, res);
