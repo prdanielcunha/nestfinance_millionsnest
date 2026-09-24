@@ -8,6 +8,7 @@
   },
   "scripts": {
     "check:api-contracts": "node scripts/check-api-contracts.mjs",
+    "test:count-session-discard": "tsx scripts/test-count-session-discard.ts",
     "check:vercel-entrypoints": "node scripts/check-vercel-entrypoints.mjs",
     "check:saas-isolation": "tsx scripts/check-saas-isolation.ts",
     "check:brand-assets": "node scripts/check-brand-assets.mjs",
