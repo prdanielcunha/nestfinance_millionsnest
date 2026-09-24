@@ -17,11 +17,13 @@ export const auditService = {
   async list(
     organizationId: string,
     financeEntityId: string,
+    cursor?: string,
+    pageSize = 200,
   ): Promise<AuditListResponse> {
     const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=audit-list`, {
       method: 'POST',
       headers: await makeHeaders(organizationId),
-      body: JSON.stringify({ financeEntityId }),
+      body: JSON.stringify({ financeEntityId, cursor, pageSize }),
     });
 
     if (!response.ok) {
