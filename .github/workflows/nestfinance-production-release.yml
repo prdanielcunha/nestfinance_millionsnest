@@ -52,6 +52,7 @@ jobs:
           set -euo pipefail
           npm run lint
           npm run check:api-contracts
+          npm run test:count-session-discard
           npm run check:saas-isolation
           npm run test:auth-session
           npm run test:role-workspace
