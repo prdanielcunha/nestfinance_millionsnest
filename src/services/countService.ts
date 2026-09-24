@@ -191,6 +191,24 @@ export const countService = {
     );
   },
 
+  async discard(
+    organizationId: string,
+    financeEntityId: string,
+    input: {
+      countSessionId: string;
+      expectedVersion: number;
+      idempotencyKey: string;
+      requestId: string;
+    },
+  ) {
+    return post<{
+      countSessionId: string;
+      version: number;
+      status: 'discarded';
+      requestId?: string;
+    }>(organizationId, 'count-sessions-discard', { financeEntityId, ...input });
+  },
+
   async saveFirstCount(
     organizationId: string,
     financeEntityId: string,
