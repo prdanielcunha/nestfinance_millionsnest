@@ -12,7 +12,7 @@ import {
   ShieldX,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, Surface } from '@/src/components/foundation';
+import { Button, FlowConfirmation, FlowFeedback, FlowStepHeader, SpeakInstructionButton, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -20,6 +20,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionDetail } from '@/src/services/countService';
+import { countDraftPersistence } from '@/src/services/countDraftPersistence';
 import {
   COUNT_DENOMINATIONS_CENTS,
   COUNT_ENTRY_TYPES,
@@ -35,7 +36,35 @@ import {
 } from '@/shared/finance/count';
 import { COUNT_COPY } from './countCopy';
 import { CountBlindWorkspace, CountResultPanel } from './CountH2Panels';
+import { CountSecondCounterGate } from './CountSecondCounterGate';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
+
+const AUTOSAVE_COPY = {
+  PT: {
+    listen: 'Ouvir instrução',
+    stop: 'Parar instrução',
+    saving: 'Salvando na nuvem…',
+    cloud: 'Salvo na nuvem',
+    local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    restored: 'Retomamos seu rascunho salvo neste aparelho.',
+  },
+  EN: {
+    listen: 'Listen to instruction',
+    stop: 'Stop instruction',
+    saving: 'Saving to cloud…',
+    cloud: 'Saved to cloud',
+    local: 'Saved on this device. The cloud will update when the connection returns.',
+    restored: 'We restored the draft saved on this device.',
+  },
+  ES: {
+    listen: 'Escuchar instrucción',
+    stop: 'Detener instrucción',
+    saving: 'Guardando en la nube…',
+    cloud: 'Guardado en la nube',
+    local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    restored: 'Restauramos el borrador guardado en este dispositivo.',
+  },
+} as const;
 
 type Step = 'choose' | 'count' | 'review';
 
@@ -102,6 +131,7 @@ function CountSessionContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
+  const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
@@ -119,10 +149,26 @@ function CountSessionContent() {
   const [saveError, setSaveError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
+  const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
 
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
   const secondStartAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveAttemptRef = useRef<SaveAttempt | null>(null);
+  const autosaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
     if (!organizationId || !activeFinanceEntityId || !sessionId) return;
@@ -131,6 +177,8 @@ function CountSessionContent() {
     setConflict(false);
     setSaveError(false);
     setSupportCode(null);
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     try {
       const response = await countService.detail(
         organizationId,
@@ -139,9 +187,34 @@ function CountSessionContent() {
       );
       if (currentEpoch !== epochRef.current) return;
       setSession(response.session);
-      setEntries(response.session.status === 'counting_a' ? response.session.countA?.entries || [] : []);
+      const serverEntries =
+        response.session.status === 'counting_a' ? response.session.countA?.entries || [] : [];
+      setEntries(serverEntries);
+
+      if (response.session.status === 'counting_a') {
+        const localDraft = countDraftPersistence.load(
+          organizationId,
+          activeFinanceEntityId,
+          sessionId,
+        );
+        if (localDraft) {
+          setActiveType(localDraft.activeType);
+          setMethod(localDraft.method);
+          setTotalRaw(localDraft.totalRaw);
+          setQuantities({ ...localDraft.quantities });
+          setStep(localDraft.step);
+          setRestoredDraft(true);
+        } else {
+          setStep('choose');
+        }
+      } else {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
+
       saveAttemptRef.current = null;
       secondStartAttemptRef.current = null;
+      autosaveAttemptRef.current = null;
+      autosaveInFlightRef.current = false;
     } catch (error: any) {
       if (currentEpoch !== epochRef.current) return;
       setSupportCode(error?.details?.requestId || null);
@@ -156,12 +229,48 @@ function CountSessionContent() {
     setSession(null);
     setEntries([]);
     setStep('choose');
+    setRestoredDraft(false);
+    setCloudSaveState('idle');
     saveAttemptRef.current = null;
     secondStartAttemptRef.current = null;
+    autosaveAttemptRef.current = null;
+    autosaveInFlightRef.current = false;
     if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
     // Canonical Count scope is organization + finance entity + session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, activeFinanceEntityId, sessionId]);
+
+  useEffect(() => {
+    if (
+      loading ||
+      !session ||
+      session.status !== 'counting_a' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+      activeType,
+      method,
+      totalRaw,
+      quantities,
+      step,
+    });
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    loading,
+    method,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+  ]);
 
   const entriesByType = useMemo(() => {
     const map = new Map<CountEntryType, NormalizedCountEntry>();
@@ -195,6 +304,7 @@ function CountSessionContent() {
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
+    setRestoredDraft(false);
     setStep('count');
   };
 
@@ -219,8 +329,137 @@ function CountSessionContent() {
     return normalizeCountEntries([...others, draft]);
   };
 
+  useEffect(() => {
+    if (
+      !canEdit ||
+      !session ||
+      session.status !== 'counting_a' ||
+      step !== 'count' ||
+      !organizationId ||
+      !activeFinanceEntityId ||
+      !sessionId
+    ) {
+      return;
+    }
+
+    let nextEntries: NormalizedCountEntry[];
+    try {
+      const draft: CountEntryDraft = {
+        type: activeType,
+        method: activeType === 'pix' ? 'total' : method,
+        totalCents: workingTotal,
+        denominations:
+          activeType !== 'pix' && method === 'denominations' ? quantities : {},
+      };
+      const others = entries
+        .filter((entry) => entry.type !== activeType)
+        .map(toDraftEntry);
+      nextEntries = normalizeCountEntries([...others, draft]);
+    } catch {
+      return;
+    }
+
+    const nextDraftEntries = nextEntries.map(toDraftEntry);
+    const nextMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: nextDraftEntries,
+    });
+    const canonicalMaterial = buildCountMaterialFingerprint({
+      serviceLabel: session.serviceLabel,
+      serviceDate: session.serviceDate,
+      entries: entries.map(toDraftEntry),
+    });
+
+    if (nextMaterial === canonicalMaterial) {
+      setCloudSaveState('saved');
+      return;
+    }
+
+    if (!online) {
+      setCloudSaveState('local');
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (autosaveInFlightRef.current) return;
+      autosaveInFlightRef.current = true;
+      setCloudSaveState('saving');
+
+      const identity = `${session.id}|${session.version}|${nextMaterial}`;
+      if (!autosaveAttemptRef.current || autosaveAttemptRef.current.identity !== identity) {
+        autosaveAttemptRef.current = {
+          identity,
+          key: makeToken('idcount_autosave'),
+        };
+      }
+
+      const actionEpoch = epochRef.current;
+      const idempotencyKey = autosaveAttemptRef.current.key;
+      void countService
+        .saveFirstCount(organizationId, activeFinanceEntityId, {
+          countSessionId: session.id,
+          expectedVersion: session.version,
+          entries: nextDraftEntries,
+          idempotencyKey,
+          requestId: makeToken('req'),
+        })
+        .then((response) => {
+          if (actionEpoch !== epochRef.current) return;
+          autosaveAttemptRef.current = null;
+          setEntries(response.entries);
+          setSession((current) => {
+            if (!current) return current;
+            const currentCountA = current.countA || { entries: [], totalCents: 0 };
+            return {
+              ...current,
+              version: response.version,
+              countA: {
+                ...currentCountA,
+                entries: response.entries,
+                totalCents: response.totalCents,
+              },
+            };
+          });
+          setCloudSaveState('saved');
+        })
+        .catch((error: any) => {
+          if (actionEpoch !== epochRef.current) return;
+          if (error?.code === 'COUNT_VERSION_CONFLICT') {
+            setConflict(true);
+          }
+          setCloudSaveState('local');
+        })
+        .finally(() => {
+          autosaveInFlightRef.current = false;
+        });
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    activeFinanceEntityId,
+    activeType,
+    canEdit,
+    entries,
+    method,
+    online,
+    organizationId,
+    quantities,
+    session,
+    sessionId,
+    step,
+    totalRaw,
+    workingTotal,
+  ]);
+
   const saveCurrentEntry = async () => {
-    if (!canEdit || !session || saving || session.status !== 'counting_a') return;
+    if (
+      !canEdit ||
+      !session ||
+      saving ||
+      cloudSaveState === 'saving' ||
+      session.status !== 'counting_a'
+    ) return;
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -264,6 +503,7 @@ function CountSessionContent() {
       saveAttemptRef.current = null;
       setSupportCode(null);
       setEntries(response.entries);
+      setCloudSaveState('saved');
       setSession((current) => {
         if (!current) return current;
         const currentCountA = current.countA || { entries: [], totalCents: 0 };
@@ -285,6 +525,7 @@ function CountSessionContent() {
         setSaveError(false);
       } else {
         setSaveError(true);
+        if (!online) setCloudSaveState('local');
       }
       setSupportCode(error?.details?.requestId || requestId);
     } finally {
@@ -313,6 +554,9 @@ function CountSessionContent() {
       secondStartAttemptRef.current = null;
       setStartingSecond(false);
       setSupportCode(null);
+      if (activeFinanceEntityId && sessionId) {
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      }
       await loadSession();
     } catch (error: any) {
       if (error?.code === 'COUNT_VERSION_CONFLICT') {
@@ -362,7 +606,35 @@ function CountSessionContent() {
     );
   }
 
-  if (session.status === 'counting_b' || session.status === 'recounting') {
+  if (session.status === 'counting_b') {
+    const assignedToCurrentUser =
+      !session.secondCountInviteRequired ||
+      session.currentUserIsSecondCounter === true;
+
+    if (!assignedToCurrentUser) {
+      return (
+        <CountSecondCounterGate
+          session={session}
+          organizationId={organizationId}
+          financeEntityId={activeFinanceEntityId || ''}
+          canEdit={canEdit}
+          onReload={() => loadSession()}
+        />
+      );
+    }
+
+    return (
+      <CountBlindWorkspace
+        session={session}
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId || ''}
+        canEdit={canEdit}
+        onReload={() => loadSession()}
+      />
+    );
+  }
+
+  if (session.status === 'recounting') {
     return (
       <CountBlindWorkspace
         session={session}
@@ -387,6 +659,25 @@ function CountSessionContent() {
   }
 
   const activeLabel = copy.entryLabels[activeType];
+  const stepNumber = step === 'choose' ? 1 : step === 'count' ? 2 : 3;
+  const stepTitle =
+    step === 'choose'
+      ? copy.stepChoose
+      : step === 'count'
+        ? copy.countTitle(activeLabel)
+        : copy.stepReview;
+  const stepDescription =
+    step === 'choose'
+      ? copy.chooseBody
+      : step === 'count'
+        ? copy.entryDescriptions[activeType]
+        : copy.reviewBody;
+  const stepProgress =
+    language === 'EN'
+      ? `Step ${stepNumber} of 3`
+      : language === 'ES'
+        ? `Paso ${stepNumber} de 3`
+        : `Passo ${stepNumber} de 3`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-28 md:pb-8">
@@ -410,46 +701,57 @@ function CountSessionContent() {
             </div>
           </header>
 
-          <div className="grid grid-cols-3 gap-2" aria-label={copy.sessionTitle}>
-            {([
-              ['choose', copy.stepChoose],
-              ['count', copy.stepCount],
-              ['review', copy.stepReview],
-            ] as const).map(([value, label], index) => (
-              <div key={value} className="text-center">
-                <div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${step === value ? 'border-accent-primary bg-accent-primary text-white' : 'border-border-subtle bg-surface-elevated text-text-muted'}`}>
-                  {index + 1}
-                </div>
-                <p className={`mt-1 text-xs font-medium ${step === value ? 'text-text-primary' : 'text-text-muted'}`}>{label}</p>
-              </div>
-            ))}
+          <FlowStepHeader
+            currentStep={stepNumber}
+            totalSteps={3}
+            eyebrow={copy.sessionTitle}
+            title={stepTitle}
+            stepLabel={stepProgress}
+            description={stepDescription}
+          />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <SpeakInstructionButton
+              text={`${stepTitle}. ${stepDescription}`}
+              language={language}
+              label={autosaveCopy.listen}
+              stopLabel={autosaveCopy.stop}
+            />
+            <p className="nf-helper-text text-text-muted" role="status" aria-live="polite">
+              {cloudSaveState === 'saving'
+                ? autosaveCopy.saving
+                : cloudSaveState === 'saved'
+                  ? autosaveCopy.cloud
+                  : cloudSaveState === 'local'
+                    ? autosaveCopy.local
+                    : ''}
+            </p>
           </div>
 
+          {restoredDraft ? (
+            <FlowFeedback tone="info" title={autosaveCopy.restored} />
+          ) : null}
+
           {conflict ? (
-            <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-warning/20 bg-semantic-warning/10 p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-semantic-warning" aria-hidden="true" />
-                <div>
-                  <p className="font-semibold text-text-primary">{copy.conflictTitle}</p>
-                  <p className="mt-1 text-sm text-text-secondary">{copy.conflictBody}</p>
-                </div>
-              </div>
-              <Button className="mt-4" variant="secondary" fullWidth onClick={() => void loadSession()}>
-                {copy.reload}
-              </Button>
-            </Surface>
+            <FlowFeedback
+              tone="warning"
+              title={copy.conflictTitle}
+              action={(
+                <Button variant="secondary" fullWidth onClick={() => void loadSession()}>
+                  {copy.reload}
+                </Button>
+              )}
+            >
+              <p>{copy.conflictBody}</p>
+            </FlowFeedback>
           ) : null}
 
           {saveError && !conflict ? (
-            <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-4">
-              <div className="flex gap-3 text-sm text-text-primary">
-                <AlertCircle className="h-5 w-5 shrink-0 text-semantic-danger" aria-hidden="true" />
-                <p>{copy.safeError}</p>
-              </div>
+            <FlowFeedback tone="error" title={copy.safeError}>
               {supportCode ? (
-                <p className="mt-3 break-all pl-8 font-mono text-xs text-text-muted">{copy.supportCode}: {supportCode}</p>
+                <p className="mt-2 break-all font-mono nf-helper-text">{copy.supportCode}: {supportCode}</p>
               ) : null}
-            </Surface>
+            </FlowFeedback>
           ) : null}
 
           {step === 'choose' ? (
@@ -474,7 +776,7 @@ function CountSessionContent() {
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-text-primary">{copy.entryLabels[type]}</p>
                               {existing ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-[11px] font-semibold text-semantic-success">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-semantic-success/20 bg-semantic-success/10 px-2 py-0.5 text-xs font-semibold text-semantic-success">
                                   <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                                   {copy.counted}
                                 </span>
@@ -612,7 +914,7 @@ function CountSessionContent() {
                 <Button variant="secondary" size="lg" fullWidth onClick={() => setStep('choose')} disabled={saving}>
                   {copy.back}
                 </Button>
-                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || !canEdit}>
+                <Button size="lg" fullWidth onClick={() => void saveCurrentEntry()} disabled={saving || cloudSaveState === 'saving' || !canEdit}>
                   {saving ? copy.saving : copy.saveEntry}
                 </Button>
               </div>
@@ -657,26 +959,22 @@ function CountSessionContent() {
                 </div>
               </Surface>
 
-              <Surface variant="secondary" radius="xl" className="border-semantic-warning/20 bg-semantic-warning/10 p-5 sm:p-6">
-                <div className="flex gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-semantic-warning" aria-hidden="true" />
-                  <div>
-                    <h3 className="font-semibold text-text-primary">{copy.firstCountSaved}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-text-secondary">{copy.firstCountSavedBody}</p>
-                    <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.secondCountSafety}</p>
-                    <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noPosting}</p>
+              <FlowConfirmation
+                title={copy.firstCountSaved}
+                description={(
+                  <div className="space-y-2">
+                    <p>{copy.firstCountSavedBody}</p>
+                    <p className="nf-helper-text text-text-muted">{copy.secondCountSafety}</p>
+                    <p className="nf-helper-text text-text-muted">{copy.noPosting}</p>
                   </div>
-                </div>
-              </Surface>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)} disabled={startingSecond}>
-                  {copy.returnToCount}
-                </Button>
-                <Button size="lg" fullWidth onClick={() => void startSecondCount()} disabled={startingSecond || !canEdit || entries.length === 0}>
-                  {startingSecond ? copy.startingSecond : copy.startSecond}
-                </Button>
-              </div>
+                )}
+                cancelLabel={copy.returnToCount}
+                confirmLabel={startingSecond ? copy.startingSecond : copy.startSecond}
+                onCancel={() => navigate(APP_ROUTES.count)}
+                onConfirm={() => void startSecondCount()}
+                busy={startingSecond}
+                disabled={!canEdit || entries.length === 0}
+              />
             </>
           ) : null}
         </div>

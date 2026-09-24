@@ -58,8 +58,9 @@ verify(
   handler.includes("resolveFinanceRequestContext(req, 'finance.view')") &&
     handler.includes("where('financeEntityId', '==', financeEntityId)") &&
     handler.includes("orderBy('createdAt', 'desc')") &&
-    handler.includes('limit(AUDIT_READ_LIMIT + 1)'),
-  'server reads only authorized, entity-scoped, bounded chronological audit history',
+    handler.includes('limit(limit + 1)') &&
+    handler.includes('startAfter(cursorDoc)'),
+  'server reads only authorized, entity-scoped, cursor-paginated chronological audit history',
 );
 for (const forbidden of [
   'stageFinanceFact',
@@ -91,8 +92,11 @@ verify(
   'Audit UI does not expose raw hashes or idempotency keys',
 );
 verify(
-  service.includes('operation=audit-list') && gateway.includes("case 'audit-list'"),
-  'Audit client uses the certified finance gateway operation',
+  service.includes('operation=audit-list') &&
+    service.includes('cursor?: string') &&
+    page.includes('load(nextCursor)') &&
+    gateway.includes("case 'audit-list'"),
+  'Audit client uses the certified finance gateway operation with explicit pagination',
 );
 verify(
   indexes.includes('"collectionGroup": "financeAuditLogs"') &&

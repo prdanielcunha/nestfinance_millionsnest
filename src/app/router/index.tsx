@@ -19,6 +19,10 @@ const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/Finance
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
 const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
 const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
+const CountJoinPage = lazy(() => import('@/src/pages/finance/count/CountJoinPage'));
+const CountProposalPage = lazy(() => import('@/src/pages/finance/count/CountProposalPage'));
+const CountTrainingPage = lazy(() => import('@/src/pages/finance/count/CountTrainingPage'));
+const CountVoiceQuickPage = lazy(() => import('@/src/pages/finance/count/CountVoiceQuickPage'));
 const CountPaperFormsPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormsPage'));
 const CountPaperFormPage = lazy(() => import('@/src/pages/finance/count/CountPaperFormPage'));
 const CountCapturePage = lazy(() => import('@/src/pages/finance/count/CountCapturePage'));
@@ -103,6 +107,10 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.financeSettingsFunds, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.financeSettingsCategories, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.count, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.countJoin, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountJoinPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.countProposal, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountProposalPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.countTraining, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountTrainingPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.countVoice, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVoiceQuickPage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countSession, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountSessionPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countPaperForms, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPaperFormsPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countPaperForm, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPaperFormPage /></Suspense>, VIEW_FINANCE) },

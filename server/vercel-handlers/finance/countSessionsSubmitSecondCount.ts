@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const normalizedEntries = normalizeCountEntries(entries);
     if (normalizedEntries.length === 0) return res.status(400).json({ error: 'COUNT_EMPTY_SECOND_COUNT' });
     const totalCents = calculateCountEntriesTotalCents(normalizedEntries);
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const sessionRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -70,6 +70,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {
           throw new Error('COUNT_FIRST_COUNT_REQUIRED');
         }
+        if (
+          session.policySnapshot?.requireIndependentCounter !== false &&
+          (session.countA?.countedByUid || session.countA?.enteredByUid) &&
+          (session.countA?.countedByUid || session.countA?.enteredByUid) === uid
+        ) {
+          throw new Error('COUNT_INDEPENDENT_COUNTER_REQUIRED');
+        }
+        if (
+          session.secondCountInviteRequired === true &&
+          session.secondCountAssignedToUid !== uid
+        ) {
+          throw new Error('COUNT_SECOND_COUNTER_NOT_ASSIGNED');
+        }
         if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
 
         const comparison = compareCountEntries(session.countA.entries, normalizedEntries);
@@ -78,11 +91,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         transaction.update(sessionRef, {
           status: nextStatus,
+          workflowState: comparison.matched ? 'counted' : FieldValue.delete(),
           countB: {
             entries: normalizedEntries,
             totalCents,
             countedByUid: uid,
+            countedByLabel: actorLabel,
             enteredByUid: uid,
+            enteredByLabel: actorLabel,
             sealedAt: FieldValue.serverTimestamp(),
           },
           comparison: {

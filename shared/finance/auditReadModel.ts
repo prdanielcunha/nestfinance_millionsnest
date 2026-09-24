@@ -33,6 +33,8 @@ export type AuditListResponse = {
   auditMutation: false;
   limit: number;
   truncated: boolean;
+  hasMore: boolean;
+  nextCursor?: string;
   items: AuditTimelineItem[];
 };
 

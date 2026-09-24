@@ -35,9 +35,6 @@ async function run() {
     'transaction_review',
     'inbox_review',
     'count_divergence',
-    'returned_corrections',
-    'drafts',
-    'inbox_identification',
   ]);
   assert.deepStrictEqual(admin.shortcuts, ['transactions', 'reports', 'audit', 'settings']);
 
@@ -73,8 +70,6 @@ async function run() {
     'returned_corrections',
     'drafts',
     'inbox_identification',
-    'count_divergence',
-    'count_check',
   ]);
   assert.ok(!kinds(operator).includes('transaction_review'));
   assert.ok(!kinds(operator).includes('inbox_review'));

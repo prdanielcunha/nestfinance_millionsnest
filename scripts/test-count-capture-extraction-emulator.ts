@@ -3,6 +3,7 @@ import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/fireba
 import countCapturesExtractCandidates from '../server/vercel-handlers/finance/countCapturesExtractCandidates.js';
 import countCapturesDetail from '../server/vercel-handlers/finance/countCapturesDetail.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import { buildCountPaperIdentity } from '../server/vercel-handlers/finance/countPaperHelpers.js';
 
@@ -54,7 +55,8 @@ async function run() {
   const orgId = `org_extract_${crypto.randomBytes(4).toString('hex')}`;
   const entityA = `ent_extract_a_${crypto.randomBytes(4).toString('hex')}`;
   const entityB = `ent_extract_b_${crypto.randomBytes(4).toString('hex')}`;
-  const uid = `usr_extract_${crypto.randomBytes(4).toString('hex')}`;
+  const uidA = `usr_extract_a_${crypto.randomBytes(4).toString('hex')}`;
+  const uidB = `usr_extract_b_${crypto.randomBytes(4).toString('hex')}`;
   const sessionId = `cnt_${crypto.randomBytes(12).toString('hex')}`;
   const captureAId = `cpc_${crypto.randomBytes(12).toString('hex')}`;
   const captureBId = `cpc_${crypto.randomBytes(12).toString('hex')}`;
@@ -65,12 +67,21 @@ async function run() {
   const sessionRef = entityARef.collection('countSessions').doc(sessionId);
 
   await db.collection('organizations').doc(orgId).set({ name: 'Extraction Org', status: 'active' });
-  await db.collection('users').doc(uid).set({ displayName: 'Extraction User', systemRole: 'ceo' });
+  await db.collection('users').doc(uidA).set({ displayName: 'Extraction User A', systemRole: 'ceo' });
+  await db.collection('users').doc(uidB).set({ displayName: 'Extraction User B', systemRole: 'ceo' });
   await entityARef.set({ name: 'Entity A', active: true });
   await db.collection('organizations').doc(orgId).collection('financeEntities').doc(entityB).set({ name: 'Entity B', active: true });
   await sessionRef.set({
     id: sessionId, organizationId: orgId, financeEntityId: entityA, serviceLabel: 'Culto Extraction', serviceDate: '2026-08-14', status: 'counting_a',
-    countA: { entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], totalCents: 1000, savedAt: '2026-08-14T18:00:00.000Z' }, version: 2,
+    countA: {
+      entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }],
+      totalCents: 1000,
+      countedByUid: uidA,
+      enteredByUid: uidA,
+      savedAt: '2026-08-14T18:00:00.000Z',
+    },
+    policySnapshot: { doubleCountRequired: true, requireIndependentCounter: true, policyVersion: 2, source: 'safe_default_v2' },
+    version: 2,
   });
 
   async function createCanonicalForm(stage: 'count_a' | 'count_b') {
@@ -106,7 +117,16 @@ async function run() {
   await entityARef.collection('countCaptures').doc(tamperedCaptureId).set({ ...baseCapture(tamperedCaptureId, formA, 'c'.repeat(64)), checksum: '0'.repeat(24) });
 
   const originalVerify = admin.auth.verifyIdToken;
-  admin.auth.verifyIdToken = async () => ({ uid, email: `${uid}@test.com`, mn_app_id: 'nestfinance', mn_handoff_version: 1, mn_organization_id: orgId, mn_session_version: 1 }) as any;
+  let activeUid = uidA;
+  admin.auth.verifyIdToken = async () => ({
+    uid: activeUid,
+    name: activeUid === uidA ? 'Extraction User A' : 'Extraction User B',
+    email: `${activeUid}@test.com`,
+    mn_app_id: 'nestfinance',
+    mn_handoff_version: 1,
+    mn_organization_id: orgId,
+    mn_session_version: 1,
+  }) as any;
   const call = async (handler: any, body: any) => {
     const req = { method: 'POST', headers: { authorization: 'Bearer extraction_test', 'x-organization-id': orgId }, body, query: {} };
     const res = new MockRes(); await handler(req as any, res as any); return res;
@@ -155,6 +175,29 @@ async function run() {
     const blindRetryA = await call(countCapturesExtractCandidates, { ...extractBodyA, requestId: requestId() });
     verify(blindRetryA.statusCode === 200 && blindRetryA.body.version === 3 && !('candidates' in blindRetryA.body), 'blind-stage idempotent replay remains value-free');
 
+    const samePersonJoin = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityA,
+      joinCode: startedB.body.joinCode,
+      idempotencyKey: key(),
+      requestId: requestId(),
+    });
+    verify(
+      samePersonJoin.statusCode === 403 &&
+        samePersonJoin.body.error === 'COUNT_INDEPENDENT_COUNTER_REQUIRED',
+      'Count A actor cannot assume Count B during extraction workflow',
+    );
+    activeUid = uidB;
+    const joinedB = await call(countSessionsJoinSecondCount, {
+      financeEntityId: entityA,
+      joinCode: startedB.body.joinCode,
+      idempotencyKey: key(),
+      requestId: requestId(),
+    });
+    verify(
+      joinedB.statusCode === 200 && joinedB.body.version === 4,
+      'verified second actor assumes Count B before blind extraction',
+    );
+
     const formB = await createCanonicalForm('count_b');
     await entityARef.collection('countCaptures').doc(captureBId).set(baseCapture(captureBId, formB, normalizedB));
     delete (globalThis as any)[providerSymbol];
@@ -174,12 +217,12 @@ async function run() {
     (globalThis as any)[providerSymbol] = { async extract() { startedProviderB(); await providerReleaseB; return fakeResult(); } };
     const extractionPromiseB = call(countCapturesExtractCandidates, { financeEntityId: entityA, captureId: captureBId, expectedVersion: 2, normalizedSha256: normalizedB, regions: regionInputs(), idempotencyKey: key(), requestId: requestId() });
     await providerStartedB;
-    const blockedSealB = await call(countSessionsSubmitSecondCount, { financeEntityId: entityA, countSessionId: sessionId, expectedVersion: 3, entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], idempotencyKey: key(), requestId: requestId() });
+    const blockedSealB = await call(countSessionsSubmitSecondCount, { financeEntityId: entityA, countSessionId: sessionId, expectedVersion: 4, entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], idempotencyKey: key(), requestId: requestId() });
     verify(blockedSealB.statusCode === 409 && blockedSealB.body.error === 'COUNT_CAPTURE_EXTRACTION_IN_PROGRESS', 'Count B cannot be sealed while its extraction lease is active');
     releaseB();
     const extractedB = await extractionPromiseB;
     verify(extractedB.statusCode === 200, 'Count B extraction completes after race protection');
-    const sealedB = await call(countSessionsSubmitSecondCount, { financeEntityId: entityA, countSessionId: sessionId, expectedVersion: 3, entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], idempotencyKey: key(), requestId: requestId() });
+    const sealedB = await call(countSessionsSubmitSecondCount, { financeEntityId: entityA, countSessionId: sessionId, expectedVersion: 4, entries: [{ type: 'tithe', method: 'total', totalCents: 1000 }], idempotencyKey: key(), requestId: requestId() });
     verify(sealedB.statusCode === 200, 'Count B can be sealed after extraction lease is cleared');
 
     const transactions = await db.collection('organizations').doc(orgId).collection('financeTransactions').get();

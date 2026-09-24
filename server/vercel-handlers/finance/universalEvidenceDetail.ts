@@ -103,6 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       transactionAnalysisData?.analysis?.source === 'ai_assisted'
         ? {
             analysis: transactionAnalysisData.analysis,
+            governance: transactionAnalysisData.governance?.schemaVersion === 1 ? transactionAnalysisData.governance : null,
             provider: typeof transactionAnalysisData.provider === 'string' ? transactionAnalysisData.provider : null,
             model: typeof transactionAnalysisData.model === 'string' ? transactionAnalysisData.model : null,
             revision: typeof transactionAnalysisData.revision === 'string' ? transactionAnalysisData.revision : null,

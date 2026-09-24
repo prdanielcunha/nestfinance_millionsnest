@@ -87,10 +87,12 @@ async function run() {
   assert.ok(more.includes('buildFinanceNavigation(experienceMode'));
   assert.ok(more.includes('navigation.more.includes(item.id'));
 
-  assert.ok(language.includes("nav_movimentacoes: { PT: 'Movimentações'"));
-  assert.ok(language.includes("nav_revisar: { PT: 'Revisão'"));
+  assert.ok(language.includes("nav_movimentacoes: { PT: 'Entradas e saídas'"));
+  assert.ok(language.includes("nav_revisar: { PT: 'Conferir'"));
   assert.ok(language.includes("nav_cultos: { PT: 'Contagem'"));
-  assert.ok(language.includes("nav_conferir: { PT: 'Conciliação'"));
+  assert.ok(language.includes("nav_conferir: { PT: 'Conferir com o banco'"));
+  assert.ok(language.includes("nav_capturas: { PT: 'Comprovantes'"));
+  assert.ok(language.includes("nav_audit: { PT: 'Histórico'"));
 
   console.log('✅ Adaptive finance navigation keeps each role focused on relevant work');
 }

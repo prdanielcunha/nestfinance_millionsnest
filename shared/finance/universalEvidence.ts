@@ -1,14 +1,14 @@
 export const UNIVERSAL_EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
 export const UNIVERSAL_EVIDENCE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
 export type UniversalEvidenceMime = typeof UNIVERSAL_EVIDENCE_TYPES[number];
-export type UniversalEvidenceSourceKind = 'camera' | 'photo' | 'file' | 'clipboard';
+export type UniversalEvidenceSourceKind = 'camera' | 'photo' | 'file' | 'clipboard' | 'share_target';
 
 export function isUniversalEvidenceMime(value: unknown): value is UniversalEvidenceMime {
   return typeof value === 'string' && (UNIVERSAL_EVIDENCE_TYPES as readonly string[]).includes(value);
 }
 
 export function isUniversalEvidenceSourceKind(value: unknown): value is UniversalEvidenceSourceKind {
-  return value === 'camera' || value === 'photo' || value === 'file' || value === 'clipboard';
+  return value === 'camera' || value === 'photo' || value === 'file' || value === 'clipboard' || value === 'share_target';
 }
 
 export function isUniversalEvidenceSize(value: unknown) {

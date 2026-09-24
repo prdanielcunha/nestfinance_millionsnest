@@ -19,6 +19,7 @@ import { reconciliationService } from '@/src/services/reconciliationService';
 import { ReconciliationExceptionsPanel } from './ReconciliationExceptionsPanel';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { generateLedgerId } from '../../../../shared/finance/ledger/ids.js';
 import type { ReconciliationMatchPreviewResponse } from '../../../../shared/finance/reconciliationMatchPreviewApi.js';
 import type {
@@ -83,6 +84,7 @@ type Copy = {
   confirmChanged: string;
   reviewPermission: string;
   tooManyToConfirm: string;
+  offlineGuard: string;
 };
 
 const COPY: Record<Language, Copy> = {
@@ -141,6 +143,7 @@ const COPY: Record<Language, Copy> = {
     confirmChanged: 'Essa movimentação ou o extrato mudou desde a comparação. Compare novamente antes de confirmar.',
     reviewPermission: 'Somente quem tem permissão para revisar o financeiro pode confirmar esta conferência.',
     tooManyToConfirm: 'Há possibilidades demais para confirmar com segurança nesta tela. Revise as movimentações antes de escolher uma.',
+    offlineGuard: 'A confirmação com o banco fica bloqueada sem internet para que o servidor revalide a movimentação e o extrato.',
   },
   EN: {
     title: 'Compare with recorded transactions',
@@ -197,6 +200,7 @@ const COPY: Record<Language, Copy> = {
     confirmChanged: 'This transaction or statement changed after the comparison. Compare again before confirming.',
     reviewPermission: 'Only someone with finance review permission can confirm this check.',
     tooManyToConfirm: 'There are too many possibilities to confirm safely on this screen. Review the transactions before choosing one.',
+    offlineGuard: 'Bank confirmation is blocked while offline so the server can revalidate both the transaction and statement.',
   },
   ES: {
     title: 'Comparar con los movimientos registrados',
@@ -253,6 +257,7 @@ const COPY: Record<Language, Copy> = {
     confirmChanged: 'Este movimiento o el extracto cambió después de la comparación. Compara de nuevo antes de confirmar.',
     reviewPermission: 'Solo quien tiene permiso para revisar el financiero puede confirmar esta revisión.',
     tooManyToConfirm: 'Hay demasiadas posibilidades para confirmar con seguridad en esta pantalla. Revisa los movimientos antes de elegir uno.',
+    offlineGuard: 'La confirmación con el banco queda bloqueada sin internet para que el servidor revalide el movimiento y el extracto.',
   },
 };
 
@@ -291,6 +296,7 @@ export function ReconciliationMatchPreviewPanel({
   const navigate = useNavigate();
   const { accessState } = useAuth();
   const canConfirm = hasEffectiveCapability(accessState, 'finance.review');
+  const online = useOnlineStatus();
   const [result, setResult] = useState<ReconciliationMatchPreviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -357,7 +363,7 @@ export function ReconciliationMatchPreviewPanel({
   };
 
   const confirmMatch = async () => {
-    if (!pendingConfirmation || confirming || !canConfirm) return;
+    if (!pendingConfirmation || confirming || !canConfirm || !online) return;
 
     if (!confirmationIdempotencyKey.current) {
       confirmationIdempotencyKey.current = generateLedgerId('idem');
@@ -429,6 +435,11 @@ export function ReconciliationMatchPreviewPanel({
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-semantic-success" aria-hidden="true" />
         <p className="text-xs leading-relaxed text-text-muted">{copy.safe}</p>
       </div>
+      {!online ? (
+        <p className="mt-3 rounded-lg border border-semantic-warning/20 bg-semantic-warning/10 px-3 py-2 text-xs leading-relaxed text-text-secondary" role="status">
+          {copy.offlineGuard}
+        </p>
+      ) : null}
 
       {preparedLines <= 0 ? (
         <p className="mt-3 text-xs leading-relaxed text-text-muted">{copy.noPrepared}</p>
@@ -467,6 +478,10 @@ export function ReconciliationMatchPreviewPanel({
           <ReconciliationExceptionsPanel
             lines={result.preview.lines}
             language={language}
+            organizationId={organizationId}
+            financeEntityId={financeEntityId}
+            evidenceId={evidenceId}
+            accountId={accountId}
           />
 
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">

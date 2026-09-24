@@ -37,7 +37,7 @@
 
   --nf-text-primary: #f6f5f2;
   --nf-text-secondary: #aab6c3;
-  --nf-text-muted: #6b7b8f;
+  --nf-text-muted: #7a8ca0;
 
   --nf-brand-gold: #d4af7a;
   --nf-accent-primary: #00d6ef;
@@ -194,4 +194,42 @@ button,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+
+/* Roadmap Cycle 02: operational accessibility baseline. */
+.nf-operational {
+  font-size: 1rem;
+}
+
+.nf-operational :where(button, input, select, textarea) {
+  font-size: 1rem;
+}
+
+.nf-operational :where(p, label) {
+  font-size: max(1rem, 1em);
+}
+
+.nf-helper-text {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.nf-skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  transform: translateY(-160%);
+  border: 1px solid var(--nf-accent-primary);
+  border-radius: var(--nf-radius-md);
+  background: var(--nf-surface-elevated);
+  color: var(--nf-text-primary);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  transition: transform var(--nf-motion-fast) var(--nf-ease-standard);
+}
+
+.nf-skip-link:focus-visible {
+  transform: translateY(0);
 }

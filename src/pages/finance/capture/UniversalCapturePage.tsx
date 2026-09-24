@@ -15,13 +15,14 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import {
   UNIVERSAL_EVIDENCE_MAX_BYTES,
   isUniversalEvidenceMime,
@@ -29,7 +30,12 @@ import {
 } from '@/shared/finance/universalEvidence';
 import { universalCaptureService } from '@/src/services/universalCaptureService';
 import { universalEvidenceInboxService } from '@/src/services/universalEvidenceInboxService';
+import { universalCaptureOfflineQueue } from '@/src/services/universalCaptureOfflineQueue';
+import { consumeShareTarget } from '@/src/services/shareTargetService';
+import { classifyUniversalDocumentIntent } from '@/shared/finance/universalInputIntent';
+import type { UniversalEvidenceDocumentType } from '@/shared/finance/universalEvidenceReview';
 import { UNIVERSAL_CAPTURE_COPY } from './universalCaptureCopy';
+import { UniversalQuickTextEntry } from './UniversalQuickTextEntry';
 
 const MAX_BATCH = 20;
 type QueueStatus =
@@ -51,9 +57,13 @@ type QueueItem = {
   status: QueueStatus;
   evidenceId: string | null;
   evidenceVersion: number | null;
+  intent: UniversalEvidenceDocumentType;
+  editingIntent: boolean;
+  classified: boolean;
   keys: {
     start: string;
     finalize: string;
+    classify: string;
     analyze: string;
   };
 };
@@ -72,19 +82,23 @@ function classifyFile(file: File): QueueStatus {
 
 export default function UniversalCapturePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language } = useLanguage();
   const copy = UNIVERSAL_CAPTURE_COPY[language];
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { accessState } = useAuth();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const canCapture = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const online = useOnlineStatus();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceRef = useRef<UniversalEvidenceSourceKind>('file');
   const processingRef = useRef(false);
   const contextRef = useRef({ organizationId, financeEntityId: activeFinanceEntityId || '' });
+  const restoredScopeRef = useRef('');
 
   const [items, setItems] = useState<QueueItem[]>([]);
+  const [sharedText, setSharedText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const clipboardAvailable = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.read);
@@ -110,7 +124,11 @@ export default function UniversalCapturePage() {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   };
 
-  const addFiles = (files: File[], sourceKind: UniversalEvidenceSourceKind) => {
+  const addFiles = (
+    files: File[],
+    sourceKind: UniversalEvidenceSourceKind,
+    intentText = '',
+  ) => {
     if (!organizationId || !activeFinanceEntityId) {
       setNotice(copy.noEntity);
       return;
@@ -129,15 +147,72 @@ export default function UniversalCapturePage() {
       status: classifyFile(file),
       evidenceId: null,
       evidenceVersion: null,
+      intent: classifyUniversalDocumentIntent({ filename: file.name, sharedText: intentText }),
+      editingIntent: false,
+      classified: false,
       keys: {
         start: universalCaptureService.token('idevidence_start'),
         finalize: universalCaptureService.token('idevidence_finalize'),
+        classify: universalCaptureService.token('idevidence_classify'),
         analyze: universalCaptureService.token('idevidence_analysis'),
       },
     }) satisfies QueueItem);
 
     setItems((current) => [...current, ...nextItems]);
+    for (const item of nextItems) {
+      if (item.status !== 'queued') continue;
+      void universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent: item.intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+    }
   };
+
+  useEffect(() => {
+    if (!organizationId || !activeFinanceEntityId) return;
+    const scope = `${organizationId}:${activeFinanceEntityId}`;
+    if (restoredScopeRef.current === scope) return;
+    restoredScopeRef.current = scope;
+    void universalCaptureOfflineQueue.list(organizationId, activeFinanceEntityId).then((records) => {
+      if (contextRef.current.organizationId !== organizationId || contextRef.current.financeEntityId !== activeFinanceEntityId) return;
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        const restored = records.filter((record) => !known.has(record.id)).map((record) => ({
+          id: record.id,
+          file: record.file,
+          sourceKind: record.sourceKind,
+          status: classifyFile(record.file),
+          evidenceId: null,
+          evidenceVersion: null,
+          intent: record.intent,
+          editingIntent: false,
+          classified: false,
+          keys: record.keys,
+        }) satisfies QueueItem);
+        if (restored.length > 0) setNotice(copy.restoredOffline);
+        return [...current, ...restored].slice(0, MAX_BATCH);
+      });
+    });
+  }, [organizationId, activeFinanceEntityId]);
+
+  useEffect(() => {
+    const shareTargetId = searchParams.get('shareTarget');
+    if (!shareTargetId || !organizationId || !activeFinanceEntityId) return;
+    void consumeShareTarget(shareTargetId).then((payload) => {
+      if (!payload) return;
+      if (payload.text) setSharedText(payload.text);
+      if (payload.files.length > 0) addFiles(payload.files, 'share_target', payload.text);
+      const next = new URLSearchParams(searchParams);
+      next.delete('shareTarget');
+      setSearchParams(next, { replace: true });
+    });
+    // Consume each share-target id once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, activeFinanceEntityId, searchParams.get('shareTarget')]);
 
   const choose = (source: UniversalEvidenceSourceKind) => {
     sourceRef.current = source;
@@ -171,13 +246,35 @@ export default function UniversalCapturePage() {
 
   const analyzeAccepted = async (item: QueueItem, evidenceId: string, evidenceVersion: number) => {
     patchItem(item.id, { status: 'analyzing', evidenceId, evidenceVersion });
+    let analysisVersion = evidenceVersion;
+    let classified = item.classified;
     try {
+      if (!classified) {
+        const classification = await universalEvidenceInboxService.classify(
+          organizationId,
+          activeFinanceEntityId || '',
+          {
+            evidenceId,
+            expectedVersion: evidenceVersion,
+            documentType: item.intent,
+            idempotencyKey: item.keys.classify,
+            requestId: universalCaptureService.token('req'),
+          },
+        );
+        analysisVersion = classification.version;
+        classified = true;
+        patchItem(item.id, {
+          classified: true,
+          evidenceVersion: analysisVersion,
+        });
+      }
+
       const analyzed = await universalEvidenceInboxService.analyzeTransaction(
         organizationId,
         activeFinanceEntityId || '',
         {
           evidenceId,
-          expectedVersion: evidenceVersion,
+          expectedVersion: analysisVersion,
           locale: language,
           idempotencyKey: item.keys.analyze,
           requestId: universalCaptureService.token('req'),
@@ -187,18 +284,34 @@ export default function UniversalCapturePage() {
         status: 'ready',
         evidenceId,
         evidenceVersion: analyzed.version,
+        classified,
       });
+      if (activeFinanceEntityId) {
+        await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+      }
     } catch {
       patchItem(item.id, {
         status: 'analysis_unavailable',
         evidenceId,
-        evidenceVersion,
+        evidenceVersion: analysisVersion,
+        classified,
       });
     }
   };
 
   const processItem = async (item: QueueItem) => {
     if (!organizationId || !activeFinanceEntityId) return;
+    if (!online) {
+      await universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent: item.intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+      return;
+    }
 
     if (item.status === 'analysis_unavailable' && item.evidenceId && item.evidenceVersion) {
       await analyzeAccepted(item, item.evidenceId, item.evidenceVersion);
@@ -221,8 +334,10 @@ export default function UniversalCapturePage() {
           evidenceId: result.evidenceId,
           evidenceVersion: result.version,
         });
+        await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
         return;
       }
+      await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
       await analyzeAccepted(item, result.evidenceId, result.version);
     } catch (error: any) {
       const code = String(error?.code || error?.message || '');
@@ -239,7 +354,10 @@ export default function UniversalCapturePage() {
   };
 
   const processAll = async () => {
-    if (processingRef.current || !organizationId || !activeFinanceEntityId) return;
+    if (processingRef.current || !organizationId || !activeFinanceEntityId || !online) {
+      if (!online) setNotice(copy.offlineQueued);
+      return;
+    }
     const pinned = { organizationId, financeEntityId: activeFinanceEntityId };
     processingRef.current = true;
     setProcessing(true);
@@ -258,6 +376,37 @@ export default function UniversalCapturePage() {
     } finally {
       processingRef.current = false;
       setProcessing(false);
+    }
+  };
+
+  const setItemIntent = async (item: QueueItem, intent: UniversalEvidenceDocumentType) => {
+    patchItem(item.id, { intent, editingIntent: false, classified: false });
+    if (organizationId && activeFinanceEntityId && ['queued', 'error'].includes(item.status)) {
+      await universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
+        id: item.id,
+        file: item.file,
+        sourceKind: item.sourceKind,
+        intent,
+        keys: item.keys,
+        savedAt: Date.now(),
+      });
+    }
+  };
+
+  const removeItem = async (item: QueueItem) => {
+    setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+    if (organizationId && activeFinanceEntityId) {
+      await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+    }
+  };
+
+  const clearFinished = async () => {
+    const completed = items.filter((item) => finished(item.status));
+    setItems((current) => current.filter((item) => !finished(item.status)));
+    if (organizationId && activeFinanceEntityId) {
+      await Promise.all(completed.map((item) =>
+        universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id),
+      ));
     }
   };
 
@@ -341,7 +490,9 @@ export default function UniversalCapturePage() {
         <Surface variant="elevated" radius="xl" className="p-6 text-center text-text-secondary">{copy.noEntity}</Surface>
       ) : (
         <>
-          <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
+          <UniversalQuickTextEntry initialText={sharedText} />
+
+          <Surface variant="glass" radius="xl" className="mt-5 p-5 sm:p-6">
             <div className="grid gap-3 sm:grid-cols-2">
               <Button size="lg" onClick={() => choose('camera')}>
                 <Camera className="h-5 w-5" aria-hidden="true" />
@@ -405,6 +556,30 @@ export default function UniversalCapturePage() {
                           {item.status === 'analysis_unavailable' ? (
                             <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.preservedAfterAnalysisError}</p>
                           ) : null}
+                          <div className="mt-3 rounded-xl border border-border-subtle bg-surface-base p-3">
+                            <p className="nf-helper-text text-text-muted">
+                              {copy.intentPrefix}: <span className="font-semibold text-text-primary">{copy.intentLabels[item.intent]}</span>
+                            </p>
+                            {item.editingIntent ? (
+                              <select
+                                value={item.intent}
+                                onChange={(event) => void setItemIntent(item, event.target.value as UniversalEvidenceDocumentType)}
+                                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-elevated px-3 text-sm text-text-primary"
+                              >
+                                {Object.entries(copy.intentLabels).map(([value, label]) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                              </select>
+                            ) : null}
+                            <Button
+                              className="mt-2"
+                              variant="ghost"
+                              disabled={!['queued', 'error'].includes(item.status)}
+                              onClick={() => patchItem(item.id, { editingIntent: !item.editingIntent })}
+                            >
+                              {item.editingIntent ? copy.intentClose : copy.intentWrong}
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
@@ -427,7 +602,7 @@ export default function UniversalCapturePage() {
                           <Button
                             variant="ghost"
                             disabled={processing}
-                            onClick={() => setItems((current) => current.filter((candidate) => candidate.id !== item.id))}
+                            onClick={() => void removeItem(item)}
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             {copy.remove}
@@ -444,7 +619,7 @@ export default function UniversalCapturePage() {
                   <Plus className="h-5 w-5" aria-hidden="true" />
                   {copy.addMore}
                 </Button>
-                <Button size="lg" disabled={processing || !hasProcessable} onClick={() => void processAll()}>
+                <Button size="lg" disabled={processing || !hasProcessable || !online} onClick={() => void processAll()}>
                   {processing ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" /> : <FileSearch className="h-5 w-5" aria-hidden="true" />}
                   {processing ? copy.processingBatch : copy.processAll}
                 </Button>
@@ -455,7 +630,7 @@ export default function UniversalCapturePage() {
                   <Button
                     variant="ghost"
                     disabled={processing}
-                    onClick={() => setItems((current) => current.filter((item) => !finished(item.status)))}
+                    onClick={() => void clearFinished()}
                   >
                     {copy.clearFinished}
                   </Button>

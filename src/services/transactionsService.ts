@@ -5,6 +5,7 @@ import type {
   TransactionWorkspaceView,
 } from '../../shared/finance/transactionWorkspaceView.js';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
+import type { TodayOperationalSnapshot } from '../../shared/finance/todayOperationalSummary.js';
 
 export interface TransactionsListResponse {
   items: LedgerTransaction[];
@@ -22,6 +23,7 @@ export interface TransactionsActionSummary {
 
 export interface TransactionsSummaryResponse {
   summary: TransactionsActionSummary;
+  operational: TodayOperationalSnapshot;
   requestId?: string;
 }
 
@@ -53,6 +55,21 @@ function generateId(): string {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+function localDayRequest(now = new Date()) {
+  const localStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const localEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  const localDate = [
+    String(now.getFullYear()).padStart(4, '0'),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+  return {
+    localDate,
+    dayStartIso: localStart.toISOString(),
+    dayEndIso: localEnd.toISOString(),
+  };
 }
 
 export const transactionsService = {
@@ -139,7 +156,7 @@ export const transactionsService = {
     const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-summary`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ financeEntityId, requestId: `req_${generateId()}` })
+      body: JSON.stringify({ financeEntityId, requestId: `req_${generateId()}`, ...localDayRequest() })
     });
 
     if (!res.ok) {

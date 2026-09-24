@@ -48,11 +48,21 @@ export type NormalizedCountEntry = {
   denominations: CountDenominationQuantities;
 };
 
+export type CountDenominationDifference = {
+  denominationCents: CountDenominationCents;
+  countAQuantity: number;
+  countBQuantity: number;
+  deltaQuantity: number;
+};
+
 export type CountComparisonDifference = {
   type: CountEntryType;
   countATotalCents: number;
   countBTotalCents: number;
   deltaCents: number;
+  countAMethod: CountEntryMethod | null;
+  countBMethod: CountEntryMethod | null;
+  denominationDifferences: CountDenominationDifference[];
 };
 
 export type CountComparison = {
@@ -184,16 +194,35 @@ export function compareCountEntries(
 ): CountComparison {
   const countA = normalizeCountEntries((countAEntries || []) as CountEntryDraft[]);
   const countB = normalizeCountEntries((countBEntries || []) as CountEntryDraft[]);
-  const countAMap = new Map(countA.map((entry) => [entry.type, entry.totalCents]));
-  const countBMap = new Map(countB.map((entry) => [entry.type, entry.totalCents]));
+  const countAMap = new Map(countA.map((entry) => [entry.type, entry]));
+  const countBMap = new Map(countB.map((entry) => [entry.type, entry]));
 
   const differences = COUNT_ENTRY_TYPES.flatMap((type) => {
-    const countATotalCents = countAMap.get(type) || 0;
-    const countBTotalCents = countBMap.get(type) || 0;
+    const countAEntry = countAMap.get(type);
+    const countBEntry = countBMap.get(type);
+    const countATotalCents = countAEntry?.totalCents || 0;
+    const countBTotalCents = countBEntry?.totalCents || 0;
     const deltaCents = countBTotalCents - countATotalCents;
-    return deltaCents === 0
-      ? []
-      : [{ type, countATotalCents, countBTotalCents, deltaCents }];
+    if (deltaCents === 0) return [];
+
+    const denominationDifferences = COUNT_DENOMINATIONS_CENTS.flatMap((denominationCents) => {
+      const countAQuantity = Number(countAEntry?.denominations?.[String(denominationCents)] || 0);
+      const countBQuantity = Number(countBEntry?.denominations?.[String(denominationCents)] || 0);
+      const deltaQuantity = countBQuantity - countAQuantity;
+      return deltaQuantity === 0
+        ? []
+        : [{ denominationCents, countAQuantity, countBQuantity, deltaQuantity }];
+    });
+
+    return [{
+      type,
+      countATotalCents,
+      countBTotalCents,
+      deltaCents,
+      countAMethod: countAEntry?.method || null,
+      countBMethod: countBEntry?.method || null,
+      denominationDifferences,
+    }];
   });
 
   const countATotalCents = calculateCountEntriesTotalCents(countA);

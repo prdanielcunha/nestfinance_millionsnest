@@ -31,6 +31,7 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { periodCloseService } from '@/src/services/periodCloseService';
+import { AccountantPackagePanel } from './AccountantPackagePanel';
 import type {
   ReportMetricComparison,
   ReportRateComparison,
@@ -845,6 +846,12 @@ function ReportsContent() {
                   </Surface>
                 </section>
               ) : null}
+
+              <AccountantPackagePanel
+                organizationId={organizationId}
+                financeEntityId={activeFinanceEntityId || ''}
+                period={period}
+              />
 
               <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">

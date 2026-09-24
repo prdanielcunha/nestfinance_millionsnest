@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !isValidRequestId(requestId)
     ) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const captureRef = entityRef.collection('countCaptures').doc(captureId);
     const captureDoc = await captureRef.get();
@@ -145,7 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               entries: applyPlan.entries,
               totalCents,
               countedByUid: null,
+              countedByLabel: null,
               enteredByUid: uid,
+              enteredByLabel: actorLabel,
               source: 'count_capture',
               sourceProvenance: provenance,
               sourceCaptureId: captureId,
@@ -208,6 +210,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {
             throw new Error('COUNT_FIRST_COUNT_REQUIRED');
           }
+          if (
+            session.policySnapshot?.requireIndependentCounter !== false &&
+            (session.countA?.countedByUid || session.countA?.enteredByUid) === uid
+          ) {
+            throw new Error('COUNT_INDEPENDENT_COUNTER_REQUIRED');
+          }
+          if (
+            session.secondCountInviteRequired === true &&
+            session.secondCountAssignedToUid !== uid
+          ) {
+            throw new Error('COUNT_SECOND_COUNTER_NOT_ASSIGNED');
+          }
           if (session.countB?.entries?.length > 0) throw new Error('COUNT_CAPTURE_APPLY_SECOND_COUNT_ALREADY_EXISTS');
           if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
 
@@ -215,11 +229,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           resultingStatus = comparison.matched ? 'matched' : 'divergent';
           transaction.update(resolved.sessionRef, {
             status: resultingStatus,
+            workflowState: comparison.matched ? 'counted' : FieldValue.delete(),
             countB: {
               entries: applyPlan.entries,
               totalCents,
               countedByUid: null,
+              countedByLabel: null,
               enteredByUid: uid,
+              enteredByLabel: actorLabel,
               source: 'count_capture',
               sourceProvenance: provenance,
               sourceCaptureId: captureId,

@@ -48,7 +48,7 @@ service cloud.firestore {
         'financeJournalEntries', 'financeJournalLines', 'financeAggregates',
         'financeReconciliations', 'financeReconciliationSessions', 'financeReconciliationLineLocks',
         'financeReconciliationReversals', 'financePeriodCloseReviews',
-        'financeSearchCoverage'
+        'financeSearchCoverage', 'financeProductMetrics'
       ];
     }
     
@@ -343,6 +343,9 @@ service cloud.firestore {
       match /financeEntities/{entityId}/workspaceViewOwners/{ownerId}/{document=**} {
         allow read, create, update, delete: if false;
       }
+      match /financeEntities/{entityId}/editLocks/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeEntities/{entityId}/transactionSearchIndex/{document=**} {
         allow read, create, update, delete: if false;
       }
@@ -352,7 +355,28 @@ service cloud.firestore {
       match /financeEntities/{entityId}/universalEvidenceHashes/{id} {
         allow read, create, update, delete: if false;
       }
+      match /financeEntities/{entityId}/reconciliationExceptionJustifications/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/intelligenceCache/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/intelligenceAttempts/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/intelligenceCorrections/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeIntelligenceUsage/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeIntelligenceBenchmarks/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeSearchCoverage/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeProductMetrics/{document=**} {
         allow read, create, update, delete: if false;
       }
       match /financeFunds/{id} {

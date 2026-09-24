@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { UniversalEvidenceDocumentType } from '../../shared/finance/universalEvidenceReview.js';
 import type { DocumentTransactionAnalysis } from '../../shared/finance/documentTransactionIntelligence.js';
+import type { DocumentIntelligenceGovernance } from '../../shared/finance/intelligenceGovernance.js';
 
 export interface UniversalEvidenceInboxItem {
   evidenceId: string;
@@ -59,6 +60,7 @@ export interface UniversalEvidenceDetail extends UniversalEvidenceInboxItem {
   verifiedMimeType: string | null;
   transactionAnalysis: {
     analysis: DocumentTransactionAnalysis;
+    governance: DocumentIntelligenceGovernance | null;
     provider: string | null;
     model: string | null;
     revision: string | null;
@@ -312,6 +314,7 @@ export const universalEvidenceInboxService = {
     evidenceId: string;
     version: number;
     analysis: DocumentTransactionAnalysis;
+    governance: DocumentIntelligenceGovernance | null;
     provider: string | null;
     model: string | null;
     revision: string | null;
@@ -329,6 +332,47 @@ export const universalEvidenceInboxService = {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_TRANSACTION_ANALYSIS_FAILED');
     }
 
+    return response.json();
+  },
+
+  async intelligenceSummary(organizationId: string, financeEntityId: string): Promise<any> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=intelligence-engine-summary`, {
+      method: 'POST', headers, body: JSON.stringify({ financeEntityId }),
+    });
+    if (!response.ok) throw await parseError(response, 'INTELLIGENCE_ENGINE_SUMMARY_FAILED');
+    return response.json();
+  },
+
+  async listCorrections(organizationId: string, financeEntityId: string): Promise<{ items: any[] }> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=intelligence-corrections-list`, {
+      method: 'POST', headers, body: JSON.stringify({ financeEntityId }),
+    });
+    if (!response.ok) throw await parseError(response, 'INTELLIGENCE_CORRECTIONS_LIST_FAILED');
+    return response.json();
+  },
+
+  async saveCorrection(organizationId: string, financeEntityId: string, input: {
+    documentType: string;
+    fieldKey: 'transaction_kind' | 'payment_method' | 'category_id';
+    suggestedValue: string;
+    correctedValue: string;
+  }): Promise<any> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=intelligence-corrections-save`, {
+      method: 'POST', headers, body: JSON.stringify({ financeEntityId, ...input }),
+    });
+    if (!response.ok) throw await parseError(response, 'INTELLIGENCE_CORRECTIONS_SAVE_FAILED');
+    return response.json();
+  },
+
+  async removeCorrection(organizationId: string, financeEntityId: string, correctionId: string): Promise<any> {
+    const headers = await buildHeaders(organizationId);
+    const response = await fetch(`${FINANCE_GATEWAY_PATH}?operation=intelligence-corrections-remove`, {
+      method: 'POST', headers, body: JSON.stringify({ financeEntityId, correctionId }),
+    });
+    if (!response.ok) throw await parseError(response, 'INTELLIGENCE_CORRECTIONS_REMOVE_FAILED');
     return response.json();
   },
 

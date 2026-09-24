@@ -23,11 +23,12 @@ import type {
 import { Button, Surface } from '@/src/components/foundation';
 import { EcosystemOverviewPanel } from '@/src/components/finance/EcosystemOverviewPanel';
 import { RoleWorkspacePanel } from '@/src/components/finance/RoleWorkspacePanel';
+import { FinanceEntitySelectionState } from '@/src/components/finance/FinanceEntitySelectionState';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
-import { getFinanceExperienceMode, type FinanceExperienceMode } from '@/src/lib/financeExperience';
+import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode } from '@/src/lib/financeExperience';
 import {
   transactionsService,
   type TransactionsActionSummary,
@@ -38,8 +39,29 @@ import {
   type UniversalEvidenceInboxSummary,
 } from '@/src/services/universalEvidenceInboxService';
 import { needsAttentionService } from '@/src/services/needsAttentionService';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
+import { SinceLastVisitCard } from './SinceLastVisitCard';
+import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
+const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string }> = {
+  PT: {
+    title: 'Vai contar um culto?',
+    body: 'Comece por aqui. O NestFinance já usa a igreja ativa e guia uma decisão por vez.',
+    action: 'Iniciar contagem',
+  },
+  EN: {
+    title: 'Counting a service?',
+    body: 'Start here. NestFinance already uses the active church and guides one decision at a time.',
+    action: 'Start count',
+  },
+  ES: {
+    title: '¿Vas a contar un culto?',
+    body: 'Empieza aquí. NestFinance ya usa la iglesia activa y guía una decisión por vez.',
+    action: 'Iniciar conteo',
+  },
+};
+
 type Direction = 'income' | 'expense' | 'transfer';
 
 type TodayCopy = {
@@ -76,6 +98,15 @@ type TodayCopy = {
   openApprovals: string;
   finishDrafts: string;
   openTransactions: string;
+  operationalTitle: string;
+  operationalSubtitle: string;
+  todayIncomeMetric: string;
+  todayExpenseMetric: string;
+  dueSoonMetric: string;
+  balanceMetric: string;
+  balanceUnavailable: string;
+  balanceHint: string;
+  dueTruncated: string;
   summaryTitle: string;
   returned: string;
   drafts: string;
@@ -145,6 +176,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprovadas',
     finishDrafts: 'Continuar rascunhos',
     openTransactions: 'Ver movimentações',
+    operationalTitle: 'Hoje em números',
+    operationalSubtitle: 'Entradas e saídas usam movimentos registrados hoje. Vencimentos vêm dos documentos já analisados. O saldo só aparece quando pode ser calculado sem adivinhação.',
+    todayIncomeMetric: 'Entradas hoje',
+    todayExpenseMetric: 'Saídas hoje',
+    dueSoonMetric: 'Vencem em 7 dias',
+    balanceMetric: 'Saldo registrado',
+    balanceUnavailable: 'Ainda não comprovável',
+    balanceHint: 'O saldo usa apenas saldos iniciais configurados e lançamentos já postados. Enquanto faltar base confiável, o NestFinance não inventa um número.',
+    dueTruncated: 'Há mais vencimentos do que esta visão rápida mostra.',
     summaryTitle: 'Movimentações abertas',
     returned: 'Para corrigir',
     drafts: 'Rascunhos',
@@ -212,6 +252,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'View approved',
     finishDrafts: 'Continue drafts',
     openTransactions: 'View transactions',
+    operationalTitle: 'Today at a glance',
+    operationalSubtitle: 'Income and expenses use transactions recorded today. Due items come from analyzed documents. Balance is shown only when it can be calculated without guessing.',
+    todayIncomeMetric: 'Income today',
+    todayExpenseMetric: 'Expenses today',
+    dueSoonMetric: 'Due in 7 days',
+    balanceMetric: 'Recorded balance',
+    balanceUnavailable: 'Not provable yet',
+    balanceHint: 'Balance uses configured opening balances and posted transactions only. If the source is incomplete, NestFinance does not invent a number.',
+    dueTruncated: 'There are more due items than this quick view displays.',
     summaryTitle: 'Open transactions',
     returned: 'Needs correction',
     drafts: 'Drafts',
@@ -279,6 +328,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprobados',
     finishDrafts: 'Continuar borradores',
     openTransactions: 'Ver movimientos',
+    operationalTitle: 'Hoy en números',
+    operationalSubtitle: 'Ingresos y egresos usan movimientos registrados hoy. Los vencimientos vienen de documentos analizados. El saldo solo aparece cuando puede calcularse sin adivinar.',
+    todayIncomeMetric: 'Ingresos hoy',
+    todayExpenseMetric: 'Egresos hoy',
+    dueSoonMetric: 'Vencen en 7 días',
+    balanceMetric: 'Saldo registrado',
+    balanceUnavailable: 'Aún no comprobable',
+    balanceHint: 'El saldo usa únicamente saldos iniciales configurados y movimientos contabilizados. Si falta una fuente confiable, NestFinance no inventa un número.',
+    dueTruncated: 'Hay más vencimientos de los que muestra esta vista rápida.',
     summaryTitle: 'Movimientos abiertos',
     returned: 'Para corregir',
     drafts: 'Borradores',
@@ -414,6 +472,7 @@ export function TodayActionCenter() {
 
   const organizationId = accessState.organization?.id || '';
   const experienceMode = getFinanceExperienceMode(accessState);
+  const interfaceRole = getFinanceInterfaceRole(accessState);
   const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
@@ -430,6 +489,7 @@ export function TodayActionCenter() {
   const canCount = canCreate;
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
+  const [operational, setOperational] = useState<TodayOperationalSnapshot | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
   const [inboxSummary, setInboxSummary] = useState<UniversalEvidenceInboxSummary | null>(null);
   const [signalSummary, setSignalSummary] = useState<NeedsAttentionSignalSummary | null>(null);
@@ -446,6 +506,7 @@ export function TodayActionCenter() {
   const [countFailed, setCountFailed] = useState(false);
   const [inboxFailed, setInboxFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
+  const [loadedFinanceEntityId, setLoadedFinanceEntityId] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
@@ -454,6 +515,7 @@ export function TodayActionCenter() {
     try {
       const result = await transactionsService.summary(organizationId, activeFinanceEntityId);
       setSummary(result.summary);
+      setOperational(result.operational);
     } catch {
       setSummaryFailed(true);
     } finally {
@@ -521,22 +583,79 @@ export function TodayActionCenter() {
   }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadedFinanceEntityId(null);
+    setSummary(null);
+    setOperational(null);
+    setCountItems([]);
+    setInboxSummary(null);
+    setSignalSummary(null);
+    setExplanation(null);
+    setExplanationOpen(false);
+    setRecent([]);
+
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) {
-      setSummary(null);
-      setCountItems([]);
-      setInboxSummary(null);
-      setSignalSummary(null);
-      setExplanation(null);
-      setExplanationOpen(false);
-      setRecent([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'today_entry',
+      dedupeKey: `today_entry:start:${organizationId}:${activeFinanceEntityId}`,
+    });
+
+    void Promise.all([
+      loadSummary(),
+      loadCounts(),
+      loadInbox(),
+      loadSignals(),
+      loadRecent(),
+    ]).then(() => {
+      if (!cancelled) setLoadedFinanceEntityId(activeFinanceEntityId);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+  useEffect(() => {
+    if (
+      !activeFinanceEntityId ||
+      !organizationId ||
+      loadedFinanceEntityId !== activeFinanceEntityId ||
+      summary === null ||
+      inboxSummary === null ||
+      summaryLoading ||
+      countLoading ||
+      inboxLoading ||
+      summaryFailed ||
+      countFailed ||
+      inboxFailed
+    ) {
       return;
     }
-    void loadSummary();
-    void loadCounts();
-    void loadInbox();
-    void loadSignals();
-    void loadRecent();
-  }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+    recordFinanceJourneyMetric('flow_complete', {
+      organizationId,
+      flow: 'today_entry',
+      dedupeKey: `today_entry:complete:${organizationId}:${activeFinanceEntityId}`,
+    });
+  }, [
+    activeFinanceEntityId,
+    loadedFinanceEntityId,
+    countFailed,
+    countLoading,
+    inboxFailed,
+    inboxLoading,
+    inboxSummary,
+    organizationId,
+    summary,
+    summaryFailed,
+    summaryLoading,
+  ]);
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
@@ -822,20 +941,7 @@ export function TodayActionCenter() {
     return (
       <div className="space-y-6 pb-4">
         <EcosystemOverviewPanel />
-        <div className="mx-auto flex min-h-[48vh] max-w-2xl items-center justify-center">
-          <Surface variant="elevated" radius="xl" className="w-full p-6 text-center sm:p-8">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-primary/10 text-accent-primary">
-              <Clock3 className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">{copy.noEntityTitle}</h1>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">{copy.noEntityText}</p>
-            {hasEffectiveCapability(accessState, 'organization.manage_entities') ? (
-              <Button variant="primary" size="lg" className="mt-6" onClick={() => navigate(APP_ROUTES.financeSettings)}>
-                {copy.chooseEntity}
-              </Button>
-            ) : null}
-          </Surface>
-        </div>
+        <FinanceEntitySelectionState canManageFinance={canManageFinance} />
       </div>
     );
   }
@@ -844,8 +950,34 @@ export function TodayActionCenter() {
     <div className="space-y-6 pb-4">
       <EcosystemOverviewPanel />
 
+      {canCount ? (
+        <Surface variant="glass" radius="xl" className="border-accent-primary/25 bg-accent-primary/5 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="nf-helper-text font-semibold uppercase tracking-[0.14em] text-accent-primary">
+                {copy.today}
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+                {COUNT_PRIMARY_COPY[language].title}
+              </h2>
+              <p className="mt-2 leading-relaxed text-text-secondary">
+                {COUNT_PRIMARY_COPY[language].body}
+              </p>
+            </div>
+            <Button
+              size="lg"
+              className="w-full shrink-0 sm:w-auto"
+              onClick={() => navigate(APP_ROUTES.count)}
+            >
+              {COUNT_PRIMARY_COPY[language].action}
+            </Button>
+          </div>
+        </Surface>
+      ) : null}
+
       <RoleWorkspacePanel
         mode={experienceMode}
+        interfaceRole={interfaceRole}
         entityName={activeFinanceEntityName}
         snapshot={workspaceSnapshot}
         authority={workspaceAuthority}
@@ -893,7 +1025,7 @@ export function TodayActionCenter() {
                 <priorityPresentation.icon className="h-6 w-6" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
                   {priority.kind === 'clear' ? copy.everythingClear : copy.attention}
                 </p>
                 <h2 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:text-xl">{priorityPresentation.title}</h2>
@@ -941,7 +1073,7 @@ export function TodayActionCenter() {
                       {copy.verifiedReasonText}
                     </p>
                     {explanation.explanation.recordedAt ? (
-                      <p className="mt-2 text-[11px] font-medium text-text-muted">
+                      <p className="mt-2 text-xs font-medium text-text-muted">
                         {copy.sourceRecorded(
                           formatRelativeDate(explanation.explanation.recordedAt, language, copy),
                         )}
@@ -954,6 +1086,54 @@ export function TodayActionCenter() {
           ) : null}
         </Surface>
       )}
+
+      <SinceLastVisitCard
+        organizationId={organizationId}
+        financeEntityId={activeFinanceEntityId}
+      />
+
+      <section aria-labelledby="today-operational-title">
+        <div className="mb-3">
+          <h2 id="today-operational-title" className="text-sm font-semibold text-text-primary">{copy.operationalTitle}</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-text-muted">{copy.operationalSubtitle}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-success">
+              {operational ? formatMoney(operational.incomeCents, language) : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayIncomeMetric}</div>
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-danger">
+              {operational ? formatMoney(operational.expenseCents, language) : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayExpenseMetric}</div>
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-2xl font-semibold tracking-tight text-text-primary">
+              {operational ? operational.dueSoonCount : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.dueSoonMetric}</div>
+            {operational?.dueSoonTruncated ? (
+              <p className="mt-2 text-xs leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
+            ) : null}
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-text-primary">
+              {operational?.balance.state === 'available'
+                ? formatMoney(operational.balance.amountCents, language)
+                : operational
+                  ? copy.balanceUnavailable
+                  : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.balanceMetric}</div>
+            {operational?.balance.state === 'unavailable' ? (
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.balanceHint}</p>
+            ) : null}
+          </Surface>
+        </div>
+      </section>
 
       <section aria-labelledby="today-summary-title">
         <div className="mb-3 flex items-center justify-between">
@@ -1068,7 +1248,7 @@ export function TodayActionCenter() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-text-primary">{(transaction as any).description || directionLabel}</span>
-                        <span className="hidden shrink-0 rounded-md bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-muted sm:inline">{statusLabel}</span>
+                        <span className="hidden shrink-0 rounded-md bg-surface-secondary px-2 py-1 text-xs font-semibold text-text-muted sm:inline">{statusLabel}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
                         <span>{directionLabel}</span>

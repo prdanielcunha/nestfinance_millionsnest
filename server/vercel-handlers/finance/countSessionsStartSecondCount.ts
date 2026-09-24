@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { FieldValue } from 'firebase-admin/firestore';
+import { createHash, randomBytes } from 'node:crypto';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
@@ -7,6 +8,22 @@ import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
 import { hasActiveCountCaptureExtractionLease } from '../../../shared/finance/countCaptureExtraction.js';
+
+const SECOND_COUNT_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const SECOND_COUNT_INVITE_TTL_MS = 4 * 60 * 60 * 1000;
+
+function generateSecondCountCode() {
+  const bytes = randomBytes(10);
+  let code = '';
+  for (let index = 0; index < 10; index += 1) {
+    code += SECOND_COUNT_CODE_ALPHABET[bytes[index] % SECOND_COUNT_CODE_ALPHABET.length];
+  }
+  return code;
+}
+
+function hashSecondCountCode(code: string) {
+  return createHash('sha256').update(code).digest('hex');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
@@ -25,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const sessionRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -63,17 +80,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
 
         const nextVersion = expectedVersion + 1;
+        const joinCode = generateSecondCountCode();
+        const codeHash = hashSecondCountCode(joinCode);
+        const expiresAtMs = Date.now() + SECOND_COUNT_INVITE_TTL_MS;
+        const inviteRef = db
+          .collection('organizations')
+          .doc(organizationId)
+          .collection('financeEntities')
+          .doc(financeEntityId)
+          .collection('countSecondInvites')
+          .doc(codeHash);
+
+        transaction.set(inviteRef, {
+          organizationId,
+          financeEntityId,
+          countSessionId,
+          codeHash,
+          createdByUid: uid,
+          createdByLabel: actorLabel,
+          createdAt: FieldValue.serverTimestamp(),
+          expiresAt: Timestamp.fromMillis(expiresAtMs),
+          claimedByUid: null,
+          claimedByLabel: null,
+          claimedAt: null,
+        });
+
         transaction.update(sessionRef, {
           status: 'counting_b',
           countB: {
             entries: [],
             totalCents: 0,
             countedByUid: null,
+            countedByLabel: null,
             enteredByUid: null,
+            enteredByLabel: null,
             sealedAt: null,
           },
           secondCountStartedByUid: uid,
+          secondCountStartedByLabel: actorLabel,
           secondCountStartedAt: FieldValue.serverTimestamp(),
+          secondCountAssignedToUid: null,
+          secondCountAssignedToLabel: null,
+          secondCountAssignedAt: null,
+          secondCountInviteRequired: true,
+          secondCountInviteCodeHash: codeHash,
+          secondCountInviteCode: joinCode,
+          secondCountInviteExpiresAt: Timestamp.fromMillis(expiresAtMs),
           updatedByUid: uid,
           version: nextVersion,
           updatedAt: FieldValue.serverTimestamp(),
@@ -97,6 +149,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             versionAfter: nextVersion,
             status: 'counting_b',
             blindMaterial: true,
+            independentCounterRequired: session.policySnapshot?.requireIndependentCounter !== false,
+            inviteExpiresAt: new Date(expiresAtMs).toISOString(),
           },
           createdAt: FieldValue.serverTimestamp(),
         });
@@ -121,7 +175,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ],
         });
 
-        return { countSessionId, version: nextVersion, status: 'counting_b' };
+        return {
+          countSessionId,
+          version: nextVersion,
+          status: 'counting_b',
+          joinCode,
+          expiresAt: new Date(expiresAtMs).toISOString(),
+        };
       },
     );
 

@@ -39,6 +39,8 @@ import transactionsSummary from '../server/vercel-handlers/finance/transactionsS
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
+import transactionEditPresenceHeartbeat from '../server/vercel-handlers/finance/transactionEditPresenceHeartbeat.js';
+import transactionEditPresenceRelease from '../server/vercel-handlers/finance/transactionEditPresenceRelease.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
 import transactionsCreateAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
 import transactionsReturnToDraft from '../server/vercel-handlers/finance/transactionsReturnToDraft.js';
@@ -53,9 +55,13 @@ import countSessionsCreate from '../server/vercel-handlers/finance/countSessions
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
 import countSessionsSaveFirstCount from '../server/vercel-handlers/finance/countSessionsSaveFirstCount.js';
 import countSessionsStartSecondCount from '../server/vercel-handlers/finance/countSessionsStartSecondCount.js';
+import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/countSessionsJoinSecondCount.js';
+import countSessionsRefreshSecondInvite from '../server/vercel-handlers/finance/countSessionsRefreshSecondInvite.js';
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
+import countSessionsProposalPreview from '../server/vercel-handlers/finance/countSessionsProposalPreview.js';
+import countSessionsCreateProposedDrafts from '../server/vercel-handlers/finance/countSessionsCreateProposedDrafts.js';
 import countPaperFormsGenerate from '../server/vercel-handlers/finance/countPaperFormsGenerate.js';
 import countPaperFormsDetail from '../server/vercel-handlers/finance/countPaperFormsDetail.js';
 import countCapturesStart from '../server/vercel-handlers/finance/countCapturesStart.js';
@@ -79,7 +85,12 @@ import universalEvidencePdfText from '../server/vercel-handlers/finance/universa
 import universalEvidenceClassify from '../server/vercel-handlers/finance/universalEvidenceClassify.js';
 import universalEvidenceReview from '../server/vercel-handlers/finance/universalEvidenceReview.js';
 import universalEvidenceAnalyzeTransaction from '../server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.js';
+import voiceTranscriptionCreate from '../server/vercel-handlers/finance/voiceTranscriptionCreate.js';
 import intelligenceSignalsSummary from '../server/vercel-handlers/finance/intelligenceSignalsSummary.js';
+import intelligenceCorrectionsSave from '../server/vercel-handlers/finance/intelligenceCorrectionsSave.js';
+import intelligenceCorrectionsList from '../server/vercel-handlers/finance/intelligenceCorrectionsList.js';
+import intelligenceCorrectionsRemove from '../server/vercel-handlers/finance/intelligenceCorrectionsRemove.js';
+import intelligenceEngineSummary from '../server/vercel-handlers/finance/intelligenceEngineSummary.js';
 import intelligenceSignalsDetail from '../server/vercel-handlers/finance/intelligenceSignalsDetail.js';
 import attentionBackfillPreview from '../server/vercel-handlers/finance/attentionBackfillPreview.js';
 import attentionBackfillApply from '../server/vercel-handlers/finance/attentionBackfillApply.js';
@@ -88,6 +99,7 @@ import reconciliationReadiness from '../server/vercel-handlers/finance/reconcili
 import reconciliationStatementPrepare from '../server/vercel-handlers/finance/reconciliationStatementPrepare.js';
 import reconciliationMatchPreview from '../server/vercel-handlers/finance/reconciliationMatchPreview.js';
 import reconciliationConfirm from '../server/vercel-handlers/finance/reconciliationConfirm.js';
+import reconciliationExceptionJustify from '../server/vercel-handlers/finance/reconciliationExceptionJustify.js';
 import reconciliationReverse from '../server/vercel-handlers/finance/reconciliationReverse.js';
 import reconciliationProgress from '../server/vercel-handlers/finance/reconciliationProgress.js';
 import auditList from '../server/vercel-handlers/finance/auditList.js';
@@ -97,6 +109,9 @@ import auditFactProjectionVerify from '../server/vercel-handlers/finance/auditFa
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
+import accountantPackageExport from '../server/vercel-handlers/finance/accountantPackageExport.js';
+import journeyMetricsRecord from '../server/vercel-handlers/finance/journeyMetricsRecord.js';
+import sinceLastVisitSummary from '../server/vercel-handlers/finance/sinceLastVisitSummary.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -151,6 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'accounts-repair-canonical': return accountsRepairCanonical(req, res);
     case 'accounts-configure-custom': return accountsConfigureCustom(req, res);
     case 'transactions-update-draft': return transactionsUpdateDraft(req, res);
+    case 'transaction-edit-presence-heartbeat': return transactionEditPresenceHeartbeat(req, res);
+    case 'transaction-edit-presence-release': return transactionEditPresenceRelease(req, res);
     case 'transactions-submit-review': return transactionsSubmitForReview(req, res);
     case 'transactions-return-to-draft': return transactionsReturnToDraft(req, res);
     case 'transactions-invalidate-approval': return transactionsInvalidateApproval(req, res);
@@ -162,9 +179,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-detail': return countSessionsDetail(req, res);
     case 'count-sessions-save-first-count': return countSessionsSaveFirstCount(req, res);
     case 'count-sessions-start-second-count': return countSessionsStartSecondCount(req, res);
+    case 'count-sessions-join-second-count': return countSessionsJoinSecondCount(req, res);
+    case 'count-sessions-refresh-second-invite': return countSessionsRefreshSecondInvite(req, res);
     case 'count-sessions-submit-second-count': return countSessionsSubmitSecondCount(req, res);
     case 'count-sessions-start-recount': return countSessionsStartRecount(req, res);
     case 'count-sessions-submit-recount': return countSessionsSubmitRecount(req, res);
+    case 'count-sessions-proposal-preview': return countSessionsProposalPreview(req, res);
+    case 'count-sessions-create-proposed-drafts': return countSessionsCreateProposedDrafts(req, res);
     case 'count-paper-forms-generate': return countPaperFormsGenerate(req, res);
     case 'count-paper-forms-detail': return countPaperFormsDetail(req, res);
     case 'count-captures-start': return countCapturesStart(req, res);
@@ -188,7 +209,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'universal-evidence-classify': return universalEvidenceClassify(req, res);
     case 'universal-evidence-review': return universalEvidenceReview(req, res);
     case 'universal-evidence-analyze-transaction': return universalEvidenceAnalyzeTransaction(req, res);
+    case 'voice-transcription-create': return voiceTranscriptionCreate(req, res);
     case 'intelligence-signals-summary': return intelligenceSignalsSummary(req, res);
+    case 'intelligence-corrections-save': return intelligenceCorrectionsSave(req, res);
+    case 'intelligence-corrections-list': return intelligenceCorrectionsList(req, res);
+    case 'intelligence-corrections-remove': return intelligenceCorrectionsRemove(req, res);
+    case 'intelligence-engine-summary': return intelligenceEngineSummary(req, res);
     case 'intelligence-signals-detail': return intelligenceSignalsDetail(req, res);
     case 'attention-backfill-preview': return attentionBackfillPreview(req, res);
     case 'attention-backfill-apply': return attentionBackfillApply(req, res);
@@ -197,6 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'reconciliation-statement-prepare': return reconciliationStatementPrepare(req, res);
     case 'reconciliation-match-preview': return reconciliationMatchPreview(req, res);
     case 'reconciliation-confirm': return reconciliationConfirm(req, res);
+    case 'reconciliation-exception-justify': return reconciliationExceptionJustify(req, res);
     case 'reconciliation-reverse': return reconciliationReverse(req, res);
     case 'reconciliation-progress': return reconciliationProgress(req, res);
     case 'audit-list': return auditList(req, res);
@@ -206,6 +233,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'period-close-readiness': return periodCloseReadiness(req, res);
     case 'period-close-review-confirm': return periodCloseReviewConfirm(req, res);
     case 'reports-intelligence': return reportsIntelligence(req, res);
+    case 'accountant-package-export': return accountantPackageExport(req, res);
+    case 'journey-metrics-record': return journeyMetricsRecord(req, res);
+    case 'since-last-visit-summary': return sinceLastVisitSummary(req, res);
     default: return res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
   }
 }

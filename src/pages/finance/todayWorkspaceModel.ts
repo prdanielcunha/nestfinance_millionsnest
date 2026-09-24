@@ -86,7 +86,7 @@ export function buildTodayWorkspace(
   if (mode === 'ecosystem' || mode === 'organization_admin') {
     return {
       mode,
-      tasks: adminTasks.slice(0, 6),
+      tasks: adminTasks.slice(0, 3),
       shortcuts: [
         'transactions',
         'reports',
@@ -103,7 +103,7 @@ export function buildTodayWorkspace(
         authority.canReview ? positive('transaction_review', snapshot.readyForReview) : null,
         authority.canReviewInbox ? positive('inbox_review', snapshot.inboxPendingReview) : null,
         authority.canApprove ? positive('approved', snapshot.approvedForPosting) : null,
-      ]),
+      ]).slice(0, 3),
       shortcuts: ['review', 'inbox', 'reports', 'transactions'],
     };
   }
@@ -117,7 +117,7 @@ export function buildTodayWorkspace(
         authority.canClassifyInbox ? positive('inbox_identification', snapshot.inboxNeedsClassification) : null,
         authority.canCount ? positive('count_divergence', snapshot.countDivergences) : null,
         authority.canCount ? positive('count_check', snapshot.countChecks) : null,
-      ]),
+      ]).slice(0, 3),
       shortcuts: [
         ...(authority.canCreate ? (['new_transaction', 'capture'] as const) : []),
         ...(authority.canCount ? (['count'] as const) : []),

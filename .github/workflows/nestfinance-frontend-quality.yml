@@ -14,6 +14,70 @@ on:
       - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-roadmap-cycle-01-context.ts"
+      - "scripts/test-roadmap-cycle-02-accessibility.ts"
+      - "scripts/test-roadmap-cycle-03-count-journey.ts"
+      - "scripts/test-roadmap-cycle-04-double-count.ts"
+      - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "shared/finance/accountantPackage.ts"
+      - "shared/finance/financeEditPresence.ts"
+      - "shared/finance/usabilityCertification.ts"
+      - "server/vercel-handlers/finance/accountantPackageExport.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceHeartbeat.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceRelease.ts"
+      - "server/vercel-handlers/finance/sinceLastVisitSummary.ts"
+      - "src/pages/finance/AccountantPackagePanel.tsx"
+      - "src/pages/finance/SinceLastVisitCard.tsx"
+      - "src/services/accountantPackageService.ts"
+      - "src/services/financeEditPresenceService.ts"
+      - "src/services/financeLastVisitService.ts"
+      - "docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "server/vercel-handlers/finance/transactionsSummary.ts"
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/reconciliationExceptionJustify.ts"
+      - "shared/finance/reconciliationExceptionJustification.ts"
+      - "src/pages/finance/balance/ReconciliationExceptionsPanel.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "scripts/benchmark-document-intelligence.ts"
+      - "shared/finance/intelligenceGovernance.ts"
+      - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsSave.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsList.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsRemove.ts"
+      - "server/vercel-handlers/finance/intelligenceEngineSummary.ts"
+      - "src/pages/finance/inbox/IntelligenceEnginePanel.tsx"
+      - "scripts/benchmark-voice-transcription.ts"
+      - "shared/finance/voiceTranscription.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionCreate.ts"
+      - "src/services/voiceCaptureService.ts"
+      - "src/pages/finance/capture/RecordedVoiceCapture.tsx"
+      - "shared/finance/universalInputIntent.ts"
+      - "src/services/universalCaptureOfflineQueue.ts"
+      - "src/services/shareTargetService.ts"
+      - "src/pages/finance/capture/UniversalQuickTextEntry.tsx"
+      - "public/nestfinance-share-target-sw.js"
+      - "public/brand/nestfinance/nest-flow-signature/v1/manifest/site.webmanifest"
+      - "shared/finance/countProposal.ts"
+      - "server/vercel-handlers/finance/countProposalHelpers.ts"
+      - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
+      - "server/vercel-handlers/finance/countSessionsCreateProposedDrafts.ts"
+      - "src/pages/finance/count/CountProposalPage.tsx"
+      - "src/pages/finance/transactions/CountTransactionProvenance.tsx"
+      - "server/vercel-handlers/finance/countSessionsStartSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsJoinSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsRefreshSecondInvite.ts"
+      - "server/vercel-handlers/finance/countSessionsSubmitSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsDetail.ts"
+      - "server/vercel-handlers/finance/countCapturesApplyToCount.ts"
+      - "api/finance-gateway.ts"
+      - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
       - "scripts/test-transaction-review-queue.ts"
@@ -46,6 +110,70 @@ on:
       - "server/vercel-handlers/finance/universalEvidencePdfTextExtractor.ts"
       - "scripts/test-human-safe-infra-errors.ts"
       - "scripts/test-finance-context-bar-i18n.ts"
+      - "scripts/test-roadmap-cycle-01-context.ts"
+      - "scripts/test-roadmap-cycle-02-accessibility.ts"
+      - "scripts/test-roadmap-cycle-03-count-journey.ts"
+      - "scripts/test-roadmap-cycle-04-double-count.ts"
+      - "scripts/test-roadmap-cycle-05-count-to-proposals.ts"
+      - "scripts/test-roadmap-cycle-06-universal-input.ts"
+      - "scripts/test-roadmap-cycle-07-voice.ts"
+      - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "shared/finance/accountantPackage.ts"
+      - "shared/finance/financeEditPresence.ts"
+      - "shared/finance/usabilityCertification.ts"
+      - "server/vercel-handlers/finance/accountantPackageExport.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceHeartbeat.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceRelease.ts"
+      - "server/vercel-handlers/finance/sinceLastVisitSummary.ts"
+      - "src/pages/finance/AccountantPackagePanel.tsx"
+      - "src/pages/finance/SinceLastVisitCard.tsx"
+      - "src/services/accountantPackageService.ts"
+      - "src/services/financeEditPresenceService.ts"
+      - "src/services/financeLastVisitService.ts"
+      - "docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "server/vercel-handlers/finance/transactionsSummary.ts"
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/reconciliationExceptionJustify.ts"
+      - "shared/finance/reconciliationExceptionJustification.ts"
+      - "src/pages/finance/balance/ReconciliationExceptionsPanel.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
+      - "scripts/benchmark-document-intelligence.ts"
+      - "shared/finance/intelligenceGovernance.ts"
+      - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsSave.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsList.ts"
+      - "server/vercel-handlers/finance/intelligenceCorrectionsRemove.ts"
+      - "server/vercel-handlers/finance/intelligenceEngineSummary.ts"
+      - "src/pages/finance/inbox/IntelligenceEnginePanel.tsx"
+      - "scripts/benchmark-voice-transcription.ts"
+      - "shared/finance/voiceTranscription.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionProvider.ts"
+      - "server/vercel-handlers/finance/voiceTranscriptionCreate.ts"
+      - "src/services/voiceCaptureService.ts"
+      - "src/pages/finance/capture/RecordedVoiceCapture.tsx"
+      - "shared/finance/universalInputIntent.ts"
+      - "src/services/universalCaptureOfflineQueue.ts"
+      - "src/services/shareTargetService.ts"
+      - "src/pages/finance/capture/UniversalQuickTextEntry.tsx"
+      - "public/nestfinance-share-target-sw.js"
+      - "public/brand/nestfinance/nest-flow-signature/v1/manifest/site.webmanifest"
+      - "shared/finance/countProposal.ts"
+      - "server/vercel-handlers/finance/countProposalHelpers.ts"
+      - "server/vercel-handlers/finance/countSessionsProposalPreview.ts"
+      - "server/vercel-handlers/finance/countSessionsCreateProposedDrafts.ts"
+      - "src/pages/finance/count/CountProposalPage.tsx"
+      - "src/pages/finance/transactions/CountTransactionProvenance.tsx"
+      - "server/vercel-handlers/finance/countSessionsStartSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsJoinSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsRefreshSecondInvite.ts"
+      - "server/vercel-handlers/finance/countSessionsSubmitSecondCount.ts"
+      - "server/vercel-handlers/finance/countSessionsDetail.ts"
+      - "server/vercel-handlers/finance/countCapturesApplyToCount.ts"
+      - "api/finance-gateway.ts"
+      - "server/vercel-handlers/finance/journeyMetricsRecord.ts"
       - "scripts/test-transaction-create-guided.ts"
       - "scripts/test-transaction-create-no-posting.ts"
       - "scripts/test-transaction-review-queue.ts"
@@ -95,6 +223,36 @@ jobs:
 
       - name: Verify finance context localization
         run: npx tsx scripts/test-finance-context-bar-i18n.ts
+
+      - name: Verify roadmap cycle 01 context gate
+        run: npm run test:roadmap-cycle-01
+
+      - name: Verify roadmap cycle 02 accessibility gate
+        run: npm run test:roadmap-cycle-02
+
+      - name: Verify roadmap cycle 03 guided Count journey
+        run: npm run test:roadmap-cycle-03
+
+      - name: Verify roadmap cycle 04 independent double Count
+        run: npm run test:roadmap-cycle-04
+
+      - name: Verify roadmap cycle 05 Count proposals
+        run: npm run test:roadmap-cycle-05
+
+      - name: Verify roadmap cycle 06 universal input
+        run: npm run test:roadmap-cycle-06
+
+      - name: Verify roadmap cycle 07 recorded voice capture
+        run: npm run test:roadmap-cycle-07
+
+      - name: Verify roadmap cycle 08 governed intelligence engine
+        run: npm run test:roadmap-cycle-08
+
+      - name: Verify roadmap cycle 09 operational close
+        run: npm run test:roadmap-cycle-09
+
+      - name: Verify roadmap cycle 10 accountant package and certification engineering
+        run: npm run test:roadmap-cycle-10
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
