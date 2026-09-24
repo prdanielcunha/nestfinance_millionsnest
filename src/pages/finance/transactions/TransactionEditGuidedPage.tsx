@@ -526,7 +526,7 @@ function TransactionEditGuidedContent() {
   }, [activeFinanceEntityId, transactionId]);
 
   useEffect(() => {
-    const organizationId = accessState.organizationId || accessState.organization?.id || '';
+    const organizationId = accessState.organizationId || '';
     if (!organizationId || !activeFinanceEntityId || !transactionId || loadState === 'immutable') {
       return;
     }
@@ -1565,7 +1565,7 @@ function TransactionEditGuidedContent() {
                   variant="secondary"
                   size="lg"
                   fullWidth
-                  disabled={saving || submitting || conflict}
+                  disabled={saving || submitting || conflict || presenceBlocksSave}
                   onClick={() => void handleSaveDraft()}
                 >
                   {saving && !submitting ? copy.saving : copy.saveDraft}
@@ -1576,7 +1576,7 @@ function TransactionEditGuidedContent() {
                     variant="primary"
                     size="lg"
                     fullWidth
-                    disabled={saving || submitting || conflict || !readiness.ready}
+                    disabled={saving || submitting || conflict || presenceBlocksSave || !readiness.ready}
                     onClick={() => void handleSaveAndSubmit()}
                   >
                     {submitting ? copy.sending : copy.sendForReview}
