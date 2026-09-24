@@ -32,6 +32,14 @@ import {
   normalizeTransactionCreateDirection,
   type TransactionCreateDirection,
 } from './transactionCreateModel';
+import {
+  describeAccount,
+  describeCategory,
+  describeFund,
+  describePaymentMethod,
+  fundBadge,
+  getTransactionOptionGuidance,
+} from './transactionOptionGuidance';
 
 type AllocationState = {
   id: string;
@@ -92,6 +100,7 @@ function TransactionCreateContent() {
   const { createDraft, createAndSubmit } = useTransactions();
   const { language } = useLanguage();
   const copy = TRANSACTION_CREATE_COPY[language];
+  const optionGuidance = getTransactionOptionGuidance(language);
 
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [initialError, setInitialError] = useState(false);
@@ -995,6 +1004,7 @@ function TransactionCreateContent() {
   const paymentOptions = availablePaymentMethods.map((method) => ({
     value: method.code,
     label: PAYMENT_METHOD_LABELS[language][method.code] || method.label,
+    description: describePaymentMethod(language, method.code),
   }));
 
   const directionTone: Record<TransactionCreateDirection, string> = {
@@ -1132,13 +1142,16 @@ function TransactionCreateContent() {
                         type="button"
                         aria-pressed={selected}
                         onClick={() => handleDirectionChange(item)}
-                        className={`min-h-14 rounded-2xl border px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${
+                        className={`min-h-[5.5rem] rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary ${
                           selected
                             ? directionTone[item]
                             : 'border-border-subtle bg-surface-elevated text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
                         }`}
                       >
-                        {copy.directions[item]}
+                        <span className="block text-sm font-semibold">{copy.directions[item]}</span>
+                        <span className={`mt-1 block text-xs font-normal leading-snug ${selected ? 'opacity-90' : 'text-text-muted'}`}>
+                          {optionGuidance.directions[item]}
+                        </span>
                       </button>
                     );
                   })}
@@ -1215,6 +1228,8 @@ function TransactionCreateContent() {
                           options={paymentOptions}
                           placeholder={copy.select}
                           allowClear
+                          clearDescription={optionGuidance.clearPayment}
+                          guidance={optionGuidance.paymentGuidance}
                           className="min-h-14"
                         />
                         {paymentMethodWarning ? (
@@ -1246,13 +1261,16 @@ function TransactionCreateContent() {
                               {
                                 value: 'credit_card_bill',
                                 label: copy.settlementCreditCard,
+                                description: optionGuidance.settlement.credit_card_bill,
                               },
                               {
                                 value: 'reimbursement',
                                 label: copy.settlementReimbursement,
+                                description: optionGuidance.settlement.reimbursement,
                               },
                             ]}
                             placeholder={copy.select}
+                            guidance={optionGuidance.settlementGuidance}
                             className="min-h-14"
                           />
                         </div>
@@ -1268,8 +1286,10 @@ function TransactionCreateContent() {
                               .map((account) => ({
                                 value: account.id,
                                 label: getAccountLabel(account),
+                                description: describeAccount(language, account),
                               }))}
                             placeholder={copy.selectLiability}
+                            guidance={optionGuidance.accountGuidance}
                             className="min-h-14"
                           />
                           {accounts.find(
@@ -1303,8 +1323,10 @@ function TransactionCreateContent() {
                           options={availableAccounts.map((account) => ({
                             value: account.id,
                             label: getAccountLabel(account),
+                            description: describeAccount(language, account),
                           }))}
                           placeholder={copy.selectAccount}
+                          guidance={optionGuidance.accountGuidance}
                           className="min-h-14"
                         />
                       ) : (
@@ -1342,8 +1364,10 @@ function TransactionCreateContent() {
                               .map((account) => ({
                                 value: account.id,
                                 label: getAccountLabel(account),
+                                description: describeAccount(language, account),
                               }))}
                             placeholder={copy.selectDestination}
+                            guidance={optionGuidance.accountGuidance}
                             className="min-h-14"
                           />
                         ) : (
@@ -1500,9 +1524,11 @@ function TransactionCreateContent() {
                                         (category) => ({
                                           value: category.id,
                                           label: category.name,
+                                          description: describeCategory(language, category),
                                         }),
                                       )}
                                       placeholder={copy.selectCategory}
+                                      guidance={optionGuidance.categoryGuidance}
                                       className="min-h-14"
                                     />
                                   ) : (
@@ -1526,9 +1552,14 @@ function TransactionCreateContent() {
                                       options={funds.map((fund) => ({
                                         value: fund.id,
                                         label: fund.name,
+                                        description: describeFund(language, fund),
+                                        badge: fundBadge(language, fund),
                                       }))}
                                       placeholder={copy.noFund}
                                       allowClear
+                                      clearLabel={copy.noFund}
+                                      clearDescription={optionGuidance.noFund}
+                                      guidance={optionGuidance.fundGuidance}
                                       className="min-h-14"
                                     />
                                   ) : (
