@@ -23,6 +23,20 @@ on:
       - "scripts/test-roadmap-cycle-07-voice.ts"
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
       - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "shared/finance/accountantPackage.ts"
+      - "shared/finance/financeEditPresence.ts"
+      - "shared/finance/usabilityCertification.ts"
+      - "server/vercel-handlers/finance/accountantPackageExport.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceHeartbeat.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceRelease.ts"
+      - "server/vercel-handlers/finance/sinceLastVisitSummary.ts"
+      - "src/pages/finance/AccountantPackagePanel.tsx"
+      - "src/pages/finance/SinceLastVisitCard.tsx"
+      - "src/services/accountantPackageService.ts"
+      - "src/services/financeEditPresenceService.ts"
+      - "src/services/financeLastVisitService.ts"
+      - "docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md"
       - "shared/finance/todayOperationalSummary.ts"
       - "server/vercel-handlers/finance/transactionsSummary.ts"
       - "shared/finance/transactionSearch.ts"
@@ -105,6 +119,20 @@ on:
       - "scripts/test-roadmap-cycle-07-voice.ts"
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
       - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "shared/finance/accountantPackage.ts"
+      - "shared/finance/financeEditPresence.ts"
+      - "shared/finance/usabilityCertification.ts"
+      - "server/vercel-handlers/finance/accountantPackageExport.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceHeartbeat.ts"
+      - "server/vercel-handlers/finance/transactionEditPresenceRelease.ts"
+      - "server/vercel-handlers/finance/sinceLastVisitSummary.ts"
+      - "src/pages/finance/AccountantPackagePanel.tsx"
+      - "src/pages/finance/SinceLastVisitCard.tsx"
+      - "src/services/accountantPackageService.ts"
+      - "src/services/financeEditPresenceService.ts"
+      - "src/services/financeLastVisitService.ts"
+      - "docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md"
       - "shared/finance/todayOperationalSummary.ts"
       - "server/vercel-handlers/finance/transactionsSummary.ts"
       - "shared/finance/transactionSearch.ts"
@@ -222,6 +250,9 @@ jobs:
 
       - name: Verify roadmap cycle 09 operational close
         run: npm run test:roadmap-cycle-09
+
+      - name: Verify roadmap cycle 10 accountant package and certification engineering
+        run: npm run test:roadmap-cycle-10
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
