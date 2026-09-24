@@ -71,13 +71,13 @@ export function SinceLastVisitCard({
     void financeLastVisitService
       .summary(organizationId, financeEntityId, previous)
       .then((result) => {
-        if (!cancelled) setSummary(result);
+        if (!cancelled) {
+          setSummary(result);
+          financeLastVisitService.touch(organizationId, financeEntityId, now);
+        }
       })
       .catch(() => {
         if (!cancelled) setSummary(null);
-      })
-      .finally(() => {
-        if (!cancelled) financeLastVisitService.touch(organizationId, financeEntityId, now);
       });
 
     return () => {
