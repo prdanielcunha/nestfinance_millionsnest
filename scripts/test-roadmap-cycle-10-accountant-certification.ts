@@ -101,6 +101,7 @@ const files = {
   pilotDoc: await fs.readFile('docs/nestfinance/CYCLE_10_HUMAN_USABILITY_CERTIFICATION.md', 'utf8'),
   authenticatedE2E: await fs.readFile('scripts/test-roadmap-cycle-10-authenticated-e2e-emulator.ts', 'utf8'),
   emulatorWorkflow: await fs.readFile('.github/workflows/nestfinance-p06b-firestore-emulator.yml', 'utf8'),
+  budgetEmulator: await fs.readFile('scripts/test-intelligence-governance-budget-emulator.ts', 'utf8'),
 };
 
 verify(files.gateway.includes("case 'accountant-package-export'"), 'accountant package uses certified finance gateway');
@@ -137,6 +138,8 @@ verify(files.intelligence.includes("fallback: 'human_review'") && files.intellig
 verify(files.authenticatedE2E.includes('transactionsCreateDraft') && files.authenticatedE2E.includes('transactionsSubmitForReview') && files.authenticatedE2E.includes('accountantPackageExport'), 'authenticated synthetic E2E crosses capture, review readiness and accountant export');
 verify(files.authenticatedE2E.includes('financeJournalEntries') && files.authenticatedE2E.includes('assert.equal(journals.empty, true)'), 'authenticated synthetic E2E proves no posting side effect');
 verify(files.emulatorWorkflow.includes('test-roadmap-cycle-10-authenticated-e2e-emulator.ts'), 'authenticated synthetic E2E runs inside Firestore Emulator CI');
+verify(files.budgetEmulator.includes('INTELLIGENCE_DAILY_BUDGET_EXHAUSTED') && files.budgetEmulator.includes('INTELLIGENCE_RETRY_LIMIT_EXHAUSTED'), 'emulator explicitly proves AI budget and retry exhaustion');
+verify(files.emulatorWorkflow.includes('test-intelligence-governance-budget-emulator.ts'), 'AI budget exhaustion test runs inside Firestore Emulator CI');
 
 verify(files.pilotDoc.includes('12 sessões humanas') && files.pilotDoc.includes('3 rodadas'), 'human certification protocol requires real three-round evidence');
 verify(files.pilotDoc.includes('certificação de postagem') || files.pilotDoc.includes('Certificação de postagem'), 'pilot documentation keeps posting certification separate');
