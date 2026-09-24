@@ -93,13 +93,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const selected = snapshot.docs.slice(0, limit);
     const hasMore = snapshot.docs.length > limit;
     const nextCursor = hasMore && selected.length ? selected[selected.length - 1].id : undefined;
-    const actorIds = Array.from(
-      new Set(
-        selected
-          .map((doc: any) => doc.data()?.actor)
-          .filter((actor: unknown): actor is string =>
-            typeof actor === 'string' && actor.length > 0 && actor !== 'system',
-          ),
+    const actorIds: string[] = Array.from(
+      new Set<string>(
+        selected.flatMap((doc: any) => {
+          const actor = doc.data()?.actor;
+          return typeof actor === 'string' && actor.length > 0 && actor !== 'system'
+            ? [actor]
+            : [];
+        }),
       ),
     );
     const actorNames = await loadActorNames(db, actorIds);
