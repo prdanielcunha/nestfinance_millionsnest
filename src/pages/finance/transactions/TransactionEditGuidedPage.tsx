@@ -575,7 +575,6 @@ function TransactionEditGuidedContent() {
     };
   }, [
     accessState.organizationId,
-    accessState.organization?.id,
     activeFinanceEntityId,
     transactionId,
     loadState,
