@@ -38,6 +38,8 @@ const csv = buildCsv(
   ['transactionId', 'description'],
 );
 verify(csv.includes('"Fornecedor ""A"", manutenção"'), 'CSV output safely quotes commas and quotes');
+const formulaCsv = buildCsv([{ transactionId: '=HYPERLINK("https://invalid")' }], ['transactionId']);
+verify(formulaCsv.includes('"\'=HYPERLINK(""https://invalid"")"'), 'CSV export neutralizes spreadsheet formula injection');
 
 const manifest = buildAccountantManifest({
   organizationId: 'org',
@@ -113,7 +115,8 @@ verify(files.auditPage.includes('load(nextCursor)'), 'Audit UI loads the next bo
 verify(files.gateway.includes("case 'transaction-edit-presence-heartbeat'"), 'edit presence heartbeat is routed');
 verify(files.heartbeat.includes('db.runTransaction'), 'simultaneous edit lease is acquired atomically');
 verify(files.heartbeat.includes("txData.status !== 'draft'"), 'only mutable drafts can obtain an edit lease');
-verify(files.guidedEdit.includes('presenceBlocksSave'), 'guided editor blocks save when exclusive edit lease is unavailable');
+verify(files.guidedEdit.includes('disabled={saving || submitting || conflict || presenceBlocksSave}'), 'guided draft save is blocked when exclusive edit lease is unavailable');
+verify(files.guidedEdit.includes('presenceBlocksSave || !readiness.ready'), 'guided submit is blocked when exclusive edit lease is unavailable');
 verify(files.rules.includes('match /financeEntities/{entityId}/editLocks/{document=**}') && files.rules.includes('allow read, create, update, delete: if false;'), 'client cannot forge edit locks directly');
 
 verify(files.gateway.includes("case 'since-last-visit-summary'"), 'since-last-visit summary is gateway scoped');
