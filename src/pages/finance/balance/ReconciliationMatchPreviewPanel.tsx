@@ -478,6 +478,10 @@ export function ReconciliationMatchPreviewPanel({
           <ReconciliationExceptionsPanel
             lines={result.preview.lines}
             language={language}
+            organizationId={organizationId}
+            financeEntityId={financeEntityId}
+            evidenceId={evidenceId}
+            accountId={accountId}
           />
 
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">

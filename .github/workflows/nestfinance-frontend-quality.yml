@@ -22,6 +22,14 @@ on:
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
       - "scripts/test-roadmap-cycle-07-voice.ts"
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "server/vercel-handlers/finance/transactionsSummary.ts"
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/reconciliationExceptionJustify.ts"
+      - "shared/finance/reconciliationExceptionJustification.ts"
+      - "src/pages/finance/balance/ReconciliationExceptionsPanel.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
       - "scripts/benchmark-document-intelligence.ts"
       - "shared/finance/intelligenceGovernance.ts"
       - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
@@ -96,6 +104,14 @@ on:
       - "scripts/test-roadmap-cycle-06-universal-input.ts"
       - "scripts/test-roadmap-cycle-07-voice.ts"
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
+      - "scripts/test-roadmap-cycle-09-operational-close.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "server/vercel-handlers/finance/transactionsSummary.ts"
+      - "shared/finance/transactionSearch.ts"
+      - "server/vercel-handlers/finance/reconciliationExceptionJustify.ts"
+      - "shared/finance/reconciliationExceptionJustification.ts"
+      - "src/pages/finance/balance/ReconciliationExceptionsPanel.tsx"
+      - "src/pages/finance/transactions/TransactionsListPage.tsx"
       - "scripts/benchmark-document-intelligence.ts"
       - "shared/finance/intelligenceGovernance.ts"
       - "server/vercel-handlers/finance/intelligenceGovernanceStore.ts"
@@ -203,6 +219,9 @@ jobs:
 
       - name: Verify roadmap cycle 08 governed intelligence engine
         run: npm run test:roadmap-cycle-08
+
+      - name: Verify roadmap cycle 09 operational close
+        run: npm run test:roadmap-cycle-09
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts

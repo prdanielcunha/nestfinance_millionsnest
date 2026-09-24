@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -30,6 +30,7 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
+import { parseTransactionNaturalQuery } from '../../../../shared/finance/transactionSearch';
 
 type LoadErrorKind = 'forbidden' | 'entity' | 'cursor' | 'index' | 'generic' | null;
 type Direction = 'income' | 'expense' | 'transfer' | 'liability_settlement' | string;
@@ -490,6 +491,10 @@ function TransactionsListContent() {
   const orderFilter = searchParams.get('order') === 'oldest' ? 'oldest' : 'newest';
   const searchQuery = searchParams.get('q') || '';
   const normalizedSearchQuery = searchQuery.trim();
+  const naturalSearch = useMemo(
+    () => parseTransactionNaturalQuery(normalizedSearchQuery),
+    [normalizedSearchQuery],
+  );
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
 
@@ -501,17 +506,34 @@ function TransactionsListContent() {
     setErrorDetails(null);
 
     try {
-      const filters: Record<string, string> = {};
-      if (directionFilter !== 'all') filters.direction = directionFilter;
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      const occurredFrom = fromFilter ? dateOnlyStartIso(fromFilter) : undefined;
-      const occurredTo = toFilter ? dateOnlyEndIso(toFilter) : undefined;
+      const filters: Record<string, string | number> = {};
+      const naturalFilters = naturalSearch.filters;
+      const effectiveDirection = directionFilter !== 'all' ? directionFilter : naturalFilters.direction;
+      const effectiveStatus = statusFilter !== 'all' ? statusFilter : naturalFilters.status;
+      if (effectiveDirection) filters.direction = effectiveDirection;
+      if (effectiveStatus) filters.status = effectiveStatus;
+      const occurredFrom = fromFilter
+        ? dateOnlyStartIso(fromFilter)
+        : naturalFilters.occurredFrom
+          ? dateOnlyStartIso(naturalFilters.occurredFrom.slice(0, 10))
+          : undefined;
+      const occurredTo = toFilter
+        ? dateOnlyEndIso(toFilter)
+        : naturalFilters.occurredTo
+          ? dateOnlyEndIso(naturalFilters.occurredTo.slice(0, 10))
+          : undefined;
       if (occurredFrom) filters.occurredFrom = occurredFrom;
       if (occurredTo) filters.occurredTo = occurredTo;
+      if (naturalFilters.amountMinCents !== undefined) filters.amountMinCents = naturalFilters.amountMinCents;
+      if (naturalFilters.amountMaxCents !== undefined) filters.amountMaxCents = naturalFilters.amountMaxCents;
       filters.order = orderFilter;
 
       if (normalizedSearchQuery.length >= 2) {
-        const res = await searchTransactions(normalizedSearchQuery, filters, 50);
+        const res = await searchTransactions(
+          naturalSearch.residualQuery,
+          filters,
+          50,
+        );
 
         if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
 
@@ -600,6 +622,7 @@ function TransactionsListContent() {
     toFilter,
     orderFilter,
     normalizedSearchQuery,
+    naturalSearch,
   ]);
 
   const updateFilter = (key: 'direction' | 'status', value: string) => {
@@ -814,7 +837,14 @@ function TransactionsListContent() {
               ) : null}
             </label>
 
-            {normalizedSearchQuery.length === 1 ? (
+            {naturalSearch.understood && naturalSearch.labels.length > 0 ? (
+              <p className="mt-2 text-xs font-medium text-accent-primary">
+                {language === 'PT' ? 'Entendi: ' : language === 'ES' ? 'Entendí: ' : 'Understood: '}
+                {naturalSearch.labels.join(' · ')}
+                {naturalSearch.residualQuery ? ` · “${naturalSearch.residualQuery}”` : ''}
+              </p>
+            ) : null}
+            {normalizedSearchQuery.length === 1 && !naturalSearch.understood ? (
               <p className="mt-2 text-xs text-text-muted">{copy.searchTooShort}</p>
             ) : searchMeta?.searchMode === 'canonical_fallback' ? (
               <p className="mt-2 text-xs text-text-muted">{copy.searchFallbackHint}</p>

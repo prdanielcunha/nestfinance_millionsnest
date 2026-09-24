@@ -42,6 +42,7 @@ import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
+import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string }> = {
   PT: {
     title: 'Vai contar um culto?',
@@ -96,6 +97,15 @@ type TodayCopy = {
   openApprovals: string;
   finishDrafts: string;
   openTransactions: string;
+  operationalTitle: string;
+  operationalSubtitle: string;
+  todayIncomeMetric: string;
+  todayExpenseMetric: string;
+  dueSoonMetric: string;
+  balanceMetric: string;
+  balanceUnavailable: string;
+  balanceHint: string;
+  dueTruncated: string;
   summaryTitle: string;
   returned: string;
   drafts: string;
@@ -165,6 +175,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprovadas',
     finishDrafts: 'Continuar rascunhos',
     openTransactions: 'Ver movimentações',
+    operationalTitle: 'Hoje em números',
+    operationalSubtitle: 'Entradas e saídas usam movimentos registrados hoje. Vencimentos vêm dos documentos já analisados. O saldo só aparece quando pode ser calculado sem adivinhação.',
+    todayIncomeMetric: 'Entradas hoje',
+    todayExpenseMetric: 'Saídas hoje',
+    dueSoonMetric: 'Vencem em 7 dias',
+    balanceMetric: 'Saldo registrado',
+    balanceUnavailable: 'Ainda não comprovável',
+    balanceHint: 'O saldo usa apenas saldos iniciais configurados e lançamentos já postados. Enquanto faltar base confiável, o NestFinance não inventa um número.',
+    dueTruncated: 'Há mais vencimentos do que esta visão rápida mostra.',
     summaryTitle: 'Movimentações abertas',
     returned: 'Para corrigir',
     drafts: 'Rascunhos',
@@ -232,6 +251,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'View approved',
     finishDrafts: 'Continue drafts',
     openTransactions: 'View transactions',
+    operationalTitle: 'Today at a glance',
+    operationalSubtitle: 'Income and expenses use transactions recorded today. Due items come from analyzed documents. Balance is shown only when it can be calculated without guessing.',
+    todayIncomeMetric: 'Income today',
+    todayExpenseMetric: 'Expenses today',
+    dueSoonMetric: 'Due in 7 days',
+    balanceMetric: 'Recorded balance',
+    balanceUnavailable: 'Not provable yet',
+    balanceHint: 'Balance uses configured opening balances and posted transactions only. If the source is incomplete, NestFinance does not invent a number.',
+    dueTruncated: 'There are more due items than this quick view displays.',
     summaryTitle: 'Open transactions',
     returned: 'Needs correction',
     drafts: 'Drafts',
@@ -299,6 +327,15 @@ const COPY: Record<Language, TodayCopy> = {
     openApprovals: 'Ver aprobados',
     finishDrafts: 'Continuar borradores',
     openTransactions: 'Ver movimientos',
+    operationalTitle: 'Hoy en números',
+    operationalSubtitle: 'Ingresos y egresos usan movimientos registrados hoy. Los vencimientos vienen de documentos analizados. El saldo solo aparece cuando puede calcularse sin adivinar.',
+    todayIncomeMetric: 'Ingresos hoy',
+    todayExpenseMetric: 'Egresos hoy',
+    dueSoonMetric: 'Vencen en 7 días',
+    balanceMetric: 'Saldo registrado',
+    balanceUnavailable: 'Aún no comprobable',
+    balanceHint: 'El saldo usa únicamente saldos iniciales configurados y movimientos contabilizados. Si falta una fuente confiable, NestFinance no inventa un número.',
+    dueTruncated: 'Hay más vencimientos de los que muestra esta vista rápida.',
     summaryTitle: 'Movimientos abiertos',
     returned: 'Para corregir',
     drafts: 'Borradores',
@@ -451,6 +488,7 @@ export function TodayActionCenter() {
   const canCount = canCreate;
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
+  const [operational, setOperational] = useState<TodayOperationalSnapshot | null>(null);
   const [countItems, setCountItems] = useState<CountSessionListItem[]>([]);
   const [inboxSummary, setInboxSummary] = useState<UniversalEvidenceInboxSummary | null>(null);
   const [signalSummary, setSignalSummary] = useState<NeedsAttentionSignalSummary | null>(null);
@@ -476,6 +514,7 @@ export function TodayActionCenter() {
     try {
       const result = await transactionsService.summary(organizationId, activeFinanceEntityId);
       setSummary(result.summary);
+      setOperational(result.operational);
     } catch {
       setSummaryFailed(true);
     } finally {
@@ -546,6 +585,7 @@ export function TodayActionCenter() {
     let cancelled = false;
     setLoadedFinanceEntityId(null);
     setSummary(null);
+    setOperational(null);
     setCountItems([]);
     setInboxSummary(null);
     setSignalSummary(null);
@@ -1045,6 +1085,49 @@ export function TodayActionCenter() {
           ) : null}
         </Surface>
       )}
+
+      <section aria-labelledby="today-operational-title">
+        <div className="mb-3">
+          <h2 id="today-operational-title" className="text-sm font-semibold text-text-primary">{copy.operationalTitle}</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-text-muted">{copy.operationalSubtitle}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-success">
+              {operational ? formatMoney(operational.incomeCents, language) : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayIncomeMetric}</div>
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-danger">
+              {operational ? formatMoney(operational.expenseCents, language) : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayExpenseMetric}</div>
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-2xl font-semibold tracking-tight text-text-primary">
+              {operational ? operational.dueSoonCount : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.dueSoonMetric}</div>
+            {operational?.dueSoonTruncated ? (
+              <p className="mt-2 text-xs leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
+            ) : null}
+          </Surface>
+          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="nf-financial-number text-xl font-semibold tracking-tight text-text-primary">
+              {operational?.balance.state === 'available'
+                ? formatMoney(operational.balance.amountCents, language)
+                : operational
+                  ? copy.balanceUnavailable
+                  : '—'}
+            </div>
+            <div className="mt-1 text-xs font-medium text-text-muted">{copy.balanceMetric}</div>
+            {operational?.balance.state === 'unavailable' ? (
+              <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.balanceHint}</p>
+            ) : null}
+          </Surface>
+        </div>
+      </section>
 
       <section aria-labelledby="today-summary-title">
         <div className="mb-3 flex items-center justify-between">
