@@ -6,6 +6,7 @@ import {
   Banknote,
   CheckCircle2,
   ChevronRight,
+  Info,
   Minus,
   Plus,
   ShieldCheck,
@@ -48,6 +49,8 @@ const AUTOSAVE_COPY = {
     cloud: 'Salvo na nuvem',
     local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
     restored: 'Retomamos seu rascunho salvo neste aparelho.',
+    draftSaved: 'Rascunho da contagem salvo.',
+    discardDraft: 'Descartar rascunho',
   },
   EN: {
     listen: 'Listen to instruction',
@@ -56,6 +59,8 @@ const AUTOSAVE_COPY = {
     cloud: 'Saved to cloud',
     local: 'Saved on this device. The cloud will update when the connection returns.',
     restored: 'We restored the draft saved on this device.',
+    draftSaved: 'Count draft saved.',
+    discardDraft: 'Discard draft',
   },
   ES: {
     listen: 'Escuchar instrucción',
@@ -64,6 +69,8 @@ const AUTOSAVE_COPY = {
     cloud: 'Guardado en la nube',
     local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
     restored: 'Restauramos el borrador guardado en este dispositivo.',
+    draftSaved: 'Borrador del conteo guardado.',
+    discardDraft: 'Descartar borrador',
   },
 } as const;
 
@@ -740,20 +747,6 @@ function CountSessionContent() {
                 {formatReviewDate(`${session.serviceDate}T12:00:00.000Z`, language)}
               </p>
             </div>
-            {canEdit ? (
-              <Button
-                variant="danger"
-                className="shrink-0"
-                disabled={discarding || saving || cloudSaveState === 'saving'}
-                leadingIcon={<Trash2 className="h-4 w-4" />}
-                onClick={() => {
-                  setDiscardError(false);
-                  setDiscardConfirmOpen(true);
-                }}
-              >
-                {copy.discardSession}
-              </Button>
-            ) : null}
           </header>
 
           <FlowStepHeader
@@ -783,7 +776,35 @@ function CountSessionContent() {
             </p>
           </div>
 
-          {restoredDraft ? (
+          {canEdit ? (
+            <Surface
+              variant="secondary"
+              radius="xl"
+              className="border-accent-primary/25 bg-accent-primary/10 px-4 py-3 sm:px-5 sm:py-4"
+            >
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 sm:gap-4">
+                <div className="flex min-w-0 items-start gap-3 py-1">
+                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
+                  <p className="min-w-0 text-sm font-semibold leading-relaxed text-text-primary sm:text-base">
+                    {restoredDraft ? autosaveCopy.restored : autosaveCopy.draftSaved}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={discarding || saving || cloudSaveState === 'saving'}
+                  onClick={() => {
+                    setDiscardError(false);
+                    setDiscardConfirmOpen(true);
+                  }}
+                  className="inline-flex min-h-12 max-w-[9.5rem] items-center justify-center gap-2 border-l border-accent-primary/20 pl-3 pr-1 text-left text-sm font-semibold leading-tight text-semantic-danger transition-colors hover:text-semantic-danger/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-none sm:pl-4 sm:pr-2"
+                  aria-label={autosaveCopy.discardDraft}
+                >
+                  <Trash2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span>{autosaveCopy.discardDraft}</span>
+                </button>
+              </div>
+            </Surface>
+          ) : restoredDraft ? (
             <FlowFeedback tone="info" title={autosaveCopy.restored} />
           ) : null}
 
