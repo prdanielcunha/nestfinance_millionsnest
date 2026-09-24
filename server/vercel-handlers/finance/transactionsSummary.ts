@@ -87,10 +87,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const localDate = validDateOnly(req.body?.localDate);
-    const dayStartIso = validIso(req.body?.dayStartIso);
-    const dayEndIso = validIso(req.body?.dayEndIso);
-    if (!localDate || !dayStartIso || !dayEndIso || Date.parse(dayStartIso) >= Date.parse(dayEndIso)) {
+    const now = new Date();
+    const fallbackDate = now.toISOString().slice(0, 10);
+    const localDate = validDateOnly(req.body?.localDate) || fallbackDate;
+    const fallbackDayStart = localDate + 'T00:00:00.000Z';
+    const fallbackDayEndDate = new Date(fallbackDayStart);
+    fallbackDayEndDate.setUTCDate(fallbackDayEndDate.getUTCDate() + 1);
+    const dayStartIso = validIso(req.body?.dayStartIso) || fallbackDayStart;
+    const dayEndIso = validIso(req.body?.dayEndIso) || fallbackDayEndDate.toISOString();
+    if (Date.parse(dayStartIso) >= Date.parse(dayEndIso)) {
       return res.status(400).json({ error: 'INVALID_LOCAL_DAY' });
     }
 
