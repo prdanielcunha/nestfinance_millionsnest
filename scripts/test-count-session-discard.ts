@@ -50,6 +50,17 @@ assert.ok(
     session.includes("navigate(APP_ROUTES.count, { replace: true })"),
   'the first-count workspace also exposes discard and exits safely after success',
 );
+
+assert.ok(
+  session.includes('autosaveCopy.discardDraft') &&
+    session.includes("restoredDraft ? autosaveCopy.restored : autosaveCopy.draftSaved") &&
+    session.includes("grid-cols-[minmax(0,1fr)_auto]"),
+  'discard is contextualized inside the compact draft status surface',
+);
+assert.ok(
+  !session.includes('className="shrink-0"\n                disabled={discarding || saving || cloudSaveState === \'saving\'}'),
+  'the destructive discard control no longer occupies the count header',
+);
 assert.ok(
   home.includes('aria-labelledby="discard-count-title"') &&
     session.includes('aria-labelledby="discard-count-session-title"'),
