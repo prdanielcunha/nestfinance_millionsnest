@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .get();
 
     const items = snapshot.docs
+      .filter((doc: any) => doc.data()?.status !== 'discarded')
       .map((doc: any) => {
         const data = doc.data() || {};
         const materialHidden = data.status === 'counting_b' || data.status === 'recounting';
