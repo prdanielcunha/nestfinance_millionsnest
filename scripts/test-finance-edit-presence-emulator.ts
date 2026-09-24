@@ -12,6 +12,7 @@ process.env.NODE_ENV = 'test';
 class MockRes {
   statusCode = 200;
   body: any = null;
+  setHeader(_name: string, _value: string) { return this; }
   status(code: number) { this.statusCode = code; return this; }
   json(body: any) { this.body = body; return this; }
 }
