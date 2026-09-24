@@ -32,6 +32,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-list', exposure: 'rewrite', url: '/api/finance/entities/list' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-accessible', exposure: 'rewrite', url: '/api/finance/entities/accessible' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'journey-metrics-record', exposure: 'rewrite', url: '/api/finance/metrics/record' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'since-last-visit-summary', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'ecosystem-overview', exposure: 'rewrite', url: '/api/finance/ecosystem/overview' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'finance-hub-read-model', exposure: 'rewrite', url: '/api/finance/intelligence/read-model' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'entities-detail', exposure: 'rewrite', url: '/api/finance/entities/detail' },
@@ -54,6 +55,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-create-draft', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-create-and-submit', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-update-draft', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-edit-presence-heartbeat', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'transaction-edit-presence-release', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-submit-review', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-return-to-draft', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'transactions-invalidate-approval', exposure: 'gateway' },
@@ -120,6 +123,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-readiness', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-review-confirm', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'reports-intelligence', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'accountant-package-export', exposure: 'gateway' },
 
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
