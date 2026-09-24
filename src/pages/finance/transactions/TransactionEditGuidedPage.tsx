@@ -12,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Button, Surface } from '@/src/components/foundation';
+import { Button, FlowFeedback, Surface } from '@/src/components/foundation';
 import AccountRepairCard from '@/src/components/finance/AccountRepairCard';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
@@ -24,6 +24,8 @@ import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { useAuth } from '@/src/hooks/useAuth';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { financeEditPresenceService } from '@/src/services/financeEditPresenceService';
+import { FINANCE_EDIT_HEARTBEAT_MS } from '@/shared/finance/financeEditPresence';
 import {
   getCompatibleAccounts,
   getCompatiblePaymentInstruments,
@@ -40,6 +42,24 @@ import {
   type TransactionCreateDirection,
 } from './transactionCreateModel';
 import { TRANSACTION_EDIT_COPY } from './transactionEditCopy';
+
+const EDIT_PRESENCE_COPY = {
+  PT: {
+    checking: 'Confirmando se outra pessoa está editando este rascunho…',
+    blocked: (name: string) => `${name} está editando este rascunho agora. Você pode consultar os dados, mas salvar fica bloqueado para evitar sobrescrita.`,
+    unavailable: 'Não foi possível confirmar exclusividade de edição. Para evitar sobrescrever outra pessoa, salvar está temporariamente bloqueado.',
+  },
+  EN: {
+    checking: 'Checking whether someone else is editing this draft…',
+    blocked: (name: string) => `${name} is editing this draft now. You can view it, but saving is blocked to prevent overwriting their work.`,
+    unavailable: 'Edit exclusivity could not be confirmed. Saving is temporarily blocked to avoid overwriting another person.',
+  },
+  ES: {
+    checking: 'Comprobando si otra persona está editando este borrador…',
+    blocked: (name: string) => `${name} está editando este borrador ahora. Puedes consultarlo, pero guardar queda bloqueado para evitar sobrescribir su trabajo.`,
+    unavailable: 'No fue posible confirmar la exclusividad de edición. Guardar queda bloqueado temporalmente para evitar sobrescribir a otra persona.',
+  },
+} as const;
 
 type LoadState = 'loading' | 'ready' | 'error' | 'immutable';
 type SaveNotice = 'saved' | 'no_changes' | 'review_sent' | null;
@@ -188,11 +208,18 @@ function TransactionEditGuidedContent() {
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const [paymentWarning, setPaymentWarning] = useState<string | null>(null);
+  const [presenceStatus, setPresenceStatus] = useState<'checking' | 'editable' | 'blocked' | 'unavailable'>('checking');
+  const [presenceOwnerLabel, setPresenceOwnerLabel] = useState<string | null>(null);
 
   const epochRef = useRef(0);
   const baselineFingerprintRef = useRef<string | null>(null);
   const draftAttemptRef = useRef<RetryAttempt | null>(null);
   const pendingSubmitRef = useRef<PendingSubmitAttempt | null>(null);
+  const presenceSessionRef = useRef(
+    `edit_${typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replaceAll('-', '')
+      : Math.random().toString(36).slice(2) + Date.now().toString(36)}`,
+  );
 
   const resetRetryState = () => {
     draftAttemptRef.current = null;
@@ -497,6 +524,65 @@ function TransactionEditGuidedContent() {
     // Entity and transaction define the canonical edit context.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFinanceEntityId, transactionId]);
+
+  useEffect(() => {
+    const organizationId = accessState.organizationId || accessState.organization?.id || '';
+    if (!organizationId || !activeFinanceEntityId || !transactionId || loadState === 'immutable') {
+      return;
+    }
+
+    let disposed = false;
+    let timer: number | undefined;
+    const sessionId = presenceSessionRef.current;
+
+    const heartbeat = async () => {
+      try {
+        const result = await financeEditPresenceService.heartbeat(
+          organizationId,
+          activeFinanceEntityId,
+          transactionId,
+          sessionId,
+        );
+        if (disposed) return;
+        if (result.editable) {
+          setPresenceStatus('editable');
+          setPresenceOwnerLabel(null);
+        } else {
+          setPresenceStatus('blocked');
+          setPresenceOwnerLabel(result.ownerLabel);
+        }
+      } catch {
+        if (!disposed) {
+          setPresenceStatus('unavailable');
+          setPresenceOwnerLabel(null);
+        }
+      }
+    };
+
+    setPresenceStatus('checking');
+    void heartbeat();
+    timer = window.setInterval(() => void heartbeat(), FINANCE_EDIT_HEARTBEAT_MS);
+
+    return () => {
+      disposed = true;
+      if (timer) window.clearInterval(timer);
+      void financeEditPresenceService.release(
+        organizationId,
+        activeFinanceEntityId,
+        transactionId,
+        sessionId,
+      ).catch(() => undefined);
+    };
+  }, [
+    accessState.organizationId,
+    accessState.organization?.id,
+    activeFinanceEntityId,
+    transactionId,
+    loadState,
+  ]);
+
+  const presenceBlocksSave = presenceStatus !== 'editable';
+  const presenceCopy = EDIT_PRESENCE_COPY[language];
 
   const totalCents = parseCents(amountRaw);
   const compatibleCategories = useMemo(
