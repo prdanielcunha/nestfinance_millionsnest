@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ShieldX,
+  Trash2,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
@@ -18,6 +19,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
 import { countPaperService } from '@/src/services/countPaperService';
+import { countDraftPersistence } from '@/src/services/countDraftPersistence';
 import { COUNT_COPY } from './count/countCopy';
 import { CountStartJourney, type CountStartMode } from './count/CountStartJourney';
 import { formatReviewDate, formatReviewMoney } from './transactions/transactionReviewModel';
@@ -78,6 +80,10 @@ function CountHomeContent() {
   const [error, setError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(false);
+  const [discardTarget, setDiscardTarget] = useState<CountSessionListItem | null>(null);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const epochRef = useRef(0);
   const createAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
@@ -100,6 +106,10 @@ function CountHomeContent() {
   useEffect(() => {
     const epoch = ++epochRef.current;
     setItems([]);
+    setDiscardTarget(null);
+    setDiscarding(false);
+    setDiscardError(false);
+    setNotice(null);
     createAttemptRef.current = null;
     if (organizationId && activeFinanceEntityId) void loadSessions(epoch);
     // The list is scoped by canonical organization/entity context.
@@ -161,6 +171,28 @@ function CountHomeContent() {
     }
   };
 
+  const handleDiscard = async () => {
+    if (!discardTarget || !canCreate || discarding || !activeFinanceEntityId) return;
+    setDiscarding(true);
+    setDiscardError(false);
+    try {
+      await countService.discard(organizationId, activeFinanceEntityId, {
+        countSessionId: discardTarget.id,
+        expectedVersion: discardTarget.version,
+        idempotencyKey: makeToken('idcount_discard'),
+        requestId: makeToken('req'),
+      });
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, discardTarget.id);
+      setItems((current) => current.filter((item) => item.id !== discardTarget.id));
+      setDiscardTarget(null);
+      setNotice(copy.discardSessionSuccess);
+    } catch {
+      setDiscardError(true);
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-surface-base pb-24 md:pb-8">
       <FinanceEntityContextBar areaName={copy.homeTitle} />
@@ -203,6 +235,15 @@ function CountHomeContent() {
           </Surface>
 
           <div>
+            {notice ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-4 rounded-2xl border border-semantic-success/20 bg-semantic-success/10 px-4 py-3 text-sm font-medium text-text-primary"
+              >
+                {notice}
+              </div>
+            ) : null}
             <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-text-muted">
               {copy.recentSessions}
             </h2>
@@ -235,14 +276,14 @@ function CountHomeContent() {
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 {items.map((item) => {
                   const blind = item.materialHidden;
+                  const canDiscard = canCreate && item.status === 'counting_a';
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', item.id))}
-                      className="group rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-                    >
-                      <Surface variant="elevated" radius="lg" className="h-full p-5 transition-colors group-hover:bg-surface-secondary/70">
+                    <Surface key={item.id} variant="elevated" radius="lg" className="h-full overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', item.id))}
+                        className="group w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-primary"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <p className="truncate text-base font-semibold text-text-primary">{item.serviceLabel}</p>
@@ -284,8 +325,23 @@ function CountHomeContent() {
                                 : copy.continueSession}
                           </span>
                         </div>
-                      </Surface>
-                    </button>
+                      </button>
+                      {canDiscard ? (
+                        <div className="border-t border-border-subtle px-5 py-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDiscardError(false);
+                              setDiscardTarget(item);
+                            }}
+                            className="nf-interactive inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-semantic-danger hover:bg-semantic-danger/10"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            {copy.discardSession}
+                          </button>
+                        </div>
+                      ) : null}
+                    </Surface>
                   );
                 })}
               </div>
@@ -293,6 +349,58 @@ function CountHomeContent() {
           </div>
         </div>
       </div>
+
+      {discardTarget ? (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-4 backdrop-blur-[2px] sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discard-count-title"
+            aria-describedby="discard-count-body"
+            className="w-full max-w-sm rounded-[24px] border border-border-subtle bg-surface-elevated p-6 shadow-2xl"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-semantic-danger/10 text-semantic-danger">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h2 id="discard-count-title" className="mt-4 text-lg font-semibold text-text-primary">
+              {copy.discardSessionTitle}
+            </h2>
+            <p id="discard-count-body" className="mt-2 text-sm leading-relaxed text-text-secondary">
+              {copy.discardSessionBody}
+            </p>
+            <p className="mt-3 rounded-xl bg-surface-secondary px-3 py-2 text-sm font-medium text-text-primary">
+              {discardTarget.serviceLabel}
+            </p>
+            {discardError ? (
+              <p className="mt-4 rounded-xl border border-semantic-danger/20 bg-semantic-danger/10 p-3 text-sm text-text-primary" role="alert">
+                {copy.discardSessionError}
+              </p>
+            ) : null}
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={discarding}
+                onClick={() => {
+                  setDiscardError(false);
+                  setDiscardTarget(null);
+                }}
+              >
+                {copy.cancel}
+              </Button>
+              <Button
+                variant="danger"
+                fullWidth
+                disabled={discarding}
+                leadingIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => void handleDiscard()}
+              >
+                {discarding ? copy.discardingSession : copy.discardSessionConfirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
