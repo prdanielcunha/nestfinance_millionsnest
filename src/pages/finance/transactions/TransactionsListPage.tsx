@@ -524,6 +524,69 @@ function TransactionsListContent() {
     return residual.replace(categoryName, ' ').replace(/\s+/gu, ' ').trim();
   }, [naturalCategory, naturalSearch.residualQuery]);
 
+  useEffect(() => {
+    const abortController = new AbortController();
+    const currentEpoch = ++catalogEpochRef.current;
+
+    if (!activeFinanceEntityId) {
+      setCategories([]);
+      setAccounts([]);
+      setFunds([]);
+      return () => abortController.abort();
+    }
+
+    const loadCatalogs = async () => {
+      try {
+        const user = firebaseAuth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const request = (url: string) =>
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ financeEntityId: activeFinanceEntityId }),
+            signal: abortController.signal,
+          });
+
+        const [categoriesResponse, accountsResponse, fundsResponse] = await Promise.all([
+          request('/api/finance/categories/list'),
+          request('/api/finance/accounts/list'),
+          request('/api/finance/funds/list'),
+        ]);
+
+        if (
+          abortController.signal.aborted ||
+          currentEpoch !== catalogEpochRef.current ||
+          !categoriesResponse.ok ||
+          !accountsResponse.ok ||
+          !fundsResponse.ok
+        ) {
+          return;
+        }
+
+        const [categoriesData, accountsData, fundsData] = await Promise.all([
+          categoriesResponse.json().catch(() => ({})),
+          accountsResponse.json().catch(() => ({})),
+          fundsResponse.json().catch(() => ({})),
+        ]);
+
+        if (abortController.signal.aborted || currentEpoch !== catalogEpochRef.current) return;
+        setCategories(Array.isArray(categoriesData.categories) ? categoriesData.categories : []);
+        setAccounts(Array.isArray(accountsData.accounts) ? accountsData.accounts : []);
+        setFunds(Array.isArray(fundsData.funds) ? fundsData.funds : []);
+      } catch {
+        if (abortController.signal.aborted || currentEpoch !== catalogEpochRef.current) return;
+        // Filters remain usable without catalogs; IDs already present in saved views are preserved.
+      }
+    };
+
+    void loadCatalogs();
+    return () => abortController.abort();
+  }, [activeFinanceEntityId]);
+
   const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
     if (!cursor) setLoading(true);
     else setLoadingMore(true);
@@ -550,15 +613,26 @@ function TransactionsListContent() {
           : undefined;
       if (occurredFrom) filters.occurredFrom = occurredFrom;
       if (occurredTo) filters.occurredTo = occurredTo;
-      if (naturalFilters.amountMinCents !== undefined) filters.amountMinCents = naturalFilters.amountMinCents;
-      if (naturalFilters.amountMaxCents !== undefined) filters.amountMaxCents = naturalFilters.amountMaxCents;
+      filters.dateBase = dateBaseFilter;
+      if (categoryIdFilter || naturalCategory?.id) filters.categoryId = categoryIdFilter || naturalCategory.id;
+      if (accountIdFilter) filters.accountId = accountIdFilter;
+      if (fundIdFilter) filters.fundId = fundIdFilter;
+      if (costCenterIdFilter) filters.costCenterId = costCenterIdFilter;
+      if (paymentMethodFilter) filters.paymentMethod = paymentMethodFilter;
+      if (originFilter !== 'all') filters.origin = originFilter;
+      if (evidenceFilter !== 'all') filters.evidence = evidenceFilter;
+      if (qualityFilter !== 'all') filters.quality = qualityFilter;
+      if (amountMinCentsFilter !== null) filters.amountMinCents = amountMinCentsFilter;
+      else if (naturalFilters.amountMinCents !== undefined) filters.amountMinCents = naturalFilters.amountMinCents;
+      if (amountMaxCentsFilter !== null) filters.amountMaxCents = amountMaxCentsFilter;
+      else if (naturalFilters.amountMaxCents !== undefined) filters.amountMaxCents = naturalFilters.amountMaxCents;
       filters.order = orderFilter;
 
       if (normalizedSearchQuery.length >= 2) {
         const res = await searchTransactions(
-          naturalSearch.residualQuery,
+          effectiveResidualQuery,
           filters,
-          50,
+          100,
         );
 
         if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
@@ -647,8 +721,21 @@ function TransactionsListContent() {
     fromFilter,
     toFilter,
     orderFilter,
+    dateBaseFilter,
+    categoryIdFilter,
+    accountIdFilter,
+    fundIdFilter,
+    costCenterIdFilter,
+    paymentMethodFilter,
+    originFilter,
+    evidenceFilter,
+    qualityFilter,
+    amountMinCentsFilter,
+    amountMaxCentsFilter,
     normalizedSearchQuery,
     naturalSearch,
+    naturalCategory,
+    effectiveResidualQuery,
   ]);
 
   const updateFilter = (key: 'direction' | 'status', value: string) => {
