@@ -310,6 +310,20 @@ function ShellLayoutInner() {
   }, [location.pathname]);
 
   useEffect(() => {
+    if (!activeFinanceEntityId || location.pathname !== APP_ROUTES.finance) return;
+
+    const returnTo = new URLSearchParams(location.search).get('returnTo');
+    if (
+      returnTo &&
+      returnTo.startsWith('/finance/') &&
+      !returnTo.startsWith('//') &&
+      returnTo !== APP_ROUTES.finance
+    ) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [activeFinanceEntityId, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
     const onCommandKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
