@@ -212,7 +212,7 @@ function CountHomeContent() {
             </div>
           </header>
 
-          {canCreate ? (
+          {canCreate && !loading && !error ? (
             <CountStartJourney
               language={language}
               entityName={activeFinanceEntityName}
