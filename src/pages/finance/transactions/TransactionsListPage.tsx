@@ -479,6 +479,7 @@ function TransactionsListContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const [historySourceTruncated, setHistorySourceTruncated] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -680,6 +681,7 @@ function TransactionsListContent() {
         setItems((previous) => cursor ? [...previous, ...res.items] : res.items);
         setNextCursor(res.nextCursor);
         setHasMore(res.hasMore);
+        setHistorySourceTruncated((current) => current || Boolean(res.sourceTruncated));
         setSearchMeta(null);
       }
     } catch (error: any) {
@@ -714,6 +716,7 @@ function TransactionsListContent() {
     setNextCursor(undefined);
     setHasMore(true);
     setSearchMeta(null);
+    setHistorySourceTruncated(false);
 
     if (!activeFinanceEntityId) {
       setLoading(false);
@@ -1141,6 +1144,15 @@ function TransactionsListContent() {
             ) : null}
             {searchMeta?.sourceTruncated || searchMeta?.resultTruncated ? (
               <p className="mt-2 text-xs font-medium text-semantic-warning">{copy.searchTruncatedHint}</p>
+            ) : null}
+            {historySourceTruncated ? (
+              <p className="mt-2 text-xs font-medium text-semantic-warning">
+                {language === 'PT'
+                  ? 'Há mais histórico além deste lote. Refine os filtros ou continue carregando para não interpretar este recorte como o histórico inteiro.'
+                  : language === 'ES'
+                    ? 'Hay más historial fuera de este lote. Ajusta los filtros o sigue cargando para no interpretar este recorte como todo el historial.'
+                    : 'There is more history beyond this batch. Refine the filters or keep loading so this slice is not mistaken for the complete history.'}
+              </p>
             ) : null}
           </Surface>
 
