@@ -34,6 +34,7 @@ on:
       - "scripts/test-count-free-form-note.ts"
       - "scripts/test-count-free-form-note-emulator.ts"
       - "scripts/test-count-paper-first-simple.ts"
+      - "scripts/test-universal-capture-i1.ts"
       - "scripts/test-universal-evidence-firestore-emulator.ts"
       - "scripts/test-universal-evidence-review-emulator.ts"
       - "scripts/test-universal-evidence-review-model.ts"

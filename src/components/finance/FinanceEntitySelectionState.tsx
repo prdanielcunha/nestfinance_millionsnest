@@ -170,12 +170,12 @@ export function FinanceEntitySelectionState({ canManageFinance }: { canManageFin
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0 truncate text-sm font-semibold text-text-primary">{entity.displayName}</span>
                     {lastUsed ? (
-                      <span className="shrink-0 rounded-full bg-accent-primary/10 px-2 py-1 text-[10px] font-semibold text-accent-primary">
+                      <span className="shrink-0 rounded-full bg-accent-primary/10 px-2 py-1 text-xs font-semibold text-accent-primary">
                         {copy.currentHint}
                       </span>
                     ) : null}
                   </div>
-                  <span className="mt-2 block text-xs font-medium text-text-secondary">{copy.useEntity}</span>
+                  <span className="mt-2 block text-sm font-medium text-text-secondary">{copy.useEntity}</span>
                 </button>
               );
             })}

@@ -15,6 +15,7 @@ import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { useAuth } from '@/src/hooks/useAuth';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
 import {
   getCompatibleAccounts,
@@ -97,6 +98,7 @@ function TransactionCreateContent() {
   const [searchParams] = useSearchParams();
   const { accessState } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
+  const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const { createDraft, createAndSubmit } = useTransactions();
   const { language } = useLanguage();
   const copy = TRANSACTION_CREATE_COPY[language];
@@ -793,6 +795,11 @@ function TransactionCreateContent() {
       materialPayloadString,
     );
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_create_draft',
+      dedupeKey: `transaction_create_draft:${idempotencyKey}`,
+    });
     setSaving(true);
     const currentEpochOnSave = epochRef.current;
 
@@ -808,6 +815,11 @@ function TransactionCreateContent() {
       lastMaterialPayloadRef.current = null;
       setLastReqId(null);
       pendingSubmitRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'transaction_create_draft',
+        dedupeKey: `transaction_create_draft_complete:${response.transactionId}`,
+      });
 
       navigate(
         APP_ROUTES.transactionDetail.replace(
@@ -873,6 +885,11 @@ function TransactionCreateContent() {
       materialPayloadString,
     );
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_submit_review',
+      dedupeKey: `transaction_submit_review:${idempotencyKey}`,
+    });
     setSaving(true);
     const currentEpochOnSave = epochRef.current;
 
@@ -892,6 +909,11 @@ function TransactionCreateContent() {
       lastMaterialPayloadRef.current = null;
       setLastReqId(null);
       pendingSubmitRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'transaction_submit_review',
+        dedupeKey: `transaction_submit_review_complete:${response.transactionId}`,
+      });
 
       navigate(
         APP_ROUTES.transactionDetail.replace(
