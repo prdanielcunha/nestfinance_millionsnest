@@ -15,7 +15,7 @@ import {
 import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluateReviewReadiness.js';
 
 const INDEX_CANDIDATE_LIMIT = 500;
-const FALLBACK_SCAN_LIMIT = 3000;
+const FALLBACK_SCAN_LIMIT = 1000;
 const RESULT_LIMIT_MAX = 100;
 const ALLOCATION_CHUNK_SIZE = 30;
 
