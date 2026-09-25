@@ -70,7 +70,8 @@
     "benchmark:document-intelligence": "tsx scripts/benchmark-document-intelligence.ts",
     "test:roadmap-cycle-09": "tsx scripts/test-roadmap-cycle-09-operational-close.ts",
     "test:roadmap-cycle-10": "tsx scripts/test-roadmap-cycle-10-accountant-certification.ts",
-    "test:premium-roadmap-20260925": "tsx scripts/test-premium-roadmap-20260925.ts"
+    "test:premium-roadmap-20260925": "tsx scripts/test-premium-roadmap-20260925.ts",
+    "test:transaction-create-no-posting": "tsx scripts/test-transaction-create-no-posting.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
