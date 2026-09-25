@@ -20,6 +20,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
 import { countPaperService } from '@/src/services/countPaperService';
 import { countDraftPersistence } from '@/src/services/countDraftPersistence';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { COUNT_COPY } from './count/countCopy';
 import { CountStartJourney, type CountStartMode } from './count/CountStartJourney';
 import { formatReviewDate, formatReviewMoney } from './transactions/transactionReviewModel';
@@ -129,6 +130,11 @@ function CountHomeContent() {
       createAttemptRef.current = { fingerprint, key: makeToken('idcount_create') };
     }
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: `count_start_${input.mode}`,
+      dedupeKey: `count_start:${fingerprint}:${input.mode}`,
+    });
     setCreating(true);
     setCreateError(false);
     try {
@@ -143,6 +149,11 @@ function CountHomeContent() {
         },
       );
       createAttemptRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: `count_start_${input.mode}`,
+        dedupeKey: `count_start_complete:${result.sessionId}`,
+      });
 
       if (input.mode === 'free_form') {
         navigate(APP_ROUTES.countFreeFormCapture.replace(':sessionId', result.sessionId));
@@ -220,6 +231,13 @@ function CountHomeContent() {
               creating={creating}
               createError={createError}
               onStart={handleCreate}
+              onResume={(item) => {
+                recordFinanceJourneyMetric('flow_start', {
+                  organizationId,
+                  flow: 'count_resume',
+                  dedupeKey: `count_resume:${item.id}:${item.version}`,
+                });
+              }}
             />
           ) : null}
 
