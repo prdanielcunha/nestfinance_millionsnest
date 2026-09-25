@@ -64,6 +64,12 @@ async function run() {
     countSession,
     today,
     roleWorkspace,
+    setupPage,
+    financePage,
+    balancePage,
+    reportsPage,
+    financeSelect,
+    accountantPanel,
     languageContext,
     indexHtml,
   ] = await Promise.all([
@@ -79,6 +85,12 @@ async function run() {
     read('src/pages/finance/count/CountSessionPage.tsx'),
     read('src/pages/finance/TodayActionCenter.tsx'),
     read('src/components/finance/RoleWorkspacePanel.tsx'),
+    read('src/pages/finance/SetupPage.tsx'),
+    read('src/pages/finance/FinancePage.tsx'),
+    read('src/pages/finance/BalancePage.tsx'),
+    read('src/pages/finance/ReportsPage.tsx'),
+    read('src/components/finance/FinanceSelect.tsx'),
+    read('src/pages/finance/AccountantPackagePanel.tsx'),
     read('src/contexts/LanguageContext.tsx'),
     read('index.html'),
   ]);
@@ -113,10 +125,36 @@ async function run() {
   assert.ok(!shell.includes('text-[10px]'));
   assert.ok(!shell.includes('text-[11px]'));
 
-  for (const source of [countPage, countStartJourney, countSession, today, roleWorkspace]) {
+  for (const source of [
+    countPage,
+    countStartJourney,
+    countSession,
+    today,
+    roleWorkspace,
+    setupPage,
+    financePage,
+    balancePage,
+    reportsPage,
+    financeSelect,
+    accountantPanel,
+  ]) {
     assert.ok(!source.includes('text-[10px]'), 'Operational source contains 10px text');
     assert.ok(!source.includes('text-[11px]'), 'Operational source contains 11px text');
   }
+
+  assert.ok(setupPage.includes('<FinanceSelect'), 'Setup uses explanatory select patterns');
+  assert.ok(
+    setupPage.includes("PT: {") && setupPage.includes("EN: {") && setupPage.includes("ES: {"),
+    'Setup copy is localized in PT, EN and ES',
+  );
+  assert.ok(
+    reportsPage.includes("PT: {\n    area: 'Relatórios'"),
+    'Reports area label is localized in Portuguese',
+  );
+  assert.ok(
+    accountantPanel.includes('<FinanceSelect'),
+    'Accountant package profiles use explanatory selection instead of an opaque native select',
+  );
 
   assert.ok(flowStep.includes('stepLabel: string'));
   assert.ok(flowFeedback.includes("aria-live={assertive ? 'assertive' : 'polite'}"));

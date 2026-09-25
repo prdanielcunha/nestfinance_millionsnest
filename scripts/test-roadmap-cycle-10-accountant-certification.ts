@@ -93,6 +93,11 @@ const files = {
   rules: await fs.readFile('firestore.rules', 'utf8'),
   lastVisit: await fs.readFile('server/vercel-handlers/finance/sinceLastVisitSummary.ts', 'utf8'),
   today: await fs.readFile('src/pages/finance/TodayActionCenter.tsx', 'utf8'),
+  freshness: await fs.readFile('src/services/financeFreshness.ts', 'utf8'),
+  transactionsService: await fs.readFile('src/services/transactionsService.ts', 'utf8'),
+  countService: await fs.readFile('src/services/countService.ts', 'utf8'),
+  inboxService: await fs.readFile('src/services/universalEvidenceInboxService.ts', 'utf8'),
+  captureService: await fs.readFile('src/services/universalCaptureService.ts', 'utf8'),
   offlineQueue: await fs.readFile('src/services/universalCaptureOfflineQueue.ts', 'utf8'),
   review: await fs.readFile('src/pages/finance/transactions/TransactionReviewDetailPage.tsx', 'utf8'),
   reconciliation: await fs.readFile('src/pages/finance/balance/ReconciliationMatchPreviewPanel.tsx', 'utf8'),
@@ -125,6 +130,16 @@ verify(files.rules.includes('match /financeEntities/{entityId}/editLocks/{docume
 verify(files.gateway.includes("case 'since-last-visit-summary'"), 'since-last-visit summary is gateway scoped');
 verify(files.lastVisit.includes("getAuditRef()") && files.lastVisit.includes('.count().get()'), 'since-last-visit reads canonical audit facts with an aggregate');
 verify(files.today.includes('<SinceLastVisitCard'), 'Today surfaces canonical changes since the previous visit');
+verify(files.today.includes('subscribeFinanceDataChanges'), 'Today reacts to scoped finance invalidation events');
+verify(files.today.includes("window.addEventListener('focus'"), 'Today refreshes canonical priority state when the app regains focus');
+verify(files.today.includes("window.addEventListener('online'"), 'Today refreshes canonical priority state after reconnecting');
+verify(files.today.includes("document.addEventListener('visibilitychange'"), 'Today refreshes when the visible tab becomes active again');
+verify(files.today.includes('15_000'), 'Today has a bounded low-frequency freshness fallback');
+verify(files.freshness.includes('BroadcastChannel'), 'finance freshness invalidation crosses open tabs without a new backend service');
+verify(files.transactionsService.includes('notifyFinanceDataChanged'), 'transaction mutations invalidate Today');
+verify(files.countService.includes('notifyFinanceDataChanged'), 'Count mutations invalidate Today');
+verify(files.inboxService.includes('notifyFinanceDataChanged'), 'Inbox mutations invalidate Today');
+verify(files.captureService.includes('notifyFinanceDataChanged'), 'new evidence invalidates Today after finalize');
 
 verify(files.offlineQueue.includes('caches.open'), 'offline universal capture persists locally using browser Cache Storage');
 verify(files.review.includes('useOnlineStatus') && files.review.includes('!online'), 'review approval remains blocked offline');

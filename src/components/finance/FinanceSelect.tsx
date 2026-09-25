@@ -248,7 +248,7 @@ export function FinanceSelect({
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-base">{option.label}</span>
                     {option.badge ? (
-                      <span className="shrink-0 rounded-full border border-border-subtle bg-surface-base px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                      <span className="shrink-0 rounded-full border border-border-subtle bg-surface-base px-2 py-0.5 text-xs font-medium text-text-secondary">
                         {option.badge}
                       </span>
                     ) : null}
