@@ -21,6 +21,7 @@ import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import {
   formatReviewDate,
   formatReviewMoney,
@@ -89,6 +90,8 @@ function TransactionReviewDetailContent() {
   const [searchParams] = useSearchParams();
   const { transactionId } = useParams<{ transactionId: string }>();
   const { activeFinanceEntityId } = useFinanceEntity();
+  const { accessState } = useAuth();
+  const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const { language } = useLanguage();
   const copy = TRANSACTION_REVIEW_DETAIL_COPY[language];
   const { getTransactionDetail, returnToDraft, approveForPosting } = useTransactions();
@@ -204,6 +207,11 @@ function TransactionReviewDetailContent() {
       return;
     }
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_review_approve',
+      dedupeKey: `transaction_review_approve:${data.transaction.id}:${data.transaction.version}`,
+    });
     setActionState('approve');
     setActionError(false);
     const actionEpoch = epochRef.current;
@@ -223,6 +231,11 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       approveIdempotencyKeyRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'transaction_review_approve',
+        dedupeKey: `transaction_review_approve_complete:${data.transaction.id}:${data.transaction.version}`,
+      });
       continueReview();
     } catch {
       if (actionEpoch !== epochRef.current) return;
@@ -239,6 +252,11 @@ function TransactionReviewDetailContent() {
       return;
     }
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_review_return',
+      dedupeKey: `transaction_review_return:${data.transaction.id}:${data.transaction.version}`,
+    });
     setActionState('return');
     setActionError(false);
     const actionEpoch = epochRef.current;
@@ -259,6 +277,11 @@ function TransactionReviewDetailContent() {
 
       if (actionEpoch !== epochRef.current) return;
       returnIdempotencyKeyRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'transaction_review_return',
+        dedupeKey: `transaction_review_return_complete:${data.transaction.id}:${data.transaction.version}`,
+      });
       continueReview();
     } catch {
       if (actionEpoch !== epochRef.current) return;
@@ -529,15 +552,15 @@ function TransactionReviewDetailContent() {
                       <div key={allocation.id || `${allocation.categoryId || 'allocation'}-${index}`} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center sm:px-6">
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.category}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.category}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.categorySnapshot?.name || allocation.categoryName || copy.notInformed}</p>
                           </div>
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.fund}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.fund}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.fundSnapshot?.name || allocation.fundName || copy.notInformed}</p>
                           </div>
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.costCenter}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.costCenter}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.costCenterSnapshot?.name || allocation.costCenterName || copy.notInformed}</p>
                           </div>
                         </div>

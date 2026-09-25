@@ -238,7 +238,7 @@ export default function FinanceAccountsPage() {
                       <h3 className="text-base font-medium text-text-base truncate flex items-center gap-2">
                         {account.name}
                         {!account.active && (
-                          <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-500 uppercase tracking-wide">
+                          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-500 uppercase tracking-wide">
                             Arquivada
                           </span>
                         )}

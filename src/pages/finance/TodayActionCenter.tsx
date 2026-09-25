@@ -12,6 +12,7 @@ import {
   FilePenLine,
   Inbox,
   RefreshCw,
+  Receipt,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -45,21 +46,27 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
-const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string }> = {
+const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string; resumeTitle: string; resumeAction: string }> = {
   PT: {
     title: 'Vai contar um culto?',
     body: 'Comece por aqui. O NestFinance já usa a igreja ativa e guia uma decisão por vez.',
     action: 'Iniciar contagem',
+    resumeTitle: 'Você tem uma contagem em andamento',
+    resumeAction: 'Continuar contagem',
   },
   EN: {
     title: 'Counting a service?',
     body: 'Start here. NestFinance already uses the active church and guides one decision at a time.',
     action: 'Start count',
+    resumeTitle: 'You have a count in progress',
+    resumeAction: 'Continue count',
   },
   ES: {
     title: '¿Vas a contar un culto?',
     body: 'Empieza aquí. NestFinance ya usa la iglesia activa y guía una decisión por vez.',
     action: 'Iniciar conteo',
+    resumeTitle: 'Tienes un conteo en curso',
+    resumeAction: 'Continuar conteo',
   },
 };
 
@@ -744,6 +751,15 @@ export function TodayActionCenter() {
 
   const effectiveSummary = summary || EMPTY_SUMMARY;
   const effectiveInboxSummary = inboxSummary || EMPTY_INBOX_SUMMARY;
+  const activeCount = countItems.find((item) =>
+    item.status === 'counting_a' ||
+    item.status === 'counting_b' ||
+    item.status === 'divergent' ||
+    item.status === 'recounting'
+  ) || null;
+  const countActionRoute = activeCount
+    ? APP_ROUTES.countSession.replace(':sessionId', activeCount.id)
+    : APP_ROUTES.count;
 
   const priority = useMemo(
     () =>
@@ -1043,7 +1059,7 @@ export function TodayActionCenter() {
                 {copy.today}
               </p>
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
-                {COUNT_PRIMARY_COPY[language].title}
+                {activeCount ? COUNT_PRIMARY_COPY[language].resumeTitle : COUNT_PRIMARY_COPY[language].title}
               </h2>
               <p className="mt-2 leading-relaxed text-text-secondary">
                 {COUNT_PRIMARY_COPY[language].body}
@@ -1052,9 +1068,9 @@ export function TodayActionCenter() {
             <Button
               size="lg"
               className="w-full shrink-0 sm:w-auto"
-              onClick={() => navigate(APP_ROUTES.count)}
+              onClick={() => navigate(countActionRoute)}
             >
-              {COUNT_PRIMARY_COPY[language].action}
+              {activeCount ? COUNT_PRIMARY_COPY[language].resumeAction : COUNT_PRIMARY_COPY[language].action}
             </Button>
           </div>
         </Surface>
@@ -1182,29 +1198,29 @@ export function TodayActionCenter() {
           <h2 id="today-operational-title" className="text-sm font-semibold text-text-primary">{copy.operationalTitle}</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-text-muted">{copy.operationalSubtitle}</p>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Surface variant="secondary" radius="lg" className="p-4">
+        <Surface variant="secondary" radius="lg" className="grid overflow-hidden sm:grid-cols-2 lg:grid-cols-4">
+          <div className="p-4 sm:border-r sm:border-border-subtle lg:border-r">
             <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-success">
               {operational ? formatMoney(operational.incomeCents, language) : '—'}
             </div>
-            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayIncomeMetric}</div>
-          </Surface>
-          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="mt-1 text-sm font-medium text-text-muted">{copy.todayIncomeMetric}</div>
+          </div>
+          <div className="border-t border-border-subtle p-4 sm:border-t-0 lg:border-r">
             <div className="nf-financial-number text-xl font-semibold tracking-tight text-semantic-danger">
               {operational ? formatMoney(operational.expenseCents, language) : '—'}
             </div>
-            <div className="mt-1 text-xs font-medium text-text-muted">{copy.todayExpenseMetric}</div>
-          </Surface>
-          <Surface variant="secondary" radius="lg" className="p-4">
+            <div className="mt-1 text-sm font-medium text-text-muted">{copy.todayExpenseMetric}</div>
+          </div>
+          <div className="border-t border-border-subtle p-4 sm:border-r lg:border-t-0">
             <div className="nf-financial-number text-2xl font-semibold tracking-tight text-text-primary">
               {operational ? operational.dueSoonCount : '—'}
             </div>
-            <div className="mt-1 text-xs font-medium text-text-muted">{copy.dueSoonMetric}</div>
+            <div className="mt-1 text-sm font-medium text-text-muted">{copy.dueSoonMetric}</div>
             {operational?.dueSoonTruncated ? (
-              <p className="mt-2 text-xs leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
+              <p className="mt-2 text-sm leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
             ) : null}
-          </Surface>
-          <Surface variant="secondary" radius="lg" className="p-4">
+          </div>
+          <div className="border-t border-border-subtle p-4 lg:border-t-0">
             <div className="nf-financial-number text-xl font-semibold tracking-tight text-text-primary">
               {operational?.balance.state === 'available'
                 ? formatMoney(operational.balance.amountCents, language)
@@ -1212,12 +1228,12 @@ export function TodayActionCenter() {
                   ? copy.balanceUnavailable
                   : '—'}
             </div>
-            <div className="mt-1 text-xs font-medium text-text-muted">{copy.balanceMetric}</div>
+            <div className="mt-1 text-sm font-medium text-text-muted">{copy.balanceMetric}</div>
             {operational?.balance.state === 'unavailable' ? (
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.balanceHint}</p>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.balanceHint}</p>
             ) : null}
-          </Surface>
-        </div>
+          </div>
+        </Surface>
       </section>
 
       <section aria-labelledby="today-summary-title">
@@ -1238,20 +1254,35 @@ export function TodayActionCenter() {
             </button>
           ) : null}
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {summaryItems.map((item) => (
-            <Surface key={item.id} variant="secondary" radius="lg" className="p-4">
+        <Surface variant="secondary" radius="lg" className="grid overflow-hidden sm:grid-cols-2 lg:grid-cols-4">
+          {summaryItems.map((item, index) => (
+            <div
+              key={item.id}
+              className={`p-4 ${index > 0 ? 'border-t border-border-subtle sm:border-t-0 sm:border-l' : ''}`}
+            >
               <div className={`nf-financial-number text-2xl font-semibold tracking-tight ${item.emphasis}`}>{item.value}</div>
-              <div className="mt-1 text-xs font-medium text-text-muted">{item.label}</div>
-            </Surface>
+              <div className="mt-1 text-sm font-medium text-text-muted">{item.label}</div>
+            </div>
           ))}
-        </div>
+        </Surface>
       </section>
 
       {canCreate ? (
         <section aria-labelledby="today-quick-title">
           <h2 id="today-quick-title" className="mb-3 text-sm font-semibold text-text-primary">{copy.quickTitle}</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={`grid gap-3 ${canCount ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
+            {canCount ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                className="justify-start"
+                leadingIcon={<Receipt className="h-5 w-5 text-accent-primary" />}
+                onClick={() => navigate(countActionRoute)}
+              >
+                {activeCount ? COUNT_PRIMARY_COPY[language].resumeAction : COUNT_PRIMARY_COPY[language].action}
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               size="lg"

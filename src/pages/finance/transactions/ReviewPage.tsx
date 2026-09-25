@@ -602,7 +602,7 @@ function ReviewContent() {
                           <span className="text-xs font-medium text-text-muted md:text-sm md:text-text-secondary">
                             {date}
                           </span>
-                          <span className="inline-flex rounded-full border border-semantic-warning/20 bg-semantic-warning/10 px-2.5 py-1 text-[11px] font-semibold text-semantic-warning md:hidden">
+                          <span className="inline-flex rounded-full border border-semantic-warning/20 bg-semantic-warning/10 px-2.5 py-1 text-xs font-semibold text-semantic-warning md:hidden">
                             {copy.awaitingReview}
                           </span>
                         </div>

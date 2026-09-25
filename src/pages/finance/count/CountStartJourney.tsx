@@ -25,6 +25,7 @@ type Props = {
     serviceDate: string;
     mode: CountStartMode;
   }) => Promise<void> | void;
+  onResume?: (item: CountSessionListItem) => void;
 };
 
 type JourneyStep = 'context' | 'details' | 'method';
@@ -51,6 +52,8 @@ const COPY = {
     otherBody: 'Você informa apenas o nome e a data.',
     continue: 'Continuar uma contagem',
     continueBody: 'Retome exatamente de onde parou.',
+    secondCounter: 'Entrar como segundo contador',
+    secondCounterBody: 'Recebeu um código? Entre sem ver os valores da primeira pessoa.',
     training: 'Treinar sem mexer em dados reais',
     trainingBody: 'Pratique com valores fictícios. Nada será salvo.',
     detailsTitle: 'Confira o culto',
@@ -91,6 +94,8 @@ const COPY = {
     otherBody: 'You only enter the name and date.',
     continue: 'Continue a count',
     continueBody: 'Resume exactly where you stopped.',
+    secondCounter: 'Join as second counter',
+    secondCounterBody: 'Received a code? Join without seeing the first person\'s values.',
     training: 'Practice without real data',
     trainingBody: 'Practice with fake values. Nothing is saved.',
     detailsTitle: 'Check the service',
@@ -131,6 +136,8 @@ const COPY = {
     otherBody: 'Solo informas el nombre y la fecha.',
     continue: 'Continuar un conteo',
     continueBody: 'Retoma exactamente donde te detuviste.',
+    secondCounter: 'Entrar como segundo contador',
+    secondCounterBody: '¿Recibiste un código? Entra sin ver los valores de la primera persona.',
     training: 'Practicar sin datos reales',
     trainingBody: 'Practica con valores ficticios. Nada se guarda.',
     detailsTitle: 'Revisa el culto',
@@ -200,6 +207,7 @@ export function CountStartJourney({
   creating,
   createError,
   onStart,
+  onResume,
 }: Props) {
   const navigate = useNavigate();
   const copy = COPY[language];
@@ -281,16 +289,17 @@ export function CountStartJourney({
               emphasis
               title={copy.continue}
               body={`${resumable.serviceLabel} · ${resumable.serviceDate}`}
-              onClick={() =>
-                navigate(APP_ROUTES.countSession.replace(':sessionId', resumable.id))
-              }
+              onClick={() => {
+                onResume?.(resumable);
+                navigate(APP_ROUTES.countSession.replace(':sessionId', resumable.id));
+              }}
             />
           ) : null}
           <Option title={copy.today} body={copy.todayBody} onClick={() => chooseContext('today')} />
           <Option title={copy.other} body={copy.otherBody} onClick={() => chooseContext('other')} />
           <Option
-            title={language === 'PT' ? 'Entrar como segundo contador' : language === 'ES' ? 'Entrar como segundo contador' : 'Join as second counter'}
-            body={language === 'PT' ? 'Recebeu um código? Entre sem ver os valores da primeira pessoa.' : language === 'ES' ? '¿Recibiste un código? Entra sin ver los valores de la primera persona.' : 'Received a code? Join without seeing the first person\'s values.'}
+            title={copy.secondCounter}
+            body={copy.secondCounterBody}
             onClick={() => navigate(APP_ROUTES.countJoin)}
           />
           <Option

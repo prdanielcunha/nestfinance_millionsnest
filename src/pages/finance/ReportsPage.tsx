@@ -465,7 +465,7 @@ function ComparisonCard({
 }) {
   const Icon = metric.direction === 'higher' ? TrendingUp : metric.direction === 'lower' ? TrendingDown : CheckCircle2;
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+    <div className="rounded-2xl bg-surface-secondary/70 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{label}</p>
@@ -957,7 +957,7 @@ function ReportsContent() {
                   <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.operationalBody}</p>
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+                    <div className="rounded-2xl bg-surface-secondary/70 p-4">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                         <h3 className="text-sm font-semibold text-text-primary">{copy.transactionPipeline}</h3>
@@ -970,7 +970,7 @@ function ReportsContent() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+                    <div className="rounded-2xl bg-surface-secondary/70 p-4">
                       <div className="flex items-center gap-2">
                         <Landmark className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                         <h3 className="text-sm font-semibold text-text-primary">{copy.counts}</h3>
@@ -982,7 +982,7 @@ function ReportsContent() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+                    <div className="rounded-2xl bg-surface-secondary/70 p-4">
                       <div className="flex items-center gap-2">
                         <FileSearch className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                         <h3 className="text-sm font-semibold text-text-primary">{copy.documents}</h3>
@@ -994,7 +994,7 @@ function ReportsContent() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border-subtle bg-surface-elevated p-4">
+                    <div className="rounded-2xl bg-surface-secondary/70 p-4">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                         <h3 className="text-sm font-semibold text-text-primary">{copy.reconciliation}</h3>

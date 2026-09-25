@@ -94,7 +94,7 @@ export function FinanceCommandPalette({ open, onClose, commands, copy }: Props) 
 
     return (
       <div>
-        <p className="px-3 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">
+        <p className="px-3 pb-2 pt-3 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
           {label}
         </p>
         <div className="space-y-1">
@@ -157,7 +157,7 @@ export function FinanceCommandPalette({ open, onClose, commands, copy }: Props) 
             placeholder={copy.placeholder}
             className="h-14 w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
           />
-          <kbd className="hidden rounded-lg border border-border-subtle bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-muted sm:inline">
+          <kbd className="hidden rounded-lg border border-border-subtle bg-surface-secondary px-2 py-1 text-xs font-semibold text-text-muted sm:inline">
             ESC
           </kbd>
         </div>

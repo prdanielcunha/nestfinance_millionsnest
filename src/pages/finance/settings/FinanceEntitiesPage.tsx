@@ -184,9 +184,9 @@ export default function FinanceEntitiesPage() {
                                   <div className="text-sm text-text-muted mt-1 truncate">{entity.taxIdFormatted}</div>
                                   <div className="flex items-center gap-2 mt-3 flex-wrap">
                                      {entity.active ? (
-                                        <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400">Ativa</span>
+                                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400">Ativa</span>
                                      ) : (
-                                        <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-surface-secondary text-text-muted">Inativa</span>
+                                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-surface-secondary text-text-muted">Inativa</span>
                                      )}
                                      
                                      {entity.city && (

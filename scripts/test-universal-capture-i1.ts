@@ -24,10 +24,30 @@ verify(copy.includes('No se creará ningún asiento automáticamente.'), 'ES cop
 verify(['camera', 'photo', 'file', 'clipboard'].every((source) => page.includes(`'${source}'`)), 'camera, photo, file and clipboard sources are present');
 verify(page.includes('navigator.clipboard?.read') && page.includes("choose('file')"), 'clipboard is capability-detected with file selection always available as fallback');
 verify(['queued', 'uploading', 'analyzing', 'ready', 'duplicate', 'analysis_unavailable', 'unsupported', 'too_large', 'corrupt', 'error'].every((state) => page.includes(`'${state}'`)), 'all deterministic batch UX states are represented');
-verify(shell.includes("t('shortcut_income')") && shell.includes("navigateFromFab('income')"), 'income quick action is preserved');
-verify(shell.includes("t('shortcut_expense')") && shell.includes("navigateFromFab('expense')"), 'expense quick action is preserved');
-verify(shell.includes("t('shortcut_transfer')") && shell.includes("navigateFromFab('transfer')"), 'transfer quick action is preserved');
-verify(shell.includes('copy.capture') && shell.includes('APP_ROUTES.universalCapture'), 'Universal Capture is added as a fourth quick action');
+verify(
+  shell.includes("id: 'income'") &&
+    shell.includes("label: t('shortcut_income')") &&
+    shell.includes("`${APP_ROUTES.transactionCreate}?direction=income`"),
+  'income quick action is preserved',
+);
+verify(
+  shell.includes("id: 'expense'") &&
+    shell.includes("label: t('shortcut_expense')") &&
+    shell.includes("`${APP_ROUTES.transactionCreate}?direction=expense`"),
+  'expense quick action is preserved',
+);
+verify(
+  shell.includes("id: 'transfer'") &&
+    shell.includes("label: t('shortcut_transfer')") &&
+    shell.includes("`${APP_ROUTES.transactionCreate}?direction=transfer`"),
+  'transfer quick action is preserved',
+);
+verify(
+  shell.includes("id: 'capture'") &&
+    shell.includes('label: copy.capture') &&
+    shell.includes('route: APP_ROUTES.universalCapture'),
+  'Universal Capture remains a first-class quick action',
+);
 verify(shell.includes('aria-expanded={fabOpen}') && shell.includes("event.key === 'Escape'") && shell.includes('fabButtonRef.current?.focus()'), 'FAB keyboard and focus behavior is preserved');
 verify(page.includes("hasEffectiveCapability(accessState, 'finance.create_drafts')"), 'capture route fails closed on finance.create_drafts capability');
 verify(page.includes('const pinned = { organizationId, financeEntityId: activeFinanceEntityId }') && page.includes('contextRef.current'), 'batch processing pins organization and finance entity');

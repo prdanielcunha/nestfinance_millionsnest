@@ -10,6 +10,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countCaptureService } from '@/src/services/countCaptureService';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import {
   COUNT_CAPTURE_ORIGINAL_MAX_BYTES,
   isSupportedCountCaptureOriginalType,
@@ -153,6 +154,11 @@ function CountCaptureContent() {
       attemptRef.current = { fingerprint, startKey: token('idcountcapture_start'), finalizeKey: token('idcountcapture_finalize') };
     }
 
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'count_paper_capture',
+      dedupeKey: `count_paper_capture_start:${attemptRef.current.startKey}`,
+    });
     setSending(true); setError(null);
     try {
       const started = await countCaptureService.start(organizationId, activeFinanceEntityId, {
@@ -178,6 +184,11 @@ function CountCaptureContent() {
         requestId: token('req'),
       });
       attemptRef.current = null;
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'count_paper_capture',
+        dedupeKey: `count_paper_capture_complete:${finalized.canonicalCaptureId}`,
+      });
       navigate(APP_ROUTES.countCaptureReview.replace(':captureId', finalized.canonicalCaptureId));
     } catch { setError(copy.safeError); }
     finally { setSending(false); }

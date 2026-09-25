@@ -31,6 +31,7 @@ import {
 import { universalCaptureService } from '@/src/services/universalCaptureService';
 import { universalEvidenceInboxService } from '@/src/services/universalEvidenceInboxService';
 import { universalCaptureOfflineQueue } from '@/src/services/universalCaptureOfflineQueue';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { consumeShareTarget } from '@/src/services/shareTargetService';
 import { classifyUniversalDocumentIntent } from '@/shared/finance/universalInputIntent';
 import type { UniversalEvidenceDocumentType } from '@/shared/finance/universalEvidenceReview';
@@ -161,6 +162,11 @@ export default function UniversalCapturePage() {
     setItems((current) => [...current, ...nextItems]);
     for (const item of nextItems) {
       if (item.status !== 'queued') continue;
+      recordFinanceJourneyMetric('flow_start', {
+        organizationId,
+        flow: `universal_capture_${item.sourceKind}`,
+        dedupeKey: `universal_capture_start:${item.id}`,
+      });
       void universalCaptureOfflineQueue.put(organizationId, activeFinanceEntityId, {
         id: item.id,
         file: item.file,
@@ -335,9 +341,19 @@ export default function UniversalCapturePage() {
           evidenceVersion: result.version,
         });
         await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+        recordFinanceJourneyMetric('flow_complete', {
+          organizationId,
+          flow: `universal_capture_${item.sourceKind}`,
+          dedupeKey: `universal_capture_complete:${result.evidenceId}`,
+        });
         return;
       }
       await universalCaptureOfflineQueue.remove(organizationId, activeFinanceEntityId, item.id);
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: `universal_capture_${item.sourceKind}`,
+        dedupeKey: `universal_capture_complete:${result.evidenceId}`,
+      });
       await analyzeAccepted(item, result.evidenceId, result.version);
     } catch (error: any) {
       const code = String(error?.code || error?.message || '');

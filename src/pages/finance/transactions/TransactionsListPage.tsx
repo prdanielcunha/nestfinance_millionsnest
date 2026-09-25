@@ -1107,7 +1107,7 @@ function TransactionsListContent() {
                             <span className={`nf-financial-number text-base font-semibold ${directionUi.amountClass}`}>
                               {formatMoney(item.amountCents, direction, language)}
                             </span>
-                            <span className={`inline-flex min-h-7 items-center rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${statusUi.className}`}>
+                            <span className={`inline-flex min-h-7 items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${statusUi.className}`}>
                               {statusUi.label}
                             </span>
                           </div>
