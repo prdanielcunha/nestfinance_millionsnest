@@ -1,6 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { UniversalEvidenceSourceKind } from '../../shared/finance/universalEvidence';
+import { notifyFinanceDataChanged } from './financeFreshness';
 
 const token = (prefix: string) => `${prefix}_${crypto.randomUUID().replace(/-/g, '')}`;
 async function headers(organizationId: string) {
@@ -47,10 +48,12 @@ export const universalCaptureService = {
       throw error;
     }
 
-    return fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-finalize`, {
+    const result = await fetch(`${FINANCE_GATEWAY_PATH}?operation=universal-evidence-finalize`, {
       method: 'POST',
       headers: await headers(organizationId),
       body: JSON.stringify({ financeEntityId, evidenceId: start.evidenceId, expectedVersion: 1, idempotencyKey: keys.finalize, requestId: token('req') }),
     }).then(json);
+    notifyFinanceDataChanged({ organizationId, financeEntityId, area: 'inbox' });
+    return result;
   },
 };

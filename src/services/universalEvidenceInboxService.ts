@@ -3,6 +3,7 @@ import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { UniversalEvidenceDocumentType } from '../../shared/finance/universalEvidenceReview.js';
 import type { DocumentTransactionAnalysis } from '../../shared/finance/documentTransactionIntelligence.js';
 import type { DocumentIntelligenceGovernance } from '../../shared/finance/intelligenceGovernance.js';
+import { notifyFinanceDataChanged } from './financeFreshness';
 
 export interface UniversalEvidenceInboxItem {
   evidenceId: string;
@@ -174,6 +175,16 @@ async function parseError(response: Response, fallback: string) {
   return error;
 }
 
+async function parseEvidenceMutation<T>(
+  response: Response,
+  organizationId: string,
+  financeEntityId: string,
+): Promise<T> {
+  const result = await response.json() as T;
+  notifyFinanceDataChanged({ organizationId, financeEntityId, area: 'inbox' });
+  return result;
+}
+
 export const universalEvidenceInboxService = {
   async list(
     organizationId: string,
@@ -266,7 +277,7 @@ export const universalEvidenceInboxService = {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_CLASSIFY_FAILED');
     }
 
-    return response.json();
+    return parseEvidenceMutation(response, organizationId, financeEntityId);
   },
 
   async review(
@@ -297,7 +308,7 @@ export const universalEvidenceInboxService = {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_REVIEW_FAILED');
     }
 
-    return response.json();
+    return parseEvidenceMutation(response, organizationId, financeEntityId);
   },
 
   async analyzeTransaction(
@@ -332,7 +343,7 @@ export const universalEvidenceInboxService = {
       throw await parseError(response, 'UNIVERSAL_EVIDENCE_TRANSACTION_ANALYSIS_FAILED');
     }
 
-    return response.json();
+    return parseEvidenceMutation(response, organizationId, financeEntityId);
   },
 
   async intelligenceSummary(organizationId: string, financeEntityId: string): Promise<any> {

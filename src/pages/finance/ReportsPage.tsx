@@ -119,7 +119,7 @@ type ReportsCopy = {
 
 const COPY: Record<Language, ReportsCopy> = {
   PT: {
-    area: 'Reports',
+    area: 'Relatórios',
     title: 'Relatórios e fechamento',
     subtitle: 'Veja o mês como ele realmente está antes de fechar: movimentações, contagens, documentos e conciliação reunidos em uma visão operacional verificável.',
     back: 'Voltar',
@@ -212,7 +212,7 @@ const COPY: Record<Language, ReportsCopy> = {
     },
   },
   EN: {
-    area: 'Reports',
+    area: 'Relatórios',
     title: 'Reports & close',
     subtitle: 'See the month as it really stands before closing: transactions, counts, documents, and reconciliation in one verifiable operational view.',
     back: 'Back',
@@ -305,7 +305,7 @@ const COPY: Record<Language, ReportsCopy> = {
     },
   },
   ES: {
-    area: 'Reports',
+    area: 'Relatórios',
     title: 'Informes y cierre',
     subtitle: 'Vea el mes como realmente está antes de cerrarlo: movimientos, conteos, documentos y conciliación reunidos en una vista operativa verificable.',
     back: 'Volver',
@@ -494,7 +494,7 @@ function blockerRoute(blocker: PeriodCloseBlocker) {
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-border-subtle bg-surface-secondary/60 px-3 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{label}</p>
       <p className="mt-1 text-lg font-semibold tracking-tight text-text-primary">{value}</p>
     </div>
   );
@@ -706,7 +706,7 @@ function ReportsContent() {
                         )}
                       </p>
                       <div className="mt-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.reviewChangedLabel}</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.reviewChangedLabel}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {data.humanReview.changedAreas.map((area) => (
                             <span
@@ -806,7 +806,7 @@ function ReportsContent() {
                         )}
                       />
                     </div>
-                    <p className="mt-4 text-[11px] leading-relaxed text-text-muted">{copy.deterministicNote}</p>
+                    <p className="mt-4 text-xs leading-relaxed text-text-muted">{copy.deterministicNote}</p>
                   </Surface>
 
                   <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
@@ -880,7 +880,7 @@ function ReportsContent() {
                                   formatDateTime(data.humanReview.reviewedAt, language),
                                 )}
                               </p>
-                              <p className="mt-2 text-[11px] leading-relaxed text-text-muted">{copy.reviewSourceBound}</p>
+                              <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.reviewSourceBound}</p>
                             </div>
                           </div>
                         </div>

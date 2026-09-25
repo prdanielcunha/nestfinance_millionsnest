@@ -40,6 +40,7 @@ import {
 } from '@/src/services/universalEvidenceInboxService';
 import { needsAttentionService } from '@/src/services/needsAttentionService';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
+import { subscribeFinanceDataChanges } from '@/src/services/financeFreshness';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
@@ -582,6 +583,44 @@ export function TodayActionCenter() {
     }
   }, [activeFinanceEntityId, canViewFinance, organizationId]);
 
+  const refreshCurrentState = useCallback(async (includeRecent = false) => {
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
+
+    const tasks = [
+      transactionsService.summary(organizationId, activeFinanceEntityId),
+      countService.list(organizationId, activeFinanceEntityId),
+      universalEvidenceInboxService.list(organizationId, activeFinanceEntityId, undefined, 1),
+      needsAttentionService.summary(organizationId, activeFinanceEntityId),
+      ...(includeRecent
+        ? [transactionsService.list(organizationId, activeFinanceEntityId, undefined, undefined, 5)]
+        : []),
+    ];
+
+    const results = await Promise.allSettled(tasks);
+    const [summaryResult, countResult, inboxResult, signalResult, recentResult] = results;
+
+    if (summaryResult?.status === 'fulfilled') {
+      const value = summaryResult.value as Awaited<ReturnType<typeof transactionsService.summary>>;
+      setSummary(value.summary);
+      setOperational(value.operational);
+    }
+    if (countResult?.status === 'fulfilled') {
+      const value = countResult.value as Awaited<ReturnType<typeof countService.list>>;
+      setCountItems(value.items);
+    }
+    if (inboxResult?.status === 'fulfilled') {
+      const value = inboxResult.value as Awaited<ReturnType<typeof universalEvidenceInboxService.list>>;
+      setInboxSummary(value.summary);
+    }
+    if (signalResult?.status === 'fulfilled') {
+      setSignalSummary(signalResult.value as NeedsAttentionSignalSummary);
+    }
+    if (recentResult?.status === 'fulfilled') {
+      const value = recentResult.value as Awaited<ReturnType<typeof transactionsService.list>>;
+      setRecent(value.items);
+    }
+  }, [activeFinanceEntityId, canViewFinance, organizationId]);
+
   useEffect(() => {
     let cancelled = false;
     setLoadedFinanceEntityId(null);
@@ -620,6 +659,52 @@ export function TodayActionCenter() {
       cancelled = true;
     };
   }, [activeFinanceEntityId, canViewFinance, loadCounts, loadInbox, loadRecent, loadSignals, loadSummary, organizationId]);
+
+  useEffect(() => {
+    if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
+
+    let refreshing = false;
+    const refresh = async (includeRecent = false) => {
+      if (refreshing || document.visibilityState === 'hidden' || !navigator.onLine) return;
+      refreshing = true;
+      try {
+        await refreshCurrentState(includeRecent);
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const unsubscribe = subscribeFinanceDataChanges((detail) => {
+      if (
+        detail.organizationId === organizationId &&
+        detail.financeEntityId === activeFinanceEntityId
+      ) {
+        void refresh(true);
+      }
+    });
+
+    const onFocus = () => void refresh(true);
+    const onOnline = () => void refresh(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh(true);
+    };
+
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    const intervalId = window.setInterval(() => {
+      void refresh(false);
+    }, 15_000);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [activeFinanceEntityId, canViewFinance, organizationId, refreshCurrentState]);
 
   useEffect(() => {
     if (

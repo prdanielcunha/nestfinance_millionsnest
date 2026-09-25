@@ -476,7 +476,7 @@ function BalanceContent() {
                       <priority.icon className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">{copy.priorityEyebrow}</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">{copy.priorityEyebrow}</p>
                       <h2 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:text-xl">{priority.title}</h2>
                       <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">{priority.text}</p>
                     </div>
@@ -572,7 +572,7 @@ function BalanceContent() {
                                   <h3 className="max-w-full truncate text-sm font-semibold text-text-primary">
                                     {statement.originalFilename || statement.evidenceId}
                                   </h3>
-                                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.className}`}>
+                                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}>
                                     {status.label}
                                   </span>
                                 </div>

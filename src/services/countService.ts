@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
+import { notifyFinanceDataChanged } from './financeFreshness';
 import type {
   CountComparison,
   CountEntryDraft,
@@ -130,6 +131,19 @@ async function makeHeaders(organizationId: string) {
   return headers;
 }
 
+const COUNT_MUTATION_OPERATIONS = new Set([
+  'count-sessions-create',
+  'count-sessions-discard',
+  'count-sessions-save-first-count',
+  'count-sessions-start-second-count',
+  'count-sessions-refresh-second-invite',
+  'count-sessions-join-second-count',
+  'count-sessions-submit-second-count',
+  'count-sessions-start-recount',
+  'count-sessions-create-proposed-drafts',
+  'count-sessions-submit-recount',
+]);
+
 async function post<T>(
   organizationId: string,
   operation: string,
@@ -150,7 +164,12 @@ async function post<T>(
     throw error;
   }
 
-  return response.json();
+  const result = await response.json() as T;
+  const financeEntityId = typeof body.financeEntityId === 'string' ? body.financeEntityId : null;
+  if (financeEntityId && COUNT_MUTATION_OPERATIONS.has(operation)) {
+    notifyFinanceDataChanged({ organizationId, financeEntityId, area: 'count' });
+  }
+  return result;
 }
 
 export const countService = {

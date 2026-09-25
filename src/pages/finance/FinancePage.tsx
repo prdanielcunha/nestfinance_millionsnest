@@ -392,7 +392,7 @@ export default function FinancePage() {
                       <div className="flex flex-col items-center gap-2 mb-3">
                         <span className="text-base font-medium text-text-primary">{e.displayName}</span>
                         {isLastUsed && (
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs uppercase font-bold tracking-wider text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full">
                             <Clock className="w-3 h-3" />
                             {t('select_entity_last_used')}
                           </span>
@@ -543,7 +543,7 @@ export default function FinancePage() {
                 
                 <div className="flex flex-col gap-4">
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full border border-accent-primary/20 w-fit block mb-2">
+                    <span className="text-xs uppercase font-bold tracking-wider text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full border border-accent-primary/20 w-fit block mb-2">
                       {priorityAction.type === 'HEALTHY' || priorityAction.type === 'READ_ONLY' || priorityAction.type === 'CREATE' ? t('status_ok') : t('status_pending')}
                     </span>
                     <h3 className="text-xl font-bold text-text-primary tracking-tight">
@@ -583,7 +583,7 @@ export default function FinancePage() {
                 className="bg-surface-default border border-border-subtle hover:border-border-strong rounded-2xl p-5 text-left transition-all flex items-center justify-between group cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary"
               >
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-text-secondary font-medium">{t('op_returned')}</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('op_returned')}</span>
                   {draftsState.status === 'loading' ? (
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : draftsState.status === 'error' ? (
@@ -606,7 +606,7 @@ export default function FinancePage() {
                 className="bg-surface-default border border-border-subtle hover:border-border-strong rounded-2xl p-5 text-left transition-all flex items-center justify-between group cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary"
               >
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-text-secondary font-medium">{t('op_awaiting')}</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('op_awaiting')}</span>
                   {reviewState.status === 'loading' ? (
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : reviewState.status === 'error' ? (
@@ -629,7 +629,7 @@ export default function FinancePage() {
                 className="bg-surface-default border border-border-subtle hover:border-border-strong rounded-2xl p-5 text-left transition-all flex items-center justify-between group cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary"
               >
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-text-secondary font-medium">{t('op_drafts')}</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('op_drafts')}</span>
                   {draftsState.status === 'loading' ? (
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : draftsState.status === 'error' ? (
@@ -652,7 +652,7 @@ export default function FinancePage() {
                 className="bg-surface-default border border-border-subtle hover:border-border-strong rounded-2xl p-5 text-left transition-all flex items-center justify-between group cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary"
               >
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-text-secondary font-medium">{t('op_approved')}</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('op_approved')}</span>
                   {approvedState.status === 'loading' ? (
                     <div className="h-6 bg-surface-elevated animate-pulse rounded w-10 mt-2" />
                   ) : approvedState.status === 'error' ? (
