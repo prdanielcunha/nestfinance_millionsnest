@@ -8,7 +8,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   FilePenLine,
-  Filter,
+  SlidersHorizontal,
   Plus,
   RefreshCw,
   Search,
@@ -24,13 +24,16 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
 import { TransactionSavedViews } from '@/src/components/finance/TransactionSavedViews';
 import { TransactionInspector } from '@/src/components/finance/TransactionInspector';
+import { TransactionStatusSignal, getTransactionStatusCopy, getTransactionStatusTone } from '@/src/components/finance/TransactionStatusSignal';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
+import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
 import { parseTransactionNaturalQuery } from '../../../../shared/finance/transactionSearch';
+import { TransactionHistoryFilters, type TransactionHistoryFilterValues } from './TransactionHistoryFilters';
 
 type LoadErrorKind = 'forbidden' | 'entity' | 'cursor' | 'index' | 'generic' | null;
 type Direction = 'income' | 'expense' | 'transfer' | 'liability_settlement' | string;
@@ -130,9 +133,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Outras operações',
     allStages: 'Todas',
     draftsAndCorrections: 'Rascunhos e correções',
-    needsChecking: 'Para conferir',
-    approved: 'Aprovadas',
-    posted: 'Lançadas',
+    needsChecking: 'Aguardando conferência',
+    approved: 'Conferidas — aguardando lançamento',
+    posted: 'Lançadas no financeiro',
     reversed: 'Revertidas',
     correction: 'Para corrigir',
     draft: 'Rascunho',
@@ -198,9 +201,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Other operations',
     allStages: 'All',
     draftsAndCorrections: 'Drafts and corrections',
-    needsChecking: 'Needs checking',
-    approved: 'Approved',
-    posted: 'Posted',
+    needsChecking: 'Waiting for review',
+    approved: 'Checked — waiting for posting',
+    posted: 'Posted to finance',
     reversed: 'Reversed',
     correction: 'Needs correction',
     draft: 'Draft',
@@ -266,9 +269,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Otras operaciones',
     allStages: 'Todas',
     draftsAndCorrections: 'Borradores y correcciones',
-    needsChecking: 'Para revisar',
-    approved: 'Aprobados',
-    posted: 'Registrados',
+    needsChecking: 'Esperando revisión',
+    approved: 'Revisados — esperando registro',
+    posted: 'Registrados en finanzas',
     reversed: 'Revertidos',
     correction: 'Para corregir',
     draft: 'Borrador',
@@ -392,46 +395,14 @@ function directionPresentation(direction: Direction, copy: TransactionsCopy) {
   };
 }
 
-function statusPresentation(item: any, copy: TransactionsCopy) {
-  if (isReturnedDraft(item)) {
-    return {
-      label: copy.correction,
-      className: 'border-semantic-warning/20 bg-semantic-warning/10 text-semantic-warning',
-    };
-  }
-  if (item?.status === 'draft') {
-    return {
-      label: copy.draft,
-      className: 'border-border-subtle bg-surface-secondary text-text-secondary',
-    };
-  }
-  if (item?.status === 'ready_for_review') {
-    return {
-      label: copy.needsChecking,
-      className: 'border-accent-primary/20 bg-accent-primary/10 text-accent-primary',
-    };
-  }
-  if (item?.status === 'approved_for_posting') {
-    return {
-      label: copy.approved,
-      className: 'border-semantic-success/20 bg-semantic-success/10 text-semantic-success',
-    };
-  }
-  if (item?.status === 'posted') {
-    return {
-      label: copy.posted,
-      className: 'border-border-subtle bg-surface-secondary text-text-primary',
-    };
-  }
-  if (item?.status === 'reversed') {
-    return {
-      label: copy.reversed,
-      className: 'border-semantic-danger/20 bg-semantic-danger/10 text-semantic-danger',
-    };
-  }
+function statusPresentation(item: any, language: Language) {
+  const returned = isReturnedDraft(item);
+  const statusCopy = getTransactionStatusCopy(language, item?.status || '', returned);
   return {
-    label: copy.inProgress,
-    className: 'border-border-subtle bg-surface-secondary text-text-secondary',
+    label: statusCopy.label,
+    consequence: statusCopy.consequence,
+    next: statusCopy.next,
+    className: getTransactionStatusTone(item?.status || '', returned),
   };
 }
 
