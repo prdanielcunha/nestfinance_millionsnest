@@ -367,17 +367,17 @@ export function EcosystemOverviewPanel() {
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="truncate text-sm font-semibold text-text-primary">{organization.name}</h3>
                         {isCurrent ? (
-                          <span className="rounded-md bg-accent-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-accent-primary">
+                          <span className="rounded-md bg-accent-primary/10 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-accent-primary">
                             {copy.current}
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-xs font-medium text-text-muted">{state.label}</p>
+                      <p className="mt-1 text-sm font-medium text-text-muted">{state.label}</p>
 
                       {organization.state === 'unavailable' ? (
-                        <p className="mt-3 text-xs leading-relaxed text-text-muted">{copy.unavailableText}</p>
+                        <p className="mt-3 text-sm leading-relaxed text-text-muted">{copy.unavailableText}</p>
                       ) : (
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-text-secondary">
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-text-secondary">
                           <span><strong className="nf-financial-number text-text-primary">{organization.financeEntities}</strong> {copy.entities.toLowerCase()}</span>
                           <span><strong className="nf-financial-number text-text-primary">{organization.openTransactions}</strong> {copy.openWork.toLowerCase()}</span>
                           <span><strong className="nf-financial-number text-text-primary">{organization.readyForReview}</strong> {copy.review.toLowerCase()}</span>
@@ -390,7 +390,7 @@ export function EcosystemOverviewPanel() {
                         type="button"
                         disabled={Boolean(switchingOrganizationId)}
                         onClick={() => void openOrganization(organization.id)}
-                        className="nf-interactive flex min-h-10 shrink-0 items-center gap-1 rounded-xl px-3 text-xs font-semibold text-accent-primary hover:bg-accent-primary/10 disabled:opacity-50"
+                        className="nf-interactive flex min-h-10 shrink-0 items-center gap-1 rounded-xl px-3 text-sm font-semibold text-accent-primary hover:bg-accent-primary/10 disabled:opacity-50"
                       >
                         <span className="hidden sm:inline">{isSwitching ? copy.switching : copy.open}</span>
                         <ChevronRight className={`h-4 w-4 ${isSwitching ? 'animate-pulse' : ''}`} aria-hidden="true" />
@@ -403,7 +403,7 @@ export function EcosystemOverviewPanel() {
           </div>
 
           {overview.truncated ? (
-            <p className="px-2 pb-1 pt-4 text-xs text-text-muted">{copy.truncated}</p>
+            <p className="px-2 pb-1 pt-4 text-sm text-text-muted">{copy.truncated}</p>
           ) : null}
         </div>
       ) : null}
