@@ -68,6 +68,7 @@ export type TransactionWorkspaceFilters = {
   costCenterId?: string | null;
   paymentMethod?: string | null;
   sourceContext?: string | null;
+  origin?: 'all' | 'manual' | 'count' | 'evidence' | 'imported' | 'unknown';
   evidence?: TransactionWorkspaceEvidenceFilter;
   quality?: TransactionWorkspaceQualityFilter;
   amountMinCents?: number | null;
@@ -169,6 +170,10 @@ export function normalizeTransactionWorkspaceFilters(
   const costCenterId = normalizeOptionalId(value.costCenterId);
   const paymentMethod = normalizeOptionalId(value.paymentMethod);
   const sourceContext = normalizeOptionalId(value.sourceContext);
+  const origin =
+    typeof value.origin === 'string' && value.origin
+      ? value.origin
+      : 'all';
   const amountMinCents = normalizeOptionalCents(value.amountMinCents);
   const amountMaxCents = normalizeOptionalCents(value.amountMaxCents);
   const searchQuery = normalizeOptionalSearch(value.searchQuery);
@@ -198,6 +203,7 @@ export function normalizeTransactionWorkspaceFilters(
     costCenterId === undefined ||
     paymentMethod === undefined ||
     sourceContext === undefined ||
+    !['all', 'manual', 'count', 'evidence', 'imported', 'unknown'].includes(origin) ||
     amountMinCents === undefined ||
     amountMaxCents === undefined ||
     searchQuery === undefined
@@ -228,6 +234,7 @@ export function normalizeTransactionWorkspaceFilters(
     costCenterId,
     paymentMethod,
     sourceContext,
+    origin: origin as TransactionWorkspaceFilters['origin'],
     evidence: evidence as TransactionWorkspaceEvidenceFilter,
     quality: quality as TransactionWorkspaceQualityFilter,
     amountMinCents,
