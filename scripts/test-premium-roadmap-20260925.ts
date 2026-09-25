@@ -22,6 +22,9 @@ async function run() {
     more,
     transactionCreate,
     transactionEditGuided,
+    reviewDetail,
+    universalCapture,
+    countCapture,
     router,
   ] = await Promise.all([
     read('src/app/layouts/ShellLayout.tsx'),
@@ -38,6 +41,9 @@ async function run() {
     read('src/pages/finance/MorePage.tsx'),
     read('src/pages/finance/transactions/TransactionCreatePage.tsx'),
     read('src/pages/finance/transactions/TransactionEditGuidedPage.tsx'),
+    read('src/pages/finance/transactions/TransactionReviewDetailPage.tsx'),
+    read('src/pages/finance/capture/UniversalCapturePage.tsx'),
+    read('src/pages/finance/count/CountCapturePage.tsx'),
     read('src/app/router/index.tsx'),
   ]);
 
@@ -87,6 +93,12 @@ async function run() {
   assert.ok(transactionCreate.includes("flow: 'transaction_submit_review'"), 'Submit-to-review journey must be measured');
   assert.ok(countPage.includes("flow: `count_start_${input.mode}`"), 'Count method journeys must be measured');
   assert.ok(countPage.includes("flow: 'count_resume'"), 'Count resume intent must be measured');
+  assert.ok(universalCapture.includes('universal_capture_'), 'Universal capture sources must be measured');
+  assert.ok(countCapture.includes("flow: 'count_paper_capture'"), 'Paper Count capture must be measured');
+  assert.ok(transactionEditGuided.includes("flow: 'transaction_edit_draft'"), 'Draft correction must be measured');
+  assert.ok(transactionEditGuided.includes("flow: 'transaction_edit_submit_review'"), 'Edited draft submit must be measured');
+  assert.ok(reviewDetail.includes("flow: 'transaction_review_approve'"), 'Review approval must be measured');
+  assert.ok(reviewDetail.includes("flow: 'transaction_review_return'"), 'Review return must be measured');
 
   // P2 — no sub-12px operational labels in the touched workspaces.
   for (const [name, source] of [
@@ -98,6 +110,7 @@ async function run() {
     ['Command palette', palette],
     ['Transactions', transactions],
     ['Review', review],
+    ['Review detail', reviewDetail],
     ['More', more],
   ] as const) {
     assert.ok(!source.includes('text-[10px]'), `${name} still contains 10px operational text`);
