@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import {
   TRANSACTION_WORKSPACE_VIEW_MAX_PER_ENTITY,
+  TRANSACTION_WORKSPACE_VIEW_SCHEMA_VERSION,
   normalizeTransactionWorkspaceFilters,
   type TransactionWorkspaceView,
 } from '../../../shared/finance/transactionWorkspaceView.js';
@@ -39,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ownerUid: uid,
         name: String(data.name || ''),
         filters,
-        schemaVersion: 1,
+        schemaVersion: TRANSACTION_WORKSPACE_VIEW_SCHEMA_VERSION,
         createdAt: data.createdAt || null,
         updatedAt: data.updatedAt || null,
       }];
