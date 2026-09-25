@@ -121,6 +121,7 @@ on:
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
       - "scripts/test-roadmap-cycle-09-operational-close.ts"
       - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "scripts/test-premium-roadmap-20260925.ts"
       - "shared/finance/accountantPackage.ts"
       - "shared/finance/financeEditPresence.ts"
       - "shared/finance/usabilityCertification.ts"

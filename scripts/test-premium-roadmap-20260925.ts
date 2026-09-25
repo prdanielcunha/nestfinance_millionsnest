@@ -26,6 +26,15 @@ async function run() {
     universalCapture,
     countCapture,
     router,
+    transactionFilters,
+    transactionStatusSignal,
+    transactionListHandler,
+    transactionSearchHandler,
+    transactionDetailHandler,
+    createDraftHandler,
+    createSubmitHandler,
+    savedViews,
+    indexes,
   ] = await Promise.all([
     read('src/app/layouts/ShellLayout.tsx'),
     read('src/pages/finance/TodayActionCenter.tsx'),
@@ -45,6 +54,15 @@ async function run() {
     read('src/pages/finance/capture/UniversalCapturePage.tsx'),
     read('src/pages/finance/count/CountCapturePage.tsx'),
     read('src/app/router/index.tsx'),
+    read('src/pages/finance/transactions/TransactionHistoryFilters.tsx'),
+    read('src/components/finance/TransactionStatusSignal.tsx'),
+    read('server/vercel-handlers/finance/transactionsList.ts'),
+    read('server/vercel-handlers/finance/transactionSearch.ts'),
+    read('server/vercel-handlers/finance/transactionsDetail.ts'),
+    read('server/vercel-handlers/finance/transactionsCreateDraft.ts'),
+    read('server/vercel-handlers/finance/transactionsCreateAndSubmit.ts'),
+    read('src/components/finance/TransactionSavedViews.tsx'),
+    read('firestore.indexes.json'),
   ]);
 
   // P0 — count is a first-class, capability-safe action everywhere.
@@ -123,6 +141,49 @@ async function run() {
     !reports.includes('rounded-2xl border border-border-subtle bg-surface-elevated p-4'),
     'Reports should not repeat the old nested neutral-card treatment',
   );
+
+  // Consolidated 2026-09-25 historical/accounting experience.
+  assert.ok(transactions.includes('<TransactionHistoryFilters'), 'Transactions must use the dedicated historical filter system');
+  assert.ok(transactions.includes("searchParams.get('dateBase')"), 'Date basis must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('categoryId')"), 'Category filter must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('accountId')"), 'Account filter must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('fundId')"), 'Fund filter must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('origin')"), 'Origin filter must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('evidence')"), 'Evidence filter must be URL-backed');
+  assert.ok(transactions.includes("searchParams.get('quality')"), 'Quality filter must be URL-backed');
+  assert.ok(transactions.includes('historySourceTruncated'), 'Historical source truncation must be disclosed');
+
+  assert.ok(transactionFilters.includes('type="month"'), 'Month shortcut must exist');
+  assert.ok(transactionFilters.includes("['occurred', copy.occurred]"), 'Occurrence date basis must exist');
+  assert.ok(transactionFilters.includes("['competence', copy.competence]"), 'Competence date basis must exist');
+  assert.ok(transactionFilters.includes("['recorded', copy.recorded]"), 'Recorded date basis must exist');
+  assert.ok(transactionFilters.includes('quickCategories'), 'Entity category shortcuts must be derived from real categories');
+  assert.ok(transactionFilters.includes('amountMinCents') && transactionFilters.includes('amountMaxCents'), 'Amount range filters must exist');
+
+  assert.ok(transactionStatusSignal.includes('Conferida — aguardando lançamento'), 'PT checked status must not imply posting');
+  assert.ok(transactionStatusSignal.includes('Checked — waiting for posting'), 'EN checked status must not imply posting');
+  assert.ok(transactionStatusSignal.includes('Revisado — esperando registro'), 'ES checked status must not imply posting');
+  assert.ok(transactionStatusSignal.includes('O saldo não muda'), 'Pre-posting consequence must be explicit');
+
+  assert.ok(transactionListHandler.includes('loadAllocations('), 'List filters must inspect all allocations');
+  assert.ok(transactionListHandler.includes('sourceTruncated'), 'List endpoint must disclose scan truncation');
+  assert.ok(transactionListHandler.includes('financialMutation: false'), 'Historical queries must be read-only');
+  assert.ok(transactionSearchHandler.includes('loadAllocations('), 'Universal search must include allocation context');
+  assert.ok(transactionSearchHandler.includes('categoryNames'), 'Universal search must include category names');
+
+  assert.ok(transactionCreate.includes('competenceDate'), 'Guided create must support optional competence date');
+  assert.ok(createDraftHandler.includes('txPayload.competenceDate'), 'Draft create must persist competence date');
+  assert.ok(createSubmitHandler.includes('txPayload.competenceDate'), 'Create-and-submit must persist competence date');
+
+  assert.ok(transactionDetailHandler.includes("accountingEffectState"), 'Detail must distinguish posted and unposted accounting effects');
+  assert.ok(transactionDetailHandler.includes("Ainda não alterou o saldo contábil"), 'Unposted detail must state that balance is unchanged');
+  assert.ok(transactionDetailHandler.includes('origin'), 'Detail must expose transaction provenance');
+
+  for (const field of ['dateBase', 'categoryId', 'accountId', 'fundId', 'costCenterId', 'paymentMethod', 'origin', 'evidence', 'quality', 'amountMinCents', 'amountMaxCents', 'searchQuery']) {
+    assert.ok(savedViews.includes(`a.${field}`), `Saved view equality must include ${field}`);
+  }
+  assert.ok(indexes.includes('"fieldPath": "competenceDate"'), 'Competence history needs a Firestore index');
+  assert.ok(indexes.includes('"fieldPath": "recordedAt"'), 'Recorded-at history needs a Firestore index');
 
   // Current routes keep the premium guided editor as the primary edit experience.
   assert.ok(

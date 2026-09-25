@@ -18,6 +18,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
+import { TransactionStatusSignal } from '@/src/components/finance/TransactionStatusSignal';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
@@ -29,6 +30,16 @@ import { TRANSACTION_DETAIL_OVERVIEW_COPY } from './transactionDetailOverviewCop
 
 type LoadState = 'loading' | 'ready' | 'error';
 type ActionState = 'submit' | null;
+
+function transactionOriginLabel(origin: unknown, language: 'PT' | 'EN' | 'ES') {
+  const key = String(origin || 'unknown');
+  const labels = {
+    PT: { manual: 'Manual', count: 'Contagem', evidence: 'Comprovante', imported: 'Importado', unknown: 'Não identificada' },
+    EN: { manual: 'Manual', count: 'Count', evidence: 'Evidence', imported: 'Imported', unknown: 'Not identified' },
+    ES: { manual: 'Manual', count: 'Conteo', evidence: 'Comprobante', imported: 'Importado', unknown: 'No identificado' },
+  };
+  return (labels[language] as Record<string, string>)[key] || labels[language].unknown;
+}
 
 function makeRequestToken(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -306,7 +317,6 @@ function TransactionDetailOverviewContent() {
 
   const routeFor = (template: string) => template.replace(':transactionId', transaction.id);
   const directionLabel = copy.directions[direction] || copy.type;
-  const statusLabel = copy.statuses[statusKey] || copy.statuses.unknown;
   const paymentMethodLabel = transaction.paymentMethod
     ? copy.paymentMethods[transaction.paymentMethod] || transaction.paymentMethod
     : copy.notInformed;
@@ -387,9 +397,11 @@ function TransactionDetailOverviewContent() {
                       <span className="rounded-full border border-border-subtle bg-surface-secondary px-3 py-1 text-xs font-semibold text-text-secondary">
                         {directionLabel}
                       </span>
-                      <span className="rounded-full border border-accent-primary/20 bg-accent-primary/10 px-3 py-1 text-xs font-semibold text-accent-primary">
-                        {statusLabel}
-                      </span>
+                      <TransactionStatusSignal
+                        status={transaction.status}
+                        returned={statusKey === 'returned'}
+                        compact
+                      />
                     </div>
                     <p className="mt-4 text-3xl font-semibold tracking-tight text-text-primary tabular-nums sm:text-4xl">
                       {formatReviewMoney(amountCents, language, transaction.currency || 'BRL')}
@@ -435,6 +447,44 @@ function TransactionDetailOverviewContent() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.evidence}</p>
                     <p className="mt-1 text-sm font-medium text-text-primary">{copy.evidenceCount(evidenceCount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                      {language === 'PT' ? 'Origem' : language === 'ES' ? 'Origen' : 'Origin'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-primary">
+                      {transactionOriginLabel(transaction.origin, language)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                      {language === 'PT' ? 'Criado por' : language === 'ES' ? 'Creado por' : 'Created by'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-primary">
+                      {transaction.creatorName || (language === 'PT' ? 'Não identificado' : language === 'ES' ? 'No identificado' : 'Not identified')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                      {language === 'PT' ? 'Competência' : language === 'ES' ? 'Competencia' : 'Accounting period'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-primary">
+                      {transaction.competenceDate
+                        ? formatReviewDate(transaction.competenceDate + 'T12:00:00', language)
+                        : copy.notInformed}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                      {language === 'PT' ? 'Registrado em' : language === 'ES' ? 'Registrado el' : 'Recorded at'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-primary">
+                      {formatReviewDate(transaction.recordedAt, language) || copy.notInformed}
+                    </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">ID</p>
+                    <p className="mt-1 break-all font-mono text-xs text-text-secondary">{transaction.id}</p>
                   </div>
                 </div>
 

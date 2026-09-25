@@ -1,7 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess, hasFinanceCapability } from './accessHelpers.js';
+import { resolveFinanceRequestContext, hasFinanceCapability } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -18,31 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS', details: 'transactionId is required' });
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'UNAUTHORIZED' });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) {
-      return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-    }
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    const context = await requireFinanceTransactionAccess({
-      db: admin.firestore,
-      uid,
-      organizationId,
-      financeEntityId,
-      sessionList,
-      capability: 'finance.view'
-    });
+    const { db, uid, organizationId, sessionList, context } =
+      await resolveFinanceRequestContext(req, 'finance.view');
 
     const txDoc = await context.repository.getTransactionsRef().doc(transactionId).get();
     
@@ -160,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let creatorName = 'Usuário da equipe';
     if (txData.createdBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.createdBy).get();
+           const uDoc = await db.collection('user_profiles').doc(txData.createdBy).get();
            if (uDoc.exists) {
                creatorName = uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
            }
@@ -172,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let approverName = undefined;
     if (txData.approvedBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.approvedBy).get();
+           const uDoc = await db.collection('user_profiles').doc(txData.approvedBy).get();
            if (uDoc.exists) {
                approverName = uDoc.data()?.name || uDoc.data()?.displayName || txData.approvedBy;
            } else {
@@ -186,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let returnedByName = undefined;
     if (txData.returnedToDraftBy) {
        try {
-           const uDoc = await admin.firestore.collection('user_profiles').doc(txData.returnedToDraftBy).get();
+           const uDoc = await db.collection('user_profiles').doc(txData.returnedToDraftBy).get();
            if (uDoc.exists) {
                returnedByName = uDoc.data()?.name || uDoc.data()?.displayName || txData.returnedToDraftBy;
            } else {
@@ -213,20 +188,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        allocations: resolvedAllocations
     } as any, activeAccounts);
 
-    const formatMoneyEffect = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    let accountingEffect = 'Nenhum efeito contabilizado ainda';
-    
-    if (txData.direction === 'income') {
-       accountingEffect = `Entrada de ${formatMoneyEffect(txData.amountCents)} na conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
-    } else if (txData.direction === 'expense') {
-       accountingEffect = `Saída de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
-    } else if (txData.direction === 'transfer') {
-       accountingEffect = `Transferência de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'} para a conta ${txData.destinationAccountSnapshot?.name || 'de destino'}.`;
-    } else if (txData.direction === 'liability_settlement') {
-       accountingEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
+    const formatMoneyEffect = (cents: number) =>
+      (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    let plannedEffect = 'Nenhum efeito financeiro previsto.';
+    const transactionKind = txData.transactionKind || txData.direction;
+    if (transactionKind === 'income') {
+      plannedEffect = `Entrada de ${formatMoneyEffect(txData.amountCents)} na conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
+    } else if (transactionKind === 'expense') {
+      plannedEffect = `Saída de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
+    } else if (transactionKind === 'transfer') {
+      plannedEffect = `Transferência de ${formatMoneyEffect(txData.amountCents)} da conta ${txData.accountSnapshot?.name || 'selecionada'} para a conta ${txData.destinationAccountSnapshot?.name || 'de destino'}.`;
+    } else if (transactionKind === 'liability_settlement') {
+      plannedEffect = `Liquidação de ${formatMoneyEffect(txData.amountCents)} do passivo ${txData.liabilityAccountSnapshot?.name || 'selecionado'} usando a conta ${txData.accountSnapshot?.name || 'selecionada'}.`;
     }
 
-    const eventsSnapshot = await admin.firestore
+    const accountingEffectState =
+      txData.status === 'posted'
+        ? 'posted'
+        : txData.status === 'reversed'
+          ? 'reversed'
+          : 'not_posted';
+    const accountingEffect =
+      accountingEffectState === 'posted'
+        ? plannedEffect
+        : accountingEffectState === 'reversed'
+          ? `O efeito anterior foi estornado. Referência histórica: ${plannedEffect}`
+          : `Ainda não alterou o saldo contábil. Efeito previsto se for lançada: ${plannedEffect}`;
+
+    const sourceText = String(txData.sourceContext || '').trim().toLowerCase();
+    const origin = txData.countSource?.countSessionId
+      ? 'count'
+      : /import|migration|migrat|csv|ofx|statement/u.test(sourceText)
+        ? 'imported'
+        : Array.isArray(txData.evidenceIds) && txData.evidenceIds.length > 0
+          ? 'evidence'
+          : /manual|transaction_create|guided|form/u.test(sourceText)
+            ? 'manual'
+            : 'unknown';
+
+    const eventsSnapshot = await db
       .collection('organizations')
       .doc(organizationId)
       .collection('financeEntities')
@@ -285,6 +286,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         competenceDate: txData.competenceDate,
         paymentMethod: txData.paymentMethod,
         sourceContext: txData.sourceContext,
+        origin,
         description: txData.description,
         counterparty: txData.counterparty,
         evidenceIds: Array.isArray(txData.evidenceIds) ? txData.evidenceIds : [],
@@ -352,6 +354,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       events,
       reviewReadiness,
       accountingEffect,
+      accountingEffectState,
       capabilities: {
         canEdit
       }
