@@ -738,38 +738,130 @@ function TransactionsListContent() {
     effectiveResidualQuery,
   ]);
 
-  const updateFilter = (key: 'direction' | 'status', value: string) => {
+  const setFilterParam = (
+    key: keyof TransactionHistoryFilterValues,
+    value: string,
+  ) => {
     const next = new URLSearchParams(searchParams);
-    if (value === 'all') next.delete(key);
-    else next.set(key, value);
+    const paramMap: Record<keyof TransactionHistoryFilterValues, string> = {
+      direction: 'direction',
+      status: 'status',
+      from: 'from',
+      to: 'to',
+      order: 'order',
+      dateBase: 'dateBase',
+      categoryId: 'categoryId',
+      accountId: 'accountId',
+      fundId: 'fundId',
+      costCenterId: 'costCenterId',
+      paymentMethod: 'paymentMethod',
+      origin: 'origin',
+      evidence: 'evidence',
+      quality: 'quality',
+      amountMinCents: 'minCents',
+      amountMaxCents: 'maxCents',
+    };
+    const param = paramMap[key];
+
+    const defaultValue =
+      (key === 'direction' || key === 'status' || key === 'origin' || key === 'evidence' || key === 'quality')
+        ? 'all'
+        : key === 'order'
+          ? 'newest'
+          : key === 'dateBase'
+            ? 'occurred'
+            : '';
+
+    if (!value || value === defaultValue) next.delete(param);
+    else next.set(param, value);
+
+    if (key === 'from' || key === 'to') {
+      const currentFrom = key === 'from' ? value : (next.get('from') || '');
+      const currentTo = key === 'to' ? value : (next.get('to') || '');
+      if (currentFrom && currentTo && currentFrom > currentTo) {
+        if (key === 'from') next.set('to', currentFrom);
+        else next.set('from', currentTo);
+      }
+    }
+
     setSearchParams(next);
   };
 
-  const updateDateFilter = (key: 'from' | 'to', value: string) => {
+  const setAmountFilter = (
+    key: 'amountMinCents' | 'amountMaxCents',
+    cents: number | null,
+  ) => {
     const next = new URLSearchParams(searchParams);
-    if (!value) next.delete(key);
-    else next.set(key, value);
+    const param = key === 'amountMinCents' ? 'minCents' : 'maxCents';
+    if (cents === null) next.delete(param);
+    else next.set(param, String(cents));
 
-    const currentFrom = key === 'from' ? value : (next.get('from') || '');
-    const currentTo = key === 'to' ? value : (next.get('to') || '');
-    if (currentFrom && currentTo && currentFrom > currentTo) {
-      if (key === 'from') next.set('to', currentFrom);
-      else next.set('from', currentTo);
+    const minimum = Number(next.get('minCents'));
+    const maximum = Number(next.get('maxCents'));
+    if (
+      Number.isSafeInteger(minimum) &&
+      minimum >= 0 &&
+      Number.isSafeInteger(maximum) &&
+      maximum >= 0 &&
+      minimum > maximum
+    ) {
+      if (key === 'amountMinCents') next.set('maxCents', String(cents));
+      else next.set('minCents', String(cents));
     }
     setSearchParams(next);
   };
 
-  const updateOrder = (value: 'newest' | 'oldest') => {
+  const applyMonth = (month: string) => {
+    if (!/^\d{4}-\d{2}$/u.test(month)) return;
+    const [year, monthNumber] = month.split('-').map(Number);
+    const lastDay = new Date(year, monthNumber, 0).getDate();
     const next = new URLSearchParams(searchParams);
-    if (value === 'newest') next.delete('order');
-    else next.set('order', value);
+    next.set('from', `${month}-01`);
+    next.set('to', `${month}-${String(lastDay).padStart(2, '0')}`);
     setSearchParams(next);
   };
 
-  const clearPeriod = () => {
+  const applyPeriodPreset = (preset: 'all' | 'this_month' | 'previous_month') => {
     const next = new URLSearchParams(searchParams);
-    next.delete('from');
-    next.delete('to');
+    if (preset === 'all') {
+      next.delete('from');
+      next.delete('to');
+      setSearchParams(next);
+      return;
+    }
+
+    const date = new Date();
+    if (preset === 'previous_month') date.setMonth(date.getMonth() - 1);
+    const month = [
+      String(date.getFullYear()).padStart(4, '0'),
+      String(date.getMonth() + 1).padStart(2, '0'),
+    ].join('-');
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    next.set('from', `${month}-01`);
+    next.set('to', `${month}-${String(lastDay).padStart(2, '0')}`);
+    setSearchParams(next);
+  };
+
+  const clearHistoryFilters = () => {
+    const next = new URLSearchParams(searchParams);
+    [
+      'direction',
+      'status',
+      'from',
+      'to',
+      'order',
+      'dateBase',
+      'categoryId',
+      'accountId',
+      'fundId',
+      'costCenterId',
+      'paymentMethod',
+      'origin',
+      'evidence',
+      'quality',
+      'minCents',
+      'maxCents',
+    ].forEach((key) => next.delete(key));
     setSearchParams(next);
   };
 
@@ -779,6 +871,43 @@ function TransactionsListContent() {
     else next.set('q', value.slice(0, 64));
     setSearchParams(next, { replace: true });
   };
+
+  const filterValues: TransactionHistoryFilterValues = {
+    direction: directionFilter,
+    status: statusFilter,
+    from: fromFilter,
+    to: toFilter,
+    order: orderFilter,
+    dateBase: dateBaseFilter,
+    categoryId: categoryIdFilter,
+    accountId: accountIdFilter,
+    fundId: fundIdFilter,
+    costCenterId: costCenterIdFilter,
+    paymentMethod: paymentMethodFilter,
+    origin: originFilter,
+    evidence: evidenceFilter,
+    quality: qualityFilter,
+    amountMinCents: amountMinCentsFilter,
+    amountMaxCents: amountMaxCentsFilter,
+  };
+
+  const activeFilterCount = [
+    directionFilter !== 'all',
+    statusFilter !== 'all',
+    Boolean(fromFilter || toFilter),
+    orderFilter !== 'newest',
+    dateBaseFilter !== 'occurred',
+    Boolean(categoryIdFilter),
+    Boolean(accountIdFilter),
+    Boolean(fundIdFilter),
+    Boolean(costCenterIdFilter),
+    Boolean(paymentMethodFilter),
+    originFilter !== 'all',
+    evidenceFilter !== 'all',
+    qualityFilter !== 'all',
+    amountMinCentsFilter !== null,
+    amountMaxCentsFilter !== null,
+  ].filter(Boolean).length;
 
   const workspaceFilters: TransactionWorkspaceFilters = {
     direction: directionFilter as TransactionWorkspaceFilters['direction'],
