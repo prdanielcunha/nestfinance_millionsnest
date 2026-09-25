@@ -204,8 +204,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startTime = Date.now();
   let isGlobalAdmin = false;
 
-  res.setHeader('Cache-Control', 'private, no-store');
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   }
