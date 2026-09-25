@@ -6,6 +6,7 @@ import type {
 } from '../../shared/finance/transactionWorkspaceView.js';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { TodayOperationalSnapshot } from '../../shared/finance/todayOperationalSummary.js';
+import { notifyFinanceDataChanged } from './financeFreshness';
 
 export interface TransactionsListResponse {
   items: LedgerTransaction[];
@@ -70,6 +71,16 @@ function localDayRequest(now = new Date()) {
     dayStartIso: localStart.toISOString(),
     dayEndIso: localEnd.toISOString(),
   };
+}
+
+async function parseFinanceMutation<T>(
+  response: Response,
+  organizationId: string,
+  financeEntityId: string,
+): Promise<T> {
+  const result = await response.json() as T;
+  notifyFinanceDataChanged({ organizationId, financeEntityId, area: 'transactions' });
+  return result;
 }
 
 export const transactionsService = {
@@ -217,7 +228,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to create transaction draft');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async createAndSubmit(organizationId: string, financeEntityId: string, payload: any, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
@@ -246,7 +257,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to create and submit transaction');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async updateDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, payload: any, idempotencyKey: string, requestId: string): Promise<{ changed: boolean, transactionId: string, version: number }> {
@@ -277,7 +288,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to update transaction draft');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async discardDraft(
@@ -316,7 +327,7 @@ export const transactionsService = {
       throw thrown;
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async submitForReview(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
@@ -346,7 +357,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to submit transaction');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async returnToDraft(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
@@ -378,7 +389,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to return transaction to draft');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async approveForPosting(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, comment: string | undefined, approvalIdempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number, approvalStatus: string, approvedVersion: number, sourceHash: string }> {
@@ -409,7 +420,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to approve transaction for posting');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async invalidateApproval(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, expectedApprovalSourceHash: string, reasonCode: string, comment: string | undefined, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, status: string, approvalStatus: string, version: number, requestId: string }> {
@@ -442,7 +453,7 @@ export const transactionsService = {
       throw new Error(err.details || err.error || 'Failed to invalidate approval');
     }
 
-    return res.json();
+    return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
   async getPostingPlanPreview(organizationId: string, financeEntityId: string, transactionId: string): Promise<{ plan: any }> {
