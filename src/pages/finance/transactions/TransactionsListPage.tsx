@@ -980,23 +980,6 @@ function TransactionsListContent() {
     void loadData(undefined, undefined, ++epochRef.current);
   };
 
-  const directionOptions = [
-    { value: 'all', label: copy.allTypes },
-    { value: 'income', label: copy.income },
-    { value: 'expense', label: copy.expense },
-    { value: 'transfer', label: copy.transfer },
-    { value: 'liability_settlement', label: copy.otherOperation },
-  ];
-
-  const statusOptions = [
-    { value: 'all', label: copy.allStages },
-    { value: 'draft', label: copy.draftsAndCorrections },
-    { value: 'ready_for_review', label: copy.needsChecking },
-    { value: 'approved_for_posting', label: copy.approved },
-    { value: 'posted', label: copy.posted },
-    { value: 'reversed', label: copy.reversed },
-  ];
-
   const emptyState = (() => {
     if (statusFilter === 'draft') return { title: copy.emptyDraftTitle, text: copy.emptyDraftText };
     if (statusFilter === 'ready_for_review') return { title: copy.emptyReviewTitle, text: copy.emptyReviewText };
@@ -1281,7 +1264,7 @@ function TransactionsListContent() {
               {items.map((item) => {
                 const direction = String(item.transactionKind || item.direction || '');
                 const directionUi = directionPresentation(direction, copy);
-                const statusUi = statusPresentation(item, copy);
+                const statusUi = statusPresentation(item, language);
                 const returned = isReturnedDraft(item);
                 const metadata = [
                   formatDate(item.occurredAt, language),
