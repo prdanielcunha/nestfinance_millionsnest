@@ -845,7 +845,6 @@ function TransactionEditGuidedContent() {
     setConflict(false);
     const payload = buildPayload(true);
     if (!payload) return;
-    const editFingerprint = buildTransactionCreateMaterialFingerprint(payload);
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'transaction_edit_draft',
