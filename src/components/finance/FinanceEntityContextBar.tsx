@@ -88,7 +88,7 @@ export function FinanceEntityContextBar({
             </div>
 
             <div className="flex min-w-0 flex-col md:hidden">
-              <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              <span className="mb-0.5 text-xs font-bold uppercase tracking-wider text-text-muted">
                 {t('select_entity_current_church')}
               </span>
               <div className="flex items-center">
