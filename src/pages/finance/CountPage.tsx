@@ -133,7 +133,7 @@ function CountHomeContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: `count_start_${input.mode}`,
-      dedupeKey: `count_start:${fingerprint}:${input.mode}`,
+      dedupeKey: `count_start:${createAttemptRef.current.key}:${input.mode}`,
     });
     setCreating(true);
     setCreateError(false);
