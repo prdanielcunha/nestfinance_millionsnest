@@ -25,6 +25,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { financeEditPresenceService } from '@/src/services/financeEditPresenceService';
+import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
 import { FINANCE_EDIT_HEARTBEAT_MS } from '@/shared/finance/financeEditPresence';
 import {
   getCompatibleAccounts,
@@ -172,6 +173,7 @@ function TransactionEditGuidedContent() {
   const { transactionId } = useParams<{ transactionId: string }>();
   const { accessState } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
+  const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const { language } = useLanguage();
   const copy = TRANSACTION_CREATE_COPY[language];
   const editCopy = TRANSACTION_EDIT_COPY[language];
@@ -843,10 +845,23 @@ function TransactionEditGuidedContent() {
     setConflict(false);
     const payload = buildPayload(true);
     if (!payload) return;
+    const editFingerprint = buildTransactionCreateMaterialFingerprint(payload);
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_edit_draft',
+      dedupeKey: `transaction_edit_draft:${transactionId}:${editFingerprint}`,
+    });
 
     setSaving(true);
     try {
-      await saveDraftCore(payload);
+      const saved = await saveDraftCore(payload);
+      if (saved) {
+        recordFinanceJourneyMetric('flow_complete', {
+          organizationId,
+          flow: 'transaction_edit_draft',
+          dedupeKey: `transaction_edit_draft_complete:${transactionId}:${saved.version}`,
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -886,6 +901,11 @@ function TransactionEditGuidedContent() {
       pendingSubmitRef.current = null;
       setSupportCode(null);
       setNotice('review_sent');
+      recordFinanceJourneyMetric('flow_complete', {
+        organizationId,
+        flow: 'transaction_edit_submit_review',
+        dedupeKey: `transaction_edit_submit_review_complete:${transactionId}:${attempt.version}`,
+      });
       navigate(
         APP_ROUTES.transactionDetail.replace(':transactionId', transactionId),
         { replace: true },
@@ -923,6 +943,11 @@ function TransactionEditGuidedContent() {
     }
 
     const fingerprint = buildTransactionCreateMaterialFingerprint(payload);
+    recordFinanceJourneyMetric('flow_start', {
+      organizationId,
+      flow: 'transaction_edit_submit_review',
+      dedupeKey: `transaction_edit_submit_review:${transactionId}:${fingerprint}`,
+    });
     setSubmitting(true);
     setSaving(true);
 
