@@ -50,7 +50,7 @@ async function run() {
   assert.ok(shell.includes("const canCount = canViewFinance && canCreate"), 'Count shortcut must require view + create');
   assert.ok(shell.includes("primaryFabActions = orderedFabActions.slice(0, 4)"), 'Mobile action sheet must cap primary actions');
   assert.ok(shell.includes("copy.seeAllActions"), 'Overflow actions must remain discoverable');
-  assert.ok(shell.includes("role="dialog""), 'Mobile action sheet must expose dialog semantics');
+  assert.ok(shell.includes('role="dialog"'), 'Mobile action sheet must expose dialog semantics');
   assert.ok(shell.includes("fabMenuRef.current?.querySelector<HTMLElement>('button')?.focus()"), 'FAB must move focus into the sheet');
   assert.ok(shell.includes("requestAnimationFrame(() => fabButtonRef.current?.focus())"), 'FAB must restore focus on close');
   assert.ok(shell.includes("returnTo.startsWith('/finance/')"), 'Entity selection must restore the original finance intent');
@@ -75,7 +75,7 @@ async function run() {
   assert.ok(ecosystem.includes("copy.allClear"), 'Empty attention state must be summarized instead of showing five equal zero cards');
 
   // Mobile context keeps full organization/entity names out of the cramped top bar.
-  assert.ok(shell.includes("layout="symbol""), 'Mobile header should use the compact brand symbol');
+  assert.ok(shell.includes('layout="symbol"'), 'Mobile header should use the compact brand symbol');
   assert.ok(shell.includes('setMobileContextOpen(true)'), 'Mobile context needs an explicit full-name sheet');
   assert.ok(shell.includes('copy.contextTitle'), 'Mobile context sheet must be labeled');
 
