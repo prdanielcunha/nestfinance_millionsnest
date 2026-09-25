@@ -65,7 +65,7 @@ const COPY: Record<Language, Copy> = {
     unavailable: 'Indisponível',
     unavailableText: 'Alguns dados desta organização não puderam ser resumidos agora.',
     failedTitle: 'A visão do ecossistema não carregou',
-    failedText: 'Sua organização atual continua disponível. Tente atualizar esta visão.',
+    failedText: 'A última visão carregada continua visível, quando disponível. Tente atualizar para confirmar o estado mais recente.',
     retry: 'Atualizar',
     switching: 'Abrindo organização…',
     switchFailed: 'Não foi possível trocar de organização agora.',
@@ -91,7 +91,7 @@ const COPY: Record<Language, Copy> = {
     unavailable: 'Unavailable',
     unavailableText: 'Some data for this organization could not be summarized right now.',
     failedTitle: 'The ecosystem view could not load',
-    failedText: 'Your current organization remains available. Try refreshing this view.',
+    failedText: 'The last loaded view remains visible when available. Refresh to confirm the latest state.',
     retry: 'Refresh',
     switching: 'Opening organization…',
     switchFailed: 'The organization could not be switched right now.',
@@ -117,7 +117,7 @@ const COPY: Record<Language, Copy> = {
     unavailable: 'No disponible',
     unavailableText: 'Algunos datos de esta organización no pudieron resumirse ahora.',
     failedTitle: 'No se pudo cargar la visión del ecosistema',
-    failedText: 'Tu organización actual sigue disponible. Intenta actualizar esta visión.',
+    failedText: 'La última vista cargada sigue visible cuando está disponible. Actualiza para confirmar el estado más reciente.',
     retry: 'Actualizar',
     switching: 'Abriendo organización…',
     switchFailed: 'No fue posible cambiar de organización ahora.',
@@ -163,8 +163,10 @@ export function EcosystemOverviewPanel() {
     setLoading(true);
     setFailed(false);
     try {
-      setOverview(await loadEcosystemOverview());
-      setLastUpdatedAt(Date.now());
+      const nextOverview = await loadEcosystemOverview();
+      setOverview(nextOverview);
+      const generatedAt = Date.parse(nextOverview.generatedAt);
+      setLastUpdatedAt(Number.isFinite(generatedAt) ? generatedAt : Date.now());
     } catch {
       setFailed(true);
     } finally {
@@ -336,7 +338,7 @@ export function EcosystemOverviewPanel() {
         ) : null}
       </div>
 
-      {overview && !failed ? (
+      {overview ? (
         <div className="p-3 sm:p-4">
           <div className="mb-3 px-1">
             <h3 className="text-sm font-semibold text-text-primary">{copy.attentionFirst}</h3>
