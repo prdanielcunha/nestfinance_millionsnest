@@ -453,6 +453,11 @@ function TransactionsListContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [funds, setFunds] = useState<any[]>([]);
+  const catalogEpochRef = useRef(0);
   const [searchMeta, setSearchMeta] = useState<{
     searchMode: 'index' | 'canonical_fallback';
     indexCertified: boolean;
@@ -465,6 +470,26 @@ function TransactionsListContent() {
   const fromFilter = searchParams.get('from') || '';
   const toFilter = searchParams.get('to') || '';
   const orderFilter = searchParams.get('order') === 'oldest' ? 'oldest' : 'newest';
+  const dateBaseFilter =
+    searchParams.get('dateBase') === 'competence' || searchParams.get('dateBase') === 'recorded'
+      ? searchParams.get('dateBase') as 'competence' | 'recorded'
+      : 'occurred';
+  const categoryIdFilter = searchParams.get('categoryId') || '';
+  const accountIdFilter = searchParams.get('accountId') || '';
+  const fundIdFilter = searchParams.get('fundId') || '';
+  const costCenterIdFilter = searchParams.get('costCenterId') || '';
+  const paymentMethodFilter = searchParams.get('paymentMethod') || '';
+  const originFilter = searchParams.get('origin') || 'all';
+  const evidenceFilter = searchParams.get('evidence') || 'all';
+  const qualityFilter = searchParams.get('quality') || 'all';
+  const amountMinCentsFilter = (() => {
+    const value = Number(searchParams.get('minCents'));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  })();
+  const amountMaxCentsFilter = (() => {
+    const value = Number(searchParams.get('maxCents'));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  })();
   const searchQuery = searchParams.get('q') || '';
   const normalizedSearchQuery = searchQuery.trim();
   const naturalSearch = useMemo(
@@ -473,6 +498,31 @@ function TransactionsListContent() {
   );
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
+
+  const normalizeLabel = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/gu, '')
+      .toLocaleLowerCase('pt-BR')
+      .replace(/[^a-z0-9]+/gu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+
+  const naturalCategory = useMemo(() => {
+    if (categoryIdFilter || !naturalSearch.residualQuery) return null;
+    const residual = normalizeLabel(naturalSearch.residualQuery);
+    return categories.find((category) => {
+      const name = normalizeLabel(String(category.name || ''));
+      return name.length >= 2 && residual.includes(name);
+    }) || null;
+  }, [categories, categoryIdFilter, naturalSearch.residualQuery]);
+
+  const effectiveResidualQuery = useMemo(() => {
+    if (!naturalCategory) return naturalSearch.residualQuery;
+    const residual = normalizeLabel(naturalSearch.residualQuery);
+    const categoryName = normalizeLabel(String(naturalCategory.name || ''));
+    return residual.replace(categoryName, ' ').replace(/\s+/gu, ' ').trim();
+  }, [naturalCategory, naturalSearch.residualQuery]);
 
   const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
     if (!cursor) setLoading(true);
