@@ -915,20 +915,49 @@ function TransactionsListContent() {
     occurredFrom: fromFilter || null,
     occurredTo: toFilter || null,
     order: orderFilter,
+    dateBase: dateBaseFilter,
+    categoryId: categoryIdFilter || null,
+    accountId: accountIdFilter || null,
+    fundId: fundIdFilter || null,
+    costCenterId: costCenterIdFilter || null,
+    paymentMethod: paymentMethodFilter || null,
+    sourceContext: null,
+    origin: originFilter as TransactionWorkspaceFilters['origin'],
+    evidence: evidenceFilter as TransactionWorkspaceFilters['evidence'],
+    quality: qualityFilter as TransactionWorkspaceFilters['quality'],
+    amountMinCents: amountMinCentsFilter,
+    amountMaxCents: amountMaxCentsFilter,
+    searchQuery: searchQuery || null,
   };
 
   const applySavedView = (filters: TransactionWorkspaceFilters) => {
     const next = new URLSearchParams(searchParams);
-    if (filters.direction === 'all') next.delete('direction');
-    else next.set('direction', filters.direction);
-    if (filters.status === 'all') next.delete('status');
-    else next.set('status', filters.status);
-    if (filters.occurredFrom) next.set('from', filters.occurredFrom);
-    else next.delete('from');
-    if (filters.occurredTo) next.set('to', filters.occurredTo);
-    else next.delete('to');
-    if (filters.order === 'oldest') next.set('order', 'oldest');
-    else next.delete('order');
+    const setOrDelete = (key: string, value: string | null | undefined, defaultValue = '') => {
+      if (!value || value === defaultValue) next.delete(key);
+      else next.set(key, value);
+    };
+
+    setOrDelete('direction', filters.direction, 'all');
+    setOrDelete('status', filters.status, 'all');
+    setOrDelete('from', filters.occurredFrom);
+    setOrDelete('to', filters.occurredTo);
+    setOrDelete('order', filters.order, 'newest');
+    setOrDelete('dateBase', filters.dateBase || 'occurred', 'occurred');
+    setOrDelete('categoryId', filters.categoryId);
+    setOrDelete('accountId', filters.accountId);
+    setOrDelete('fundId', filters.fundId);
+    setOrDelete('costCenterId', filters.costCenterId);
+    setOrDelete('paymentMethod', filters.paymentMethod);
+    setOrDelete('origin', filters.origin || 'all', 'all');
+    setOrDelete('evidence', filters.evidence || 'all', 'all');
+    setOrDelete('quality', filters.quality || 'all', 'all');
+
+    if (filters.amountMinCents === null || filters.amountMinCents === undefined) next.delete('minCents');
+    else next.set('minCents', String(filters.amountMinCents));
+    if (filters.amountMaxCents === null || filters.amountMaxCents === undefined) next.delete('maxCents');
+    else next.set('maxCents', String(filters.amountMaxCents));
+    setOrDelete('q', filters.searchQuery);
+
     setSearchParams(next);
   };
 
