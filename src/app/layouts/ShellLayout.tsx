@@ -376,16 +376,6 @@ function ShellLayoutInner() {
     };
   }, [activeFinanceEntityId, canCount, organizationId]);
 
-  const navigateFromFab = (direction: 'income' | 'expense' | 'transfer') => {
-    setFabOpen(false);
-    navigate(`${APP_ROUTES.transactionCreate}?direction=${direction}`);
-  };
-
-  const navigateCaptureFromFab = () => {
-    setFabOpen(false);
-    navigate(APP_ROUTES.universalCapture);
-  };
-
   const openOrganizationSwitcher = async () => {
     setOrganizationSwitcherError(false);
     setOrganizationSwitcherLoading(true);
