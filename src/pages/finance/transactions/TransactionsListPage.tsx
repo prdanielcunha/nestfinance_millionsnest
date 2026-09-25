@@ -1140,114 +1140,63 @@ function TransactionsListContent() {
             onApply={applySavedView}
           />
 
-          <Surface variant="secondary" radius="lg" className="p-4 sm:p-5" aria-label={copy.filters}>
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Filter className="h-4 w-4 text-text-muted" aria-hidden="true" />
-              {copy.filters}
-            </div>
+          <div className="lg:hidden">
+            <Button
+              variant="secondary"
+              size="lg"
+              leadingIcon={<SlidersHorizontal className="h-4 w-4" />}
+              onClick={() => setFiltersOpen(true)}
+              className="w-full justify-between"
+            >
+              <span>{copy.filters}</span>
+              {activeFilterCount > 0 ? (
+                <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-accent-primary/10 px-2 py-0.5 text-xs font-semibold text-accent-primary">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.type}</p>
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label={copy.type}>
-                  {directionOptions.map((option) => {
-                    const selected = directionFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateFilter('direction', option.value)}
-                        className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          <div className="hidden lg:block">
+            <TransactionHistoryFilters
+              language={language}
+              values={filterValues}
+              categories={categories}
+              accounts={accounts}
+              funds={funds}
+              onChange={setFilterParam}
+              onMonth={applyMonth}
+              onPreset={applyPeriodPreset}
+              onAmountChange={setAmountFilter}
+              onClear={clearHistoryFilters}
+            />
+          </div>
 
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.stage}</p>
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label={copy.stage}>
-                  {statusOptions.map((option) => {
-                    const selected = statusFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateFilter('status', option.value)}
-                        className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.period}</p>
-                  {fromFilter || toFilter ? (
-                    <button
-                      type="button"
-                      onClick={clearPeriod}
-                      className="nf-interactive rounded-lg px-2 py-1 text-xs font-medium text-accent-primary hover:bg-accent-primary/10"
-                    >
-                      {copy.clearPeriod}
-                    </button>
-                  ) : null}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateFrom}</span>
-                    <input
-                      type="date"
-                      value={fromFilter}
-                      max={toFilter || undefined}
-                      onChange={(event) => updateDateFilter('from', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateTo}</span>
-                    <input
-                      type="date"
-                      value={toFilter}
-                      min={fromFilter || undefined}
-                      onChange={(event) => updateDateFilter('to', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.order}</p>
-                <div className="flex gap-2" role="group" aria-label={copy.order}>
-                  {([
-                    { value: 'newest', label: copy.newest },
-                    { value: 'oldest', label: copy.oldest },
-                  ] as const).map((option) => {
-                    const selected = orderFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateOrder(option.value)}
-                        className={`nf-interactive min-h-11 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
+          {filtersOpen ? (
+            <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={copy.filters}>
+              <button
+                type="button"
+                aria-label={copy.back}
+                className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+                onClick={() => setFiltersOpen(false)}
+              />
+              <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] bg-surface-base p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
+                <TransactionHistoryFilters
+                  language={language}
+                  values={filterValues}
+                  categories={categories}
+                  accounts={accounts}
+                  funds={funds}
+                  onChange={setFilterParam}
+                  onMonth={applyMonth}
+                  onPreset={applyPeriodPreset}
+                  onAmountChange={setAmountFilter}
+                  onClear={clearHistoryFilters}
+                  onClose={() => setFiltersOpen(false)}
+                />
               </div>
             </div>
-          </Surface>
+          ) : null}
 
           {errorKind === 'index' ? (
             <FirestoreIndexRemediationCard
