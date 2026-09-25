@@ -24,6 +24,7 @@ on:
       - "scripts/test-roadmap-cycle-08-intelligence-engine.ts"
       - "scripts/test-roadmap-cycle-09-operational-close.ts"
       - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
+      - "scripts/test-premium-roadmap-20260925.ts"
       - "shared/finance/accountantPackage.ts"
       - "shared/finance/financeEditPresence.ts"
       - "shared/finance/usabilityCertification.ts"
@@ -253,6 +254,9 @@ jobs:
 
       - name: Verify roadmap cycle 10 accountant package and certification engineering
         run: npm run test:roadmap-cycle-10
+
+      - name: Verify premium UX roadmap 2026-09-25
+        run: npm run test:premium-roadmap-20260925
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts
