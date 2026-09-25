@@ -157,7 +157,7 @@ function CountCaptureContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'count_paper_capture',
-      dedupeKey: `count_paper_capture_start:${fingerprint}`,
+      dedupeKey: `count_paper_capture_start:${attemptRef.current.startKey}`,
     });
     setSending(true); setError(null);
     try {
