@@ -266,6 +266,51 @@ const COPY: Record<Language, Copy> = {
   },
 };
 
+function paymentMethodLabel(code: string, fallback: string, language: Language) {
+  const labels: Record<Language, Record<string, string>> = {
+    PT: {
+      cash: 'Dinheiro',
+      pix: 'Pix',
+      bank_transfer: 'Transferência bancária',
+      bank_deposit: 'Depósito bancário',
+      debit_card: 'Cartão de débito',
+      credit_card: 'Cartão de crédito',
+      prepaid_card: 'Cartão pré-pago',
+      bank_slip: 'Boleto',
+      check: 'Cheque',
+      automatic_debit: 'Débito automático',
+      other: 'Outro',
+    },
+    EN: {
+      cash: 'Cash',
+      pix: 'Pix',
+      bank_transfer: 'Bank transfer',
+      bank_deposit: 'Bank deposit',
+      debit_card: 'Debit card',
+      credit_card: 'Credit card',
+      prepaid_card: 'Prepaid card',
+      bank_slip: 'Bank slip',
+      check: 'Check',
+      automatic_debit: 'Automatic debit',
+      other: 'Other',
+    },
+    ES: {
+      cash: 'Efectivo',
+      pix: 'Pix',
+      bank_transfer: 'Transferencia bancaria',
+      bank_deposit: 'Depósito bancario',
+      debit_card: 'Tarjeta de débito',
+      credit_card: 'Tarjeta de crédito',
+      prepaid_card: 'Tarjeta prepaga',
+      bank_slip: 'Boleto',
+      check: 'Cheque',
+      automatic_debit: 'Débito automático',
+      other: 'Otro',
+    },
+  };
+  return labels[language][code] || fallback;
+}
+
 function normalize(value: string) {
   return value
     .normalize('NFD')
@@ -570,7 +615,7 @@ export function TransactionHistoryFilters({
               <select value={values.paymentMethod} onChange={(event) => onChange('paymentMethod', event.target.value)} className={selectClass}>
                 <option value="">{copy.allPayments}</option>
                 {PAYMENT_METHODS.map((method) => (
-                  <option key={method.code} value={method.code}>{method.label}</option>
+                  <option key={method.code} value={method.code}>{paymentMethodLabel(method.code, method.label, language)}</option>
                 ))}
               </select>
             </label>
