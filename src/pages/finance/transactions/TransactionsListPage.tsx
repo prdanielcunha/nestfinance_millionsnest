@@ -24,7 +24,7 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
 import { TransactionSavedViews } from '@/src/components/finance/TransactionSavedViews';
 import { TransactionInspector } from '@/src/components/finance/TransactionInspector';
-import { TransactionStatusSignal, getTransactionStatusCopy, getTransactionStatusTone } from '@/src/components/finance/TransactionStatusSignal';
+import { TransactionStatusSignal } from '@/src/components/finance/TransactionStatusSignal';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
@@ -353,7 +353,10 @@ function formatMoney(cents: number | undefined, direction: Direction, language: 
 }
 
 function formatDate(value: unknown, language: Language) {
-  const date = typeof value === 'string' || value instanceof Date ? new Date(value) : null;
+  const normalizedValue = typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/u.test(value)
+    ? value + 'T12:00:00'
+    : value;
+  const date = typeof normalizedValue === 'string' || normalizedValue instanceof Date ? new Date(normalizedValue) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(localeFor(language), {
     day: '2-digit',
@@ -395,15 +398,38 @@ function directionPresentation(direction: Direction, copy: TransactionsCopy) {
   };
 }
 
-function statusPresentation(item: any, language: Language) {
-  const returned = isReturnedDraft(item);
-  const statusCopy = getTransactionStatusCopy(language, item?.status || '', returned);
-  return {
-    label: statusCopy.label,
-    consequence: statusCopy.consequence,
-    next: statusCopy.next,
-    className: getTransactionStatusTone(item?.status || '', returned),
+function originLabel(origin: unknown, language: Language) {
+  const value = String(origin || 'unknown');
+  const labels: Record<Language, Record<string, string>> = {
+    PT: {
+      manual: 'Manual',
+      count: 'Contagem',
+      evidence: 'Comprovante',
+      imported: 'Importado',
+      unknown: 'Não identificada',
+    },
+    EN: {
+      manual: 'Manual',
+      count: 'Count',
+      evidence: 'Evidence',
+      imported: 'Imported',
+      unknown: 'Not identified',
+    },
+    ES: {
+      manual: 'Manual',
+      count: 'Conteo',
+      evidence: 'Comprobante',
+      imported: 'Importado',
+      unknown: 'No identificado',
+    },
   };
+  return labels[language][value] || labels[language].unknown;
+}
+
+function missingDescriptionLabel(language: Language) {
+  if (language === 'EN') return 'No description · complete';
+  if (language === 'ES') return 'Sin descripción · completar';
+  return 'Sem descrição · completar';
 }
 
 export default function TransactionsListPage() {
@@ -1264,12 +1290,25 @@ function TransactionsListContent() {
               {items.map((item) => {
                 const direction = String(item.transactionKind || item.direction || '');
                 const directionUi = directionPresentation(direction, copy);
-                const statusUi = statusPresentation(item, language);
                 const returned = isReturnedDraft(item);
+                const categoryNames = Array.isArray(item.categoryNames) && item.categoryNames.length > 0
+                  ? item.categoryNames
+                  : item.categoryName
+                    ? [item.categoryName]
+                    : [];
+                const selectedDate = item.selectedDate || item.occurredAt;
+                const dateBaseLabel =
+                  dateBaseFilter === 'competence'
+                    ? (language === 'PT' ? 'Competência' : language === 'ES' ? 'Competencia' : 'Accounting period')
+                    : dateBaseFilter === 'recorded'
+                      ? (language === 'PT' ? 'Registrada' : language === 'ES' ? 'Registrado' : 'Recorded')
+                      : (language === 'PT' ? 'Data' : language === 'ES' ? 'Fecha' : 'Date');
                 const metadata = [
-                  formatDate(item.occurredAt, language),
+                  selectedDate ? `${dateBaseLabel}: ${formatDate(selectedDate, language)}` : '',
                   item.accountName ? `${copy.account}: ${item.accountName}` : '',
-                  item.categoryName ? `${copy.category}: ${item.categoryName}` : '',
+                  categoryNames.length > 0 ? `${copy.category}: ${categoryNames.join(' · ')}` : '',
+                  `ID: ${item.id}`,
+                  `${language === 'PT' ? 'Origem' : language === 'ES' ? 'Origen' : 'Origin'}: ${originLabel(item.origin, language)}`,
                 ].filter(Boolean);
 
                 return (
@@ -1288,7 +1327,7 @@ function TransactionsListContent() {
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                           <div className="min-w-0">
                             <h2 className="truncate text-sm font-semibold text-text-primary sm:text-base">
-                              {item.description || copy.noDescription}
+                              {item.description || missingDescriptionLabel(language)}
                             </h2>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
                               <span>{directionUi.label}</span>
@@ -1305,18 +1344,14 @@ function TransactionsListContent() {
                             <span className={`nf-financial-number text-base font-semibold ${directionUi.amountClass}`}>
                               {formatMoney(item.amountCents, direction, language)}
                             </span>
-                            <span className={`inline-flex min-h-7 items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${statusUi.className}`}>
-                              {statusUi.label}
-                            </span>
                           </div>
                         </div>
 
-                        {returned ? (
-                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-semantic-warning/15 bg-semantic-warning/5 px-3 py-2.5 text-xs leading-relaxed text-text-secondary">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-semantic-warning" aria-hidden="true" />
-                            <span>{copy.returnedHint}</span>
-                          </div>
-                        ) : null}
+                        <TransactionStatusSignal
+                          status={item.status}
+                          returned={returned}
+                          className="mt-3"
+                        />
                       </div>
 
                       <ChevronRight className="mt-3 hidden h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5 sm:block" aria-hidden="true" />
