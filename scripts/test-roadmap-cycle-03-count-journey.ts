@@ -14,7 +14,9 @@ const routes = read('src/app/router/routes.ts');
 const router = read('src/app/router/index.tsx');
 
 assert.ok(today.includes("action: 'Iniciar contagem'"));
-assert.ok(today.includes('navigate(APP_ROUTES.count)'));
+assert.ok(today.includes('navigate(countActionRoute)'));
+assert.ok(today.includes(': APP_ROUTES.count;'));
+assert.ok(today.includes("APP_ROUTES.countSession.replace(':sessionId', activeCount.id)"));
 assert.ok(today.includes('{canCount ? ('));
 
 assert.ok(home.includes('CountStartJourney'));
