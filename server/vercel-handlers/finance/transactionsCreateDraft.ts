@@ -297,6 +297,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         schemaVersion: 1,
         validationIssues
       };
+      if (payload.competenceDate !== undefined && payload.competenceDate !== null && payload.competenceDate !== '') {
+        if (
+          typeof payload.competenceDate !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}$/u.test(payload.competenceDate) ||
+          Number.isNaN(Date.parse(payload.competenceDate + 'T12:00:00Z'))
+        ) {
+          throw { code: 'INVALID_PARAMETERS', message: 'Invalid competenceDate' };
+        }
+        txPayload.competenceDate = payload.competenceDate;
+      }
       if (payload.description) txPayload.description = payload.description;
       if (payload.counterparty) txPayload.counterparty = payload.counterparty;
       if (payload.evidenceJustification) txPayload.evidenceJustification = payload.evidenceJustification;
