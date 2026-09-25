@@ -19,6 +19,8 @@ import { Button } from '@/src/components/foundation';
 import { FinanceCommandPalette } from '@/src/components/finance/FinanceCommandPalette';
 import type { FinancePaletteCommand } from '@/src/lib/financeCommandPaletteModel';
 import { returnToMillionsNest, signOutNestFinanceAndReturnToHub } from '@/src/services/ecosystemExitService';
+import { countService, type CountSessionListItem } from '@/src/services/countService';
+import { subscribeFinanceDataChanges } from '@/src/services/financeFreshness';
 
 export type NavigationItem = {
   id: string;
@@ -47,6 +49,17 @@ const SHELL_COPY: Record<Language, {
   selectLanguage: string;
   closeActions: string;
   capture: string;
+  actionsTitle: string;
+  startCount: string;
+  continueCount: string;
+  countDescription: string;
+  continueCountDescription: string;
+  incomeDescription: string;
+  expenseDescription: string;
+  transferDescription: string;
+  captureDescription: string;
+  seeAllActions: string;
+  contextTitle: string;
   workspace: string;
   switchOrganization: string;
   switchOrganizationTitle: string;
@@ -69,6 +82,17 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Selecionar idioma',
     closeActions: 'Fechar atalhos de registro',
     capture: 'Capturar comprovante',
+    actionsTitle: 'O que você quer fazer?',
+    startCount: 'Iniciar contagem',
+    continueCount: 'Continuar contagem',
+    countDescription: 'Registrar dízimos e ofertas com a jornada guiada e conferência segura.',
+    continueCountDescription: 'Retomar a contagem aberta sem criar outra sessão.',
+    incomeDescription: 'Registrar um valor que entrou, com comprovante opcional.',
+    expenseDescription: 'Registrar um pagamento ou outra saída.',
+    transferDescription: 'Mover valor entre contas sem tratar como receita ou despesa.',
+    captureDescription: 'Enviar foto, print, PDF ou arquivo para o NestFinance interpretar.',
+    seeAllActions: 'Ver todas as ações',
+    contextTitle: 'Contexto atual',
     workspace: 'Perfil de uso',
     switchOrganization: 'Trocar organização',
     switchOrganizationTitle: 'Escolher organização',
@@ -91,6 +115,17 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Select language',
     closeActions: 'Close record shortcuts',
     capture: 'Capture receipt',
+    actionsTitle: 'What do you want to do?',
+    startCount: 'Start count',
+    continueCount: 'Continue count',
+    countDescription: 'Record tithes and offerings with the guided, safely reviewed flow.',
+    continueCountDescription: 'Resume the open count without creating another session.',
+    incomeDescription: 'Record money received, with an optional receipt.',
+    expenseDescription: 'Record a payment or other outgoing amount.',
+    transferDescription: 'Move money between accounts without treating it as income or expense.',
+    captureDescription: 'Send a photo, screenshot, PDF, or file for NestFinance to interpret.',
+    seeAllActions: 'See all actions',
+    contextTitle: 'Current context',
     workspace: 'Usage profile',
     switchOrganization: 'Switch organization',
     switchOrganizationTitle: 'Choose organization',
@@ -113,6 +148,17 @@ const SHELL_COPY: Record<Language, {
     selectLanguage: 'Seleccionar idioma',
     closeActions: 'Cerrar accesos de registro',
     capture: 'Capturar comprobante',
+    actionsTitle: '¿Qué quieres hacer?',
+    startCount: 'Iniciar conteo',
+    continueCount: 'Continuar conteo',
+    countDescription: 'Registra diezmos y ofrendas con un flujo guiado y revisión segura.',
+    continueCountDescription: 'Retoma el conteo abierto sin crear otra sesión.',
+    incomeDescription: 'Registra un valor recibido, con comprobante opcional.',
+    expenseDescription: 'Registra un pago u otro egreso.',
+    transferDescription: 'Mueve valor entre cuentas sin tratarlo como ingreso o egreso.',
+    captureDescription: 'Envía foto, captura, PDF o archivo para que NestFinance lo interprete.',
+    seeAllActions: 'Ver todas las acciones',
+    contextTitle: 'Contexto actual',
     workspace: 'Perfil de uso',
     switchOrganization: 'Cambiar organización',
     switchOrganizationTitle: 'Elegir organización',
@@ -223,6 +269,7 @@ function LanguageSwitcher({ language, setLanguage, compact = false }: { language
 function ShellLayoutInner() {
   const { accessState } = useAuth();
   const {
+    activeFinanceEntityId,
     activeFinanceEntityName,
     setActiveFinanceEntityId,
     refreshAccessibleFinanceEntities,
@@ -237,6 +284,12 @@ function ShellLayoutInner() {
   const profilePhoto = accessState.profile?.photoURL;
   const experienceMode = getFinanceExperienceMode(accessState);
   const interfaceRole = getFinanceInterfaceRole(accessState);
+  const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
+  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canReview = hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']);
+  const canManage = hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']);
+  const canCount = canViewFinance && canCreate;
+  const organizationId = accessState.organizationId || accessState.organization?.id || '';
 
   const [fabOpen, setFabOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -244,12 +297,16 @@ function ShellLayoutInner() {
   const [organizationSwitcherLoading, setOrganizationSwitcherLoading] = useState(false);
   const [organizationSwitcherError, setOrganizationSwitcherError] = useState(false);
   const [organizationOptions, setOrganizationOptions] = useState<DirectEntryOrganization[]>([]);
+  const [mobileContextOpen, setMobileContextOpen] = useState(false);
+  const [resumableCount, setResumableCount] = useState<CountSessionListItem | null>(null);
   const fabButtonRef = useRef<HTMLButtonElement>(null);
+  const fabMenuRef = useRef<HTMLDivElement>(null);
   const fabMenuId = 'nestfinance-global-capture-menu';
 
   useEffect(() => {
     setFabOpen(false);
     setCommandPaletteOpen(false);
+    setMobileContextOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -267,6 +324,10 @@ function ShellLayoutInner() {
   useEffect(() => {
     if (!fabOpen) return;
 
+    requestAnimationFrame(() => {
+      fabMenuRef.current?.querySelector<HTMLElement>('button')?.focus();
+    });
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -278,6 +339,42 @@ function ShellLayoutInner() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [fabOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshOpenCount = async () => {
+      if (!canCount || !organizationId || !activeFinanceEntityId) {
+        if (!cancelled) setResumableCount(null);
+        return;
+      }
+
+      try {
+        const result = await countService.list(organizationId, activeFinanceEntityId);
+        if (cancelled) return;
+        const activeStatuses = new Set(['counting_a', 'counting_b', 'divergent', 'recounting']);
+        setResumableCount(result.items.find((item) => activeStatuses.has(item.status)) || null);
+      } catch {
+        if (!cancelled) setResumableCount(null);
+      }
+    };
+
+    void refreshOpenCount();
+    const unsubscribe = subscribeFinanceDataChanges((detail) => {
+      if (
+        detail.area === 'count' &&
+        detail.organizationId === organizationId &&
+        detail.financeEntityId === activeFinanceEntityId
+      ) {
+        void refreshOpenCount();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [activeFinanceEntityId, canCount, organizationId]);
 
   const navigateFromFab = (direction: 'income' | 'expense' | 'transfer') => {
     setFabOpen(false);
@@ -332,10 +429,6 @@ function ShellLayoutInner() {
     }
   };
 
-  const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
-  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
-  const canReview = hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']);
-  const canManage = hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']);
   const navigationProfile = buildFinanceNavigation(experienceMode, {
     canView: canViewFinance,
     canCreate,
@@ -358,13 +451,73 @@ function ShellLayoutInner() {
     route: item.route,
     kind: 'navigation' as const,
   }));
+  const countRoute = resumableCount
+    ? APP_ROUTES.countSession.replace(':sessionId', resumableCount.id)
+    : APP_ROUTES.count;
+  const countLabel = resumableCount ? copy.continueCount : copy.startCount;
+  const countDescription = resumableCount
+    ? `${copy.continueCountDescription} ${resumableCount.serviceLabel}`
+    : copy.countDescription;
+
   const actionCommands: FinancePaletteCommand[] = canCreate ? [
+    ...(canCount ? [{ id: 'action:count', label: countLabel, route: countRoute, kind: 'action' as const }] : []),
     { id: 'action:income', label: t('shortcut_income'), route: `${APP_ROUTES.transactionCreate}?direction=income`, kind: 'action' as const },
     { id: 'action:expense', label: t('shortcut_expense'), route: `${APP_ROUTES.transactionCreate}?direction=expense`, kind: 'action' as const },
     { id: 'action:transfer', label: t('shortcut_transfer'), route: `${APP_ROUTES.transactionCreate}?direction=transfer`, kind: 'action' as const },
     { id: 'action:capture', label: copy.capture, route: APP_ROUTES.universalCapture, kind: 'action' as const },
   ] : [];
   const commandPaletteCommands = [...navigationCommands, ...actionCommands];
+
+  const allFabActions = canCreate ? [
+    ...(canCount ? [{
+      id: 'count',
+      label: countLabel,
+      description: countDescription,
+      route: countRoute,
+      icon: Receipt,
+      iconClass: 'bg-accent-primary/10 text-accent-primary',
+    }] : []),
+    {
+      id: 'income',
+      label: t('shortcut_income'),
+      description: copy.incomeDescription,
+      route: `${APP_ROUTES.transactionCreate}?direction=income`,
+      icon: ArrowRightLeft,
+      iconClass: 'bg-semantic-success/10 text-semantic-success',
+    },
+    {
+      id: 'expense',
+      label: t('shortcut_expense'),
+      description: copy.expenseDescription,
+      route: `${APP_ROUTES.transactionCreate}?direction=expense`,
+      icon: ArrowRightLeft,
+      iconClass: 'bg-semantic-danger/10 text-semantic-danger',
+    },
+    {
+      id: 'capture',
+      label: copy.capture,
+      description: copy.captureDescription,
+      route: APP_ROUTES.universalCapture,
+      icon: Camera,
+      iconClass: 'bg-accent-primary/10 text-accent-primary',
+    },
+    {
+      id: 'transfer',
+      label: t('shortcut_transfer'),
+      description: copy.transferDescription,
+      route: `${APP_ROUTES.transactionCreate}?direction=transfer`,
+      icon: ArrowRightLeft,
+      iconClass: 'bg-surface-secondary text-text-secondary',
+    },
+  ] : [];
+
+  const preferredFabOrder = interfaceRole === 'volunteer' || interfaceRole === 'treasurer'
+    ? ['count', 'income', 'expense', 'capture', 'transfer']
+    : ['income', 'expense', 'count', 'capture', 'transfer'];
+  const orderedFabActions = preferredFabOrder
+    .map((id) => allFabActions.find((action) => action.id === id))
+    .filter((action): action is NonNullable<typeof action> => Boolean(action));
+  const primaryFabActions = orderedFabActions.slice(0, 4);
 
   return (
     <div className="flex min-h-screen bg-background-base text-text-primary">
@@ -503,32 +656,24 @@ function ShellLayoutInner() {
       </aside>
 
       <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border-subtle bg-surface-default/95 px-3 backdrop-blur-xl md:hidden">
-          <div className="flex min-w-0 items-center gap-2">
-            <NestFinanceLogo layout="horizontal" compact className="h-6 w-auto shrink-0" />
-            {activeFinanceEntityName ? (
-              <span className="max-w-[110px] truncate rounded-lg bg-accent-primary/10 px-2 py-1 text-xs font-semibold text-accent-primary">
-                {activeFinanceEntityName}
+        <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl md:hidden">
+          <NestFinanceLogo layout="symbol" className="h-8 w-8 shrink-0" priority />
+          <button
+            type="button"
+            onClick={() => setMobileContextOpen(true)}
+            className="nf-interactive flex min-h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-3 text-left hover:bg-surface-secondary"
+            aria-label={copy.contextTitle}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-text-primary">
+                {activeFinanceEntityName || orgName}
               </span>
-            ) : null}
-          </div>
-          <div className="ml-2 flex shrink-0 items-center gap-2">
-            {accessState.isGlobalAccess ? (
-              <button
-                type="button"
-                onClick={openOrganizationSwitcher}
-                disabled={organizationSwitcherLoading}
-                aria-label={copy.switchOrganization}
-                className="nf-interactive flex h-11 w-11 items-center justify-center rounded-xl border border-border-subtle bg-background-base text-text-secondary disabled:opacity-60"
-              >
-                <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />
-              </button>
-            ) : null}
-            <LanguageSwitcher language={language} setLanguage={setLanguage} compact />
-            <div className="hidden max-w-[76px] truncate text-xs font-medium text-text-secondary min-[390px]:block" title={orgName}>
-              {orgName}
-            </div>
-          </div>
+              <span className="mt-0.5 block truncate text-xs text-text-muted">
+                {activeFinanceEntityName ? orgName : EXPERIENCE_LABELS[language][experienceMode]}
+              </span>
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+          </button>
         </header>
 
         <div className="nf-operational mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
@@ -543,53 +688,64 @@ function ShellLayoutInner() {
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 z-30 flex flex-col items-end gap-3 md:bottom-8 md:right-8">
           {fabOpen ? (
             <>
-              <div className="fixed inset-0 z-40 bg-background-base/15 backdrop-blur-[1px]" onClick={() => setFabOpen(false)} aria-hidden="true" />
               <div
+                className="fixed inset-0 z-40 bg-background-base/55 backdrop-blur-[2px]"
+                onClick={() => {
+                  setFabOpen(false);
+                  requestAnimationFrame(() => fabButtonRef.current?.focus());
+                }}
+                aria-hidden="true"
+              />
+              <div
+                ref={fabMenuRef}
                 id={fabMenuId}
-                role="group"
-                aria-label={t('action_register_title')}
-                className="z-50 flex min-w-[14rem] flex-col gap-2 fade-in"
+                role="dialog"
+                aria-modal="true"
+                aria-label={copy.actionsTitle}
+                className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0)+7.75rem)] z-50 max-h-[min(70vh,34rem)] overflow-y-auto rounded-3xl border border-border-subtle bg-surface-elevated p-4 shadow-[var(--nf-shadow-floating)] md:static md:w-[23rem] md:rounded-2xl"
               >
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="justify-between shadow-lg"
-                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-success/10 text-semantic-success"><Plus className="h-4 w-4" /></span>}
-                  onClick={() => navigateFromFab('income')}
-                >
-                  {t('shortcut_income')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="justify-between shadow-lg"
-                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-danger/10 text-semantic-danger"><Plus className="h-4 w-4" /></span>}
-                  onClick={() => navigateFromFab('expense')}
-                >
-                  {t('shortcut_expense')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="justify-between shadow-lg"
-                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Plus className="h-4 w-4" /></span>}
-                  onClick={() => navigateFromFab('transfer')}
-                >
-                  {t('shortcut_transfer')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="justify-between shadow-lg"
-                  trailingIcon={<span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><Camera className="h-4 w-4" /></span>}
-                  onClick={navigateCaptureFromFab}
-                >
-                  {copy.capture}
-                </Button>
+                <div className="mb-3 px-1">
+                  <p className="text-base font-semibold text-text-primary">{copy.actionsTitle}</p>
+                  <p className="mt-1 text-sm text-text-muted">
+                    {activeFinanceEntityName || orgName}
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  {primaryFabActions.map((action) => {
+                    const ActionIcon = action.icon;
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        onClick={() => {
+                          setFabOpen(false);
+                          navigate(action.route);
+                        }}
+                        className="nf-interactive flex min-h-[4.75rem] w-full items-center gap-3 rounded-2xl border border-transparent bg-background-base/55 px-4 py-3 text-left hover:border-border-strong hover:bg-surface-secondary"
+                      >
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${action.iconClass}`}>
+                          <ActionIcon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-base font-semibold text-text-primary">{action.label}</span>
+                          <span className="mt-0.5 block text-sm leading-snug text-text-muted">{action.description}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {orderedFabActions.length > primaryFabActions.length ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFabOpen(false);
+                        setCommandPaletteOpen(true);
+                      }}
+                      className="nf-interactive min-h-12 rounded-xl px-3 text-sm font-semibold text-accent-primary hover:bg-accent-primary/10"
+                    >
+                      {copy.seeAllActions}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </>
           ) : null}
@@ -637,6 +793,76 @@ function ShellLayoutInner() {
           </NavLink>
         ) : null}
       </nav>
+
+      {mobileContextOpen ? (
+        <div
+          className="fixed inset-0 z-[85] flex items-end bg-background-base/70 p-3 backdrop-blur-sm md:hidden"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setMobileContextOpen(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.contextTitle}
+            className="w-full rounded-3xl border border-border-subtle bg-surface-elevated p-5 pb-[calc(env(safe-area-inset-bottom,0)+1.25rem)] shadow-[var(--nf-shadow-floating)]"
+          >
+            <div className="mb-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-primary">{copy.contextTitle}</p>
+              <p className="mt-2 break-words text-lg font-semibold text-text-primary">{activeFinanceEntityName || orgName}</p>
+              {activeFinanceEntityName ? (
+                <p className="mt-1 break-words text-sm text-text-secondary">{orgName}</p>
+              ) : null}
+              <p className="mt-2 text-sm text-text-muted">
+                {copy.workspace}: {INTERFACE_ROLE_LABELS[language][interfaceRole]}
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="rounded-2xl bg-background-base/60 p-3">
+                <LanguageSwitcher language={language} setLanguage={setLanguage} />
+              </div>
+              {accessState.isGlobalAccess ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileContextOpen(false);
+                    void openOrganizationSwitcher();
+                  }}
+                  disabled={organizationSwitcherLoading}
+                  className="nf-interactive flex min-h-12 items-center justify-between rounded-2xl bg-background-base/60 px-4 text-sm font-semibold text-text-primary disabled:opacity-60"
+                >
+                  <span>{copy.switchOrganization}</span>
+                  <ChevronsUpDown className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={returnToMillionsNest}
+                className="nf-interactive flex min-h-12 items-center gap-3 rounded-2xl bg-background-base/60 px-4 text-left text-sm font-semibold text-text-secondary"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                {copy.backToHub}
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOutNestFinanceAndReturnToHub()}
+                className="nf-interactive flex min-h-12 items-center gap-3 rounded-2xl px-4 text-left text-sm font-semibold text-text-muted hover:bg-background-base/60"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                {copy.signOut}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileContextOpen(false)}
+                className="nf-interactive min-h-12 rounded-2xl border border-border-subtle text-sm font-semibold text-text-primary"
+              >
+                {copy.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <FinanceCommandPalette
         open={commandPaletteOpen}
