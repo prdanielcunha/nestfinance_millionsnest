@@ -221,12 +221,34 @@ export function normalizeTransactionWorkspaceFilters(
     return null;
   }
 
-  return {
+  const baseFilters: TransactionWorkspaceFilters = {
     direction: direction as TransactionWorkspaceDirection,
     status: status as TransactionWorkspaceStatus,
     occurredFrom,
     occurredTo,
     order: order as TransactionWorkspaceOrder,
+  };
+
+  const hasV2Fields = [
+    'dateBase',
+    'categoryId',
+    'accountId',
+    'fundId',
+    'costCenterId',
+    'paymentMethod',
+    'sourceContext',
+    'origin',
+    'evidence',
+    'quality',
+    'amountMinCents',
+    'amountMaxCents',
+    'searchQuery',
+  ].some((key) => Object.prototype.hasOwnProperty.call(value, key));
+
+  if (!hasV2Fields) return baseFilters;
+
+  return {
+    ...baseFilters,
     dateBase: dateBase as TransactionWorkspaceDateBase,
     categoryId,
     accountId,
