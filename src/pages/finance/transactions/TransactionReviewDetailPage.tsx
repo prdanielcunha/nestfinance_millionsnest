@@ -529,15 +529,15 @@ function TransactionReviewDetailContent() {
                       <div key={allocation.id || `${allocation.categoryId || 'allocation'}-${index}`} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center sm:px-6">
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.category}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.category}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.categorySnapshot?.name || allocation.categoryName || copy.notInformed}</p>
                           </div>
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.fund}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.fund}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.fundSnapshot?.name || allocation.fundName || copy.notInformed}</p>
                           </div>
                           <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.costCenter}</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">{copy.costCenter}</span>
                             <p className="mt-1 text-sm text-text-primary">{allocation.costCenterSnapshot?.name || allocation.costCenterName || copy.notInformed}</p>
                           </div>
                         </div>
