@@ -798,7 +798,7 @@ function TransactionCreateContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'transaction_create_draft',
-      dedupeKey: `transaction_create_draft:${activeFinanceEntityId}:${materialPayloadString}`,
+      dedupeKey: `transaction_create_draft:${idempotencyKey}`,
     });
     setSaving(true);
     const currentEpochOnSave = epochRef.current;
@@ -888,7 +888,7 @@ function TransactionCreateContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'transaction_submit_review',
-      dedupeKey: `transaction_submit_review:${activeFinanceEntityId}:${materialPayloadString}`,
+      dedupeKey: `transaction_submit_review:${idempotencyKey}`,
     });
     setSaving(true);
     const currentEpochOnSave = epochRef.current;
