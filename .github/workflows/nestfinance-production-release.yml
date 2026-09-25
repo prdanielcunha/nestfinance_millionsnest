@@ -65,6 +65,8 @@ jobs:
           npm run test:personalized-workspaces
           npm run test:adaptive-navigation
           npm run test:command-palette
+          npm run test:premium-roadmap-20260925
+          npm run test:transaction-create-no-posting
           npm run test:transaction-inspector
           npm run test:transaction-saved-views
           npm run test:transaction-combined-filters

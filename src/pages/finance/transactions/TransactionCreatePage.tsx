@@ -123,6 +123,7 @@ function TransactionCreateContent() {
   const [occurredAt, setOccurredAt] = useState(
     new Date().toISOString().split('T')[0],
   );
+  const [competenceDate, setCompetenceDate] = useState('');
   const [accountId, setAccountId] = useState('');
   const [destinationAccountId, setDestinationAccountId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -451,6 +452,7 @@ function TransactionCreateContent() {
       direction,
       amountCents: totalCents,
       occurredAt: new Date(`${occurredAt}T12:00:00Z`).toISOString(),
+      competenceDate: competenceDate || undefined,
       accountId,
       destinationAccountId:
         direction === 'transfer' ? destinationAccountId : undefined,
@@ -486,6 +488,7 @@ function TransactionCreateContent() {
     counterparty,
     description,
     destinationAccountId,
+    competenceDate,
     direction,
     evidenceIds,
     evidenceJustification,
@@ -1655,6 +1658,33 @@ function TransactionCreateContent() {
 
                   {showDetails ? (
                     <div className="mt-5 grid gap-5 border-t border-border-subtle pt-5">
+                      <div>
+                        <label
+                          htmlFor="transaction-competence-date"
+                          className="text-sm font-medium text-text-primary"
+                        >
+                          {language === 'PT'
+                            ? 'Competência (opcional)'
+                            : language === 'ES'
+                              ? 'Competencia (opcional)'
+                              : 'Accounting period (optional)'}
+                        </label>
+                        <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                          {language === 'PT'
+                            ? 'Use quando a movimentação pertence a um mês contábil diferente da data em que aconteceu.'
+                            : language === 'ES'
+                              ? 'Úsala cuando el movimiento pertenece a un mes contable diferente de la fecha en que ocurrió.'
+                              : 'Use this when the transaction belongs to a different accounting month than the date it happened.'}
+                        </p>
+                        <input
+                          id="transaction-competence-date"
+                          type="date"
+                          value={competenceDate}
+                          onChange={(event) => setCompetenceDate(event.target.value)}
+                          className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary outline-none focus:border-accent-primary"
+                        />
+                      </div>
+
                       {direction !== 'transfer' ? (
                         <div>
                           <label

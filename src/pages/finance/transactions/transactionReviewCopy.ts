@@ -54,7 +54,7 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
   PT: {
     accessDeniedTitle: 'Acesso somente leitura',
     accessDeniedBody: 'Seu acesso não permite revisar movimentações desta igreja.',
-    pageTitle: 'Para conferir',
+    pageTitle: 'Aguardando conferência',
     pageSubtitle: 'Movimentações que aguardam uma segunda conferência antes do próximo passo.',
     back: 'Voltar para Finance',
     filtersLabel: 'Filtrar fila de revisão',
@@ -111,7 +111,7 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
   EN: {
     accessDeniedTitle: 'Read-only access',
     accessDeniedBody: 'Your access does not allow you to review this church’s transactions.',
-    pageTitle: 'Needs review',
+    pageTitle: 'Waiting for review',
     pageSubtitle: 'Transactions waiting for a second check before the next step.',
     back: 'Back to Finance',
     filtersLabel: 'Filter review queue',
@@ -168,7 +168,7 @@ export const TRANSACTION_REVIEW_COPY: Record<Language, TransactionReviewCopy> = 
   ES: {
     accessDeniedTitle: 'Acceso de solo lectura',
     accessDeniedBody: 'Tu acceso no permite revisar los movimientos de esta iglesia.',
-    pageTitle: 'Para revisar',
+    pageTitle: 'Esperando revisión',
     pageSubtitle: 'Movimientos que esperan una segunda revisión antes del siguiente paso.',
     back: 'Volver a Finanzas',
     filtersLabel: 'Filtrar cola de revisión',

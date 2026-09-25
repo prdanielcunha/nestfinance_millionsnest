@@ -12,6 +12,9 @@ export interface TransactionsListResponse {
   items: LedgerTransaction[];
   nextCursor?: string;
   hasMore: boolean;
+  sourceTruncated?: boolean;
+  scannedCount?: number;
+  dateBase?: 'occurred' | 'competence' | 'recorded';
 }
 
 export interface TransactionsActionSummary {

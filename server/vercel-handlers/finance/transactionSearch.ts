@@ -17,6 +17,9 @@ import { evaluateReviewReadiness } from '../../../shared/finance/ledger/evaluate
 const INDEX_CANDIDATE_LIMIT = 500;
 const FALLBACK_SCAN_LIMIT = 1000;
 const RESULT_LIMIT_MAX = 100;
+const ALLOCATION_CHUNK_SIZE = 30;
+
+type DateBase = 'occurred' | 'competence' | 'recorded';
 
 function toIso(value: any): string | null {
   if (!value) return null;
@@ -34,19 +37,94 @@ function toIso(value: any): string | null {
   return null;
 }
 
-function normalizeOptionalDate(value: unknown) {
+function normalizeOptionalDate(value: unknown, dateBase: DateBase) {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string' || value.length > 40) return undefined;
+  if (dateBase === 'competence') {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/u);
+    return match ? match[1] : undefined;
+  }
   const ms = Date.parse(value);
   if (!Number.isFinite(ms)) return undefined;
   return new Date(ms).toISOString();
 }
 
+function normalizeOptionalString(value: unknown) {
+  if (value === undefined || value === null || value === '' || value === 'all') return null;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim();
+  return normalized && normalized.length <= 160 ? normalized : undefined;
+}
+
+function dateValue(data: any, dateBase: DateBase) {
+  if (dateBase === 'competence') {
+    const value = typeof data.competenceDate === 'string' ? data.competenceDate.slice(0, 10) : '';
+    return /^\d{4}-\d{2}-\d{2}$/u.test(value) ? value : null;
+  }
+  return toIso(dateBase === 'recorded' ? data.recordedAt : data.occurredAt);
+}
+
+function inferOrigin(data: any) {
+  if (data?.countSource?.countSessionId) return 'count';
+  const source = String(data?.sourceContext || '').trim().toLowerCase();
+  if (/import|migration|migrat|csv|ofx|statement/u.test(source)) return 'imported';
+  if (Array.isArray(data?.evidenceIds) && data.evidenceIds.length > 0) return 'evidence';
+  if (/manual|transaction_create|guided|form/u.test(source)) return 'manual';
+  return 'unknown';
+}
+
+function chunks<T>(values: T[], size: number) {
+  const output: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    output.push(values.slice(index, index + size));
+  }
+  return output;
+}
+
+async function loadAllocations(context: any, ids: string[], financeEntityId: string) {
+  const byTransaction = new Map<string, any[]>();
+  for (const idChunk of chunks(ids, ALLOCATION_CHUNK_SIZE)) {
+    if (idChunk.length === 0) continue;
+    const snapshot = await context.repository
+      .getAllocationsQuery()
+      .where('transactionId', 'in', idChunk)
+      .get();
+    for (const doc of snapshot.docs) {
+      const allocation = { id: doc.id, ...doc.data() } as any;
+      if (allocation.financeEntityId !== financeEntityId) continue;
+      const transactionId = String(allocation.transactionId || '');
+      const current = byTransaction.get(transactionId) || [];
+      current.push(allocation);
+      byTransaction.set(transactionId, current);
+    }
+  }
+  return byTransaction;
+}
+
 function compactTransaction(
   doc: any,
+  allocations: any[],
+  dateBase: DateBase,
   readiness?: { blockers: unknown[]; warnings: unknown[]; ready: boolean } | null,
 ) {
   const data = doc.data() || {};
+  const normalizedAllocations = allocations
+    .slice()
+    .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0))
+    .map((allocation) => ({
+      id: allocation.id || null,
+      categoryId: allocation.categoryId || null,
+      categoryName: allocation.categorySnapshot?.name || null,
+      fundId: allocation.fundId || null,
+      fundName: allocation.fundSnapshot?.name || null,
+      costCenterId: allocation.costCenterId || null,
+      amountCents: Number(allocation.amountCents || 0),
+      memo: allocation.memo || null,
+      sequence: Number(allocation.sequence || 0),
+    }));
+  const categoryNames = [...new Set(normalizedAllocations.map((item) => item.categoryName).filter(Boolean))];
+  const fundNames = [...new Set(normalizedAllocations.map((item) => item.fundName).filter(Boolean))];
+
   return {
     id: doc.id,
     transactionId: doc.id,
@@ -55,16 +133,31 @@ function compactTransaction(
     status: data.status,
     amountCents: data.amountCents,
     occurredAt: toIso(data.occurredAt),
+    competenceDate: typeof data.competenceDate === 'string' ? data.competenceDate : null,
+    recordedAt: toIso(data.recordedAt),
+    selectedDate: dateValue(data, dateBase),
+    dateBase,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     accountId: data.accountId || null,
+    sourceAccountId: data.sourceAccountId || null,
+    destinationAccountId: data.destinationAccountId || null,
     paymentMethod: data.paymentMethod || null,
     description: data.description || '',
     summary: data.description || '',
     version: data.version || 1,
-    accountName: data.accountSnapshot?.name || '',
-    categoryName: '',
-    submittedByDisplayName: data.submittedByDisplayName || data.createdBy || 'Sistema',
+    accountName: data.accountSnapshot?.name || data.sourceAccountSnapshot?.name || '',
+    categoryName: categoryNames[0] || '',
+    categoryNames,
+    fundNames,
+    allocations: normalizedAllocations,
+    submittedByDisplayName: data.submittedByDisplayName || null,
+    createdBy: data.createdBy || null,
+    sourceContext: data.sourceContext || null,
+    origin: inferOrigin(data),
+    evidenceCount: Array.isArray(data.evidenceIds) ? data.evidenceIds.length : 0,
+    hasEvidence: Array.isArray(data.evidenceIds) && data.evidenceIds.length > 0,
+    reconciliationStatus: data.reconciliationStatus || 'unreconciled',
     returnedToDraftAt: toIso(data.returnedToDraftAt),
     returnedToDraftReason: data.returnedToDraftReason || null,
     returnedToDraftComment: data.returnedToDraftComment || null,
@@ -76,14 +169,6 @@ function compactTransaction(
         }
       : {}),
   };
-}
-
-function chunkTransactionIds(ids: string[], size = 30): string[][] {
-  const chunks: string[][] = [];
-  for (let index = 0; index < ids.length; index += size) {
-    chunks.push(ids.slice(index, index + size));
-  }
-  return chunks;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -105,8 +190,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? filters.status
         : 'all';
     const order = filters.order === 'oldest' ? 'oldest' : 'newest';
-    const occurredFrom = normalizeOptionalDate(filters.occurredFrom);
-    const occurredTo = normalizeOptionalDate(filters.occurredTo);
+    const dateBase: DateBase =
+      filters.dateBase === 'competence' || filters.dateBase === 'recorded'
+        ? filters.dateBase
+        : 'occurred';
+    const dateFrom = normalizeOptionalDate(filters.occurredFrom, dateBase);
+    const dateTo = normalizeOptionalDate(filters.occurredTo, dateBase);
+    const categoryId = normalizeOptionalString(filters.categoryId);
+    const accountId = normalizeOptionalString(filters.accountId);
+    const fundId = normalizeOptionalString(filters.fundId);
+    const costCenterId = normalizeOptionalString(filters.costCenterId);
+    const paymentMethod = normalizeOptionalString(filters.paymentMethod);
+    const sourceContext = normalizeOptionalString(filters.sourceContext);
+    const evidence =
+      filters.evidence === 'with_evidence' || filters.evidence === 'without_evidence'
+        ? filters.evidence
+        : 'all';
+    const quality =
+      ['missing_description', 'missing_category', 'unreconciled'].includes(filters.quality)
+        ? filters.quality
+        : 'all';
+    const origin =
+      ['manual', 'count', 'evidence', 'imported', 'unknown'].includes(filters.origin)
+        ? filters.origin
+        : 'all';
+
     const amountMinCents =
       filters.amountMinCents === undefined || filters.amountMinCents === null || filters.amountMinCents === ''
         ? null
@@ -115,24 +223,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       filters.amountMaxCents === undefined || filters.amountMaxCents === null || filters.amountMaxCents === ''
         ? null
         : Number(filters.amountMaxCents);
+
     const hasStructuredFilter =
       direction !== 'all' ||
       status !== 'all' ||
-      Boolean(occurredFrom) ||
-      Boolean(occurredTo) ||
+      Boolean(dateFrom) ||
+      Boolean(dateTo) ||
+      categoryId !== null ||
+      accountId !== null ||
+      fundId !== null ||
+      costCenterId !== null ||
+      paymentMethod !== null ||
+      sourceContext !== null ||
+      evidence !== 'all' ||
+      quality !== 'all' ||
+      origin !== 'all' ||
       amountMinCents !== null ||
       amountMaxCents !== null;
+
     if (!normalizedQuery && !hasStructuredFilter) {
       return res.status(400).json({ error: 'INVALID_SEARCH_QUERY' });
     }
 
     if (
       !(TRANSACTION_WORKSPACE_DIRECTIONS as readonly string[]).includes(direction) ||
-      !(TRANSACTION_WORKSPACE_STATUSES as readonly string[]).includes(status)
+      !(TRANSACTION_WORKSPACE_STATUSES as readonly string[]).includes(status) ||
+      categoryId === undefined ||
+      accountId === undefined ||
+      fundId === undefined ||
+      costCenterId === undefined ||
+      paymentMethod === undefined ||
+      sourceContext === undefined
     ) {
       return res.status(400).json({ error: 'INVALID_SEARCH_FILTERS' });
     }
-    if (occurredFrom === undefined || occurredTo === undefined) {
+    if (dateFrom === undefined || dateTo === undefined) {
       return res.status(400).json({ error: 'INVALID_SEARCH_DATE_FILTER' });
     }
     if (
@@ -142,11 +267,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ) {
       return res.status(400).json({ error: 'INVALID_SEARCH_AMOUNT_FILTER' });
     }
-    if (
-      occurredFrom &&
-      occurredTo &&
-      Date.parse(occurredFrom) > Date.parse(occurredTo)
-    ) {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
       return res.status(400).json({ error: 'INVALID_SEARCH_DATE_RANGE' });
     }
 
@@ -160,10 +281,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { db, organizationId, financeEntityId, context } =
       await resolveFinanceRequestContext(req, requiredCapability);
 
-    const coverageId = buildTransactionSearchCoverageId(
-      organizationId,
-      financeEntityId,
-    );
+    const coverageId = buildTransactionSearchCoverageId(organizationId, financeEntityId);
     const coverageSnapshot = await db
       .collection('organizations')
       .doc(organizationId)
@@ -193,10 +311,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .get();
 
       sourceTruncated = indexSnapshot.size > INDEX_CANDIDATE_LIMIT;
-      const indexDocs = indexSnapshot.docs.slice(0, INDEX_CANDIDATE_LIMIT);
-      const sourceRefs = indexDocs.map((doc) =>
-        context.repository.getTransactionsRef().doc(doc.id),
-      );
+      const sourceRefs = indexSnapshot.docs
+        .slice(0, INDEX_CANDIDATE_LIMIT)
+        .map((doc) => context.repository.getTransactionsRef().doc(doc.id));
       sourceDocs = sourceRefs.length > 0 ? await db.getAll(...sourceRefs) : [];
     } else {
       const fallbackSnapshot = await context.repository
@@ -207,8 +324,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sourceDocs = fallbackSnapshot.docs.slice(0, FALLBACK_SCAN_LIMIT);
     }
 
-    const fromMs = occurredFrom ? Date.parse(occurredFrom) : null;
-    const toMs = occurredTo ? Date.parse(occurredTo) : null;
+    const allocationsByTransaction = await loadAllocations(
+      context,
+      sourceDocs.filter((doc) => doc.exists).map((doc) => doc.id),
+      financeEntityId,
+    );
 
     const matched = sourceDocs
       .filter((doc) => doc.exists)
@@ -221,31 +341,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return false;
         }
 
+        const allocations = allocationsByTransaction.get(doc.id) || [];
         const txDirection = data.transactionKind || data.direction;
         if (direction !== 'all' && txDirection !== direction) return false;
         if (status !== 'all' && data.status !== status) return false;
 
-        const amountCents = Number(data.amountCents);
-        if (amountMinCents !== null && (!Number.isSafeInteger(amountCents) || amountCents < amountMinCents)) return false;
-        if (amountMaxCents !== null && (!Number.isSafeInteger(amountCents) || amountCents > amountMaxCents)) return false;
+        const selectedDate = dateValue(data, dateBase);
+        if (!selectedDate) return false;
+        if (dateFrom && selectedDate < dateFrom) return false;
+        if (dateTo && selectedDate > dateTo) return false;
 
-        const occurredAt = toIso(data.occurredAt);
-        if (!occurredAt) return false;
-        const occurredMs = Date.parse(occurredAt);
-        if (fromMs !== null && occurredMs < fromMs) return false;
-        if (toMs !== null && occurredMs > toMs) return false;
+        const amountCents = Math.abs(Number(data.amountCents));
+        if (
+          amountMinCents !== null &&
+          (!Number.isSafeInteger(amountCents) || amountCents < amountMinCents)
+        ) return false;
+        if (
+          amountMaxCents !== null &&
+          (!Number.isSafeInteger(amountCents) || amountCents > amountMaxCents)
+        ) return false;
 
-        return normalizedQuery
-          ? transactionMatchesSearchQuery(
-              { ...data, id: doc.id, transactionId: doc.id },
-              normalizedQuery.normalized,
-            )
-          : true;
+        if (categoryId && !allocations.some((item) => item.categoryId === categoryId)) return false;
+        if (fundId && !allocations.some((item) => item.fundId === fundId)) return false;
+        if (costCenterId && !allocations.some((item) => item.costCenterId === costCenterId)) return false;
+
+        if (accountId) {
+          const accountIds = [
+            data.accountId,
+            data.sourceAccountId,
+            data.destinationAccountId,
+            data.liabilityAccountId,
+          ].filter(Boolean);
+          if (!accountIds.includes(accountId)) return false;
+        }
+        if (paymentMethod && data.paymentMethod !== paymentMethod) return false;
+        if (sourceContext && data.sourceContext !== sourceContext) return false;
+
+        const evidenceCount = Array.isArray(data.evidenceIds) ? data.evidenceIds.length : 0;
+        if (evidence === 'with_evidence' && evidenceCount === 0) return false;
+        if (evidence === 'without_evidence' && evidenceCount > 0) return false;
+
+        const inferredOrigin = inferOrigin(data);
+        if (origin !== 'all' && inferredOrigin !== origin) return false;
+
+        if (quality === 'missing_description' && String(data.description || '').trim()) return false;
+        if (
+          quality === 'missing_category' &&
+          !(['income', 'expense'].includes(txDirection) && allocations.length === 0)
+        ) return false;
+        if (quality === 'unreconciled' && data.reconciliationStatus === 'reconciled') return false;
+
+        if (!normalizedQuery) return true;
+
+        const categoryNames = allocations
+          .map((item) => item.categorySnapshot?.name)
+          .filter(Boolean);
+        const fundNames = allocations
+          .map((item) => item.fundSnapshot?.name)
+          .filter(Boolean);
+        return transactionMatchesSearchQuery(
+          {
+            ...data,
+            id: doc.id,
+            transactionId: doc.id,
+            categoryNames,
+            fundNames,
+            costCenterIds: allocations.map((item) => item.costCenterId).filter(Boolean),
+          },
+          normalizedQuery.normalized,
+        );
       })
       .sort((left, right) => {
-        const leftMs = Date.parse(toIso(left.data()?.occurredAt) || '') || 0;
-        const rightMs = Date.parse(toIso(right.data()?.occurredAt) || '') || 0;
-        const delta = leftMs - rightMs;
+        const leftDate = dateValue(left.data() || {}, dateBase) || '';
+        const rightDate = dateValue(right.data() || {}, dateBase) || '';
+        const delta = leftDate.localeCompare(rightDate);
         return order === 'oldest' ? delta : -delta;
       });
 
@@ -258,33 +427,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (status === 'ready_for_review' && selectedDocs.length > 0) {
       const accountsSnapshot = await context.repository.getAccountsQuery().get();
-      const accounts = accountsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      const transactionIds = selectedDocs.map((doc) => doc.id);
-      const allocationsByTransaction = new Map<string, any[]>();
-
-      for (const transactionIdChunk of chunkTransactionIds(transactionIds)) {
-        const allocationsSnapshot = await context.repository
-          .getAllocationsRef()
-          .where('transactionId', 'in', transactionIdChunk)
-          .get();
-
-        for (const allocationDoc of allocationsSnapshot.docs) {
-          const allocation = {
-            id: allocationDoc.id,
-            ...allocationDoc.data(),
-          } as any;
-          if (allocation.financeEntityId !== financeEntityId) continue;
-          const transactionId = String(allocation.transactionId || '');
-          if (!transactionIds.includes(transactionId)) continue;
-          const current = allocationsByTransaction.get(transactionId) || [];
-          current.push(allocation);
-          allocationsByTransaction.set(transactionId, current);
-        }
-      }
+      const accounts = accountsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
       for (const doc of selectedDocs) {
         const data = doc.data() || {};
@@ -294,20 +437,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ? data.allocationIds
             : allocations.map((allocation) => allocation.id);
 
-        const readiness = evaluateReviewReadiness(
-          {
-            ...data,
-            id: doc.id,
-            allocationIds,
-          } as any,
-          accounts,
+        readinessById.set(
+          doc.id,
+          evaluateReviewReadiness(
+            { ...data, id: doc.id, allocationIds } as any,
+            accounts,
+          ),
         );
-        readinessById.set(doc.id, readiness);
       }
     }
 
     const items = selectedDocs.map((doc) =>
-      compactTransaction(doc, readinessById.get(doc.id)),
+      compactTransaction(
+        doc,
+        allocationsByTransaction.get(doc.id) || [],
+        dateBase,
+        readinessById.get(doc.id),
+      ),
     );
 
     return res.status(200).json({
@@ -318,6 +464,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sourceTruncated,
       resultTruncated,
       limit,
+      dateBase,
       financialMutation: false,
       auditMutation: false,
     });

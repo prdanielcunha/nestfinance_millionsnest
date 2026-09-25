@@ -8,7 +8,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   FilePenLine,
-  Filter,
+  SlidersHorizontal,
   Plus,
   RefreshCw,
   Search,
@@ -24,13 +24,16 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { FirestoreIndexRemediationCard } from '@/src/components/finance/FirestoreIndexRemediationCard';
 import { TransactionSavedViews } from '@/src/components/finance/TransactionSavedViews';
 import { TransactionInspector } from '@/src/components/finance/TransactionInspector';
+import { TransactionStatusSignal } from '@/src/components/finance/TransactionStatusSignal';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
+import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
 import { parseTransactionNaturalQuery } from '../../../../shared/finance/transactionSearch';
+import { TransactionHistoryFilters, type TransactionHistoryFilterValues } from './TransactionHistoryFilters';
 
 type LoadErrorKind = 'forbidden' | 'entity' | 'cursor' | 'index' | 'generic' | null;
 type Direction = 'income' | 'expense' | 'transfer' | 'liability_settlement' | string;
@@ -130,9 +133,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Outras operações',
     allStages: 'Todas',
     draftsAndCorrections: 'Rascunhos e correções',
-    needsChecking: 'Para conferir',
-    approved: 'Aprovadas',
-    posted: 'Lançadas',
+    needsChecking: 'Aguardando conferência',
+    approved: 'Conferidas — aguardando lançamento',
+    posted: 'Lançadas no financeiro',
     reversed: 'Revertidas',
     correction: 'Para corrigir',
     draft: 'Rascunho',
@@ -198,9 +201,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Other operations',
     allStages: 'All',
     draftsAndCorrections: 'Drafts and corrections',
-    needsChecking: 'Needs checking',
-    approved: 'Approved',
-    posted: 'Posted',
+    needsChecking: 'Waiting for review',
+    approved: 'Checked — waiting for posting',
+    posted: 'Posted to finance',
     reversed: 'Reversed',
     correction: 'Needs correction',
     draft: 'Draft',
@@ -266,9 +269,9 @@ const COPY: Record<Language, TransactionsCopy> = {
     otherOperation: 'Otras operaciones',
     allStages: 'Todas',
     draftsAndCorrections: 'Borradores y correcciones',
-    needsChecking: 'Para revisar',
-    approved: 'Aprobados',
-    posted: 'Registrados',
+    needsChecking: 'Esperando revisión',
+    approved: 'Revisados — esperando registro',
+    posted: 'Registrados en finanzas',
     reversed: 'Revertidos',
     correction: 'Para corregir',
     draft: 'Borrador',
@@ -350,7 +353,10 @@ function formatMoney(cents: number | undefined, direction: Direction, language: 
 }
 
 function formatDate(value: unknown, language: Language) {
-  const date = typeof value === 'string' || value instanceof Date ? new Date(value) : null;
+  const normalizedValue = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(value)
+    ? value + 'T12:00:00'
+    : value;
+  const date = typeof normalizedValue === 'string' || normalizedValue instanceof Date ? new Date(normalizedValue) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(localeFor(language), {
     day: '2-digit',
@@ -392,47 +398,38 @@ function directionPresentation(direction: Direction, copy: TransactionsCopy) {
   };
 }
 
-function statusPresentation(item: any, copy: TransactionsCopy) {
-  if (isReturnedDraft(item)) {
-    return {
-      label: copy.correction,
-      className: 'border-semantic-warning/20 bg-semantic-warning/10 text-semantic-warning',
-    };
-  }
-  if (item?.status === 'draft') {
-    return {
-      label: copy.draft,
-      className: 'border-border-subtle bg-surface-secondary text-text-secondary',
-    };
-  }
-  if (item?.status === 'ready_for_review') {
-    return {
-      label: copy.needsChecking,
-      className: 'border-accent-primary/20 bg-accent-primary/10 text-accent-primary',
-    };
-  }
-  if (item?.status === 'approved_for_posting') {
-    return {
-      label: copy.approved,
-      className: 'border-semantic-success/20 bg-semantic-success/10 text-semantic-success',
-    };
-  }
-  if (item?.status === 'posted') {
-    return {
-      label: copy.posted,
-      className: 'border-border-subtle bg-surface-secondary text-text-primary',
-    };
-  }
-  if (item?.status === 'reversed') {
-    return {
-      label: copy.reversed,
-      className: 'border-semantic-danger/20 bg-semantic-danger/10 text-semantic-danger',
-    };
-  }
-  return {
-    label: copy.inProgress,
-    className: 'border-border-subtle bg-surface-secondary text-text-secondary',
+function originLabel(origin: unknown, language: Language) {
+  const value = String(origin || 'unknown');
+  const labels: Record<Language, Record<string, string>> = {
+    PT: {
+      manual: 'Manual',
+      count: 'Contagem',
+      evidence: 'Comprovante',
+      imported: 'Importado',
+      unknown: 'Não identificada',
+    },
+    EN: {
+      manual: 'Manual',
+      count: 'Count',
+      evidence: 'Evidence',
+      imported: 'Imported',
+      unknown: 'Not identified',
+    },
+    ES: {
+      manual: 'Manual',
+      count: 'Conteo',
+      evidence: 'Comprobante',
+      imported: 'Importado',
+      unknown: 'No identificado',
+    },
   };
+  return labels[language][value] || labels[language].unknown;
+}
+
+function missingDescriptionLabel(language: Language) {
+  if (language === 'EN') return 'No description · complete';
+  if (language === 'ES') return 'Sin descripción · completar';
+  return 'Sem descrição · completar';
 }
 
 export default function TransactionsListPage() {
@@ -482,6 +479,12 @@ function TransactionsListContent() {
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const [historySourceTruncated, setHistorySourceTruncated] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [funds, setFunds] = useState<any[]>([]);
+  const catalogEpochRef = useRef(0);
   const [searchMeta, setSearchMeta] = useState<{
     searchMode: 'index' | 'canonical_fallback';
     indexCertified: boolean;
@@ -494,6 +497,26 @@ function TransactionsListContent() {
   const fromFilter = searchParams.get('from') || '';
   const toFilter = searchParams.get('to') || '';
   const orderFilter = searchParams.get('order') === 'oldest' ? 'oldest' : 'newest';
+  const dateBaseFilter =
+    searchParams.get('dateBase') === 'competence' || searchParams.get('dateBase') === 'recorded'
+      ? searchParams.get('dateBase') as 'competence' | 'recorded'
+      : 'occurred';
+  const categoryIdFilter = searchParams.get('categoryId') || '';
+  const accountIdFilter = searchParams.get('accountId') || '';
+  const fundIdFilter = searchParams.get('fundId') || '';
+  const costCenterIdFilter = searchParams.get('costCenterId') || '';
+  const paymentMethodFilter = searchParams.get('paymentMethod') || '';
+  const originFilter = searchParams.get('origin') || 'all';
+  const evidenceFilter = searchParams.get('evidence') || 'all';
+  const qualityFilter = searchParams.get('quality') || 'all';
+  const amountMinCentsFilter = (() => {
+    const value = Number(searchParams.get('minCents'));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  })();
+  const amountMaxCentsFilter = (() => {
+    const value = Number(searchParams.get('maxCents'));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  })();
   const searchQuery = searchParams.get('q') || '';
   const normalizedSearchQuery = searchQuery.trim();
   const naturalSearch = useMemo(
@@ -502,6 +525,94 @@ function TransactionsListContent() {
   );
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
+
+  const normalizeLabel = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/gu, '')
+      .toLocaleLowerCase('pt-BR')
+      .replace(/[^a-z0-9]+/gu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+
+  const naturalCategory = useMemo(() => {
+    if (categoryIdFilter || !naturalSearch.residualQuery) return null;
+    const residual = normalizeLabel(naturalSearch.residualQuery);
+    return categories.find((category) => {
+      const name = normalizeLabel(String(category.name || ''));
+      return name.length >= 2 && residual.includes(name);
+    }) || null;
+  }, [categories, categoryIdFilter, naturalSearch.residualQuery]);
+
+  const effectiveResidualQuery = useMemo(() => {
+    if (!naturalCategory) return naturalSearch.residualQuery;
+    const residual = normalizeLabel(naturalSearch.residualQuery);
+    const categoryName = normalizeLabel(String(naturalCategory.name || ''));
+    return residual.replace(categoryName, ' ').replace(/\s+/gu, ' ').trim();
+  }, [naturalCategory, naturalSearch.residualQuery]);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const currentEpoch = ++catalogEpochRef.current;
+
+    if (!activeFinanceEntityId) {
+      setCategories([]);
+      setAccounts([]);
+      setFunds([]);
+      return () => abortController.abort();
+    }
+
+    const loadCatalogs = async () => {
+      try {
+        const user = firebaseAuth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const request = (url: string) =>
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ financeEntityId: activeFinanceEntityId }),
+            signal: abortController.signal,
+          });
+
+        const [categoriesResponse, accountsResponse, fundsResponse] = await Promise.all([
+          request('/api/finance/categories/list'),
+          request('/api/finance/accounts/list'),
+          request('/api/finance/funds/list'),
+        ]);
+
+        if (
+          abortController.signal.aborted ||
+          currentEpoch !== catalogEpochRef.current ||
+          !categoriesResponse.ok ||
+          !accountsResponse.ok ||
+          !fundsResponse.ok
+        ) {
+          return;
+        }
+
+        const [categoriesData, accountsData, fundsData] = await Promise.all([
+          categoriesResponse.json().catch(() => ({})),
+          accountsResponse.json().catch(() => ({})),
+          fundsResponse.json().catch(() => ({})),
+        ]);
+
+        if (abortController.signal.aborted || currentEpoch !== catalogEpochRef.current) return;
+        setCategories(Array.isArray(categoriesData.categories) ? categoriesData.categories : []);
+        setAccounts(Array.isArray(accountsData.accounts) ? accountsData.accounts : []);
+        setFunds(Array.isArray(fundsData.funds) ? fundsData.funds : []);
+      } catch {
+        if (abortController.signal.aborted || currentEpoch !== catalogEpochRef.current) return;
+        // Filters remain usable without catalogs; IDs already present in saved views are preserved.
+      }
+    };
+
+    void loadCatalogs();
+    return () => abortController.abort();
+  }, [activeFinanceEntityId]);
 
   const loadData = async (cursor?: string, signal?: AbortSignal, currentEpoch?: number) => {
     if (!cursor) setLoading(true);
@@ -529,15 +640,26 @@ function TransactionsListContent() {
           : undefined;
       if (occurredFrom) filters.occurredFrom = occurredFrom;
       if (occurredTo) filters.occurredTo = occurredTo;
-      if (naturalFilters.amountMinCents !== undefined) filters.amountMinCents = naturalFilters.amountMinCents;
-      if (naturalFilters.amountMaxCents !== undefined) filters.amountMaxCents = naturalFilters.amountMaxCents;
+      filters.dateBase = dateBaseFilter;
+      if (categoryIdFilter || naturalCategory?.id) filters.categoryId = categoryIdFilter || naturalCategory.id;
+      if (accountIdFilter) filters.accountId = accountIdFilter;
+      if (fundIdFilter) filters.fundId = fundIdFilter;
+      if (costCenterIdFilter) filters.costCenterId = costCenterIdFilter;
+      if (paymentMethodFilter) filters.paymentMethod = paymentMethodFilter;
+      if (originFilter !== 'all') filters.origin = originFilter;
+      if (evidenceFilter !== 'all') filters.evidence = evidenceFilter;
+      if (qualityFilter !== 'all') filters.quality = qualityFilter;
+      if (amountMinCentsFilter !== null) filters.amountMinCents = amountMinCentsFilter;
+      else if (naturalFilters.amountMinCents !== undefined) filters.amountMinCents = naturalFilters.amountMinCents;
+      if (amountMaxCentsFilter !== null) filters.amountMaxCents = amountMaxCentsFilter;
+      else if (naturalFilters.amountMaxCents !== undefined) filters.amountMaxCents = naturalFilters.amountMaxCents;
       filters.order = orderFilter;
 
       if (normalizedSearchQuery.length >= 2) {
         const res = await searchTransactions(
-          naturalSearch.residualQuery,
+          effectiveResidualQuery,
           filters,
-          50,
+          100,
         );
 
         if (signal?.aborted || (currentEpoch && currentEpoch !== epochRef.current)) return;
@@ -559,6 +681,7 @@ function TransactionsListContent() {
         setItems((previous) => cursor ? [...previous, ...res.items] : res.items);
         setNextCursor(res.nextCursor);
         setHasMore(res.hasMore);
+        setHistorySourceTruncated((current) => current || Boolean(res.sourceTruncated));
         setSearchMeta(null);
       }
     } catch (error: any) {
@@ -593,6 +716,7 @@ function TransactionsListContent() {
     setNextCursor(undefined);
     setHasMore(true);
     setSearchMeta(null);
+    setHistorySourceTruncated(false);
 
     if (!activeFinanceEntityId) {
       setLoading(false);
@@ -626,42 +750,147 @@ function TransactionsListContent() {
     fromFilter,
     toFilter,
     orderFilter,
+    dateBaseFilter,
+    categoryIdFilter,
+    accountIdFilter,
+    fundIdFilter,
+    costCenterIdFilter,
+    paymentMethodFilter,
+    originFilter,
+    evidenceFilter,
+    qualityFilter,
+    amountMinCentsFilter,
+    amountMaxCentsFilter,
     normalizedSearchQuery,
     naturalSearch,
+    naturalCategory,
+    effectiveResidualQuery,
   ]);
 
-  const updateFilter = (key: 'direction' | 'status', value: string) => {
+  const setFilterParam = (
+    key: keyof TransactionHistoryFilterValues,
+    value: string,
+  ) => {
     const next = new URLSearchParams(searchParams);
-    if (value === 'all') next.delete(key);
-    else next.set(key, value);
+    const paramMap: Record<keyof TransactionHistoryFilterValues, string> = {
+      direction: 'direction',
+      status: 'status',
+      from: 'from',
+      to: 'to',
+      order: 'order',
+      dateBase: 'dateBase',
+      categoryId: 'categoryId',
+      accountId: 'accountId',
+      fundId: 'fundId',
+      costCenterId: 'costCenterId',
+      paymentMethod: 'paymentMethod',
+      origin: 'origin',
+      evidence: 'evidence',
+      quality: 'quality',
+      amountMinCents: 'minCents',
+      amountMaxCents: 'maxCents',
+    };
+    const param = paramMap[key];
+
+    const defaultValue =
+      (key === 'direction' || key === 'status' || key === 'origin' || key === 'evidence' || key === 'quality')
+        ? 'all'
+        : key === 'order'
+          ? 'newest'
+          : key === 'dateBase'
+            ? 'occurred'
+            : '';
+
+    if (!value || value === defaultValue) next.delete(param);
+    else next.set(param, value);
+
+    if (key === 'from' || key === 'to') {
+      const currentFrom = key === 'from' ? value : (next.get('from') || '');
+      const currentTo = key === 'to' ? value : (next.get('to') || '');
+      if (currentFrom && currentTo && currentFrom > currentTo) {
+        if (key === 'from') next.set('to', currentFrom);
+        else next.set('from', currentTo);
+      }
+    }
+
     setSearchParams(next);
   };
 
-  const updateDateFilter = (key: 'from' | 'to', value: string) => {
+  const setAmountFilter = (
+    key: 'amountMinCents' | 'amountMaxCents',
+    cents: number | null,
+  ) => {
     const next = new URLSearchParams(searchParams);
-    if (!value) next.delete(key);
-    else next.set(key, value);
+    const param = key === 'amountMinCents' ? 'minCents' : 'maxCents';
+    if (cents === null) next.delete(param);
+    else next.set(param, String(cents));
 
-    const currentFrom = key === 'from' ? value : (next.get('from') || '');
-    const currentTo = key === 'to' ? value : (next.get('to') || '');
-    if (currentFrom && currentTo && currentFrom > currentTo) {
-      if (key === 'from') next.set('to', currentFrom);
-      else next.set('from', currentTo);
+    const minimum = Number(next.get('minCents'));
+    const maximum = Number(next.get('maxCents'));
+    if (
+      Number.isSafeInteger(minimum) &&
+      minimum >= 0 &&
+      Number.isSafeInteger(maximum) &&
+      maximum >= 0 &&
+      minimum > maximum
+    ) {
+      if (key === 'amountMinCents') next.set('maxCents', String(cents));
+      else next.set('minCents', String(cents));
     }
     setSearchParams(next);
   };
 
-  const updateOrder = (value: 'newest' | 'oldest') => {
+  const applyMonth = (month: string) => {
+    if (!/^\d{4}-\d{2}$/u.test(month)) return;
+    const [year, monthNumber] = month.split('-').map(Number);
+    const lastDay = new Date(year, monthNumber, 0).getDate();
     const next = new URLSearchParams(searchParams);
-    if (value === 'newest') next.delete('order');
-    else next.set('order', value);
+    next.set('from', `${month}-01`);
+    next.set('to', `${month}-${String(lastDay).padStart(2, '0')}`);
     setSearchParams(next);
   };
 
-  const clearPeriod = () => {
+  const applyPeriodPreset = (preset: 'all' | 'this_month' | 'previous_month') => {
     const next = new URLSearchParams(searchParams);
-    next.delete('from');
-    next.delete('to');
+    if (preset === 'all') {
+      next.delete('from');
+      next.delete('to');
+      setSearchParams(next);
+      return;
+    }
+
+    const date = new Date();
+    if (preset === 'previous_month') date.setMonth(date.getMonth() - 1);
+    const month = [
+      String(date.getFullYear()).padStart(4, '0'),
+      String(date.getMonth() + 1).padStart(2, '0'),
+    ].join('-');
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    next.set('from', `${month}-01`);
+    next.set('to', `${month}-${String(lastDay).padStart(2, '0')}`);
+    setSearchParams(next);
+  };
+
+  const clearHistoryFilters = () => {
+    const next = new URLSearchParams(searchParams);
+    [
+      'direction',
+      'status',
+      'from',
+      'to',
+      'order',
+      'dateBase',
+      'categoryId',
+      'accountId',
+      'fundId',
+      'costCenterId',
+      'paymentMethod',
+      'origin',
+      'evidence',
+      'quality',
+      'minCents',
+      'maxCents',
+    ].forEach((key) => next.delete(key));
     setSearchParams(next);
   };
 
@@ -672,26 +901,92 @@ function TransactionsListContent() {
     setSearchParams(next, { replace: true });
   };
 
+  const filterValues: TransactionHistoryFilterValues = {
+    direction: directionFilter,
+    status: statusFilter,
+    from: fromFilter,
+    to: toFilter,
+    order: orderFilter,
+    dateBase: dateBaseFilter,
+    categoryId: categoryIdFilter,
+    accountId: accountIdFilter,
+    fundId: fundIdFilter,
+    costCenterId: costCenterIdFilter,
+    paymentMethod: paymentMethodFilter,
+    origin: originFilter,
+    evidence: evidenceFilter,
+    quality: qualityFilter,
+    amountMinCents: amountMinCentsFilter,
+    amountMaxCents: amountMaxCentsFilter,
+  };
+
+  const activeFilterCount = [
+    directionFilter !== 'all',
+    statusFilter !== 'all',
+    Boolean(fromFilter || toFilter),
+    orderFilter !== 'newest',
+    dateBaseFilter !== 'occurred',
+    Boolean(categoryIdFilter),
+    Boolean(accountIdFilter),
+    Boolean(fundIdFilter),
+    Boolean(costCenterIdFilter),
+    Boolean(paymentMethodFilter),
+    originFilter !== 'all',
+    evidenceFilter !== 'all',
+    qualityFilter !== 'all',
+    amountMinCentsFilter !== null,
+    amountMaxCentsFilter !== null,
+  ].filter(Boolean).length;
+
   const workspaceFilters: TransactionWorkspaceFilters = {
     direction: directionFilter as TransactionWorkspaceFilters['direction'],
     status: statusFilter as TransactionWorkspaceFilters['status'],
     occurredFrom: fromFilter || null,
     occurredTo: toFilter || null,
     order: orderFilter,
+    dateBase: dateBaseFilter,
+    categoryId: categoryIdFilter || null,
+    accountId: accountIdFilter || null,
+    fundId: fundIdFilter || null,
+    costCenterId: costCenterIdFilter || null,
+    paymentMethod: paymentMethodFilter || null,
+    sourceContext: null,
+    origin: originFilter as TransactionWorkspaceFilters['origin'],
+    evidence: evidenceFilter as TransactionWorkspaceFilters['evidence'],
+    quality: qualityFilter as TransactionWorkspaceFilters['quality'],
+    amountMinCents: amountMinCentsFilter,
+    amountMaxCents: amountMaxCentsFilter,
+    searchQuery: searchQuery || null,
   };
 
   const applySavedView = (filters: TransactionWorkspaceFilters) => {
     const next = new URLSearchParams(searchParams);
-    if (filters.direction === 'all') next.delete('direction');
-    else next.set('direction', filters.direction);
-    if (filters.status === 'all') next.delete('status');
-    else next.set('status', filters.status);
-    if (filters.occurredFrom) next.set('from', filters.occurredFrom);
-    else next.delete('from');
-    if (filters.occurredTo) next.set('to', filters.occurredTo);
-    else next.delete('to');
-    if (filters.order === 'oldest') next.set('order', 'oldest');
-    else next.delete('order');
+    const setOrDelete = (key: string, value: string | null | undefined, defaultValue = '') => {
+      if (!value || value === defaultValue) next.delete(key);
+      else next.set(key, value);
+    };
+
+    setOrDelete('direction', filters.direction, 'all');
+    setOrDelete('status', filters.status, 'all');
+    setOrDelete('from', filters.occurredFrom);
+    setOrDelete('to', filters.occurredTo);
+    setOrDelete('order', filters.order, 'newest');
+    setOrDelete('dateBase', filters.dateBase || 'occurred', 'occurred');
+    setOrDelete('categoryId', filters.categoryId);
+    setOrDelete('accountId', filters.accountId);
+    setOrDelete('fundId', filters.fundId);
+    setOrDelete('costCenterId', filters.costCenterId);
+    setOrDelete('paymentMethod', filters.paymentMethod);
+    setOrDelete('origin', filters.origin || 'all', 'all');
+    setOrDelete('evidence', filters.evidence || 'all', 'all');
+    setOrDelete('quality', filters.quality || 'all', 'all');
+
+    if (filters.amountMinCents === null || filters.amountMinCents === undefined) next.delete('minCents');
+    else next.set('minCents', String(filters.amountMinCents));
+    if (filters.amountMaxCents === null || filters.amountMaxCents === undefined) next.delete('maxCents');
+    else next.set('maxCents', String(filters.amountMaxCents));
+    setOrDelete('q', filters.searchQuery);
+
     setSearchParams(next);
   };
 
@@ -713,23 +1008,6 @@ function TransactionsListContent() {
     setHasMore(true);
     void loadData(undefined, undefined, ++epochRef.current);
   };
-
-  const directionOptions = [
-    { value: 'all', label: copy.allTypes },
-    { value: 'income', label: copy.income },
-    { value: 'expense', label: copy.expense },
-    { value: 'transfer', label: copy.transfer },
-    { value: 'liability_settlement', label: copy.otherOperation },
-  ];
-
-  const statusOptions = [
-    { value: 'all', label: copy.allStages },
-    { value: 'draft', label: copy.draftsAndCorrections },
-    { value: 'ready_for_review', label: copy.needsChecking },
-    { value: 'approved_for_posting', label: copy.approved },
-    { value: 'posted', label: copy.posted },
-    { value: 'reversed', label: copy.reversed },
-  ];
 
   const emptyState = (() => {
     if (statusFilter === 'draft') return { title: copy.emptyDraftTitle, text: copy.emptyDraftText };
@@ -867,6 +1145,15 @@ function TransactionsListContent() {
             {searchMeta?.sourceTruncated || searchMeta?.resultTruncated ? (
               <p className="mt-2 text-xs font-medium text-semantic-warning">{copy.searchTruncatedHint}</p>
             ) : null}
+            {historySourceTruncated ? (
+              <p className="mt-2 text-xs font-medium text-semantic-warning">
+                {language === 'PT'
+                  ? 'Há mais histórico além deste lote. Refine os filtros ou continue carregando para não interpretar este recorte como o histórico inteiro.'
+                  : language === 'ES'
+                    ? 'Hay más historial fuera de este lote. Ajusta los filtros o sigue cargando para no interpretar este recorte como todo el historial.'
+                    : 'There is more history beyond this batch. Refine the filters or keep loading so this slice is not mistaken for the complete history.'}
+              </p>
+            ) : null}
           </Surface>
 
           <TransactionSavedViews
@@ -874,114 +1161,63 @@ function TransactionsListContent() {
             onApply={applySavedView}
           />
 
-          <Surface variant="secondary" radius="lg" className="p-4 sm:p-5" aria-label={copy.filters}>
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Filter className="h-4 w-4 text-text-muted" aria-hidden="true" />
-              {copy.filters}
-            </div>
+          <div className="lg:hidden">
+            <Button
+              variant="secondary"
+              size="lg"
+              leadingIcon={<SlidersHorizontal className="h-4 w-4" />}
+              onClick={() => setFiltersOpen(true)}
+              className="w-full justify-between"
+            >
+              <span>{copy.filters}</span>
+              {activeFilterCount > 0 ? (
+                <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-accent-primary/10 px-2 py-0.5 text-xs font-semibold text-accent-primary">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.type}</p>
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label={copy.type}>
-                  {directionOptions.map((option) => {
-                    const selected = directionFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateFilter('direction', option.value)}
-                        className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          <div className="hidden lg:block">
+            <TransactionHistoryFilters
+              language={language}
+              values={filterValues}
+              categories={categories}
+              accounts={accounts}
+              funds={funds}
+              onChange={setFilterParam}
+              onMonth={applyMonth}
+              onPreset={applyPeriodPreset}
+              onAmountChange={setAmountFilter}
+              onClear={clearHistoryFilters}
+            />
+          </div>
 
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.stage}</p>
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label={copy.stage}>
-                  {statusOptions.map((option) => {
-                    const selected = statusFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateFilter('status', option.value)}
-                        className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.period}</p>
-                  {fromFilter || toFilter ? (
-                    <button
-                      type="button"
-                      onClick={clearPeriod}
-                      className="nf-interactive rounded-lg px-2 py-1 text-xs font-medium text-accent-primary hover:bg-accent-primary/10"
-                    >
-                      {copy.clearPeriod}
-                    </button>
-                  ) : null}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateFrom}</span>
-                    <input
-                      type="date"
-                      value={fromFilter}
-                      max={toFilter || undefined}
-                      onChange={(event) => updateDateFilter('from', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-text-muted">{copy.dateTo}</span>
-                    <input
-                      type="date"
-                      value={toFilter}
-                      min={fromFilter || undefined}
-                      onChange={(event) => updateDateFilter('to', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-border-subtle bg-surface-default px-3 text-sm text-text-primary outline-none transition focus:border-accent-primary/50 focus:ring-2 focus:ring-accent-primary/10"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">{copy.order}</p>
-                <div className="flex gap-2" role="group" aria-label={copy.order}>
-                  {([
-                    { value: 'newest', label: copy.newest },
-                    { value: 'oldest', label: copy.oldest },
-                  ] as const).map((option) => {
-                    const selected = orderFilter === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => updateOrder(option.value)}
-                        className={`nf-interactive min-h-11 rounded-xl border px-4 text-sm font-medium ${selected ? 'border-accent-primary/40 bg-accent-primary/10 text-accent-primary' : 'border-border-subtle bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
+          {filtersOpen ? (
+            <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={copy.filters}>
+              <button
+                type="button"
+                aria-label={copy.back}
+                className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+                onClick={() => setFiltersOpen(false)}
+              />
+              <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] bg-surface-base p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
+                <TransactionHistoryFilters
+                  language={language}
+                  values={filterValues}
+                  categories={categories}
+                  accounts={accounts}
+                  funds={funds}
+                  onChange={setFilterParam}
+                  onMonth={applyMonth}
+                  onPreset={applyPeriodPreset}
+                  onAmountChange={setAmountFilter}
+                  onClear={clearHistoryFilters}
+                  onClose={() => setFiltersOpen(false)}
+                />
               </div>
             </div>
-          </Surface>
+          ) : null}
 
           {errorKind === 'index' ? (
             <FirestoreIndexRemediationCard
@@ -1066,12 +1302,25 @@ function TransactionsListContent() {
               {items.map((item) => {
                 const direction = String(item.transactionKind || item.direction || '');
                 const directionUi = directionPresentation(direction, copy);
-                const statusUi = statusPresentation(item, copy);
                 const returned = isReturnedDraft(item);
+                const categoryNames = Array.isArray(item.categoryNames) && item.categoryNames.length > 0
+                  ? item.categoryNames
+                  : item.categoryName
+                    ? [item.categoryName]
+                    : [];
+                const selectedDate = item.selectedDate || item.occurredAt;
+                const dateBaseLabel =
+                  dateBaseFilter === 'competence'
+                    ? (language === 'PT' ? 'Competência' : language === 'ES' ? 'Competencia' : 'Accounting period')
+                    : dateBaseFilter === 'recorded'
+                      ? (language === 'PT' ? 'Registrada' : language === 'ES' ? 'Registrado' : 'Recorded')
+                      : (language === 'PT' ? 'Data' : language === 'ES' ? 'Fecha' : 'Date');
                 const metadata = [
-                  formatDate(item.occurredAt, language),
+                  selectedDate ? `${dateBaseLabel}: ${formatDate(selectedDate, language)}` : '',
                   item.accountName ? `${copy.account}: ${item.accountName}` : '',
-                  item.categoryName ? `${copy.category}: ${item.categoryName}` : '',
+                  categoryNames.length > 0 ? `${copy.category}: ${categoryNames.join(' · ')}` : '',
+                  `ID: ${item.id}`,
+                  `${language === 'PT' ? 'Origem' : language === 'ES' ? 'Origen' : 'Origin'}: ${originLabel(item.origin, language)}`,
                 ].filter(Boolean);
 
                 return (
@@ -1090,7 +1339,7 @@ function TransactionsListContent() {
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                           <div className="min-w-0">
                             <h2 className="truncate text-sm font-semibold text-text-primary sm:text-base">
-                              {item.description || copy.noDescription}
+                              {item.description || missingDescriptionLabel(language)}
                             </h2>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
                               <span>{directionUi.label}</span>
@@ -1107,18 +1356,14 @@ function TransactionsListContent() {
                             <span className={`nf-financial-number text-base font-semibold ${directionUi.amountClass}`}>
                               {formatMoney(item.amountCents, direction, language)}
                             </span>
-                            <span className={`inline-flex min-h-7 items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${statusUi.className}`}>
-                              {statusUi.label}
-                            </span>
                           </div>
                         </div>
 
-                        {returned ? (
-                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-semantic-warning/15 bg-semantic-warning/5 px-3 py-2.5 text-xs leading-relaxed text-text-secondary">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-semantic-warning" aria-hidden="true" />
-                            <span>{copy.returnedHint}</span>
-                          </div>
-                        ) : null}
+                        <TransactionStatusSignal
+                          status={item.status}
+                          returned={returned}
+                          className="mt-3"
+                        />
                       </div>
 
                       <ChevronRight className="mt-3 hidden h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5 sm:block" aria-hidden="true" />
@@ -1129,7 +1374,7 @@ function TransactionsListContent() {
             </div>
           )}
 
-          {hasMore && items.length > 0 && !loading && !errorKind ? (
+          {hasMore && !loading && !errorKind ? (
             <div className="flex justify-center pt-2">
               <Button
                 variant="secondary"
