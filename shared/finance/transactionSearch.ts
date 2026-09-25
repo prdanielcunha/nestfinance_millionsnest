@@ -81,6 +81,9 @@ function dateSearchValues(value: unknown) {
 }
 
 function transactionSearchValues(transaction: Record<string, any>) {
+  const categoryNames = Array.isArray(transaction.categoryNames) ? transaction.categoryNames : [];
+  const fundNames = Array.isArray(transaction.fundNames) ? transaction.fundNames : [];
+  const costCenterIds = Array.isArray(transaction.costCenterIds) ? transaction.costCenterIds : [];
   return [
     transaction.id,
     transaction.transactionId,
@@ -94,6 +97,9 @@ function transactionSearchValues(transaction: Record<string, any>) {
     transaction.liabilityAccountId,
     transaction.accountSnapshot?.name,
     transaction.liabilityAccountSnapshot?.name,
+    ...categoryNames,
+    ...fundNames,
+    ...costCenterIds,
     ...amountSearchValues(transaction.amountCents),
     ...dateSearchValues(transaction.occurredAt),
   ];
@@ -234,8 +240,8 @@ export function parseTransactionNaturalQuery(value: unknown, now = new Date()): 
 
   const statusMatchers:[RegExp,NonNullable<TransactionNaturalQuery['filters']['status']>,string][]=[
     [/\b(rascunhos?|drafts?|borradores?)\b/u,'draft','rascunho'],
-    [/\b(para conferir|aguardando revisao|needs review|to review|para revisar)\b/u,'ready_for_review','para conferir'],
-    [/\b(aprovadas?|approved|aprobados?)\b/u,'approved_for_posting','aprovada'],
+    [/\b(para conferir|aguardando conferencia|aguardando revisao|needs review|waiting for review|to review|para revisar|esperando revision)\b/u,'ready_for_review','aguardando conferência'],
+    [/\b(aprovadas?|conferida aguardando lancamento|conferidas aguardando lancamento|approved|checked waiting posting|aprobados?|revisado esperando registro)\b/u,'approved_for_posting','conferida — aguardando lançamento'],
     [/\b(lancadas?|posted|contabilizadas?|registradas?)\b/u,'posted','lançada'],
     [/\b(revertidas?|reversed|revertidos?)\b/u,'reversed','revertida'],
   ];
