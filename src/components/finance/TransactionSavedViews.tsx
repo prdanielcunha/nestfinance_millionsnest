@@ -99,7 +99,20 @@ function sameFilters(a: TransactionWorkspaceFilters, b: TransactionWorkspaceFilt
     a.status === b.status &&
     (a.occurredFrom || null) === (b.occurredFrom || null) &&
     (a.occurredTo || null) === (b.occurredTo || null) &&
-    (a.order || 'newest') === (b.order || 'newest')
+    (a.order || 'newest') === (b.order || 'newest') &&
+    (a.dateBase || 'occurred') === (b.dateBase || 'occurred') &&
+    (a.categoryId || null) === (b.categoryId || null) &&
+    (a.accountId || null) === (b.accountId || null) &&
+    (a.fundId || null) === (b.fundId || null) &&
+    (a.costCenterId || null) === (b.costCenterId || null) &&
+    (a.paymentMethod || null) === (b.paymentMethod || null) &&
+    (a.sourceContext || null) === (b.sourceContext || null) &&
+    (a.origin || 'all') === (b.origin || 'all') &&
+    (a.evidence || 'all') === (b.evidence || 'all') &&
+    (a.quality || 'all') === (b.quality || 'all') &&
+    (a.amountMinCents ?? null) === (b.amountMinCents ?? null) &&
+    (a.amountMaxCents ?? null) === (b.amountMaxCents ?? null) &&
+    (a.searchQuery || null) === (b.searchQuery || null)
   );
 }
 
@@ -194,7 +207,7 @@ export function TransactionSavedViews({ filters, onApply }: Props) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[11px] font-medium text-text-muted">
+          <span className="text-xs font-medium text-text-muted">
             {copy.limit(views.length, limit)}
           </span>
           <Button
