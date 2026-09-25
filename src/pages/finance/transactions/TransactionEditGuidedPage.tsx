@@ -849,7 +849,7 @@ function TransactionEditGuidedContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'transaction_edit_draft',
-      dedupeKey: `transaction_edit_draft:${transactionId}:${editFingerprint}`,
+      dedupeKey: `transaction_edit_draft:${transactionId}:${expectedVersion ?? 'unknown'}`,
     });
 
     setSaving(true);
@@ -946,7 +946,7 @@ function TransactionEditGuidedContent() {
     recordFinanceJourneyMetric('flow_start', {
       organizationId,
       flow: 'transaction_edit_submit_review',
-      dedupeKey: `transaction_edit_submit_review:${transactionId}:${fingerprint}`,
+      dedupeKey: `transaction_edit_submit_review:${transactionId}:${expectedVersion ?? 'unknown'}`,
     });
     setSubmitting(true);
     setSaving(true);
