@@ -353,7 +353,7 @@ function formatMoney(cents: number | undefined, direction: Direction, language: 
 }
 
 function formatDate(value: unknown, language: Language) {
-  const normalizedValue = typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/u.test(value)
+  const normalizedValue = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(value)
     ? value + 'T12:00:00'
     : value;
   const date = typeof normalizedValue === 'string' || normalizedValue instanceof Date ? new Date(normalizedValue) : null;
@@ -1362,7 +1362,7 @@ function TransactionsListContent() {
             </div>
           )}
 
-          {hasMore && items.length > 0 && !loading && !errorKind ? (
+          {hasMore && !loading && !errorKind ? (
             <div className="flex justify-center pt-2">
               <Button
                 variant="secondary"
