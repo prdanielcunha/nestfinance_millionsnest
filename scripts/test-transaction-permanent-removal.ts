@@ -11,7 +11,7 @@ for (const unsafe of [
   { status: 'posted' }, { status: 'reversed' }, { sourceContext: 'count' },
   { countSource: { countSessionId: 'count_demo' } }, { evidenceIds: ['evidence_demo'] },
   { reconciliationStatus: 'reconciled' }, { reconciliationStatus: undefined },
-  { journalEntryId: 'je_demo' }, { postedAt: '2026-06-01' }, { version: undefined },
+  { journalEntryId: 'je_demo' }, { postingId: 'posting_demo' }, { postedAt: '2026-06-01' }, { version: undefined },
 ]) assert.notEqual(transactionRemovalBlocker({ ...base, ...unsafe }), null, JSON.stringify(unsafe));
 
 const handler = readFileSync('server/vercel-handlers/finance/transactionsRemoveBatch.ts', 'utf8');

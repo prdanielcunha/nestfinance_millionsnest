@@ -5,7 +5,7 @@ export function transactionRemovalBlocker(data: Record<string, any>): string | n
   if (Array.isArray(data.evidenceIds) && data.evidenceIds.length > 0) return 'HAS_EVIDENCE';
   if (data.evidenceJustification || data.evidenceId) return 'HAS_EVIDENCE';
   if (data.reconciliationStatus !== 'unreconciled') return 'RECONCILED_OR_UNKNOWN';
-  if (data.postedAt || data.postedBy || data.journalEntryId || data.ledgerEntryId || data.reversalId) return 'HAS_LEDGER_EFFECT';
+  if (data.postingId || data.postedAt || data.postedBy || data.journalEntryId || data.ledgerEntryId || data.reversalId) return 'HAS_LEDGER_EFFECT';
   if (!Number.isSafeInteger(data.version) || data.version < 1) return 'UNKNOWN_VERSION';
   return null;
 }
