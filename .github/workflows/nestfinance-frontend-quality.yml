@@ -25,6 +25,9 @@ on:
       - "scripts/test-roadmap-cycle-09-operational-close.ts"
       - "scripts/test-roadmap-cycle-10-accountant-certification.ts"
       - "scripts/test-premium-roadmap-20260925.ts"
+      - "scripts/test-transaction-permanent-removal.ts"
+      - "shared/finance/transactionPermanentRemoval.ts"
+      - "server/vercel-handlers/finance/transactionsRemoveBatch.ts"
       - "shared/finance/accountantPackage.ts"
       - "shared/finance/financeEditPresence.ts"
       - "shared/finance/usabilityCertification.ts"
@@ -258,6 +261,9 @@ jobs:
 
       - name: Verify premium UX roadmap 2026-09-25
         run: npm run test:premium-roadmap-20260925
+
+      - name: Verify permanent transaction removal safeguards
+        run: npm run test:transaction-permanent-removal
 
       - name: Verify guided transaction create flow
         run: npx tsx scripts/test-transaction-create-guided.ts

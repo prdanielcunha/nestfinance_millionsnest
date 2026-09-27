@@ -333,6 +333,29 @@ export const transactionsService = {
     return parseFinanceMutation(res, organizationId, financeEntityId);
   },
 
+  async removeBatch(
+    organizationId: string,
+    financeEntityId: string,
+    items: { transactionId: string; expectedVersion: number }[],
+    idempotencyKey: string,
+    requestId: string,
+  ): Promise<{ deleted: number; transactionIds: string[] }> {
+    const auth = getAuth();
+    const headers = new Headers({ 'Content-Type': 'application/json', 'x-organization-id': organizationId });
+    if (auth.currentUser) headers.set('Authorization', 'Bearer ' + await auth.currentUser.getIdToken());
+    const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-remove-batch`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ financeEntityId, items, idempotencyKey, requestId }),
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      const thrown: any = new Error(error.error || 'FINANCE_REMOVAL_FAILED');
+      thrown.details = error;
+      throw thrown;
+    }
+    return parseFinanceMutation(res, organizationId, financeEntityId);
+  },
+
   async submitForReview(organizationId: string, financeEntityId: string, transactionId: string, expectedVersion: number, idempotencyKey: string, requestId: string): Promise<{ transactionId: string, version: number }> {
     const auth = getAuth();
     const headers = new Headers();

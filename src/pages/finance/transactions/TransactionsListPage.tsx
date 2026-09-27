@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   ShieldCheck,
   ShieldX,
   WalletCards,
@@ -33,10 +34,43 @@ import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
 import { parseTransactionNaturalQuery } from '../../../../shared/finance/transactionSearch';
+import { transactionsService } from '@/src/services/transactionsService';
 import { TransactionHistoryFilters, type TransactionHistoryFilterValues } from './TransactionHistoryFilters';
 
 type LoadErrorKind = 'forbidden' | 'entity' | 'cursor' | 'index' | 'generic' | null;
 type Direction = 'income' | 'expense' | 'transfer' | 'liability_settlement' | string;
+
+const REMOVAL_COPY: Record<Language, {
+  select: string; cancel: string; selected: (count: number) => string; remove: string;
+  title: string; explanation: string; confirm: string; type: string; error: string;
+  success: (count: number) => string; limit: string; unavailable: string;
+  selectVisible: string;
+}> = {
+  PT: {
+    select: 'Selecionar para excluir', cancel: 'Cancelar seleção', selected: (n) => `${n} selecionada(s)`, remove: 'Excluir definitivamente',
+    title: 'Excluir movimentações selecionadas?',
+    explanation: 'Esta ação é permanente. Os registros e suas classificações sairão do app; a trilha de auditoria permanece. Movimentações lançadas, conciliadas ou com comprovante não podem ser excluídas aqui. A exclusão só acontece se todos os itens passarem na verificação.',
+    confirm: 'Digite EXCLUIR para confirmar', type: 'EXCLUIR', error: 'Não foi possível excluir. Nenhum item da seleção foi alterado. Atualize a lista e verifique os vínculos.',
+    success: (n) => `${n} movimentação(ões) excluída(s).`, limit: 'Selecione até 10 por vez.', unavailable: 'Esta etapa não pode ser excluída.',
+    selectVisible: 'Selecionar até 10 visíveis',
+  },
+  EN: {
+    select: 'Select for deletion', cancel: 'Cancel selection', selected: (n) => `${n} selected`, remove: 'Delete permanently',
+    title: 'Delete selected transactions?',
+    explanation: 'This is permanent. Records and allocations disappear from the app; the audit trail remains. Posted, reconciled, or evidence-linked transactions cannot be removed here. All selected items must pass the checks.',
+    confirm: 'Type DELETE to confirm', type: 'DELETE', error: 'Deletion failed. No selected item was changed. Refresh and check linked records.',
+    success: (n) => `${n} transaction(s) deleted.`, limit: 'Select up to 10 at a time.', unavailable: 'This stage cannot be deleted.',
+    selectVisible: 'Select up to 10 visible',
+  },
+  ES: {
+    select: 'Seleccionar para eliminar', cancel: 'Cancelar selección', selected: (n) => `${n} seleccionada(s)`, remove: 'Eliminar definitivamente',
+    title: '¿Eliminar los movimientos seleccionados?',
+    explanation: 'Esta acción es permanente. Los registros y sus clasificaciones desaparecerán de la app; el historial de auditoría permanece. Los movimientos contabilizados, conciliados o con comprobante no se pueden eliminar aquí. Todos deben superar la verificación.',
+    confirm: 'Escribe ELIMINAR para confirmar', type: 'ELIMINAR', error: 'No se pudo eliminar. No cambió ningún elemento seleccionado. Actualiza y revisa los vínculos.',
+    success: (n) => `${n} movimiento(s) eliminado(s).`, limit: 'Selecciona hasta 10 a la vez.', unavailable: 'Esta etapa no se puede eliminar.',
+    selectVisible: 'Seleccionar hasta 10 visibles',
+  },
+};
 
 type TransactionsCopy = {
   title: string;
@@ -470,6 +504,15 @@ function TransactionsListContent() {
   const { accessState } = useAuth();
   const { language } = useLanguage();
   const copy = COPY[language];
+  const removalCopy = REMOVAL_COPY[language];
+  const canRemove = hasEffectiveCapability(accessState, 'finance.manage') &&
+    (accessState.isGlobalAccess || ['owner', 'admin'].includes(String(accessState.organizationRole || '').toLowerCase()));
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Record<string, number>>({});
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
+  const [removing, setRemoving] = useState(false);
+  const [removalError, setRemovalError] = useState<string | null>(null);
 
   const [items, setItems] = useState<any[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -525,6 +568,46 @@ function TransactionsListContent() {
   );
   const inspectedTransactionId = searchParams.get('inspect');
   const epochRef = useRef(0);
+
+  const eligibleForRemoval = (item: any) =>
+    ['draft', 'ready_for_review', 'approved_for_posting'].includes(item.status) &&
+    item.sourceContext === 'manual' && !item.hasEvidence && !item.countSource &&
+    item.reconciliationStatus === 'unreconciled';
+
+  useEffect(() => {
+    setSelected({});
+    setSelectionMode(false);
+    setConfirmRemoval(false);
+  }, [activeFinanceEntityId]);
+
+  useEffect(() => {
+    setSelected({});
+    setConfirmRemoval(false);
+  }, [searchParams.toString()]);
+
+  const removeSelected = async () => {
+    if (!activeFinanceEntityId || !accessState.organizationId || removing || confirmationText !== removalCopy.type) return;
+    const selectedItems = Object.entries(selected).map(([transactionId, expectedVersion]) => ({ transactionId, expectedVersion: Number(expectedVersion) }));
+    if (selectedItems.length === 0 || selectedItems.length > 10) return;
+    setRemoving(true);
+    setRemovalError(null);
+    try {
+      const result = await transactionsService.removeBatch(
+        accessState.organizationId, activeFinanceEntityId, selectedItems,
+        `remove_${crypto.randomUUID()}`, `req_${crypto.randomUUID()}`,
+      );
+      setConfirmRemoval(false);
+      setConfirmationText('');
+      setSelectionMode(false);
+      setSelected({});
+      setNotice(removalCopy.success(result.deleted));
+      reloadFromStart();
+    } catch {
+      setRemovalError(removalCopy.error);
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const normalizeLabel = (value: string) =>
     value
@@ -1095,6 +1178,57 @@ function TransactionsListContent() {
             </div>
           </header>
 
+          {canRemove && items.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="secondary" size="lg" onClick={() => {
+                setSelectionMode(!selectionMode); setSelected({}); setRemovalError(null);
+              }} leadingIcon={selectionMode ? <X className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}>
+                {selectionMode ? removalCopy.cancel : removalCopy.select}
+              </Button>
+              {selectionMode ? (
+                <>
+                  <span className="text-sm text-text-secondary" role="status">{removalCopy.selected(Object.keys(selected).length)}</span>
+                  <Button variant="secondary" size="lg" onClick={() => {
+                    setSelected(Object.fromEntries(items.filter(eligibleForRemoval).slice(0, 10).map((item) => [item.id, item.version])));
+                    setRemovalError(null);
+                  }}>{removalCopy.selectVisible}</Button>
+                  <Button variant="secondary" size="lg" disabled={Object.keys(selected).length === 0} onClick={() => setConfirmRemoval(true)}>
+                    {removalCopy.remove}
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {removalError ? <p role="alert" className="rounded-xl border border-semantic-danger/30 bg-semantic-danger/10 p-4 text-sm text-semantic-danger">{removalError}</p> : null}
+
+          {confirmRemoval ? (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="removal-title"
+              onKeyDown={(event) => { if (event.key === 'Escape' && !removing) { setConfirmRemoval(false); setConfirmationText(''); } }}>
+              <Surface variant="elevated" radius="xl" className="w-full max-w-lg space-y-4 p-6 shadow-2xl">
+                <h2 id="removal-title" className="text-xl font-semibold text-text-primary">{removalCopy.title}</h2>
+                <p className="text-sm leading-relaxed text-text-secondary">{removalCopy.explanation}</p>
+                <p className="text-sm font-semibold text-text-primary">{removalCopy.selected(Object.keys(selected).length)}</p>
+                <ul className="max-h-40 overflow-y-auto rounded-xl border border-border-subtle p-3 text-sm text-text-secondary">
+                  {items.filter((item) => selected[item.id] !== undefined).map((item) => (
+                    <li key={item.id} className="py-1">{item.description || missingDescriptionLabel(language)} · {formatMoney(item.amountCents, item.transactionKind || item.direction, language)}</li>
+                  ))}
+                </ul>
+                <label className="block text-sm font-medium text-text-primary">
+                  {removalCopy.confirm}
+                  <input type="text" autoComplete="off" autoFocus value={confirmationText} onChange={(event) => setConfirmationText(event.target.value)}
+                    className="mt-2 h-12 w-full rounded-xl border border-border-strong bg-surface-base px-3 text-text-primary" />
+                </label>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="secondary" disabled={removing} onClick={() => { setConfirmRemoval(false); setConfirmationText(''); }}>{removalCopy.cancel}</Button>
+                  <Button variant="secondary" disabled={removing || confirmationText !== removalCopy.type} onClick={() => void removeSelected()} leadingIcon={<Trash2 className="h-4 w-4" />}>
+                    {removing ? '…' : removalCopy.remove}
+                  </Button>
+                </div>
+              </Surface>
+            </div>
+          ) : null}
+
           {notice ? (
             <div
               role="status"
@@ -1322,10 +1456,23 @@ function TransactionsListContent() {
                   `ID: ${item.id}`,
                   `${language === 'PT' ? 'Origem' : language === 'ES' ? 'Origen' : 'Origin'}: ${originLabel(item.origin, language)}`,
                 ].filter(Boolean);
+                const canSelectItem = eligibleForRemoval(item);
 
                 return (
+                  <div key={item.id} className="flex items-start gap-2">
+                  {selectionMode ? (
+                    <label className="flex min-h-12 min-w-10 items-center justify-center" title={!canSelectItem ? removalCopy.unavailable : undefined}>
+                      <input type="checkbox" checked={selected[item.id] !== undefined}
+                        disabled={!canSelectItem}
+                        aria-label={`${removalCopy.select}: ${item.description || missingDescriptionLabel(language)}`}
+                        onChange={(event) => {
+                          if (event.target.checked && Object.keys(selected).length >= 10) { setRemovalError(removalCopy.limit); return; }
+                          setRemovalError(null);
+                          setSelected((current) => { const next = { ...current }; if (event.target.checked) next[item.id] = item.version; else delete next[item.id]; return next; });
+                        }} className="h-5 w-5 accent-accent-primary" />
+                    </label>
+                  ) : null}
                   <button
-                    key={item.id}
                     type="button"
                     onClick={() => openInspector(item.id)}
                     className="nf-interactive group w-full rounded-2xl border border-border-subtle bg-surface-elevated p-4 text-left hover:border-border-strong hover:bg-surface-secondary sm:p-5"
@@ -1369,6 +1516,7 @@ function TransactionsListContent() {
                       <ChevronRight className="mt-3 hidden h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5 sm:block" aria-hidden="true" />
                     </div>
                   </button>
+                  </div>
                 );
               })}
             </div>
