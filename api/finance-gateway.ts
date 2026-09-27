@@ -40,6 +40,7 @@ import transactionsDetail from '../server/vercel-handlers/finance/transactionsDe
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 import transactionsUpdateDraft from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import transactionsDiscardDraft from '../server/vercel-handlers/finance/transactionsDiscardDraft.js';
+import transactionsRemoveBatch from '../server/vercel-handlers/finance/transactionsRemoveBatch.js';
 import transactionEditPresenceHeartbeat from '../server/vercel-handlers/finance/transactionEditPresenceHeartbeat.js';
 import transactionEditPresenceRelease from '../server/vercel-handlers/finance/transactionEditPresenceRelease.js';
 import transactionsSubmitForReview from '../server/vercel-handlers/finance/transactionsSubmitForReview.js';
@@ -169,6 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'accounts-configure-custom': return accountsConfigureCustom(req, res);
     case 'transactions-update-draft': return transactionsUpdateDraft(req, res);
     case 'transactions-discard-draft': return transactionsDiscardDraft(req, res);
+    case 'transactions-remove-batch': return transactionsRemoveBatch(req, res);
     case 'transaction-edit-presence-heartbeat': return transactionEditPresenceHeartbeat(req, res);
     case 'transaction-edit-presence-release': return transactionEditPresenceRelease(req, res);
     case 'transactions-submit-review': return transactionsSubmitForReview(req, res);
