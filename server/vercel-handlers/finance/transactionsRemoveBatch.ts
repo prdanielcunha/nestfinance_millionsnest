@@ -48,7 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const blocker = transactionRemovalBlocker(data);
           if (blocker) throw { code: 'FINANCE_REMOVAL_BLOCKED', details: blocker };
 
-          const allocationDocs = await transaction.get(context.repository.getAllocationsQuery().where('transactionId', '==', transactionId).limit(21));
+          // Search the whole organization so a malformed cross-entity allocation cannot be orphaned.
+          const allocationDocs = await transaction.get(context.repository.getAllocationsRef().where('transactionId', '==', transactionId).limit(21));
           const approvals = await transaction.get(ref.collection('approvals').limit(21));
           if (allocationDocs.size > 20 || approvals.size > 20) throw { code: 'FINANCE_REMOVAL_BLOCKED', details: 'TOO_MANY_LINKS' };
           const recordedAllocationIds = Array.isArray(data.allocationIds) ? data.allocationIds : [];

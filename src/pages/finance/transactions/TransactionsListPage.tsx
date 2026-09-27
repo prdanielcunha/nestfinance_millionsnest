@@ -1475,7 +1475,7 @@ function TransactionsListContent() {
                   <button
                     type="button"
                     onClick={() => openInspector(item.id)}
-                    className="nf-interactive group w-full rounded-2xl border border-border-subtle bg-surface-elevated p-4 text-left hover:border-border-strong hover:bg-surface-secondary sm:p-5"
+                    className="nf-interactive group min-w-0 flex-1 rounded-2xl border border-border-subtle bg-surface-elevated p-4 text-left hover:border-border-strong hover:bg-surface-secondary sm:p-5"
                   >
                     <div className="flex items-start gap-3 sm:gap-4">
                       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${directionUi.iconClass}`}>
