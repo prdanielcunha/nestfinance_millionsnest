@@ -170,6 +170,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mimeType: verifiedMimeType as 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf',
           categories,
           locale: locale as 'PT' | 'EN' | 'ES',
+          req,
+          organizationId,
         });
       } catch (error) {
         await recordIntelligenceOutcome({ db, organizationId, cacheHit: false, success: false, latencyMs: Date.now() - providerStartedAt }).catch(() => undefined);
