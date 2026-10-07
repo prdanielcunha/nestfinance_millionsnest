@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
+import { getNestFinanceAppCheckToken } from '../lib/firebase';
 import type { UniversalEvidenceDocumentType } from '../../shared/finance/universalEvidenceReview.js';
 import type { DocumentTransactionAnalysis } from '../../shared/finance/documentTransactionIntelligence.js';
 import type { DocumentIntelligenceGovernance } from '../../shared/finance/intelligenceGovernance.js';
@@ -156,6 +157,7 @@ async function buildHeaders(organizationId: string) {
   if (auth.currentUser) {
     headers.set('Authorization', `Bearer ${await auth.currentUser.getIdToken()}`);
   }
+  headers.set('x-firebase-appcheck', await getNestFinanceAppCheckToken());
   headers.set('Content-Type', 'application/json');
   headers.set('x-organization-id', organizationId);
   return headers;
