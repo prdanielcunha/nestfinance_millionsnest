@@ -1,5 +1,6 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
+import { getNestFinanceAppCheckToken } from '../lib/firebase';
 import type { CountCaptureNormalization, CountCaptureRegion, CountCaptureReviewInputField } from '../../shared/finance/countCapture.js';
 import type { CountCaptureExtractionRegionInput } from '../../shared/finance/countCaptureExtraction.js';
 import type {
@@ -12,6 +13,7 @@ async function makeHeaders(organizationId: string) {
   const headers = new Headers();
   const user = getAuth().currentUser;
   if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`);
+  headers.set('x-firebase-appcheck', await getNestFinanceAppCheckToken());
   headers.set('Content-Type', 'application/json');
   headers.set('x-organization-id', organizationId);
   return headers;
