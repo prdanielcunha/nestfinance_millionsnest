@@ -66,13 +66,13 @@ const [providerSource, handlerSource, clientRegionSource, reviewSource, panelSou
   readFile('server/vercel-handlers/finance/countSessionsSubmitSecondCount.ts', 'utf8'),
 ]);
 assert.ok(providerSource.includes("NESTFINANCE_COUNT_CAPTURE_AI_ENABLED !== 'true'"));
-assert.ok(providerSource.includes('NESTFINANCE_COUNT_CAPTURE_VISION_MODEL'));
-assert.ok(providerSource.includes("'x-goog-api-key': apiKey"));
-assert.ok(providerSource.includes('https://generativelanguage.googleapis.com/v1beta/interactions'));
-assert.ok(providerSource.includes('store: false'));
-assert.ok(providerSource.includes("mime_type: 'application/json'"));
-assert.ok(providerSource.includes('AbortController'));
-assert.ok(!providerSource.includes('organizationId') && !providerSource.includes('financeEntityId') && !providerSource.includes('Authorization'), 'provider seam receives no tenant authorization context');
+assert.ok(providerSource.includes("'finance.count.regions.extract'"));
+assert.ok(providerSource.includes('createFinanceNestAiClient'));
+assert.ok(providerSource.includes('validateCountCaptureProviderResult'));
+assert.ok(providerSource.includes("provider: 'nestai'"));
+assert.ok(!providerSource.includes('GEMINI_API_KEY'));
+assert.ok(!providerSource.includes('generativelanguage.googleapis.com'));
+assert.ok(providerSource.includes('organizationId') && providerSource.includes('req'), 'NestAI provider seam receives canonical tenant and request identity context');
 assert.ok(handlerSource.includes("resolveFinanceRequestContext(req, 'finance.create_drafts')"));
 assert.ok(handlerSource.includes('resolveCanonicalCountPaperForm'), 'canonical H3A form identity must be revalidated before extraction reservation');
 assert.ok(handlerSource.includes('assertCaptureMatchesCanonical'));

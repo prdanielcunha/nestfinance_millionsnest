@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "appId": "nestfinance",
+  "name": "NestFinance",
+  "ai": {
+    "enabled": true,
+    "tasks": [
+      "finance.receipt.extract",
+      "finance.report.explain",
+      "finance.count.regions.extract",
+      "finance.count.denominations.extract",
+      "finance.count.freeform.extract",
+      "finance.document.transaction.extract"
+    ],
+    "defaultSensitivity": "P3_SENSITIVE"
+  },
+  "locales": [
+    "pt-BR",
+    "en",
+    "es"
+  ],
+  "owner": {
+    "repository": "prdanielcunha/nestfinance_millionsnest"
+  }
+}

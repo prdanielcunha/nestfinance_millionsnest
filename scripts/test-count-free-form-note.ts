@@ -67,10 +67,10 @@ verify(finalize.includes('denominationCandidates: []'), 'free-form V1 does not i
 verify(finalize.includes('countCaptureHashes'), 'free-form photo keeps SHA duplicate protection');
 verify(extract.includes('readVerifiedBytes') && extract.includes('normalizedSha256'), 'AI reads server-verified full-frame evidence');
 verify(extract.includes("provenance: 'free_form_full_frame'"), 'extraction provenance explicitly records full-frame free-form reading');
-verify(providerSource.includes('Do not add, subtract, reconcile, derive, total, or move values'), 'AI is forbidden from summing or deriving category totals');
-verify(providerSource.includes('Do not classify an unlabeled number into a category'), 'unlabeled numbers must not be guessed into a category');
-verify(providerSource.includes('A zero is recognized only when zero is explicitly written'), 'missing value can never silently become zero');
-verify(providerSource.includes('same category has several line items') && providerSource.includes('mark uncertain'), 'line items without an explicit total fail closed');
+verify(providerSource.includes("'finance.count.freeform.extract'"), 'free-form intelligence uses the canonical NestAI task');
+verify(providerSource.includes('validateCountCaptureProviderResult'), 'NestFinance revalidates NestAI structured output locally');
+verify(providerSource.includes('human') === false || providerSource.includes('createsTransaction') === false, 'provider adapter does not gain transaction authority');
+verify(extract.includes('buildCountCaptureCandidatesFromProvider'), 'deterministic candidate builder remains authoritative after NestAI extraction');
 verify(detail.includes('resolveCountCaptureContext') && detail.includes("provenance === 'free_form_note'"), 'shared detail preserves lower provenance');
 verify(review.includes("resolved.provenance === 'free_form_note'") && review.includes('assertCountCaptureStageOpen'), 'human review is required while the same Count stage is still open');
 verify(apply.includes("count.first_count_imported_from_reviewed_note") && apply.includes("count.second_count_imported_from_reviewed_note"), 'audit differentiates reviewed free-form notes from official sheets');

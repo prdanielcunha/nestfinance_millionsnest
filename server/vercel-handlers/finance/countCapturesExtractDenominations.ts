@@ -122,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (reservation.cached) return res.status(200).json({ ...reservation.result, requestId });
     cleanup = { db, idempotencyRef, sessionRef: canonical.sessionRef, keyHash, payloadHash };
-    const providerResponse = await getCountCaptureDenominationExtractionProvider().extract({ regions });
+    const providerResponse = await getCountCaptureDenominationExtractionProvider().extract({ regions, req, organizationId });
     const candidates = buildCountCaptureDenominationCandidatesFromProvider({ provider: providerResponse.result, regions: reservation.regionsByKey });
     const extractionHash = hashPayload({ provider: providerResponse.provider, model: providerResponse.model, revision: providerResponse.revision, statuses: providerResponse.result.fields.map((field) => ({ cellKey: field.cellKey, status: field.status })), regionHashes: regions.map((region) => ({ cellKey: region.cellKey, sha256: region.sha256 })) });
 

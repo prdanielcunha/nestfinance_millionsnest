@@ -228,6 +228,7 @@ verify(
 
 const handler = readFileSync('server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.ts', 'utf8');
 const provider = readFileSync('server/vercel-handlers/finance/documentTransactionIntelligenceProvider.ts', 'utf8');
+const intelligenceContract = readFileSync('shared/finance/documentTransactionIntelligence.ts', 'utf8');
 const detailCard = readFileSync('src/pages/finance/inbox/DocumentTransactionAnalysisCard.tsx', 'utf8');
 const detailPage = readFileSync('src/pages/finance/inbox/UniversalEvidenceDetailPage.tsx', 'utf8');
 const batch = readFileSync('src/pages/finance/capture/UniversalCapturePage.tsx', 'utf8');
@@ -243,11 +244,12 @@ for (const forbidden of ['financeTransactions', 'financeJournalEntries', 'financ
   verify(!handler.includes(forbidden), 'analysis handler never writes through ' + forbidden);
 }
 verify(handler.includes('financialRecognition: false') && handler.includes('transactionCreated: false') && handler.includes('balanceMutation: false'), 'analysis audit records non-authoritative boundary');
-verify(provider.includes('utility_bill') && provider.includes('pix_receipt') && provider.includes('service_invoice') && provider.includes('statement'), 'provider covers heterogeneous document families');
-verify(provider.includes('unfamiliar documents') && provider.includes('other, unknown'), 'provider has an explicit open-world fallback for new document types');
-verify(provider.includes('payer_tax_id') && provider.includes('payee_tax_id') && provider.includes('issuer_tax_id') && provider.includes('recipient_tax_id'), 'provider preserves issuer/recipient/payer/payee roles');
-verify(provider.includes('never infer payment') && provider.includes('settlement_state'), 'provider separates document existence from actual payment');
-verify(provider.includes('never assume BRL'), 'provider does not silently coerce unknown currency to BRL');
+verify(provider.includes("'finance.document.transaction.extract'"), 'document intelligence uses the canonical NestAI P3 task');
+verify(provider.includes('validateDocumentTransactionProviderResult'), 'NestFinance revalidates NestAI structured output locally');
+verify(intelligenceContract.includes("'utility_bill'") && intelligenceContract.includes("'pix_receipt'") && intelligenceContract.includes("'service_invoice'") && intelligenceContract.includes("'statement'"), 'local contract covers heterogeneous document families');
+verify(intelligenceContract.includes("'other'") && intelligenceContract.includes("'unknown'"), 'local contract preserves open-world fallbacks');
+verify(intelligenceContract.includes("'payer_tax_id'") && intelligenceContract.includes("'payee_tax_id'") && intelligenceContract.includes("'issuer_tax_id'") && intelligenceContract.includes("'recipient_tax_id'"), 'local contract preserves issuer/recipient/payer/payee roles');
+verify(provider.includes('humanConfirmationRequired: true') && provider.includes('createsTransaction: false') && provider.includes('postsTransaction: false'), 'NestAI adapter remains non-authoritative');
 verify(detailCard.includes("transactionsService.createDraft("), 'human confirmation uses draft creation only');
 verify(!detailCard.includes('createAndSubmit(') && !detailCard.includes('approveForPosting('), 'document confirmation cannot submit or approve automatically');
 verify(detailCard.includes('evidenceIds: [evidence.evidenceId]'), 'original canonical evidence is attached to the draft');

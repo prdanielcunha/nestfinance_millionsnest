@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import universalEvidenceAnalyzeTransaction from '../server/vercel-handlers/finance/universalEvidenceAnalyzeTransaction.js';
+import { DOCUMENT_TRANSACTION_PROVIDER_REVISION } from '../server/vercel-handlers/finance/documentTransactionIntelligenceProvider.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
 
 class MockRes {
@@ -147,7 +148,7 @@ async function run() {
       return {
         provider: 'test',
         model: 'test-document-vision',
-        revision: 'document-to-draft-structured-v2',
+        revision: DOCUMENT_TRANSACTION_PROVIDER_REVISION,
         result: next,
       };
     },

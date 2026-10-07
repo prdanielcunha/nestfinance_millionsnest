@@ -136,6 +136,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bytes: stored.bytes,
       mimeType: stored.contentType as 'image/jpeg' | 'image/webp',
       locale: reservation.locale as 'PT' | 'EN' | 'ES',
+      req,
+      organizationId,
     });
     const candidates = buildCountCaptureCandidatesFromProvider({
       provider: providerResponse.result,

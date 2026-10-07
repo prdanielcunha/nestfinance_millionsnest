@@ -83,8 +83,13 @@ const [providerSource, extractSource, reviewSource, clientSource, panelSource, f
   readFile('server/vercel-handlers/finance/countCapturesDetail.ts', 'utf8'),
 ]);
 assert.ok(providerSource.includes("NESTFINANCE_COUNT_CAPTURE_AI_ENABLED !== 'true'"));
-assert.ok(providerSource.includes('Do not multiply by denomination') && providerSource.includes('store: false'));
-assert.ok(!providerSource.includes('organizationId') && !providerSource.includes('financeEntityId') && !providerSource.includes('Authorization'));
+assert.ok(providerSource.includes("'finance.count.denominations.extract'"));
+assert.ok(providerSource.includes('createFinanceNestAiClient'));
+assert.ok(providerSource.includes('validateCountCaptureDenominationProviderResult'));
+assert.ok(providerSource.includes("provider: 'nestai'"));
+assert.ok(!providerSource.includes('GEMINI_API_KEY'));
+assert.ok(!providerSource.includes('GEMINI_INTERACTIONS_ENDPOINT'));
+assert.ok(providerSource.includes('organizationId') && providerSource.includes('req'), 'NestAI denomination provider receives canonical tenant and request identity context');
 assert.ok(extractSource.includes("resolveFinanceRequestContext(req, 'finance.create_drafts')"));
 assert.ok(extractSource.includes('resolveCanonicalCountPaperForm') && extractSource.includes('captureExtractionLease'));
 assert.ok(extractSource.includes('financialValuesEmbedded: false'));
