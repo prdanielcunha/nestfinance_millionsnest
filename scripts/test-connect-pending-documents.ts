@@ -35,4 +35,26 @@ for (const summary of [{}, { awaitingUpload: -1, needsClassification: 1, pending
 // Real canonical delegate must refuse a missing bearer before querying any private entity.
 const denied = new Result(); await createConnectPendingDocumentsHandler()({ ...request, headers: { 'x-organization-id': 'synthetic-org-a' } } as any, denied as any);
 assert.equal(denied.statusCode, 401);
+let forwardedCalls = 0;
+const forwarding = createConnectPendingDocumentsHandler(async (req, res) => {
+  forwardedCalls++;
+  assert.equal(req.headers.authorization, 'Bearer synthetic-forwarded-user');
+  assert.equal(req.headers['x-organization-id'], 'synthetic-org-a');
+  assert.deepEqual(req.body, { financeEntityId: 'synthetic-entity-a', pageSize: 1 });
+  // A canonical rejection must remain a rejection with no private response body.
+  return res.status(403).json({ error: 'PRIVATE_RBAC_DENIAL' });
+});
+const forwardedRequest = { ...request, headers: { ...request.headers, authorization: 'Bearer synthetic-transport-identity', 'x-connect-user-authorization': 'Bearer synthetic-forwarded-user' } };
+const forwardedResult = new Result(); await forwarding(forwardedRequest as any, forwardedResult as any);
+assert.equal(forwardedResult.statusCode, 403);
+assert(!JSON.stringify(forwardedResult.body).includes('PRIVATE'));
+assert.equal(forwardedRequest.headers.authorization, 'Bearer synthetic-transport-identity');
+const forwardedOnlyResult = new Result(); await forwarding({ ...request, headers: { 'x-organization-id': 'synthetic-org-a', 'x-connect-user-authorization': 'Bearer synthetic-forwarded-user' } } as any, forwardedOnlyResult as any);
+assert.equal(forwardedOnlyResult.statusCode, 403);
+for (const forwarded of ['', 'Basic forged', 'Bearer token extra', ['Bearer synthetic-forwarded-user'], 'Bearer ' + 'x'.repeat(8192)]) {
+  const response = new Result();
+  await forwarding({ ...request, headers: { ...request.headers, 'x-connect-user-authorization': forwarded } } as any, response as any);
+  assert.equal(response.statusCode, 401);
+}
+assert.equal(forwardedCalls, 2);
 console.log('Connect Finance summary: canonical delegate, bearer/tenant preservation, injection denial and minimal PII-free projection passed');
