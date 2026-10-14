@@ -21,6 +21,7 @@ import type { FinancePaletteCommand } from '@/src/lib/financeCommandPaletteModel
 import { returnToMillionsNest, signOutNestFinanceAndReturnToHub } from '@/src/services/ecosystemExitService';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
 import { subscribeFinanceDataChanges } from '@/src/services/financeFreshness';
+import { ConnectSupportButton } from '@/src/components/finance/ConnectSupportButton';
 
 export type NavigationItem = {
   id: string;
@@ -637,6 +638,7 @@ function ShellLayoutInner() {
 
           <div className="mt-4 border-t border-border-subtle pt-3">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
+            <ConnectSupportButton accessState={accessState} language={language} />
             <div className="mt-3 grid gap-1">
               <button
                 type="button"
@@ -848,6 +850,7 @@ function ShellLayoutInner() {
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 {copy.backToHub}
               </button>
+              <ConnectSupportButton accessState={accessState} language={language} />
               <button
                 type="button"
                 onClick={() => void signOutNestFinanceAndReturnToHub()}

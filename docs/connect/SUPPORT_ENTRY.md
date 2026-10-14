@@ -1,0 +1,9 @@
+# Official Connect support entry
+
+Authenticated NestFinance desktop sidebar and mobile context menu expose an explicit support action. It opens a manual WhatsApp draft for NestFinance via the existing same-origin system gateway. Nothing sends automatically. No entity, financial value, receipt, file, member list or document content is included.
+
+`POST /api/system-gateway?operation=connect-support-draft` accepts only `{ locale: 'pt-BR' | 'en-US' | 'es-ES' }`, a requested `x-organization-id`, and Firebase identity in Authorization or X-Connect-User-Authorization. Requested tenant is untrusted: the fixed Connect endpoint revalidates current Hub user/membership/app access before issuing a short-lived signed origin hint. This relay creates no grant, entitlement, business data or outbound message. The official number is resolved by Connect from its existing binding; no Meta configuration changes.
+
+Only a future, bounded, manual NestFinance draft on exact HTTPS wa.me with one text parameter is projected. Denials/timeouts fail closed with generic localized UI feedback. Popup creation requires a click; duplicate clicks, logout, account/tenant changes, unmount and closed popups cannot navigate a stale result. Existing email, tokens and financial information are never appended to the draft or logged.
+
+Automated validation: `node --import tsx scripts/test-connect-support-entry.ts`, API contracts, tenant isolation, certification checkers, TypeScript, frontend/Cloud Run build and protected public-route401 gate. Fixtures are synthetic and do not certify actual Meta metadata permissions, a real authenticated app-to-Core draft, a customer WhatsApp conversation or physical push. Those positive integration/device checks remain pending; safe failure stays visible. Routing and automation execution flags are separate and are not enabled by this entry.

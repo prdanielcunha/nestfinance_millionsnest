@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import release from '../server/vercel-handlers/system/release.js';
+import connectSupportDraft from '../server/vercel-handlers/system/connectSupportDraft.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = req.query.operation;
@@ -12,6 +13,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   switch (operation) {
+    case 'connect-support-draft':
+      return connectSupportDraft(req, res);
     case 'release':
       return release(req, res);
     default:

@@ -129,6 +129,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'reports-intelligence', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accountant-package-export', exposure: 'gateway' },
 
+  { method: 'POST', gateway: '/api/system-gateway', operation: 'connect-support-draft', exposure: 'gateway' },
   { method: 'GET', gateway: '/api/system-gateway', operation: 'release', exposure: 'rewrite', url: '/api/system/release' },
 ];
 
