@@ -204,19 +204,22 @@ jobs:
           [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "EXPECTED_FINANCE_IMAGE_DIGEST=$DIGEST" >> "$GITHUB_ENV"
           set -euo pipefail
-          echo "EXPECTED_FINANCE_REVISION=${SERVICE}-cg${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
+          echo "EXPECTED_FINANCE_REVISION=${SERVICE}-cg${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
           if [ -n "$PREVIOUS_FINANCE_TAG_TARGETS" ]; then
             gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --update-tags="$PREVIOUS_FINANCE_TAG_TARGETS" --quiet
           fi
           gcloud run services update "$SERVICE" --project "$PROJECT_ID" --region "$REGION" \
-            --image "$IMAGE" --update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA" --revision-suffix "cg${GITHUB_RUN_ID}" --no-traffic --quiet
+            --image "$IMAGE" --update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA" --revision-suffix "cg${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" --no-traffic --quiet
           gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-after.json
           jq -S '{runtime:(.spec.template.spec | .containers[0] |= (del(.image) | .env = ((.env // []) | map(select(.name != "NESTFINANCE_RELEASE_SHA")) | sort_by(.name)))),serviceLabels:.metadata.labels,templateLabels:.spec.template.metadata.labels,serviceAnnotations:(.metadata.annotations | del(.["run.googleapis.com/operation-id"],.["run.googleapis.com/urls"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["serving.knative.dev/creator"],.["serving.knative.dev/lastModifier"])),templateAnnotations:(.spec.template.metadata.annotations | del(.["client.knative.dev/user-image"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["run.googleapis.com/operation-id"]))}' /tmp/finance-after.json > /tmp/finance-config-after.json
-          cmp --silent /tmp/finance-config-before.json /tmp/finance-config-after.json
+          if ! cmp --silent /tmp/finance-config-before.json /tmp/finance-config-after.json; then
+            node --input-type=module -e "import fs from 'node:fs';const a=JSON.parse(fs.readFileSync('/tmp/finance-config-before.json')),b=JSON.parse(fs.readFileSync('/tmp/finance-config-after.json'));const changed=[];function walk(x,y,p=''){if(JSON.stringify(x)===JSON.stringify(y))return;if(x&&y&&typeof x==='object'&&typeof y==='object'){for(const k of new Set([...Object.keys(x),...Object.keys(y)]))walk(x[k],y[k],p+'.'+k);}else changed.push(p);}walk(a,b);console.log('FINANCE_CONFIG_DIFFERENT_PATHS='+JSON.stringify(changed.slice(0,50)))"
+            exit 1
+          fi
           gcloud run services get-iam-policy "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json | jq -S . > /tmp/finance-iam-after.json
-          cmp --silent /tmp/finance-iam-before.json /tmp/finance-iam-after.json
+          cmp --silent /tmp/finance-iam-before.json /tmp/finance-iam-after.json || { echo FINANCE_IAM_CHANGED; exit 1; }
           AFTER_TAG_TARGETS="$(jq -r '[.status.traffic[] | select(.tag != null and .revisionName != null) | (.tag+"="+.revisionName)] | sort | join(",")' /tmp/finance-after.json)"
-          test "$AFTER_TAG_TARGETS" = "$PREVIOUS_FINANCE_TAG_TARGETS"
+          test "$AFTER_TAG_TARGETS" = "$PREVIOUS_FINANCE_TAG_TARGETS" || { echo FINANCE_PIN_TAG_MAPPING_CHANGED; exit 1; }
           echo FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED
 
       - name: Verify exact scoped API digest and route traffic
