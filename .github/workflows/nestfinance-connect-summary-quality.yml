@@ -1,0 +1,30 @@
+name: NestFinance Connect Summary Quality
+on:
+  pull_request:
+    paths:
+      - api/finance-gateway.ts
+      - server/vercel-handlers/finance/connectPendingDocuments.ts
+      - server/vercel-handlers/finance/universalEvidenceList.ts
+      - scripts/test-connect-pending-documents.ts
+      - scripts/check-api-contracts.mjs
+      - .github/workflows/nestfinance-connect-summary-quality.yml
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node --import tsx scripts/test-connect-pending-documents.ts
+      - run: npm run check:api-contracts
+      - run: npm run check:saas-isolation
+      - run: npm run test:certification-gates
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run build:cloudrun
