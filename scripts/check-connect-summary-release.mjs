@@ -13,7 +13,9 @@ if(!readFileSync('.github/workflows/nestfinance-production-functional-gate.yml',
 console.log('CONNECT_SUMMARY_REVIEWED_SCOPE_OK');
 
 // Validate the actual publication fingerprints before any cloud mutation.
-const queries=[...readFileSync('.github/workflows/nestfinance-production-release.yml','utf8').matchAll(/jq -S '(\{runtime:[^']+)'/g)].map(x=>x[1]);
+const publisherSource=readFileSync('.github/workflows/nestfinance-production-release.yml','utf8');
+if(/GITFINANCE_/.test(publisherSource))throw new Error('CONNECT_SUMMARY_GITHUB_ENV_TYPO');
+const queries=[...publisherSource.matchAll(/jq -S '(\{runtime:[^']+)'/g)].map(x=>x[1]);
 if(queries.length!==3)throw new Error('CONNECT_SUMMARY_CONFIG_GUARD_MISSING');
 const fixture={metadata:{labels:{app:'synthetic'},annotations:{'run.googleapis.com/ingress':'all'}},spec:{template:{metadata:{labels:{app:'synthetic'},annotations:{'autoscaling.knative.dev/maxScale':'3'}},spec:{serviceAccountName:'synthetic-runtime',containers:[{image:'before',env:[{name:'NESTFINANCE_RELEASE_SHA',value:'before'},{name:'SYNTHETIC_EXISTING_CONFIG',value:'preserved'}]}]}}}};
 for(const query of queries){
