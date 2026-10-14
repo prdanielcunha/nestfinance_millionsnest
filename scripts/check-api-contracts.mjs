@@ -95,6 +95,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-start', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-finalize', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-list', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'connect-pending-documents', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-detail', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-preview', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'universal-evidence-pdf-inspect', exposure: 'gateway' },

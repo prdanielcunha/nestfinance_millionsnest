@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+import connectPendingDocuments from '../server/vercel-handlers/finance/connectPendingDocuments.js';
 import setupInitialize from '../server/vercel-handlers/finance/setupInitialize.js';
 import accountsList from '../server/vercel-handlers/finance/accountsList.js';
 import accountsCreate from '../server/vercel-handlers/finance/accountsCreate.js';
@@ -207,6 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-captures-apply-to-count': return countCapturesApplyToCount(req, res);
     case 'universal-evidence-start': return universalEvidenceStart(req, res);
     case 'universal-evidence-finalize': return universalEvidenceFinalize(req, res);
+    case 'connect-pending-documents': return connectPendingDocuments(req, res);
     case 'universal-evidence-list': return universalEvidenceList(req, res);
     case 'universal-evidence-detail': return universalEvidenceDetail(req, res);
     case 'universal-evidence-preview': return universalEvidencePreview(req, res);
