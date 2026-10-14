@@ -12,7 +12,14 @@ export function createConnectPendingDocumentsHandler(delegate: EvidenceHandler =
         typeof body.financeEntityId !== 'string' || !body.financeEntityId.trim() || body.financeEntityId.length > 180 || /[\\/\u0000-\u001f]/.test(body.financeEntityId)) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
-    const scopedRequest = { ...req, body: { financeEntityId: body.financeEntityId, pageSize: 1 } } as VercelRequest;
+    // Hosting/Cloud Run may consume Authorization for transport identity. This
+    // alternate header still contains an untrusted Firebase token, not authority:
+    // the unchanged canonical delegate verifies revocation, Hub, RBAC and entity.
+    const forwarded = req.headers['x-connect-user-authorization'];
+    if (forwarded !== undefined && (typeof forwarded !== 'string' || forwarded.length > 8192 || !/^Bearer\s+\S+$/i.test(forwarded))) {
+      return res.status(401).json({ error: 'FINANCE_CONTEXT_UNAVAILABLE' });
+    }
+    const scopedRequest = { ...req, headers: forwarded === undefined ? req.headers : { ...req.headers, authorization: `Bearer ${String(forwarded).replace(/^Bearer\s+/i, '')}` }, body: { financeEntityId: body.financeEntityId, pageSize: 1 } } as VercelRequest;
     let status = 200;
     const projection = {
       status(code: number) { status = code; return projection; },
