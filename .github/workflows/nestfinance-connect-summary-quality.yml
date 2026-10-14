@@ -2,6 +2,13 @@ name: NestFinance Connect Summary Quality
 on:
   pull_request:
     paths:
+      - api/system-gateway.ts
+      - server/vercel-handlers/system/connectSupportDraft.ts
+      - src/services/connectSupportAction.ts
+      - src/components/finance/ConnectSupportButton.tsx
+      - src/app/layouts/ShellLayout.tsx
+      - scripts/test-connect-support-entry.ts
+      - docs/connect/SUPPORT_ENTRY.md
       - api/finance-gateway.ts
       - server/vercel-handlers/finance/connectPendingDocuments.ts
       - server/vercel-handlers/finance/universalEvidenceList.ts
@@ -28,6 +35,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: node scripts/check-connect-summary-release.mjs
       - run: node --import tsx scripts/test-connect-pending-documents.ts
+      - run: node --import tsx scripts/test-connect-support-entry.ts
       - run: npm run check:api-contracts
       - run: npm run check:saas-isolation
       - run: npm run test:certification-gates

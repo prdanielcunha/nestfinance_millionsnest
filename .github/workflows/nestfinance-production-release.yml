@@ -372,6 +372,9 @@ jobs:
           SUMMARY_STATUS="$(curl --silent --show-error --max-time 30 -o /tmp/nf-connect-summary.json -w '%{http_code}' -X POST "$BASE/api/finance-gateway?operation=connect-pending-documents" -H 'Content-Type: application/json' --data '{"financeEntityId":"release-smoke"}')"
           test "$SUMMARY_STATUS" = '401'
           echo NESTFINANCE_CONNECT_SUMMARY_AUTHORITY_OK
+          SUPPORT_STATUS="$(curl --silent --show-error --max-time 30 --output /tmp/finance-support-auth.json --write-out '%{http_code}' -X POST "$BASE/api/system-gateway?operation=connect-support-draft" -H 'Content-Type: application/json' -H 'x-organization-id: release-smoke-synthetic' --data '{"locale":"pt-BR"}')"
+          test "$SUPPORT_STATUS" = 401
+          echo NESTFINANCE_CONNECT_SUPPORT_AUTHORITY_OK
           if [ "$CONNECT_SUMMARY_API_ONLY" = 'true' ]; then
             gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-after.json
             jq -S '{runtime:(.spec.template.spec | .containers[0] |= (del(.image) | .env = ((.env // []) | map(select(.name != "NESTFINANCE_RELEASE_SHA")) | sort_by(.name)))),serviceLabels:.metadata.labels,templateLabels:.spec.template.metadata.labels,serviceAnnotations:(.metadata.annotations | del(.["run.googleapis.com/operation-id"],.["run.googleapis.com/urls"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["serving.knative.dev/creator"],.["serving.knative.dev/lastModifier"])),templateAnnotations:(.spec.template.metadata.annotations | del(.["client.knative.dev/user-image"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["run.googleapis.com/operation-id"]))}' /tmp/finance-after.json > /tmp/finance-config-after.json
