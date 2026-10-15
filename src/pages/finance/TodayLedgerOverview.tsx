@@ -108,26 +108,33 @@ export function TodayLedgerOverview({
 
   return (
     <section aria-labelledby="nf-ledger-today-title" className="nf-spec-paper overflow-hidden rounded-[1.75rem] border border-border-strong bg-surface-default">
-      <div className="px-5 pt-7 pb-5 sm:px-8 sm:pt-8">
-        <p className="text-sm font-semibold tracking-wide text-text-secondary">{copy.eyebrow}</p>
-        <h1 id="nf-ledger-today-title" className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-tight text-text-primary sm:text-[2rem]">
-          {copy.title}
-        </h1>
-        <p className="mt-2 break-words text-base text-text-secondary">{entityName || '—'}</p>
+      <div className="nf-design-hero">
+        <div className="relative z-[3]">
+          <p className="text-sm font-semibold tracking-[.13em] text-[#f0ca8b]">{copy.eyebrow}</p>
+          <h1 id="nf-ledger-today-title" className="mt-3 text-[1.75rem] font-semibold leading-tight tracking-tight text-white sm:text-[2rem]">
+            {copy.title}
+          </h1>
+          <p className="mt-2 break-words text-base text-[#dce7e4]">{entityName || '—'}</p>
+          <div className="mt-7 pb-2">
+            <p className="text-sm font-semibold uppercase tracking-[.15em] text-[#f0ca8b]">{copy.balance}</p>
+            <p className="nf-financial-number mt-2 break-words text-[2.4rem] font-semibold leading-[1.15] tracking-tight text-white sm:text-[2.75rem]" aria-live="polite">
+              {balanceText}
+            </p>
+            <details className="group mt-2">
+              <summary className="min-h-11 w-fit cursor-pointer rounded-lg py-2 text-sm font-medium text-[#f0ca8b] underline-offset-4 hover:underline focus-visible:underline">
+                {copy.whyBalance}
+              </summary>
+              <p className="max-w-prose pb-2 text-sm leading-6 text-[#dce7e4]">
+                {balanceKnown ? copy.balanceKnown : copy.balanceUnknown}
+              </p>
+            </details>
+          </div>
+        </div>
       </div>
-      <div className="mx-5 border-y border-border-subtle py-6 sm:mx-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.09em] text-text-secondary">{copy.balance}</p>
-        <p className="nf-financial-number mt-2 break-words text-[2.25rem] font-semibold leading-[1.15] tracking-tight text-text-primary sm:text-[2.75rem]" aria-live="polite">
-          {balanceText}
-        </p>
-        <details className="group mt-3">
-          <summary className="min-h-11 w-fit cursor-pointer rounded-lg py-2 text-sm font-medium text-accent-primary underline-offset-4 hover:underline focus-visible:underline">
-            {copy.whyBalance}
-          </summary>
-          <p className="max-w-prose pb-2 text-sm leading-6 text-text-secondary">
-            {balanceKnown ? copy.balanceKnown : copy.balanceUnknown}
-          </p>
-        </details>
+      <div className="px-5 pt-6 sm:px-8">
+        <h2 className="text-xl font-semibold text-text-primary">
+          {language === 'PT' ? 'Vamos cuidar do que falta?' : language === 'EN' ? 'Let’s take care of what’s pending' : 'Vamos a resolver lo pendiente'}
+        </h2>
       </div>
       <div className="mx-5 divide-y divide-border-subtle sm:mx-8">
         {countInProgress ? (
@@ -159,12 +166,12 @@ export function TodayLedgerOverview({
           </span>
         </div>
       </div>
-      <div className="border-t border-border-subtle bg-surface-secondary/60 px-5 py-6 sm:px-8 sm:py-7">
+      <div className="border-t border-border-subtle bg-[#fbf7ef] px-5 py-6 sm:px-8 sm:py-7">
         <p className="text-xs font-bold uppercase tracking-[0.13em] text-text-secondary">{copy.next}</p>
         <h2 className="mt-2 text-xl font-semibold leading-snug text-text-primary">{nextTitle}</h2>
         <p className="mt-1 text-base leading-relaxed text-text-secondary">{nextDescription}</p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={onNext} className="nf-interactive min-h-14 flex-1 rounded-xl bg-accent-primary px-5 py-3 text-base font-semibold text-background-base hover:opacity-90">
+          <button type="button" onClick={onNext} className="nf-primary-action nf-interactive min-h-14 flex-1 rounded-xl px-5 py-3 text-base font-semibold hover:opacity-90">
             {nextAction}
           </button>
           {canRegister ? <button type="button" onClick={onRegister} className="nf-interactive min-h-14 flex-1 rounded-xl border border-border-strong bg-surface-default px-5 py-3 text-base font-semibold text-text-primary hover:bg-surface-elevated">
