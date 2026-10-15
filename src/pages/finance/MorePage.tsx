@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Building2, ChevronRight, ExternalLink, LogOut, FileArchive } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import {
   canManageFinanceEntities,
   hasAnyEffectiveCapability,
@@ -55,6 +56,7 @@ const NAV_DESCRIPTIONS: Record<Language, Partial<Record<FinanceNavigationId, str
 
 export default function MorePage() {
   const { accessState } = useAuth();
+  const entryProfile = getFinanceEntryProfile(accessState);
   const { t, language } = useLanguage();
   const accountCopy = ACCOUNT_COPY[language];
   const experienceMode = getFinanceExperienceMode(accessState);
@@ -130,7 +132,7 @@ export default function MorePage() {
         </section>
       ) : null}
 
-      {hasEffectiveCapability(accessState, 'finance.view') ? (
+      {entryProfile.canAccountant ? (
         <section aria-labelledby="more-accountant-title">
           <h2 id="more-accountant-title" className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">{language === 'PT' ? 'Prestação de contas' : language === 'EN' ? 'Financial accountability' : 'Rendición de cuentas'}</h2>
           <Surface variant="secondary" radius="lg" className="overflow-hidden">
