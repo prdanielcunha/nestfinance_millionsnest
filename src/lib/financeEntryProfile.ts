@@ -27,7 +27,7 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
     roleIs('owner', 'admin', 'administrador') ||
     hasEffectiveCapability(access, 'finance.manage') ||
     hasEffectiveCapability(access, 'organization.manage_entities');
-  const countRole = roleIs('volunteer', 'voluntario', 'voluntário', 'conferente', 'count_team', 'counting_team', 'equipe_contagem');
+  const countRole = roleIs('volunteer', 'voluntario', 'voluntário', 'conferente', 'contagem', 'count_team', 'counting_team', 'equipe_contagem');
   const treasuryRole = roleIs('treasurer', 'tesoureiro', 'tesouraria', 'financeiro', 'finance_team');
   const accountantRole = roleIs('accountant', 'contador', 'contabil', 'contábil', 'accounting');
   const canView = hasEffectiveCapability(access, 'finance.view');
@@ -35,13 +35,13 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
   const hasTreasuryPowers = hasEffectiveCapability(access, 'finance.review') ||
     hasEffectiveCapability(access, 'finance.approve_for_posting') ||
     hasEffectiveCapability(access, 'finance.post_transactions');
-  const canCount = canView && canDraft && (countRole || isAdmin || treasuryRole || !accountantRole);
+  const canCount = canView && canDraft && (countRole || isAdmin || (!treasuryRole && !accountantRole));
   const explicitlyCountOnly = countRole && !treasuryRole && !accountantRole && !isAdmin && !hasTreasuryPowers;
   // create_drafts is shared by Count and transactions. Do not mistake this
   // capability alone for a financial-operations role if Count is explicitly assigned.
   const canFinance = canView && !explicitlyCountOnly && (isAdmin || treasuryRole ||
     hasTreasuryPowers || (canDraft && !countRole && !accountantRole));
-  const canAccountant = canView && (accountantRole || treasuryRole || isAdmin || hasTreasuryPowers);
+  const canAccountant = canView && (accountantRole || isAdmin || hasEffectiveCapability(access, 'finance.accountant.view_exports'));
   const accountantOnly = accountantRole && !isAdmin && !countRole && !treasuryRole &&
     !hasTreasuryPowers && !canDraft && canView;
   return {
