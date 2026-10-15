@@ -33,7 +33,7 @@ function makeToken(prefix: string) {
 }
 
 export default function CountPage() {
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
 
@@ -62,7 +62,7 @@ export default function CountPage() {
 
   return (
     <FinanceContextGuard>
-      <CountHomeContent />
+      <CountHomeContent key={user?.uid || 'no-user'} />
     </FinanceContextGuard>
   );
 }
