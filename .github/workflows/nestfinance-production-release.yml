@@ -167,8 +167,9 @@ jobs:
 
           echo "NESTFINANCE_LOCAL_RELEASE_SMOKE_OK"
 
-      - name: Capture scoped API rollback and unchanged configuration
-        if: env.CONNECT_SUMMARY_API_ONLY == 'true'
+      - name: Capture reversible production release baseline (all paths)
+        # Preserve the current 100% serving revision and Hosting release before
+        # any mutation; required even for the ordinary full release path.
         shell: bash
         run: |
           set -euo pipefail
@@ -236,26 +237,68 @@ jobs:
           gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --to-revisions="$EXPECTED_FINANCE_REVISION=100" --quiet
           echo "FINANCE_CONNECT_EXACT_IMAGE_RELEASE_SHA=$GITHUB_SHA"
 
-      - name: Deploy Cloud Run revision
+      - name: Deploy and pin exact Cloud Run revision before traffic cutover
         if: env.CONNECT_SUMMARY_API_ONLY != 'true'
+        shell: bash
         run: |
           set -euo pipefail
-          gcloud run deploy "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --image "$IMAGE"             --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com"             --port 8080             --cpu 1             --memory 512Mi             --min-instances 0             --max-instances 3             --concurrency 80             --timeout 60             --no-allow-unauthenticated             --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_SESSION_RESOLVE_ENABLED=true,NESTFINANCE_HANDOFF_REDEEM_ENABLED=true,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"             --quiet
+          test -n "${PREVIOUS_FINANCE_REVISION:-}"
+          REVISION="${SERVICE}-nf${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}"
+          DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT_ID" --region "$REGION" --image "$IMAGE" \
+            --revision-suffix "nf${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" \
+            --no-traffic \
+            --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com" \
+            --port 8080 --cpu 1 --memory 512Mi --min-instances 0 \
+            --max-instances 3 --concurrency 80 --timeout 60 \
+            --no-allow-unauthenticated \
+            --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_SESSION_RESOLVE_ENABLED=true,NESTFINANCE_HANDOFF_REDEEM_ENABLED=true,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA" --quiet
+          gcloud run revisions describe "$REVISION" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-revision-exact.json
+          EXPECTED_REVISION="$REVISION" EXPECTED_DIGEST="$DIGEST" node - <<'NODE'
+          const fs = require('fs');
+          const rev = JSON.parse(fs.readFileSync('/tmp/finance-revision-exact.json','utf8'));
+          if(rev.metadata?.name!==process.env.EXPECTED_REVISION ||
+             !rev.status?.conditions?.some(c => c.type==='Ready'&&c.status==='True') ||
+             !String(rev.status?.imageDigest||'').endsWith(process.env.EXPECTED_DIGEST))process.exit(1);
+          console.log('NESTFINANCE_EXACT_PINNED_IMAGE_REVISION_READY');
+          NODE
+          # No live traffic mutation happens until the pinned image/revision is READY.
+          gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --to-revisions="$REVISION=100" --quiet
+          echo "NESTFINANCE_EXACT_RELEASE_CUTOVER=$REVISION"
 
       - name: Allow Firebase Hosting invocation
         if: env.CONNECT_SUMMARY_API_ONLY != 'true'
         run: |
           gcloud run services add-iam-policy-binding "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --member="allUsers"             --role="roles/run.invoker"             --quiet
 
-      - name: Verify Cloud Run exact release
+      - name: Verify exact live SHA after traffic convergence (no stale-200 approval)
         shell: bash
         run: |
           set -euo pipefail
           URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
           READY="$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.conditions[0].status)')"
           test "$READY" = "True"
-          curl --fail --silent --show-error --location --retry 6 --retry-delay 2 "$URL/api/system/release" -o /tmp/cloudrun-release.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/cloudrun-release.json','utf8'));const expected=process.env.GITHUB_SHA.slice(0,12);if(x.app!=='nestfinance'||x.gitCommitSha!==expected){console.error(x,expected);process.exit(1)};console.log('NESTFINANCE_CLOUD_RUN_EXACT_SHA_OK', expected);"
+          MATCHED=false
+          for ATTEMPT in {1..40}; do
+            if curl --fail --silent --show-error --max-time 15 --location \
+              -H 'Cache-Control: no-store, no-cache' \
+              "$URL/api/system/release?release=$GITHUB_SHA&attempt=$ATTEMPT" -o /tmp/cloudrun-release.json; then
+              if node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/cloudrun-release.json','utf8'));
+          if(x.app!=='nestfinance'||x.gitCommitSha!==process.env.GITHUB_SHA.slice(0,12))process.exit(1);
+          NODE
+              then
+                MATCHED=true
+                echo "NESTFINANCE_CLOUD_RUN_EXACT_SHA_OK=${GITHUB_SHA:0:12}"
+                break
+              fi
+            fi
+            sleep 3
+          done
+          test "$MATCHED" = "true"
 
       - name: Deploy Firebase Hosting
         run: |
@@ -391,8 +434,8 @@ jobs:
           fi
           echo "NESTFINANCE_CANONICAL_PRODUCTION_OK=$BASE"
 
-      - name: Restore scoped API runtime and Hosting after failure
-        if: failure() && env.CONNECT_SUMMARY_API_ONLY == 'true'
+      - name: Restore captured live traffic and Hosting on ANY release failure
+        if: failure()
         shell: bash
         run: |
           set -euo pipefail
