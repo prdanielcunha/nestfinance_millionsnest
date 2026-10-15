@@ -106,7 +106,7 @@ const COPY: Record<Language, {
     profile: 'Formato do pacote',
     profileGuidance: 'Escolha pelo objetivo do contador. O formato muda somente quais colunas são exportadas; não altera nenhum dado financeiro.',
     complete: 'Completo',
-    completeDescription: 'Inclui o conjunto mais amplo de colunas CSV, índice dos comprovantes e pendências. Os arquivos originais não estão anexados neste pacote.'
+    completeDescription: 'Inclui o conjunto mais amplo de colunas CSV, índice dos comprovantes e pendências. Os arquivos originais não estão anexados neste pacote.',
     essential: 'Essencial',
     essentialDescription: 'Mantém os dados principais para conferência mensal e reduz colunas técnicas que normalmente não são necessárias.',
     reconciliation: 'Foco em conciliação',
@@ -115,7 +115,7 @@ const COPY: Record<Language, {
     generating: 'Gerando pacote…',
     error: 'Não foi possível gerar o pacote. Nenhum dado financeiro foi alterado.',
     ready: 'Pacote pronto',
-    readyBody: 'Baixe os CSVs e o índice de comprovantes. Confira o que está disponível antes de enviar ao contador; arquivos originais não estão incluídos.'
+    readyBody: 'Baixe os CSVs e o índice de comprovantes. Confira o que está disponível antes de enviar ao contador; arquivos originais não estão incluídos.',
     download: 'Baixar',
     downloadAll: 'Baixar todos',
     authority: 'Exportação operacional, não certificação',
@@ -127,7 +127,7 @@ const COPY: Record<Language, {
     profile: 'Package format',
     profileGuidance: 'Choose based on the accountant’s goal. The format changes exported columns only; it does not change financial data.',
     complete: 'Complete',
-    completeDescription: 'Includes the widest CSV columns, evidence index and pending items. Original document files are not bundled.'
+    completeDescription: 'Includes the widest CSV columns, evidence index and pending items. Original document files are not bundled.',
     essential: 'Essential',
     essentialDescription: 'Keeps the main monthly review data while removing technical columns that are usually unnecessary.',
     reconciliation: 'Reconciliation focus',
@@ -136,7 +136,7 @@ const COPY: Record<Language, {
     generating: 'Generating package…',
     error: 'The package could not be generated. No financial data was changed.',
     ready: 'Package ready',
-    readyBody: 'Download the CSVs and evidence index. Check the included files before sending them to the accountant; originals are not bundled.'
+    readyBody: 'Download the CSVs and evidence index. Check the included files before sending them to the accountant; originals are not bundled.',
     download: 'Download',
     downloadAll: 'Download all',
     authority: 'Operational export, not certification',
@@ -148,7 +148,7 @@ const COPY: Record<Language, {
     profile: 'Formato del paquete',
     profileGuidance: 'Elige según el objetivo del contador. El formato solo cambia las columnas exportadas; no modifica ningún dato financiero.',
     complete: 'Completo',
-    completeDescription: 'Incluye las columnas CSV más amplias, índice de comprobantes y pendientes. No contiene los archivos originales.'
+    completeDescription: 'Incluye las columnas CSV más amplias, índice de comprobantes y pendientes. No contiene los archivos originales.',
     essential: 'Esencial',
     essentialDescription: 'Mantiene los datos principales para la revisión mensual y reduce columnas técnicas que normalmente no son necesarias.',
     reconciliation: 'Enfoque en conciliación',
@@ -157,7 +157,7 @@ const COPY: Record<Language, {
     generating: 'Generando paquete…',
     error: 'No fue posible generar el paquete. Ningún dato financiero fue modificado.',
     ready: 'Paquete listo',
-    readyBody: 'Descarga los CSV y el índice de comprobantes. Revisa los archivos incluidos antes de enviarlos; no se adjuntan los originales.'
+    readyBody: 'Descarga los CSV y el índice de comprobantes. Revisa los archivos incluidos antes de enviarlos; no se adjuntan los originales.',
     download: 'Descargar',
     downloadAll: 'Descargar todos',
     authority: 'Exportación operativa, no certificación',
