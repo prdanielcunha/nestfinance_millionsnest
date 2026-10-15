@@ -151,7 +151,7 @@ function CountSessionContent() {
   const [entries, setEntries] = useState<NormalizedCountEntry[]>([]);
   const [step, setStep] = useState<Step>('choose');
   const [activeType, setActiveType] = useState<CountEntryType>('tithe');
-  const [method, setMethod] = useState<CountEntryMethod>('denominations');
+  const [method, setMethod] = useState<CountEntryMethod>('total');
   const [totalRaw, setTotalRaw] = useState('0');
   const [quantities, setQuantities] = useState<CountDenominationQuantities>({});
   const [loading, setLoading] = useState(true);
@@ -320,7 +320,7 @@ function CountSessionContent() {
   const openEntry = (type: CountEntryType) => {
     const existing = entriesByType.get(type);
     setActiveType(type);
-    setMethod(type === 'pix' ? 'total' : existing?.method || 'denominations');
+    setMethod(type === 'pix' ? 'total' : existing?.method || 'total');
     setTotalRaw(String(existing?.totalCents || 0));
     setQuantities({ ...(existing?.denominations || {}) });
     setSaveError(false);
@@ -909,8 +909,8 @@ function CountSessionContent() {
                   <p className="text-sm font-medium text-text-primary">{copy.cashMode}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-border-subtle bg-surface-secondary/50 p-1">
                     {([
-                      ['denominations', copy.denominationMode],
                       ['total', copy.totalMode],
+                      ['denominations', copy.denominationMode],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -952,11 +952,11 @@ function CountSessionContent() {
                   {COUNT_DENOMINATIONS_CENTS.map((denomination) => {
                     const quantity = Number(quantities[String(denomination)] || 0);
                     return (
-                      <div key={denomination} className="grid grid-cols-[5.5rem_minmax(9rem,1fr)_7rem] items-center gap-3 p-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_9rem] sm:p-4">
+                      <div key={denomination} className="grid grid-cols-2 items-center gap-3 p-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_9rem] sm:p-4">
                         <span className="text-sm font-semibold tabular-nums text-text-primary">
                           {formatDenomination(denomination, language)}
                         </span>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="order-3 col-span-2 flex items-center justify-center gap-2 sm:order-none sm:col-span-1">
                           <button
                             type="button"
                             aria-label={`${copy.quantity} -`}
@@ -981,7 +981,7 @@ function CountSessionContent() {
                             <Plus className="h-5 w-5" aria-hidden="true" />
                           </button>
                         </div>
-                        <span className="text-right text-sm font-semibold tabular-nums text-text-secondary">
+                        <span className="order-2 text-right text-sm font-semibold tabular-nums text-text-secondary sm:order-none">
                           {formatReviewMoney(denomination * quantity, language, 'BRL')}
                         </span>
                       </div>
