@@ -12,6 +12,10 @@ on:
       - api/finance-gateway.ts
       - server/vercel-handlers/finance/connectPendingDocuments.ts
       - server/vercel-handlers/finance/universalEvidenceList.ts
+      - server/vercel-handlers/finance/connectReadContext.ts
+      - server/vercel-handlers/finance/connectEntities.ts
+      - server/vercel-handlers/finance/entitiesAccessible.ts
+      - scripts/test-connect-read-entry.ts
       - scripts/test-connect-pending-documents.ts
       - scripts/check-api-contracts.mjs
       - .github/workflows/nestfinance-connect-summary-quality.yml
@@ -35,6 +39,10 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: node scripts/check-connect-summary-release.mjs
       - run: node --import tsx scripts/test-connect-pending-documents.ts
+      - run: node --import tsx scripts/test-connect-read-entry.ts
+      - run: node --import tsx scripts/test-finance-request-context.ts
+      - run: node --import tsx scripts/test-handoff-token-binding.ts
+      - run: node --import tsx scripts/test-universal-evidence-inbox-i2a.ts
       - run: node --import tsx scripts/test-connect-support-entry.ts
       - run: npm run check:api-contracts
       - run: npm run check:saas-isolation

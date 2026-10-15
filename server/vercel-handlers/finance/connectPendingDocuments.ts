@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import evidenceList from './universalEvidenceList.js';
+import { createUniversalEvidenceListHandler } from './universalEvidenceList.js';
+import { resolveConnectFinanceReadContext } from './connectReadContext.js';
 
 type EvidenceHandler = (req: VercelRequest, res: VercelResponse) => Promise<unknown>;
 /** Uses the existing finance.view/entity-scoped API; no Connect-specific authorization or business rules. */
-export function createConnectPendingDocumentsHandler(delegate: EvidenceHandler = evidenceList) {
+export function createConnectPendingDocumentsHandler(delegate: EvidenceHandler = createUniversalEvidenceListHandler(resolveConnectFinanceReadContext)) {
   return async (req: VercelRequest, res: VercelResponse) => {
     res.setHeader('Cache-Control', 'no-store');
     if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
