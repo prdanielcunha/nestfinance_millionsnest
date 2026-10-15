@@ -17,9 +17,9 @@ type Props = {
 
 const COPY = {
   PT: {
-    title: 'Passe a contagem para outra pessoa',
+    title: 'Chame o segundo conferente',
     body: 'A primeira contagem foi protegida. Agora outra pessoa precisa fazer a segunda sem ver nenhum valor anterior.',
-    code: 'Código para o segundo contador',
+    code: 'Código para o segundo conferente',
     expires: 'Válido até',
     copy: 'Copiar código',
     copied: 'Código copiado',
@@ -32,7 +32,7 @@ const COPY = {
     assigned: (name: string) => `${name} assumiu a segunda contagem.`,
     waiting: 'Aguardando outra pessoa entrar com o código.',
     otherTitle: 'Use o código para assumir esta contagem',
-    otherBody: 'Para manter a conferência independente, entre pelo código recebido. Os valores do primeiro contador continuam ocultos.',
+    otherBody: 'O segundo conferente usa o código recebido. Os valores do primeiro conferente continuam ocultos.',
     join: 'Digitar código',
     takenTitle: 'Outra pessoa já assumiu esta contagem',
     takenBody: (name: string) => `Responsável pela segunda contagem: ${name}.`,
@@ -40,7 +40,7 @@ const COPY = {
   EN: {
     title: 'Hand the count to another person',
     body: 'The first count is protected. Another person must now perform the second count without seeing previous values.',
-    code: 'Code for the second counter',
+    code: 'Code for the second checker',
     expires: 'Valid until',
     copy: 'Copy code',
     copied: 'Code copied',
@@ -53,7 +53,7 @@ const COPY = {
     assigned: (name: string) => `${name} claimed the second count.`,
     waiting: 'Waiting for another person to enter the code.',
     otherTitle: 'Use the code to claim this count',
-    otherBody: 'To keep the review independent, join using the code you received. The first counter values stay hidden.',
+    otherBody: 'The second checker uses the code. The first checker’s amounts remain hidden.',
     join: 'Enter code',
     takenTitle: 'Another person already claimed this count',
     takenBody: (name: string) => `Second-count owner: ${name}.`,
@@ -74,7 +74,7 @@ const COPY = {
     assigned: (name: string) => `${name} asumió el segundo conteo.`,
     waiting: 'Esperando que otra persona ingrese con el código.',
     otherTitle: 'Usa el código para asumir este conteo',
-    otherBody: 'Para mantener la revisión independiente, entra con el código recibido. Los valores del primer contador siguen ocultos.',
+    otherBody: 'El segundo revisor usa el código recibido. Los importes del primero siguen ocultos.',
     join: 'Escribir código',
     takenTitle: 'Otra persona ya asumió este conteo',
     takenBody: (name: string) => `Responsable del segundo conteo: ${name}.`,
