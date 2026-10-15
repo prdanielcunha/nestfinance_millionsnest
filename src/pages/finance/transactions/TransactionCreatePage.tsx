@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Plus, ShieldX, Split, Trash2 } from 'lucide-react';
+import { AlertCircle, Plus, ShieldX, Split, Trash2 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import AccountRepairCard from '@/src/components/finance/AccountRepairCard';
