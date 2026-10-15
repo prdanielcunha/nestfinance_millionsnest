@@ -52,6 +52,9 @@ const AUTOSAVE_COPY = {
     restored: 'Retomamos seu rascunho salvo neste aparelho.',
     draftSaved: 'Contagem em andamento. Revise os valores antes de enviar.',
     discardDraft: 'Descartar rascunho',
+    noMoney: 'Não houve nesta entrada',
+    noMoneyHint: 'Zero só será registrado após sua confirmação.',
+    zeroRequired: 'Se não houve entrada, confirme usando o botão “Não houve nesta entrada”.',
   },
   EN: {
     listen: 'Listen to instruction',
@@ -63,6 +66,9 @@ const AUTOSAVE_COPY = {
     restored: 'We restored the draft saved on this device.',
     draftSaved: 'Count in progress. Review the amounts before sending.',
     discardDraft: 'Discard draft',
+    noMoney: 'Nothing received for this entry',
+    noMoneyHint: 'Zero is recorded only after you confirm it.',
+    zeroRequired: 'If nothing was received, confirm with “Nothing received for this entry”.',
   },
   ES: {
     listen: 'Escuchar instrucción',
@@ -74,6 +80,9 @@ const AUTOSAVE_COPY = {
     restored: 'Restauramos el borrador guardado en este dispositivo.',
     draftSaved: 'Conteo en curso. Revisa los valores antes de enviar.',
     discardDraft: 'Descartar borrador',
+    noMoney: 'No hubo ingreso',
+    noMoneyHint: 'El cero se registra solo después de confirmarlo.',
+    zeroRequired: 'Si no hubo ingreso, confírmalo con “No hubo ingreso”.',
   },
 } as const;
 
@@ -154,6 +163,8 @@ function CountSessionContent() {
   const [method, setMethod] = useState<CountEntryMethod>('total');
   const [totalRaw, setTotalRaw] = useState('0');
   const [quantities, setQuantities] = useState<CountDenominationQuantities>({});
+  const [zeroExplicit, setZeroExplicit] = useState(false);
+  const [zeroRequired, setZeroRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -194,6 +205,8 @@ function CountSessionContent() {
     setSaveError(false);
     setSupportCode(null);
     setRestoredDraft(false);
+    setZeroExplicit(false);
+    setZeroRequired(false);
     setLocalSaveAvailable(false);
     setDiscardError(false);
     setCloudSaveState('idle');
@@ -249,6 +262,8 @@ function CountSessionContent() {
     setEntries([]);
     setStep('choose');
     setRestoredDraft(false);
+    setZeroExplicit(false);
+    setZeroRequired(false);
     setCloudSaveState('idle');
     saveAttemptRef.current = null;
     secondStartAttemptRef.current = null;
@@ -320,6 +335,8 @@ function CountSessionContent() {
   const openEntry = (type: CountEntryType) => {
     const existing = entriesByType.get(type);
     setActiveType(type);
+    setZeroExplicit(Boolean(existing && existing.totalCents === 0));
+    setZeroRequired(false);
     setMethod(type === 'pix' ? 'total' : existing?.method || 'total');
     setTotalRaw(String(existing?.totalCents || 0));
     setQuantities({ ...(existing?.denominations || {}) });
@@ -331,6 +348,8 @@ function CountSessionContent() {
   };
 
   const setQuantity = (denomination: number, next: number) => {
+    setZeroExplicit(false);
+    setZeroRequired(false);
     const safe = Math.max(0, Math.min(1_000_000, next));
     setQuantities((current) => ({
       ...current,
@@ -362,6 +381,12 @@ function CountSessionContent() {
       !sessionId ||
       !userId
     ) {
+      return;
+    }
+
+    if (workingTotal === 0 && !zeroExplicit) {
+      // An untouched category is not an explicit zero; do not autosave it as income.
+      setCloudSaveState('idle');
       return;
     }
 
@@ -473,6 +498,7 @@ function CountSessionContent() {
     step,
     totalRaw,
     workingTotal,
+    zeroExplicit,
   ]);
 
   const saveCurrentEntry = async () => {
@@ -483,6 +509,11 @@ function CountSessionContent() {
       cloudSaveState === 'saving' ||
       session.status !== 'counting_a'
     ) return;
+    if (workingTotal === 0 && !zeroExplicit) {
+      setZeroRequired(true);
+      return;
+    }
+    setZeroRequired(false);
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -918,6 +949,8 @@ function CountSessionContent() {
                         aria-pressed={method === value}
                         onClick={() => {
                           setMethod(value);
+                          setZeroExplicit(false);
+                          setZeroRequired(false);
                           setSaveError(false);
                         }}
                         className={`min-h-12 rounded-xl px-3 text-sm font-semibold transition-colors ${method === value ? 'bg-surface-elevated text-text-primary shadow-sm' : 'text-text-muted'}`}
@@ -940,6 +973,8 @@ function CountSessionContent() {
                       onChange={(event) => {
                         const digits = event.target.value.replace(/\D/g, '');
                         setTotalRaw(String(Number.parseInt(digits || '0', 10) || 0));
+                        setZeroExplicit(false);
+                        setZeroRequired(false);
                         setSaveError(false);
                       }}
                       className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight text-text-primary outline-none tabular-nums sm:text-4xl"
@@ -995,6 +1030,20 @@ function CountSessionContent() {
                 <p className="mt-2 text-3xl font-semibold tabular-nums text-text-primary">
                   {formatReviewMoney(workingTotal, language, 'BRL')}
                 </p>
+              </div>
+
+              <div className="mt-4">
+                <button type="button" disabled={saving} onClick={() => {
+                  setMethod('total');
+                  setTotalRaw('0');
+                  setZeroExplicit(true);
+                  setZeroRequired(false);
+                  setSaveError(false);
+                }} className="nf-interactive min-h-14 w-full rounded-xl border border-border-strong px-4 py-3 text-base font-semibold text-text-primary hover:bg-surface-secondary">
+                  {autosaveCopy.noMoney}
+                </button>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{autosaveCopy.noMoneyHint}</p>
+                {zeroRequired ? <FlowFeedback tone="warning" title={autosaveCopy.zeroRequired} /> : null}
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
