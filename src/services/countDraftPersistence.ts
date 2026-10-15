@@ -82,7 +82,7 @@ export const countDraftPersistence = {
     userId: string,
     draft: Omit<CountLocalDraft, 'sessionId' | 'updatedAt'>,
   ) {
-    if (typeof localStorage === 'undefined' || !userId) return;
+    if (typeof localStorage === 'undefined' || !userId) return false;
     try {
       const payload: CountLocalDraft = {
         sessionId,
@@ -93,8 +93,10 @@ export const countDraftPersistence = {
         storageKey(organizationId, financeEntityId, sessionId, userId),
         JSON.stringify(payload),
       );
+      return true;
     } catch {
       // Local persistence is best effort. Canonical cloud state remains authoritative.
+      return false;
     }
   },
 
