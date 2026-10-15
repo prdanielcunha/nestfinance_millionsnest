@@ -167,12 +167,8 @@ function CountVoiceQuickContent() {
     setSession(null);
     setValues(ZERO_VALUES);
     setLocalDraftSaved(false);
-    // Never restore legacy V1 data: different users on a shared phone could read it.
-    try {
-      localStorage.removeItem(`nestfinance_count_voice_v1:${organizationId}:${activeFinanceEntityId}:${sessionId}`);
-    } catch {
-      // Storage may be blocked; server values remain authoritative.
-    }
+    // Legacy V1 has no user identity. Never read it and preserve it until
+    // an explicit and safe recovery/retention policy exists.
 
     void countService
       .detail(organizationId, activeFinanceEntityId, sessionId)
