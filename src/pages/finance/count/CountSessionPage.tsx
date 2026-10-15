@@ -102,7 +102,7 @@ function toDraftEntry(entry: NormalizedCountEntry): CountEntryDraft {
 }
 
 export default function CountSessionPage() {
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
 
@@ -127,7 +127,7 @@ export default function CountSessionPage() {
 
   return (
     <FinanceContextGuard>
-      <CountSessionContent />
+      <CountSessionContent key={user?.uid || 'no-user'} />
     </FinanceContextGuard>
   );
 }
