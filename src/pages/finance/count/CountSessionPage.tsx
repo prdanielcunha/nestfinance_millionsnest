@@ -135,12 +135,13 @@ export default function CountSessionPage() {
 function CountSessionContent() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const userId = user?.uid || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
   const [session, setSession] = useState<CountSessionDetail | null>(null);
@@ -182,7 +183,7 @@ function CountSessionContent() {
   }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
-    if (!organizationId || !activeFinanceEntityId || !sessionId) return;
+    if (!organizationId || !activeFinanceEntityId || !sessionId || !userId) return;
     setLoading(true);
     setLoadError(false);
     setConflict(false);
@@ -208,6 +209,7 @@ function CountSessionContent() {
           organizationId,
           activeFinanceEntityId,
           sessionId,
+          userId,
         );
         if (localDraft) {
           setActiveType(localDraft.activeType);
@@ -220,7 +222,7 @@ function CountSessionContent() {
           setStep('choose');
         }
       } else {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
 
       saveAttemptRef.current = null;
@@ -247,10 +249,10 @@ function CountSessionContent() {
     secondStartAttemptRef.current = null;
     autosaveAttemptRef.current = null;
     autosaveInFlightRef.current = false;
-    if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
-    // Canonical Count scope is organization + finance entity + session.
+    if (organizationId && activeFinanceEntityId && sessionId && userId) void loadSession(epoch);
+    // Local recovery also requires the authenticated user; server Count scope is canonical.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, activeFinanceEntityId, sessionId]);
+  }, [organizationId, activeFinanceEntityId, sessionId, userId]);
 
   useEffect(() => {
     if (
@@ -259,12 +261,13 @@ function CountSessionContent() {
       session.status !== 'counting_a' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
       return;
     }
 
-    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, userId, {
       activeType,
       method,
       totalRaw,
@@ -282,6 +285,7 @@ function CountSessionContent() {
     sessionId,
     step,
     totalRaw,
+    userId,
   ]);
 
   const entriesByType = useMemo(() => {
@@ -349,7 +353,8 @@ function CountSessionContent() {
       step !== 'count' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
       return;
     }
@@ -567,7 +572,7 @@ function CountSessionContent() {
       setStartingSecond(false);
       setSupportCode(null);
       if (activeFinanceEntityId && sessionId) {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
       await loadSession();
     } catch (error: any) {
@@ -604,7 +609,7 @@ function CountSessionContent() {
         idempotencyKey: makeToken('idcount_discard'),
         requestId: makeToken('req'),
       });
-      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       setDiscardConfirmOpen(false);
       navigate(APP_ROUTES.count, { replace: true });
     } catch (error: any) {
