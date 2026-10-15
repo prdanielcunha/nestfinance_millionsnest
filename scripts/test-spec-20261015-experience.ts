@@ -51,6 +51,12 @@ assert.ok(start.includes("setStep('details')"));
 // T06/T07: simple total is the default but bill counting remains available.
 assert.ok(count.includes("useState<CountEntryMethod>('total')"));
 assert.ok(count.includes("existing?.method || 'total'"));
+assert.ok(count.includes('setZeroExplicit(true)'));
+assert.ok(count.includes('workingTotal === 0 && !zeroExplicit'));
+assert.ok(count.includes('setZeroRequired(true)'));
+assert.ok(count.includes('autosaveCopy.noMoney'));
+assert.ok(count.includes('autosaveCopy.zeroRequired'));
+assert.ok(!count.includes('workingTotal === 0 ? 0 : 0'), 'Zero must be deliberate');
 assert.ok(count.includes("['denominations', copy.denominationMode]"));
 assert.ok(count.includes('calculateDenominationTotalCents'));
 assert.ok(count.includes("countDraftPersistence.save"));
