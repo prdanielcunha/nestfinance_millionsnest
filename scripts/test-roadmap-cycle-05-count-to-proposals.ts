@@ -62,6 +62,17 @@ assert.equal(tithe?.suggestedCategoryId, 'tithe-cat');
 assert.equal(offering?.suggestedCategoryId, 'offering-cat');
 assert.equal(pix?.suggestedAccountId, 'checking');
 assert.equal(pix?.suggestedCategoryId, null);
+assert.equal(pix?.contributionPurpose, 'unclassified');
+assert.equal(tithe?.contributionPurpose, 'tithe');
+assert.equal(offering?.contributionPurpose, 'offering');
+const singleCategoryPreview = buildCountProposalPreview({
+  session: matchedSession,
+  accounts: [{ id: 'checking', name: 'Conta', type: 'bank_checking', templateKey: 'church.account.checking' }],
+  categories: [{ id: 'only-one', name: 'Ofertas', kind: 'income' }],
+  funds: [],
+});
+assert.equal(singleCategoryPreview.lines.find((line) => line.entryType === 'pix')?.suggestedCategoryId, null,
+  'Pix must not silently inherit the only available purpose');
 assert.deepEqual(preview.sourceCaptureIds, ['cpc_111111111111111111111111']);
 assert.equal(preview.workflowState, 'counted');
 

@@ -48,8 +48,9 @@ const AUTOSAVE_COPY = {
     saving: 'Salvando na nuvem…',
     cloud: 'Salvo na nuvem',
     local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    localUnavailable: 'Este aparelho não permitiu salvar o rascunho. Mantenha a tela aberta e reconecte para enviar.',
     restored: 'Retomamos seu rascunho salvo neste aparelho.',
-    draftSaved: 'Rascunho da contagem salvo.',
+    draftSaved: 'Contagem em andamento. Revise os valores antes de enviar.',
     discardDraft: 'Descartar rascunho',
   },
   EN: {
@@ -58,8 +59,9 @@ const AUTOSAVE_COPY = {
     saving: 'Saving to cloud…',
     cloud: 'Saved to cloud',
     local: 'Saved on this device. The cloud will update when the connection returns.',
+    localUnavailable: 'This device could not save the draft. Keep this page open and reconnect to upload it.',
     restored: 'We restored the draft saved on this device.',
-    draftSaved: 'Count draft saved.',
+    draftSaved: 'Count in progress. Review the amounts before sending.',
     discardDraft: 'Discard draft',
   },
   ES: {
@@ -68,8 +70,9 @@ const AUTOSAVE_COPY = {
     saving: 'Guardando en la nube…',
     cloud: 'Guardado en la nube',
     local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    localUnavailable: 'Este dispositivo no pudo guardar el borrador. Mantén la pantalla abierta y vuelve a conectarte.',
     restored: 'Restauramos el borrador guardado en este dispositivo.',
-    draftSaved: 'Borrador del conteo guardado.',
+    draftSaved: 'Conteo en curso. Revisa los valores antes de enviar.',
     discardDraft: 'Descartar borrador',
   },
 } as const;
@@ -102,7 +105,7 @@ function toDraftEntry(entry: NormalizedCountEntry): CountEntryDraft {
 }
 
 export default function CountSessionPage() {
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
 
@@ -127,7 +130,7 @@ export default function CountSessionPage() {
 
   return (
     <FinanceContextGuard>
-      <CountSessionContent />
+      <CountSessionContent key={user?.uid || 'no-user'} />
     </FinanceContextGuard>
   );
 }
@@ -135,12 +138,13 @@ export default function CountSessionPage() {
 function CountSessionContent() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const userId = user?.uid || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
   const [session, setSession] = useState<CountSessionDetail | null>(null);
@@ -159,6 +163,7 @@ function CountSessionContent() {
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [localSaveAvailable, setLocalSaveAvailable] = useState(false);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(false);
@@ -182,13 +187,14 @@ function CountSessionContent() {
   }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
-    if (!organizationId || !activeFinanceEntityId || !sessionId) return;
+    if (!organizationId || !activeFinanceEntityId || !sessionId || !userId) return;
     setLoading(true);
     setLoadError(false);
     setConflict(false);
     setSaveError(false);
     setSupportCode(null);
     setRestoredDraft(false);
+    setLocalSaveAvailable(false);
     setDiscardError(false);
     setCloudSaveState('idle');
     try {
@@ -208,6 +214,7 @@ function CountSessionContent() {
           organizationId,
           activeFinanceEntityId,
           sessionId,
+          userId,
         );
         if (localDraft) {
           setActiveType(localDraft.activeType);
@@ -220,7 +227,7 @@ function CountSessionContent() {
           setStep('choose');
         }
       } else {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
 
       saveAttemptRef.current = null;
@@ -247,10 +254,10 @@ function CountSessionContent() {
     secondStartAttemptRef.current = null;
     autosaveAttemptRef.current = null;
     autosaveInFlightRef.current = false;
-    if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
-    // Canonical Count scope is organization + finance entity + session.
+    if (organizationId && activeFinanceEntityId && sessionId && userId) void loadSession(epoch);
+    // Local recovery also requires the authenticated user; server Count scope is canonical.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, activeFinanceEntityId, sessionId]);
+  }, [organizationId, activeFinanceEntityId, sessionId, userId]);
 
   useEffect(() => {
     if (
@@ -259,18 +266,20 @@ function CountSessionContent() {
       session.status !== 'counting_a' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
       return;
     }
 
-    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+    const persistedLocally = countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, userId, {
       activeType,
       method,
       totalRaw,
       quantities,
       step,
     });
+    setLocalSaveAvailable(persistedLocally);
   }, [
     activeFinanceEntityId,
     activeType,
@@ -282,6 +291,7 @@ function CountSessionContent() {
     sessionId,
     step,
     totalRaw,
+    userId,
   ]);
 
   const entriesByType = useMemo(() => {
@@ -349,7 +359,8 @@ function CountSessionContent() {
       step !== 'count' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
       return;
     }
@@ -567,7 +578,7 @@ function CountSessionContent() {
       setStartingSecond(false);
       setSupportCode(null);
       if (activeFinanceEntityId && sessionId) {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
       await loadSession();
     } catch (error: any) {
@@ -604,7 +615,7 @@ function CountSessionContent() {
         idempotencyKey: makeToken('idcount_discard'),
         requestId: makeToken('req'),
       });
-      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       setDiscardConfirmOpen(false);
       navigate(APP_ROUTES.count, { replace: true });
     } catch (error: any) {
@@ -771,7 +782,7 @@ function CountSessionContent() {
                 : cloudSaveState === 'saved'
                   ? autosaveCopy.cloud
                   : cloudSaveState === 'local'
-                    ? autosaveCopy.local
+                    ? (localSaveAvailable ? autosaveCopy.local : autosaveCopy.localUnavailable)
                     : ''}
             </p>
           </div>

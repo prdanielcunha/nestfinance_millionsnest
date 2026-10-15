@@ -15,6 +15,8 @@ export type CountProposalLine = {
   entryType: CountEntryType;
   amountCents: number;
   paymentMethod: 'cash' | 'pix';
+  /** Legacy Pix totals have no known purpose until a person classifies them. */
+  contributionPurpose: 'tithe' | 'offering' | 'other' | 'unclassified';
 };
 
 export function isCountWorkflowState(value: unknown): value is CountWorkflowState {
@@ -29,6 +31,7 @@ export function buildCountProposalLines(entries: NormalizedCountEntry[]): CountP
       entryType: entry.type,
       amountCents: entry.totalCents,
       paymentMethod: entry.type === 'pix' ? 'pix' : 'cash',
+      contributionPurpose: entry.type === 'pix' ? 'unclassified' : entry.type,
     }));
 }
 

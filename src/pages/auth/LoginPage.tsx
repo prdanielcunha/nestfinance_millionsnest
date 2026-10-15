@@ -18,7 +18,10 @@ const HUB_LAUNCH_URL = 'https://www.millionsnest.com/apps/nestfinance/launch';
 const copy: Record<Language, Record<string, string>> = {
   PT: {
     title: 'Entre para continuar',
-    subtitle: 'Use sua conta MillionsNest. Suas organizações e permissões serão confirmadas com segurança.',
+    subtitle: 'Conte dízimos e ofertas, organize despesas e acompanhe sua igreja em um só lugar.',
+    help: 'Não consigo entrar',
+    helpText: 'Confira sua conexão e escolha a conta Google que tem acesso à igreja. Se ainda não funcionar, entre pelo MillionsNest para conferir seu acesso.',
+    closeHelp: 'Fechar ajuda',
     google: 'Continuar com Google',
     hub: 'Entrar pelo MillionsNest',
     secure: 'Sua conta identifica você. O MillionsNest confirma o que você pode acessar.',
@@ -34,7 +37,10 @@ const copy: Record<Language, Record<string, string>> = {
   },
   EN: {
     title: 'Sign in to continue',
-    subtitle: 'Use your MillionsNest account. Your organizations and permissions will be securely confirmed.',
+    subtitle: 'Count donations, organize expenses and follow your church finances in one place.',
+    help: 'I cannot sign in',
+    helpText: 'Check your connection and choose the Google account with church access. If this does not work, use MillionsNest to verify your access.',
+    closeHelp: 'Close help',
     google: 'Continue with Google',
     hub: 'Sign in through MillionsNest',
     secure: 'Your account identifies you. MillionsNest confirms what you can access.',
@@ -50,7 +56,10 @@ const copy: Record<Language, Record<string, string>> = {
   },
   ES: {
     title: 'Inicia sesión para continuar',
-    subtitle: 'Usa tu cuenta MillionsNest. Tus organizaciones y permisos se confirmarán de forma segura.',
+    subtitle: 'Cuenta diezmos y ofrendas, organiza gastos y acompaña las finanzas de tu iglesia en un solo lugar.',
+    help: 'No puedo entrar',
+    helpText: 'Comprueba tu conexión y elige la cuenta Google con acceso a la iglesia. Si aún no funciona, entra por MillionsNest para verificar tu acceso.',
+    closeHelp: 'Cerrar ayuda',
     google: 'Continuar con Google',
     hub: 'Entrar por MillionsNest',
     secure: 'Tu cuenta te identifica. MillionsNest confirma a qué puedes acceder.',
@@ -95,6 +104,7 @@ export default function LoginPage() {
   const [view, setView] = useState<ViewState>('idle');
   const [organizations, setOrganizations] = useState<DirectEntryOrganization[]>([]);
   const [errorDetail, setErrorDetail] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   const complete = (result: DirectEntryResult) => {
     if (result.status === 'ready') {
@@ -252,9 +262,18 @@ export default function LoginPage() {
                 </button>
               </div>
 
+              <div className="mt-4 text-center">
+                <button type="button" aria-expanded={showHelp} aria-controls="login-help" onClick={() => setShowHelp((value) => !value)} className="nf-interactive min-h-12 px-4 text-sm font-semibold text-text-secondary underline-offset-4 hover:underline focus-visible:underline">
+                  {showHelp ? c.closeHelp : c.help}
+                </button>
+                {showHelp ? (
+                  <p id="login-help" className="mx-auto mt-2 max-w-sm text-sm leading-6 text-text-secondary" role="status">{c.helpText}</p>
+                ) : null}
+              </div>
+
               <div className="mt-6 flex items-start gap-2 rounded-xl border border-border-subtle bg-black/10 px-3.5 py-3">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" />
-                <p className="text-[11px] leading-5 text-text-muted">{c.secure}</p>
+                <p className="text-sm leading-6 text-text-muted">{c.secure}</p>
               </div>
             </div>
           )}

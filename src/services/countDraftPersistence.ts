@@ -16,10 +16,12 @@ export type CountLocalDraft = {
   updatedAt: number;
 };
 
-const PREFIX = 'nestfinance_count_draft_v1';
+const PREFIX = 'nestfinance_count_draft_v2';
+// Legacy V1 had no user identity: never read it automatically, and never
+// delete potentially unsynchronized work without an explicit recovery policy.
 
-function storageKey(organizationId: string, financeEntityId: string, sessionId: string) {
-  return `${PREFIX}:${organizationId}:${financeEntityId}:${sessionId}`;
+function storageKey(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
+  return `${PREFIX}:${organizationId}:${financeEntityId}:${sessionId}:${encodeURIComponent(userId)}`;
 }
 
 function isEntryType(value: unknown): value is CountEntryType {
@@ -39,10 +41,11 @@ export const countDraftPersistence = {
     organizationId: string,
     financeEntityId: string,
     sessionId: string,
+    userId: string,
   ): CountLocalDraft | null {
-    if (typeof localStorage === 'undefined') return null;
+    if (typeof localStorage === 'undefined' || !userId) return null;
     try {
-      const raw = localStorage.getItem(storageKey(organizationId, financeEntityId, sessionId));
+      const raw = localStorage.getItem(storageKey(organizationId, financeEntityId, sessionId, userId));
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<CountLocalDraft>;
       if (
@@ -76,9 +79,10 @@ export const countDraftPersistence = {
     organizationId: string,
     financeEntityId: string,
     sessionId: string,
+    userId: string,
     draft: Omit<CountLocalDraft, 'sessionId' | 'updatedAt'>,
   ) {
-    if (typeof localStorage === 'undefined') return;
+    if (typeof localStorage === 'undefined' || !userId) return false;
     try {
       const payload: CountLocalDraft = {
         sessionId,
@@ -86,18 +90,20 @@ export const countDraftPersistence = {
         updatedAt: Date.now(),
       };
       localStorage.setItem(
-        storageKey(organizationId, financeEntityId, sessionId),
+        storageKey(organizationId, financeEntityId, sessionId, userId),
         JSON.stringify(payload),
       );
+      return true;
     } catch {
       // Local persistence is best effort. Canonical cloud state remains authoritative.
+      return false;
     }
   },
 
-  clear(organizationId: string, financeEntityId: string, sessionId: string) {
-    if (typeof localStorage === 'undefined') return;
+  clear(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
+    if (typeof localStorage === 'undefined' || !userId) return;
     try {
-      localStorage.removeItem(storageKey(organizationId, financeEntityId, sessionId));
+      localStorage.removeItem(storageKey(organizationId, financeEntityId, sessionId, userId));
     } catch {
       // Ignore unavailable storage.
     }
