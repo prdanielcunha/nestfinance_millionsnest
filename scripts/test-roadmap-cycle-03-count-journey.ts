@@ -44,7 +44,7 @@ assert.ok(start.includes('entityName'));
 assert.ok(start.includes('localDateInputValue()'));
 assert.ok(start.includes('SpeakInstructionButton'));
 
-assert.ok(draft.includes("nestfinance_count_draft_v1"));
+assert.ok(draft.includes('Legacy V1 had no user identity'));
 assert.ok(draft.includes('organizationId'));
 assert.ok(draft.includes('financeEntityId'));
 assert.ok(draft.includes('sessionId'));
