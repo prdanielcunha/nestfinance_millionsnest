@@ -33,6 +33,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { periodCloseService } from '@/src/services/periodCloseService';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
 import { AccountantWorkspaceOverview } from './AccountantWorkspaceOverview';
+import { MonthReviewOverview } from './MonthReviewOverview';
 import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
 import type {
   ReportMetricComparison,
@@ -660,6 +661,7 @@ function ReportsContent() {
             </Surface>
           ) : data ? (
             <>
+              <MonthReviewOverview language={language} period={period} result={data} />
               <Surface variant="glass" radius="xl" className="overflow-hidden">
                 <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
                   <div className="p-5 sm:p-7">
@@ -862,7 +864,7 @@ function ReportsContent() {
                 />
               </div>
 
-              <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+              <section id="reports-blockers" className="grid scroll-mt-24 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
                   <h2 className="text-lg font-semibold text-text-primary">{copy.nextActions}</h2>
                   {!data.readiness.blockers.length ? (
