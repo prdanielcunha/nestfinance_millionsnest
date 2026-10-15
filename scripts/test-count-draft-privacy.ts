@@ -31,8 +31,8 @@ try {
     JSON.stringify({ ...draft, sessionId: session, updatedAt: 1 }),
   );
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_B'), null);
-  assert.equal(values.has(`nestfinance_count_draft_v1:${org}:${entity}:${session}`), false,
-    'Unsafe legacy drafts must not be migrated or presented to another account');
+  assert.equal(values.has(`nestfinance_count_draft_v1:${org}:${entity}:${session}`), true,
+    'Unverified legacy drafts must not be exposed or destroyed without a recovery policy');
 
   countDraftPersistence.save(org, entity, session, 'user_A', draft);
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_A')?.totalRaw, '12345');
