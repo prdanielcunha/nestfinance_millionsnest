@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowLeft,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
