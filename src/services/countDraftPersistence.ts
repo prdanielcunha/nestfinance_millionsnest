@@ -17,16 +17,11 @@ export type CountLocalDraft = {
 };
 
 const PREFIX = 'nestfinance_count_draft_v2';
-const LEGACY_PREFIX = 'nestfinance_count_draft_v1';
+// Legacy V1 had no user identity: never read it automatically, and never
+// delete potentially unsynchronized work without an explicit recovery policy.
 
 function storageKey(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
   return `${PREFIX}:${organizationId}:${financeEntityId}:${sessionId}:${encodeURIComponent(userId)}`;
-}
-
-function removeUnsafeLegacyDraft(organizationId: string, financeEntityId: string, sessionId: string) {
-  // V1 was shared by everyone using the same browser. Its ownership cannot be
-  // verified, so NEVER migrate or display it to a signed-in user.
-  localStorage.removeItem(`${LEGACY_PREFIX}:${organizationId}:${financeEntityId}:${sessionId}`);
 }
 
 function isEntryType(value: unknown): value is CountEntryType {
@@ -50,7 +45,6 @@ export const countDraftPersistence = {
   ): CountLocalDraft | null {
     if (typeof localStorage === 'undefined' || !userId) return null;
     try {
-      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
       const raw = localStorage.getItem(storageKey(organizationId, financeEntityId, sessionId, userId));
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<CountLocalDraft>;
@@ -90,7 +84,6 @@ export const countDraftPersistence = {
   ) {
     if (typeof localStorage === 'undefined' || !userId) return;
     try {
-      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
       const payload: CountLocalDraft = {
         sessionId,
         ...draft,
@@ -108,7 +101,6 @@ export const countDraftPersistence = {
   clear(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
     if (typeof localStorage === 'undefined' || !userId) return;
     try {
-      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
       localStorage.removeItem(storageKey(organizationId, financeEntityId, sessionId, userId));
     } catch {
       // Ignore unavailable storage.
