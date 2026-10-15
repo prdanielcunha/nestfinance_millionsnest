@@ -7,6 +7,7 @@ import AccountRepairCard from '@/src/components/finance/AccountRepairCard';
 import ContextHelp from '@/src/components/finance/ContextHelp';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
+import { FinanceScreenHero } from '@/src/components/finance/FinanceScreenHero';
 import { FinanceSelect } from '@/src/components/finance/FinanceSelect';
 import { TransactionEvidenceUpload } from '@/src/components/finance/TransactionEvidenceUpload';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
@@ -1075,26 +1076,16 @@ function TransactionCreateContent() {
         onBeforeSwitch={handleBeforeSwitch}
       />
 
-      <header className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-4 sm:px-6">
-        <Button
-          variant="ghost"
-          className="!min-h-12 !w-12 !px-0"
-          aria-label={copy.back}
-          onClick={() => navigate(APP_ROUTES.transactions)}
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">
-            {copy.pageTitle}
-          </h1>
-          <p className="mt-0.5 text-sm text-text-muted">
-            {copy.directions[direction]}
-          </p>
-        </div>
-      </header>
+      <FinanceScreenHero
+        title={direction === 'expense'
+          ? (language === 'EN' ? 'Record an expense' : language === 'ES' ? 'Registrar gasto' : 'Registrar despesa')
+          : copy.pageTitle}
+        subtitle={copy.directions[direction]}
+        backLabel={copy.back}
+        onBack={() => navigate(APP_ROUTES.transactions)}
+      />
 
-      <div className="px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-12">
+      <div className="px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-12">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
           {loadingInitial ? (
             <div className="flex animate-pulse flex-col gap-5" aria-busy="true">
