@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, BookOpenCheck, ChevronRight, ClipboardCheck, FileText, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, BookOpenCheck, ChevronRight, ClipboardCheck, ShieldCheck, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import type { FinanceEntryProfile } from '@/src/lib/financeEntryProfile';
