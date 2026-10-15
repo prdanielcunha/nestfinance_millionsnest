@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { Building2, ChevronRight, ExternalLink, LogOut } from 'lucide-react';
+import { Building2, ChevronRight, ExternalLink, LogOut, FileArchive } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
 import {
   canManageFinanceEntities,
@@ -126,6 +126,19 @@ export default function MorePage() {
                 <ChevronRight className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
               </Link>
             ))}
+          </Surface>
+        </section>
+      ) : null}
+
+      {hasEffectiveCapability(accessState, 'finance.view') ? (
+        <section aria-labelledby="more-accountant-title">
+          <h2 id="more-accountant-title" className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">{language === 'PT' ? 'Prestação de contas' : language === 'EN' ? 'Financial accountability' : 'Rendición de cuentas'}</h2>
+          <Surface variant="secondary" radius="lg" className="overflow-hidden">
+            <Link to={APP_ROUTES.accountant} className="nf-interactive flex min-h-20 items-center gap-4 px-4 py-4 hover:bg-surface-elevated">
+              <FileArchive className="h-6 w-6 text-accent-primary" aria-hidden="true" />
+              <span className="min-w-0 flex-1"><span className="block text-base font-semibold text-text-primary">{language === 'PT' ? 'Espaço do contador' : language === 'EN' ? 'Accountant workspace' : 'Espacio del contador'}</span><span className="mt-1 block text-sm text-text-secondary">{language === 'PT' ? 'Relatórios, auditoria e pacote mensal' : language === 'EN' ? 'Reports, audit and monthly package' : 'Informes, auditoría y paquete mensual'}</span></span>
+              <ChevronRight className="h-5 w-5 text-text-muted" aria-hidden="true" />
+            </Link>
           </Surface>
         </section>
       ) : null}
