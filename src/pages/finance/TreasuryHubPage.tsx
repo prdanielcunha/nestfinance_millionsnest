@@ -64,6 +64,7 @@ function TreasuryHubContent() {
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReview = hasEffectiveCapability(accessState, 'finance.review') || hasEffectiveCapability(accessState, 'finance.approve_for_posting');
   const items = [
+    { title: copy.incomingCount, body: copy.incomingCountDesc, icon: ClipboardList, route: APP_ROUTES.count },
     { title: copy.documents, body: copy.documentsDesc, icon: FileText, route: APP_ROUTES.inbox },
     { title: copy.transactions, body: copy.transactionsDesc, icon: ClipboardList, route: APP_ROUTES.transactions },
     { title: copy.payable, body: copy.payableDesc, icon: Receipt, route: `${APP_ROUTES.transactions}?direction=expense` },
