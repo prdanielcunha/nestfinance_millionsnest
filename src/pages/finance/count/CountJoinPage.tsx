@@ -14,8 +14,8 @@ const COPY = {
   PT: {
     area: 'Segunda contagem',
     step: 'Passo 1 de 1',
-    title: 'Entrar como segundo contador',
-    body: 'Digite o código que a pessoa da primeira contagem mostrou para você. Os valores dela continuam totalmente ocultos.',
+    title: 'Entrar como segundo conferente',
+    body: 'Digite o código fornecido pelo primeiro conferente. Você será o segundo conferente e contará sem ver os valores da primeira pessoa.',
     label: 'Código de 10 caracteres',
     placeholder: 'Ex.: 7K4M9P2XQH',
     join: 'Entrar na contagem',
@@ -24,7 +24,7 @@ const COPY = {
     invalid: 'Confira o código. Ele deve ter 10 caracteres.',
     notFound: 'Código não encontrado para esta igreja.',
     expired: 'Esse código expirou. Peça à primeira pessoa para gerar outro.',
-    independent: 'A segunda contagem precisa ser feita por outra pessoa.',
+    independent: 'O segundo conferente deve ser diferente do primeiro conferente na contagem independente.',
     used: 'Esse código já foi assumido por outra pessoa.',
     error: 'Não foi possível entrar agora. Nenhum valor foi exibido.',
   },
@@ -48,7 +48,7 @@ const COPY = {
   ES: {
     area: 'Segundo conteo',
     step: 'Paso 1 de 1',
-    title: 'Entrar como segundo contador',
+    title: 'Entrar como segundo conferente',
     body: 'Escribe el código que mostró la persona del primer conteo. Sus valores siguen totalmente ocultos.',
     label: 'Código de 10 caracteres',
     placeholder: 'Ej.: 7K4M9P2XQH',
