@@ -46,6 +46,8 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
 import { TodayLedgerOverview } from './TodayLedgerOverview';
+import { CountTreasuryHandoffCard } from './CountTreasuryHandoffCard';
+import { resolveFinanceAreaEntry } from '@/src/lib/financeAreaEntry';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string; resumeTitle: string; resumeAction: string }> = {
   PT: {
@@ -496,6 +498,7 @@ export function TodayActionCenter() {
     hasEffectiveCapability(accessState, 'finance.manage') ||
     hasEffectiveCapability(accessState, 'organization.manage_entities');
   const canCount = canCreate;
+  const areas = resolveFinanceAreaEntry(accessState);
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [operational, setOperational] = useState<TodayOperationalSnapshot | null>(null);
@@ -1065,6 +1068,9 @@ export function TodayActionCenter() {
         canRegister={canCreate}
         onCount={() => navigate(countActionRoute)}
       />
+      {areas.treasury && !countFailed ? (
+        <CountTreasuryHandoffCard language={language} counts={countItems} canPrepare={canCreate} />
+      ) : null}
       <details className="rounded-2xl border border-border-subtle bg-surface-default/60 px-4 py-3 sm:px-6" defaultOpen={experienceMode === 'review' || experienceMode === 'ecosystem'}>
         <summary className="nf-interactive min-h-12 cursor-pointer rounded-xl px-2 py-3 text-base font-semibold text-text-primary focus-visible:outline-accent-primary">
           {language === 'EN' ? 'More financial details and professional tools' : language === 'ES' ? 'Más detalles financieros y herramientas profesionales' : 'Ver detalhes financeiros e ferramentas profissionais'}
