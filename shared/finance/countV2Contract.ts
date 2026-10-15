@@ -70,7 +70,7 @@ function sourceRegion(value: unknown): CountV2Line['sourceRegion'] | undefined {
   if (value === undefined || value === null) return undefined;
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('COUNT_V2_INVALID_REGION');
   const r = value as Record<string, unknown>;
-  if (!Number.isInteger(r.page) || (r.page as number) < 1 || (r.page as number) > 100) {
+  if (typeof r.page !== 'number' || !Number.isInteger(r.page) || r.page < 1 || r.page > 100) {
     throw new Error('COUNT_V2_INVALID_REGION');
   }
   for (const key of ['x', 'y', 'width', 'height'] as const) {
@@ -97,7 +97,7 @@ export function validateCountV2Snapshot(value: unknown): CountV2Validation {
   const sessionId = requiredId(raw.sessionId, 'SESSION_ID');
   const operatorId = requiredId(raw.operatorId, 'OPERATOR_ID');
   const version = raw.version;
-  if (!Number.isSafeInteger(version) || (version as number) < 1) throw new Error('COUNT_V2_INVALID_VERSION');
+  if (typeof version !== 'number' || !Number.isSafeInteger(version) || version < 1) throw new Error('COUNT_V2_INVALID_VERSION');
   if (!Array.isArray(raw.lines) || raw.lines.length > MAX_LINES) throw new Error('COUNT_V2_INVALID_LINES');
   const seen = new Set<string>();
   const lines = raw.lines.map((item) => {
