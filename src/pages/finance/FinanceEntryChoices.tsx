@@ -62,7 +62,7 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
           </button>
         ) : null}
         {profile.canFinance ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.transactions)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#ccd7d7] bg-[#f1f8f5] p-4 text-left hover:border-[#164a52]">
+          <button type="button" onClick={() => navigate(APP_ROUTES.treasury)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#ccd7d7] bg-[#f1f8f5] p-4 text-left hover:border-[#164a52]">
             <Wallet className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.money}</span>
