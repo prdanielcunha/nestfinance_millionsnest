@@ -10,6 +10,8 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { transactionsService } from '@/src/services/transactionsService';
+import { FinanceAreaSelector } from './FinanceAreaSelector';
+import { resolveFinanceAreaEntry } from '@/src/lib/financeAreaEntry';
 
 // Types for Query Tracking
 interface QueryState<T> {
@@ -143,6 +145,7 @@ export default function FinancePage() {
   const organizationId = accessState?.organizationId;
 
   const canCreateDrafts = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const entryAreas = resolveFinanceAreaEntry(accessState);
   const canReview = hasEffectiveCapability(accessState, 'finance.review') || hasEffectiveCapability(accessState, 'finance.post_transactions');
 
   // Greeting based on current hour
@@ -292,6 +295,14 @@ export default function FinancePage() {
 
   const pendingEntities = entities.filter(e => bootstrapStatuses[e.id]?.status !== 'ready');
   const readyEntities = entities.filter(e => bootstrapStatuses[e.id]?.status === 'ready');
+  const hasReadyActiveEntity = readyEntities.some((e) => e.id === activeFinanceEntityId);
+  const redirectToRoleArea = Boolean(hasReadyActiveEntity && !returnTo && entryAreas.directEntry);
+
+  useEffect(() => {
+    if (!redirectToRoleArea || setupStatus !== 'configured') return;
+    const target = entryAreas.preferred === 'count' ? APP_ROUTES.count : APP_ROUTES.reports;
+    navigate(target, { replace: true });
+  }, [redirectToRoleArea, setupStatus, entryAreas.preferred, navigate]);
 
   // Deep Link Redirect Effect
   useEffect(() => {
@@ -467,6 +478,11 @@ export default function FinancePage() {
     );
   }
 
+  if (redirectToRoleArea) {
+    // The home is only a routing surface for assigned count-only/accountant-only roles.
+    return <div className="p-8 text-center text-text-secondary" role="status">{t('status_loading')}</div>;
+  }
+
   // Active dashboard data state logic helpers
   const isDashboardLoading = 
     reviewState.status === 'loading' || 
@@ -485,6 +501,7 @@ export default function FinancePage() {
       
       <main className="flex-1 overflow-y-auto px-4 py-6 max-w-3xl mx-auto w-full">
         <div className="flex flex-col gap-8">
+          <FinanceAreaSelector language={language} areas={entryAreas} canRegister={canCreateDrafts} />
           
           {/* Header & Greetings */}
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-border-subtle pb-6">
