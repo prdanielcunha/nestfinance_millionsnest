@@ -237,7 +237,7 @@ jobs:
           gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --to-revisions="$EXPECTED_FINANCE_REVISION=100" --quiet
           echo "FINANCE_CONNECT_EXACT_IMAGE_RELEASE_SHA=$GITHUB_SHA"
 
-      - name: Deploy and pin exact Cloud Run revision before traffic cutover
+      - name: Deploy Cloud Run revision
         if: env.CONNECT_SUMMARY_API_ONLY != 'true'
         shell: bash
         run: |
