@@ -35,6 +35,7 @@ const COPY = {
     saveError: 'Não foi possível salvar agora. Os valores continuam guardados neste aparelho.',
     conflict: 'Esta contagem mudou em outro dispositivo. Volte e carregue a versão mais recente.',
     draftSaved: 'Rascunho salvo neste aparelho',
+    draftNotSaved: 'Rascunho ainda não foi salvo neste aparelho',
     categories: { tithe: 'Dízimos', offering: 'Ofertas', other: 'Outras entradas', pix: 'Pix' },
   },
   EN: {
@@ -56,6 +57,7 @@ const COPY = {
     saveError: 'Could not save right now. The amounts are still stored on this device.',
     conflict: 'This count changed on another device. Go back and load the latest version.',
     draftSaved: 'Draft saved on this device',
+    draftNotSaved: 'Draft not yet saved on this device',
     categories: { tithe: 'Tithes', offering: 'Offerings', other: 'Other income', pix: 'Pix' },
   },
   ES: {
@@ -77,6 +79,7 @@ const COPY = {
     saveError: 'No fue posible guardar ahora. Los valores siguen guardados en este dispositivo.',
     conflict: 'Este conteo cambió en otro dispositivo. Vuelve y carga la versión más reciente.',
     draftSaved: 'Borrador guardado en este dispositivo',
+    draftNotSaved: 'El borrador aún no se ha guardado en este dispositivo',
     categories: { tithe: 'Diezmos', offering: 'Ofrendas', other: 'Otras entradas', pix: 'Pix' },
   },
 } as const;
@@ -116,8 +119,8 @@ function getRecognitionConstructor() {
   return candidate.SpeechRecognition || candidate.webkitSpeechRecognition || null;
 }
 
-function draftKey(organizationId: string, entityId: string, sessionId: string) {
-  return `nestfinance_count_voice_v1:${organizationId}:${entityId}:${sessionId}`;
+function draftKey(organizationId: string, entityId: string, sessionId: string, userId: string) {
+  return `nestfinance_count_voice_v2:${organizationId}:${entityId}:${sessionId}:${encodeURIComponent(userId)}`;
 }
 
 export default function CountVoiceQuickPage() {
@@ -133,9 +136,10 @@ function CountVoiceQuickContent() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { language } = useLanguage();
   const copy = COPY[language];
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const userId = user?.uid || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
   const [session, setSession] = useState<CountSessionDetail | null>(null);
@@ -147,16 +151,27 @@ function CountVoiceQuickContent() {
   const [conflict, setConflict] = useState(false);
   const [listeningField, setListeningField] = useState<CountEntryType | null>(null);
   const [speechError, setSpeechError] = useState(false);
+  const [localDraftSaved, setLocalDraftSaved] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const storageKey =
-    organizationId && activeFinanceEntityId && sessionId
-      ? draftKey(organizationId, activeFinanceEntityId, sessionId)
+    organizationId && activeFinanceEntityId && sessionId && userId
+      ? draftKey(organizationId, activeFinanceEntityId, sessionId, userId)
       : null;
 
   useEffect(() => {
-    if (!organizationId || !activeFinanceEntityId || !sessionId) return;
+    if (!organizationId || !activeFinanceEntityId || !sessionId || !userId) return;
     let cancelled = false;
+    setLoading(true);
+    setSession(null);
+    setValues(ZERO_VALUES);
+    setLocalDraftSaved(false);
+    // Never restore legacy V1 data: different users on a shared phone could read it.
+    try {
+      localStorage.removeItem(`nestfinance_count_voice_v1:${organizationId}:${activeFinanceEntityId}:${sessionId}`);
+    } catch {
+      // Storage may be blocked; server values remain authoritative.
+    }
 
     void countService
       .detail(organizationId, activeFinanceEntityId, sessionId)
@@ -171,6 +186,7 @@ function CountVoiceQuickContent() {
             const raw = localStorage.getItem(storageKey);
             if (raw) {
               const parsed = JSON.parse(raw) as Partial<Values>;
+              setLocalDraftSaved(true);
               for (const type of Object.keys(serverValues) as CountEntryType[]) {
                 const value = Number(parsed[type]);
                 if (Number.isFinite(value) && value >= 0) serverValues[type] = Math.round(value);
@@ -199,7 +215,9 @@ function CountVoiceQuickContent() {
     if (!storageKey || loading) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(values));
+      setLocalDraftSaved(true);
     } catch {
+      setLocalDraftSaved(false);
       // Cloud save remains available even if localStorage is unavailable.
     }
   }, [loading, storageKey, values]);
@@ -257,7 +275,9 @@ function CountVoiceQuickContent() {
         idempotencyKey: makeToken('idcount_voice'),
         requestId: makeToken('req'),
       });
-      if (storageKey) localStorage.removeItem(storageKey);
+      if (storageKey) {
+        try { localStorage.removeItem(storageKey); } catch { /* Cloud save succeeded. */ }
+      }
       navigate(APP_ROUTES.countSession.replace(':sessionId', sessionId));
     } catch (error: any) {
       if (error?.code === 'COUNT_VERSION_CONFLICT') setConflict(true);
@@ -299,7 +319,7 @@ function CountVoiceQuickContent() {
           stopLabel={copy.stopInstruction}
         />
         <span className="self-center nf-helper-text text-text-muted" role="status" aria-live="polite">
-          {copy.draftSaved}
+          {localDraftSaved ? copy.draftSaved : copy.draftNotSaved}
         </span>
       </div>
 
