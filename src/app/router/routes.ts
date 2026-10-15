@@ -25,6 +25,7 @@ export const APP_ROUTES = {
   inbox: '/finance/inbox',
   inboxEvidenceDetail: '/finance/inbox/:evidenceId',
   reports: '/finance/reports',
+  accountant: '/finance/accountant',
   audit: '/finance/audit',
   more: '/finance/more',
   transactions: '/finance/transactions',
