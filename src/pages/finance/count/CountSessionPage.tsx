@@ -48,8 +48,9 @@ const AUTOSAVE_COPY = {
     saving: 'Salvando na nuvem…',
     cloud: 'Salvo na nuvem',
     local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    localUnavailable: 'Este aparelho não permitiu salvar o rascunho. Mantenha a tela aberta e reconecte para enviar.',
     restored: 'Retomamos seu rascunho salvo neste aparelho.',
-    draftSaved: 'Rascunho da contagem salvo.',
+    draftSaved: 'Contagem em andamento. Revise os valores antes de enviar.',
     discardDraft: 'Descartar rascunho',
   },
   EN: {
@@ -58,8 +59,9 @@ const AUTOSAVE_COPY = {
     saving: 'Saving to cloud…',
     cloud: 'Saved to cloud',
     local: 'Saved on this device. The cloud will update when the connection returns.',
+    localUnavailable: 'This device could not save the draft. Keep this page open and reconnect to upload it.',
     restored: 'We restored the draft saved on this device.',
-    draftSaved: 'Count draft saved.',
+    draftSaved: 'Count in progress. Review the amounts before sending.',
     discardDraft: 'Discard draft',
   },
   ES: {
@@ -68,8 +70,9 @@ const AUTOSAVE_COPY = {
     saving: 'Guardando en la nube…',
     cloud: 'Guardado en la nube',
     local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    localUnavailable: 'Este dispositivo no pudo guardar el borrador. Mantén la pantalla abierta y vuelve a conectarte.',
     restored: 'Restauramos el borrador guardado en este dispositivo.',
-    draftSaved: 'Borrador del conteo guardado.',
+    draftSaved: 'Conteo en curso. Revisa los valores antes de enviar.',
     discardDraft: 'Descartar borrador',
   },
 } as const;
@@ -160,6 +163,7 @@ function CountSessionContent() {
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [localSaveAvailable, setLocalSaveAvailable] = useState(false);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(false);
@@ -190,6 +194,7 @@ function CountSessionContent() {
     setSaveError(false);
     setSupportCode(null);
     setRestoredDraft(false);
+    setLocalSaveAvailable(false);
     setDiscardError(false);
     setCloudSaveState('idle');
     try {
@@ -267,13 +272,14 @@ function CountSessionContent() {
       return;
     }
 
-    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, userId, {
+    const persistedLocally = countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, userId, {
       activeType,
       method,
       totalRaw,
       quantities,
       step,
     });
+    setLocalSaveAvailable(persistedLocally);
   }, [
     activeFinanceEntityId,
     activeType,
@@ -776,7 +782,7 @@ function CountSessionContent() {
                 : cloudSaveState === 'saved'
                   ? autosaveCopy.cloud
                   : cloudSaveState === 'local'
-                    ? autosaveCopy.local
+                    ? (localSaveAvailable ? autosaveCopy.local : autosaveCopy.localUnavailable)
                     : ''}
             </p>
           </div>
