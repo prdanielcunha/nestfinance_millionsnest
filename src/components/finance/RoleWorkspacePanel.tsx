@@ -194,12 +194,15 @@ const ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, string>> = {
     treasurer: 'Tesoureiro',
     administrator: 'Administrador',
     accountant: 'Contador',
+    viewer: 'Consulta',
+    viewer: 'Consulta',
   },
   EN: {
     volunteer: 'Volunteer',
     treasurer: 'Treasurer',
     administrator: 'Administrator',
     accountant: 'Accountant',
+    viewer: 'Viewer',
   },
   ES: {
     volunteer: 'Voluntario',
