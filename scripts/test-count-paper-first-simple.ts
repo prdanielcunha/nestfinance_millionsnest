@@ -90,7 +90,7 @@ for (const forbidden of ['financeTransactions', 'financeJournalEntries', 'financ
 }
 
 verify(home.includes('CountStartJourney'), 'Count home delegates creation to the guided start journey');
-verify(startJourney.includes('No celular') && startJourney.includes('On the phone') && startJourney.includes('En el celular'), 'simple phone entry mode is localized and explicit');
+verify(startJourney.includes('Digitar os valores') && startJourney.includes('Enter the amounts') && startJourney.includes('Escribir los valores') && startJourney.includes('symbol="keyboard"'), 'accessible and explicit typing option is localized in all three languages');
 verify(startJourney.includes('Já tenho uma folha oficial preenchida'), 'guided Count start keeps direct official completed-sheet capture');
 verify(startJourney.includes('Fotografar meu papel') && home.includes("input.mode === 'free_form'"), 'guided Count start distinguishes free-form paper from the official Count Sheet');
 verify(startJourney.includes("start('paper')") && home.includes("input.mode === 'paper'"), 'paper-first creation remains a first-class guided path');
