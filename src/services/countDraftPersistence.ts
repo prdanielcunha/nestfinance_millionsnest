@@ -16,10 +16,17 @@ export type CountLocalDraft = {
   updatedAt: number;
 };
 
-const PREFIX = 'nestfinance_count_draft_v1';
+const PREFIX = 'nestfinance_count_draft_v2';
+const LEGACY_PREFIX = 'nestfinance_count_draft_v1';
 
-function storageKey(organizationId: string, financeEntityId: string, sessionId: string) {
-  return `${PREFIX}:${organizationId}:${financeEntityId}:${sessionId}`;
+function storageKey(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
+  return `${PREFIX}:${organizationId}:${financeEntityId}:${sessionId}:${encodeURIComponent(userId)}`;
+}
+
+function removeUnsafeLegacyDraft(organizationId: string, financeEntityId: string, sessionId: string) {
+  // V1 was shared by everyone using the same browser. Its ownership cannot be
+  // verified, so NEVER migrate or display it to a signed-in user.
+  localStorage.removeItem(`${LEGACY_PREFIX}:${organizationId}:${financeEntityId}:${sessionId}`);
 }
 
 function isEntryType(value: unknown): value is CountEntryType {
@@ -39,10 +46,12 @@ export const countDraftPersistence = {
     organizationId: string,
     financeEntityId: string,
     sessionId: string,
+    userId: string,
   ): CountLocalDraft | null {
-    if (typeof localStorage === 'undefined') return null;
+    if (typeof localStorage === 'undefined' || !userId) return null;
     try {
-      const raw = localStorage.getItem(storageKey(organizationId, financeEntityId, sessionId));
+      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
+      const raw = localStorage.getItem(storageKey(organizationId, financeEntityId, sessionId, userId));
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<CountLocalDraft>;
       if (
@@ -76,17 +85,19 @@ export const countDraftPersistence = {
     organizationId: string,
     financeEntityId: string,
     sessionId: string,
+    userId: string,
     draft: Omit<CountLocalDraft, 'sessionId' | 'updatedAt'>,
   ) {
-    if (typeof localStorage === 'undefined') return;
+    if (typeof localStorage === 'undefined' || !userId) return;
     try {
+      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
       const payload: CountLocalDraft = {
         sessionId,
         ...draft,
         updatedAt: Date.now(),
       };
       localStorage.setItem(
-        storageKey(organizationId, financeEntityId, sessionId),
+        storageKey(organizationId, financeEntityId, sessionId, userId),
         JSON.stringify(payload),
       );
     } catch {
@@ -94,10 +105,11 @@ export const countDraftPersistence = {
     }
   },
 
-  clear(organizationId: string, financeEntityId: string, sessionId: string) {
-    if (typeof localStorage === 'undefined') return;
+  clear(organizationId: string, financeEntityId: string, sessionId: string, userId: string) {
+    if (typeof localStorage === 'undefined' || !userId) return;
     try {
-      localStorage.removeItem(storageKey(organizationId, financeEntityId, sessionId));
+      removeUnsafeLegacyDraft(organizationId, financeEntityId, sessionId);
+      localStorage.removeItem(storageKey(organizationId, financeEntityId, sessionId, userId));
     } catch {
       // Ignore unavailable storage.
     }
