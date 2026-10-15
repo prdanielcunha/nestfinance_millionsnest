@@ -13,6 +13,7 @@ type Props = {
   nextAction: string;
   onNext: () => void;
   onRegister: () => void;
+  canRegister: boolean;
   onCount: () => void;
 };
 
@@ -93,6 +94,7 @@ export function TodayLedgerOverview({
   nextAction,
   onNext,
   onRegister,
+  canRegister,
   onCount,
 }: Props) {
   const copy = COPY[language];
@@ -165,9 +167,9 @@ export function TodayLedgerOverview({
           <button type="button" onClick={onNext} className="nf-interactive min-h-14 flex-1 rounded-xl bg-accent-primary px-5 py-3 text-base font-semibold text-background-base hover:opacity-90">
             {nextAction}
           </button>
-          <button type="button" onClick={onRegister} className="nf-interactive min-h-14 flex-1 rounded-xl border border-border-strong bg-surface-default px-5 py-3 text-base font-semibold text-text-primary hover:bg-surface-elevated">
+          {canRegister ? <button type="button" onClick={onRegister} className="nf-interactive min-h-14 flex-1 rounded-xl border border-border-strong bg-surface-default px-5 py-3 text-base font-semibold text-text-primary hover:bg-surface-elevated">
             {copy.register}
-          </button>
+          </button> : null}
         </div>
         <p className="mt-4 text-sm leading-relaxed text-text-muted">{copy.source}</p>
       </div>
