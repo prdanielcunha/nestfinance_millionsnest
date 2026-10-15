@@ -66,10 +66,11 @@ const COPY = {
     todayLabel: 'Culto de hoje',
     next: 'Continuar',
     back: 'Voltar',
-    methodTitle: 'Como você quer contar?',
+    methodTitle: 'Como prefere registrar?'
+    ,otherWays: 'Outras formas de contar',
     methodBody: 'Escolha o jeito mais confortável. Você poderá revisar tudo antes de avançar.',
-    phone: 'No celular',
-    phoneBody: 'Conte cédulas e moedas ou informe os totais.',
+    phone: 'Digitar os valores',
+    phoneBody: 'Uma pergunta por vez, com números grandes. Também é possível contar notas e moedas.',
     photo: 'Fotografar meu papel',
     photoBody: 'Use uma folha ou caderno que você já preencheu.',
     sheet: 'Folha do NestFinance',
@@ -108,10 +109,11 @@ const COPY = {
     todayLabel: 'Today’s service',
     next: 'Continue',
     back: 'Back',
-    methodTitle: 'How do you want to count?',
+    methodTitle: 'How would you like to record the count?',
+    otherWays: 'Other ways to count',
     methodBody: 'Choose the most comfortable way. You can review everything before moving on.',
-    phone: 'On the phone',
-    phoneBody: 'Count notes and coins or enter totals.',
+    phone: 'Enter the amounts',
+    phoneBody: 'One question at a time with large numbers. You can also count notes and coins.',
     photo: 'Photograph my paper',
     photoBody: 'Use a sheet or notebook you already filled in.',
     sheet: 'NestFinance sheet',
@@ -150,10 +152,11 @@ const COPY = {
     todayLabel: 'Culto de hoy',
     next: 'Continuar',
     back: 'Volver',
-    methodTitle: '¿Cómo quieres contar?',
+    methodTitle: '¿Cómo prefieres registrar?',
+    otherWays: 'Otras formas de contar',
     methodBody: 'Elige la forma más cómoda. Podrás revisar todo antes de avanzar.',
-    phone: 'En el celular',
-    phoneBody: 'Cuenta billetes y monedas o informa los totales.',
+    phone: 'Escribir los valores',
+    phoneBody: 'Una pregunta a la vez, con números grandes. También puedes contar billetes y monedas.',
     photo: 'Fotografiar mi papel',
     photoBody: 'Usa una hoja o cuaderno que ya hayas llenado.',
     sheet: 'Hoja de NestFinance',
@@ -178,16 +181,19 @@ function Option({
   body,
   onClick,
   emphasis = false,
+  disabled = false,
 }: {
   title: string;
   body: string;
   onClick: () => void;
   emphasis?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`nf-interactive min-h-[6.5rem] rounded-2xl border p-5 text-left ${
         emphasis
           ? 'border-accent-primary/40 bg-accent-primary/10'
@@ -258,7 +264,7 @@ export function CountStartJourney({
   };
 
   return (
-    <Surface variant="glass" radius="xl" className="p-5 sm:p-6">
+    <Surface variant="default" radius="xl" className="nf-spec-paper p-5 sm:p-7">
       <FlowStepHeader
         currentStep={stepNumber}
         totalSteps={3}
@@ -357,64 +363,52 @@ export function CountStartJourney({
         </div>
       ) : null}
 
-      <div className="mt-5">
-        <FlowHelp
-          title={title}
-          openLabel={copy.helpOpen}
-          closeLabel={copy.helpClose}
-        >
+      {step === 'method' ? (
+        <div className="mt-6 space-y-5">
+          <div className="grid gap-4">
+            <Option
+              emphasis
+              title={copy.photo}
+              body={copy.photoBody}
+              onClick={() => void start('free_form')}
+              disabled={creating}
+            />
+            <Option
+              title={copy.phone}
+              body={copy.phoneBody}
+              onClick={() => void start('digital')}
+              disabled={creating}
+            />
+          </div>
+          <details className="rounded-xl border border-border-subtle bg-surface-secondary/40 px-4 py-3">
+            <summary className="min-h-12 cursor-pointer py-3 text-base font-semibold text-text-primary focus-visible:outline-accent-primary">
+              {copy.otherWays}
+            </summary>
+            <div className="grid gap-3 pt-2 sm:grid-cols-2">
+              <Option title={copy.sheet} body={copy.sheetBody} onClick={() => void start('paper')} disabled={creating} />
+              <Option title={copy.voice} body={copy.voiceBody} onClick={() => void start('voice')} disabled={creating} />
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => navigate(APP_ROUTES.countCapture)}
+                className="nf-interactive min-h-14 rounded-xl px-4 py-3 text-left text-base font-semibold text-accent-primary sm:col-span-2"
+              >
+                {copy.filledSheet}
+              </button>
+            </div>
+          </details>
+          <Button variant="secondary" size="lg" fullWidth disabled={creating} onClick={() => setStep('details')}>
+            {copy.back}
+          </Button>
+          {creating ? <p className="text-center text-text-secondary" role="status" aria-live="polite">…</p> : null}
+        </div>
+      ) : null}
+
+      <div className="mt-6">
+        <FlowHelp title={title} openLabel={copy.helpOpen} closeLabel={copy.helpClose}>
           <p>{description}</p>
         </FlowHelp>
       </div>
-
-      {step === 'method' ? (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Option
-            emphasis
-            title={copy.phone}
-            body={copy.phoneBody}
-            onClick={() => void start('digital')}
-          />
-          <Option
-            title={copy.photo}
-            body={copy.photoBody}
-            onClick={() => void start('free_form')}
-          />
-          <Option
-            title={copy.sheet}
-            body={copy.sheetBody}
-            onClick={() => void start('paper')}
-          />
-          <Option
-            title={copy.voice}
-            body={copy.voiceBody}
-            onClick={() => void start('voice')}
-          />
-          <button
-            type="button"
-            onClick={() => navigate(APP_ROUTES.countCapture)}
-            className="nf-interactive min-h-[3.25rem] rounded-xl px-4 text-left font-semibold text-accent-primary sm:col-span-2"
-          >
-            {copy.filledSheet}
-          </button>
-          <div className="sm:col-span-2">
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              disabled={creating}
-              onClick={() => setStep('details')}
-            >
-              {copy.back}
-            </Button>
-          </div>
-          {creating ? (
-            <p className="sm:col-span-2 text-center text-text-secondary" role="status" aria-live="polite">
-              …
-            </p>
-          ) : null}
-        </div>
-      ) : null}
     </Surface>
   );
 }
