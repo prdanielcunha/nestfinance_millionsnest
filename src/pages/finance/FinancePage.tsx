@@ -486,6 +486,7 @@ export default function FinancePage() {
   // No permissions are granted by this redirect; route and APIs validate them independently.
   if (!returnTo && entryProfile.countOnly) return <Navigate to={APP_ROUTES.count} replace />;
   if (!returnTo && entryProfile.accountantOnly) return <Navigate to={APP_ROUTES.accountant} replace />;
+  if (!returnTo && entryProfile.financeOnly) return <Navigate to={APP_ROUTES.treasury} replace />;
   if (!searchParams.has('classic')) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-5 pb-24 md:pb-8">
