@@ -59,6 +59,10 @@ jobs:
         run: |
           set -euo pipefail
           node --import tsx scripts/test-connect-pending-documents.ts
+          node --import tsx scripts/test-connect-read-entry.ts
+          node --import tsx scripts/test-finance-request-context.ts
+          node --import tsx scripts/test-handoff-token-binding.ts
+          node --import tsx scripts/test-universal-evidence-inbox-i2a.ts
           npm run lint
           npm run check:api-contracts
           npm run test:count-session-discard
@@ -370,6 +374,9 @@ jobs:
           fi
 
           SUMMARY_STATUS="$(curl --silent --show-error --max-time 30 -o /tmp/nf-connect-summary.json -w '%{http_code}' -X POST "$BASE/api/finance-gateway?operation=connect-pending-documents" -H 'Content-Type: application/json' --data '{"financeEntityId":"release-smoke"}')"
+          ENTITIES_STATUS="$(curl --silent --show-error --max-time 30 -o /tmp/nf-connect-entities.json -w '%{http_code}' -X POST "$BASE/api/finance-gateway?operation=connect-entities" -H 'Content-Type: application/json' --data '{}')"
+          test "$ENTITIES_STATUS" = 401
+          echo NESTFINANCE_CONNECT_ENTITIES_AUTHORITY_OK
           test "$SUMMARY_STATUS" = '401'
           echo NESTFINANCE_CONNECT_SUMMARY_AUTHORITY_OK
           SUPPORT_STATUS="$(curl --silent --show-error --max-time 30 --output /tmp/finance-support-auth.json --write-out '%{http_code}' -X POST "$BASE/api/system-gateway?operation=connect-support-draft" -H 'Content-Type: application/json' -H 'x-organization-id: release-smoke-synthetic' --data '{"locale":"pt-BR"}')"

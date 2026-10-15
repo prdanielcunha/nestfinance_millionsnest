@@ -32,7 +32,8 @@ function safeImageMetadata(value: any) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export function createUniversalEvidenceListHandler(resolveContext?: typeof resolveFinanceRequestContext) {
+return async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId =
     typeof req.headers['x-vercel-id'] === 'string'
       ? req.headers['x-vercel-id']
@@ -57,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const limit = Math.min(numericPageSize, 50);
 
-    const { db, organizationId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, organizationId } = await (resolveContext ? resolveContext(req, 'finance.view') : resolveFinanceRequestContext(req, 'finance.view'));
     const evidenceRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -190,4 +191,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Universal Evidence List Error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', requestId });
   }
+};
 }
+export default createUniversalEvidenceListHandler();

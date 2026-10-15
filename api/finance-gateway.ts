@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import connectEntities from '../server/vercel-handlers/finance/connectEntities.js';
 
 import connectPendingDocuments from '../server/vercel-handlers/finance/connectPendingDocuments.js';
 import setupInitialize from '../server/vercel-handlers/finance/setupInitialize.js';
@@ -148,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'entities-detail': return entitiesDetail(req, res);
     case 'entities-list': return entitiesList(req, res);
     case 'entities-accessible': return entitiesAccessible(req, res);
+    case 'connect-entities': return connectEntities(req, res);
     case 'ecosystem-overview': return ecosystemOverview(req, res);
     case 'finance-hub-read-model': return financeHubReadModel(req, res);
     case 'entities-update': return entitiesUpdate(req, res);

@@ -25,7 +25,9 @@ export function canUseFinanceEntitySelector(session: any): boolean {
   );
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+type SelectorIdentity = { admin: ReturnType<typeof getFirebaseAdmin>; uid: string; organizationId: string; session: any };
+export function createEntitiesAccessibleHandler(resolveIdentity?: (req: VercelRequest) => Promise<SelectorIdentity>) {
+return async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Pragma', 'no-cache');
 
@@ -40,17 +42,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const admin = getFirebaseAdmin();
-    const decoded = await admin.auth.verifyIdToken(authorization.slice(7), true);
-    const uid = typeof decoded?.uid === 'string' ? decoded.uid : '';
-    const organizationId =
-      typeof decoded?.mn_organization_id === 'string' ? decoded.mn_organization_id : '';
+    const identity = resolveIdentity ? await resolveIdentity(req) : null;
+    const admin = identity?.admin ?? getFirebaseAdmin();
+    const decoded = identity ? null : await admin.auth.verifyIdToken(authorization.slice(7), true);
+    const uid = identity?.uid ?? (typeof decoded?.uid === 'string' ? decoded.uid : '');
+    const organizationId = identity?.organizationId ?? (typeof decoded?.mn_organization_id === 'string' ? decoded.mn_organization_id : '');
 
     if (!uid || !organizationId) {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const session = await resolveEcosystemSession(uid, organizationId);
+    const session = identity?.session ?? await resolveEcosystemSession(uid, organizationId);
     if (!session.granted) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
@@ -91,8 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       organizationId,
       entities,
+      ...(resolveIdentity ? { candidateLimitReached: snapshot.docs.length === 200 } : {}),
     });
   } catch (error: any) {
+    if (resolveIdentity) return res.status([400, 401, 403].includes(error?.status) ? error.status : 503).json({ error: 'FINANCE_CONTEXT_UNAVAILABLE' });
     if (
       error?.code === 'auth/id-token-expired' ||
       error?.code === 'auth/id-token-revoked' ||
@@ -105,4 +109,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Accessible finance entities error:', error);
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
   }
+};
 }
+export default createEntitiesAccessibleHandler();
