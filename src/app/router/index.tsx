@@ -6,6 +6,7 @@ import { ShellLayout } from '../layouts/ShellLayout';
 import { RouteErrorBoundary } from '../boundaries/RouteErrorBoundary';
 import { OrganizationalAccessBoundary } from '../boundaries/OrganizationalAccessBoundary';
 import { FinanceCapabilityBoundary } from '../boundaries/FinanceCapabilityBoundary';
+import { FinanceTreasuryAreaBoundary } from '../boundaries/FinanceTreasuryAreaBoundary';
 import HandoffPage from '@/src/pages/auth/HandoffPage';
 import LoginPage from '@/src/pages/auth/LoginPage';
 
@@ -56,6 +57,10 @@ function withFinanceAccess(element: ReactNode, anyOf: readonly string[]) {
   return <FinanceCapabilityBoundary anyOf={anyOf}>{element}</FinanceCapabilityBoundary>;
 }
 
+function withTreasuryAccess(element: ReactNode, anyOf: readonly string[]) {
+  return withFinanceAccess(<FinanceTreasuryAreaBoundary>{element}</FinanceTreasuryAreaBoundary>, anyOf);
+}
+
 const PageFallback = () => (
   <div className="flex h-[50vh] items-center justify-center fade-in">
     <div className="w-8 h-8 border-4 border-surface-elevated border-t-accent-primary rounded-full animate-spin" />
@@ -84,14 +89,14 @@ const routes: RouteObject[] = [
         element: <ShellLayout />,
         children: [
           { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
-          { path: APP_ROUTES.transactions, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.transactionCreate, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.transactionDetail, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.transactionDetailLegacy, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.transactionEdit, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.transactionEditLegacy, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.financeReview, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>, REVIEW_FINANCE) },
-          { path: APP_ROUTES.transactionReviewDetail, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionReviewDetailPage /></Suspense>, REVIEW_FINANCE) },
+          { path: APP_ROUTES.transactions, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.transactionCreate, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.transactionDetail, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.transactionDetailLegacy, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.transactionEdit, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionEditGuidedPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.transactionEditLegacy, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionEditLegacyPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.financeReview, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><ReviewPage /></Suspense>, REVIEW_FINANCE) },
+          { path: APP_ROUTES.transactionReviewDetail, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionReviewDetailPage /></Suspense>, REVIEW_FINANCE) },
           { path: APP_ROUTES.financeSetup, element: <Suspense fallback={<PageFallback />}><SetupPage /></Suspense> },
           { path: APP_ROUTES.financeSettings, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceSettingsPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.financeSettingsAccounts, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceAccountsPage /></Suspense>, MANAGE_FINANCE) },
@@ -118,13 +123,13 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.countCapture, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountCapturePage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countFreeFormCapture, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountFreeFormCapturePage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countCaptureReview, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountCaptureReviewPage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.universalCapture, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><UniversalCapturePage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.balance, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><BalancePage /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.inbox, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><InboxPage /></Suspense>, INBOX_FINANCE) },
-          { path: APP_ROUTES.inboxEvidenceDetail, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><UniversalEvidenceDetailPage /></Suspense>, INBOX_FINANCE) },
-          { path: APP_ROUTES.reports, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.universalCapture, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><UniversalCapturePage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.balance, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><BalancePage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.inbox, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><InboxPage /></Suspense>, INBOX_FINANCE) },
+          { path: APP_ROUTES.inboxEvidenceDetail, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><UniversalEvidenceDetailPage /></Suspense>, INBOX_FINANCE) },
+          { path: APP_ROUTES.reports, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><ReportsPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.accountant, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><AccountantWorkspacePage /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.audit, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><AuditPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.audit, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><AuditPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.more, element: <Suspense fallback={<PageFallback />}><MorePage /></Suspense> },
         ],
       },
