@@ -46,10 +46,13 @@ export function resolveFinanceAreaEntry(access: EcosystemAccessState | null): Fi
     roleHas('owner', 'admin', 'administrador');
   const countOnlyRoleHint = countRole && !treasuryRole && !accountantRole && !review && !manage && !access.isGlobalAccess;
   const accountantOnly = accountantRole && !countRole && !treasuryRole && !manage && !access.isGlobalAccess;
-  const count = view && create;
-  // Role-only routing is for convenience, not an authorization boundary.
-  const treasury = view && !countOnlyRoleHint;
-  const accountant = view && (accountantRole || manage);
+  const treasuryOnly = treasuryRole && !countRole && !accountantRole && !manage && !access.isGlobalAccess;
+  // Existing finance.create_drafts is shared with Count; role hints narrow the
+  // displayed landing choices but cannot restrict the underlying financial API.
+  const count = view && create &&
+    (countRole || manage || access.isGlobalAccess === true || (!treasuryRole && !accountantRole));
+  const treasury = view && !countOnlyRoleHint && !accountantOnly;
+  const accountant = view && accountantRole;
   const preferred = countOnlyRoleHint && count
     ? 'count'
     : accountantOnly && accountant
@@ -59,5 +62,6 @@ export function resolveFinanceAreaEntry(access: EcosystemAccessState | null): Fi
         : count
           ? 'count'
           : null;
-  return { count, treasury, accountant, preferred, directEntry: (countOnlyRoleHint && count) || (accountantOnly && accountant), countOnlyRoleHint };
+  const directEntry = (countOnlyRoleHint && count) || (accountantOnly && accountant) || (treasuryOnly && treasury);
+  return { count, treasury, accountant, preferred, directEntry, countOnlyRoleHint };
 }
