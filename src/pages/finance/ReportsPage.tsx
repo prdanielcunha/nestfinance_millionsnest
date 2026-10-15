@@ -26,6 +26,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
+import { FinanceScreenHero } from '@/src/components/finance/FinanceScreenHero';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
@@ -120,7 +121,7 @@ type ReportsCopy = {
 const COPY: Record<Language, ReportsCopy> = {
   PT: {
     area: 'Relatórios',
-    title: 'Relatórios e fechamento',
+    title: 'Conferir o mês',
     subtitle: 'Veja o mês como ele realmente está antes de fechar: movimentações, contagens, documentos e conciliação reunidos em uma visão operacional verificável.',
     back: 'Voltar',
     loading: 'Conferindo o período nas fontes do NestFinance…',
@@ -213,7 +214,7 @@ const COPY: Record<Language, ReportsCopy> = {
   },
   EN: {
     area: 'Relatórios',
-    title: 'Reports & close',
+    title: 'Review the month',
     subtitle: 'See the month as it really stands before closing: transactions, counts, documents, and reconciliation in one verifiable operational view.',
     back: 'Back',
     loading: 'Checking the period against NestFinance sources…',
@@ -306,7 +307,7 @@ const COPY: Record<Language, ReportsCopy> = {
   },
   ES: {
     area: 'Relatórios',
-    title: 'Informes y cierre',
+    title: 'Revisar el mes',
     subtitle: 'Vea el mes como realmente está antes de cerrarlo: movimientos, conteos, documentos y conciliación reunidos en una vista operativa verificable.',
     back: 'Volver',
     loading: 'Comprobando el período con las fuentes de NestFinance…',
@@ -617,35 +618,22 @@ function ReportsContent() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3">
-              <Button
-                variant="ghost"
-                className="!min-h-12 !w-12 !px-0"
-                aria-label={copy.back}
-                onClick={() => navigate(APP_ROUTES.finance)}
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-              </Button>
-              <div className="min-w-0 pt-1">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-accent-primary" aria-hidden="true" />
-                  <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{copy.title}</h1>
-                </div>
-                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-text-muted">{copy.subtitle}</p>
-              </div>
-            </div>
-
-            <label className="ml-15 flex min-w-44 flex-col gap-2 text-xs font-semibold text-text-muted sm:ml-0">
+          <FinanceScreenHero
+            title={copy.title}
+            subtitle={copy.subtitle}
+            onBack={() => navigate(APP_ROUTES.finance)}
+            backLabel={copy.back}
+          >
+            <label className="block max-w-xs text-sm font-semibold text-[#e7bc78]">
               {copy.month}
               <input
                 type="month"
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
-                className="min-h-12 rounded-xl border border-border-subtle bg-surface-elevated px-3 text-sm font-semibold text-text-primary outline-none transition focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20"
+                className="mt-2 min-h-14 w-full rounded-xl border border-[#cbd1cc] bg-white px-4 text-base font-semibold text-[#17242c] outline-none focus:border-[#e7bc78] focus:ring-2 focus:ring-[#e7bc78]/40"
               />
             </label>
-          </header>
+          </FinanceScreenHero>
 
           {loading && !data ? (
             <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
