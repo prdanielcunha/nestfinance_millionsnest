@@ -16,6 +16,8 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, FlowFeedback, Surface } from '@/src/components/foundation';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useLanguage } from '@/src/contexts/LanguageContext';
+import { useAuth } from '@/src/hooks/useAuth';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import { countService, type CountSessionDetail } from '@/src/services/countService';
 import {
   COUNT_DENOMINATIONS_CENTS,
@@ -47,7 +49,8 @@ type ResultProps = BlindProps;
 const RESULT_COPY = {
   PT: {
     responsible: 'Responsável pela segunda contagem',
-    verifiedCounter: 'Segundo contador verificado',
+    verifiedCounter: 'Segundo conferente verificado',
+    waitingTreasury: 'Contagem conferida. A tesouraria poderá preparar os lançamentos ligados a este culto e suas evidências, sem redigitar valores.'
     matchSentence: (value: string) => `As duas contagens conferem em ${value}.`,
     divergentSentence: (value: string) => `Existe uma diferença total de ${value}. Veja exatamente onde ela aparece.`,
     method: 'Método',
@@ -72,6 +75,7 @@ const RESULT_COPY = {
   EN: {
     responsible: 'Second-count owner',
     verifiedCounter: 'Verified second counter',
+    waitingTreasury: 'Count verified. The treasury can prepare entries linked to this service and its evidence, without retyping amounts.'
     matchSentence: (value: string) => `Both counts match at ${value}.`,
     divergentSentence: (value: string) => `There is a total difference of ${value}. See exactly where it appears.`,
     method: 'Method',
@@ -95,7 +99,8 @@ const RESULT_COPY = {
   },
   ES: {
     responsible: 'Responsable del segundo conteo',
-    verifiedCounter: 'Segundo contador verificado',
+    verifiedCounter: 'Segundo verificador confirmado',
+    waitingTreasury: 'Conteo revisado. Tesorería puede preparar movimientos vinculados al culto y las evidencias, sin volver a introducir valores.'
     matchSentence: (value: string) => `Los dos conteos coinciden en ${value}.`,
     divergentSentence: (value: string) => `Existe una diferencia total de ${value}. Mira exactamente dónde aparece.`,
     method: 'Método',
@@ -463,6 +468,8 @@ export function CountResultPanel({
   onReload,
 }: ResultProps) {
   const navigate = useNavigate();
+  const { accessState } = useAuth();
+  const canPrepareTreasury = canEdit && getFinanceEntryProfile(accessState).canFinance;
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const resultCopy = RESULT_COPY[language];
@@ -651,9 +658,14 @@ export function CountResultPanel({
             </FlowFeedback>
           ) : null}
 
+          {matched && !canPrepareTreasury ? (
+            <Surface variant="secondary" radius="lg" className="p-5" role="status">
+              <p className="text-base font-semibold text-text-primary">{resultCopy.waitingTreasury}</p>
+            </Surface>
+          ) : null}
           {matched ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Button
+              {canPrepareTreasury ? <Button
                 size="lg"
                 fullWidth
                 onClick={() => navigate(
@@ -663,7 +675,7 @@ export function CountResultPanel({
                 )}
               >
                 {proposalCreated ? resultCopy.openReview : resultCopy.prepareEntries}
-              </Button>
+              </Button> : null}
               <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
                 {resultCopy.correct}
               </Button>
