@@ -48,7 +48,7 @@ const COPY = {
   ES: {
     area: 'Segundo conteo',
     step: 'Paso 1 de 1',
-    title: 'Entrar como segundo conferente',
+    title: 'Entrar como segundo verificador',
     body: 'Escribe el código que mostró la persona del primer conteo. Sus valores siguen totalmente ocultos.',
     label: 'Código de 10 caracteres',
     placeholder: 'Ej.: 7K4M9P2XQH',
