@@ -282,9 +282,10 @@ export default function FinancePage() {
     };
   }, [setupStatus, currentEpoch, fetchOnboardingData]);
 
-  // Handle active finance entity switch
+  // The new TodayActionCenter owns its own optimized read model. Do not run the
+  // legacy dashboard queries unless the older dashboard was explicitly opened.
   useEffect(() => {
-    if (!activeFinanceEntityId || !organizationId) return;
+    if (!searchParams.has('classic') || !activeFinanceEntityId || !organizationId) return;
 
     const abortController = new AbortController();
     loadDashboardData(activeFinanceEntityId, abortController.signal);
@@ -292,7 +293,7 @@ export default function FinancePage() {
     return () => {
       abortController.abort();
     };
-  }, [activeFinanceEntityId, organizationId, loadDashboardData]);
+  }, [activeFinanceEntityId, organizationId, loadDashboardData, searchParams]);
 
   const pendingEntities = entities.filter(e => bootstrapStatuses[e.id]?.status !== 'ready');
   const readyEntities = entities.filter(e => bootstrapStatuses[e.id]?.status === 'ready');
