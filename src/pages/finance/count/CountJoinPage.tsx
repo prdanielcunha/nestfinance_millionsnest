@@ -14,8 +14,8 @@ const COPY = {
   PT: {
     area: 'Segunda contagem',
     step: 'Passo 1 de 1',
-    title: 'Entrar como segundo contador',
-    body: 'Digite o código que a pessoa da primeira contagem mostrou para você. Os valores dela continuam totalmente ocultos.',
+    title: 'Entrar como segundo conferente',
+    body: 'Digite o código dado pelo primeiro conferente. A primeira contagem continua oculta.',
     label: 'Código de 10 caracteres',
     placeholder: 'Ex.: 7K4M9P2XQH',
     join: 'Entrar na contagem',
@@ -31,8 +31,8 @@ const COPY = {
   EN: {
     area: 'Second count',
     step: 'Step 1 of 1',
-    title: 'Join as second counter',
-    body: 'Enter the code shown by the first counter. Their values remain completely hidden.',
+    title: 'Join as second checker',
+    body: 'Enter the code from the first checker. The first count remains hidden.',
     label: '10-character code',
     placeholder: 'Example: 7K4M9P2XQH',
     join: 'Join count',
@@ -48,8 +48,8 @@ const COPY = {
   ES: {
     area: 'Segundo conteo',
     step: 'Paso 1 de 1',
-    title: 'Entrar como segundo contador',
-    body: 'Escribe el código que mostró la persona del primer conteo. Sus valores siguen totalmente ocultos.',
+    title: 'Entrar como segundo conferente',
+    body: 'Escribe el código del primer revisor. Los valores anteriores siguen ocultos.',
     label: 'Código de 10 caracteres',
     placeholder: 'Ej.: 7K4M9P2XQH',
     join: 'Entrar al conteo',
