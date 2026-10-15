@@ -69,12 +69,13 @@ export default function CountPage() {
 
 function CountHomeContent() {
   const navigate = useNavigate();
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const userId = user?.uid || '';
 
   const [items, setItems] = useState<CountSessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +194,7 @@ function CountHomeContent() {
         idempotencyKey: makeToken('idcount_discard'),
         requestId: makeToken('req'),
       });
-      countDraftPersistence.clear(organizationId, activeFinanceEntityId, discardTarget.id);
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, discardTarget.id, userId);
       setItems((current) => current.filter((item) => item.id !== discardTarget.id));
       setDiscardTarget(null);
       setNotice(copy.discardSessionSuccess);
