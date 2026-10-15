@@ -46,8 +46,8 @@ type ResultProps = BlindProps;
 
 const RESULT_COPY = {
   PT: {
-    responsible: 'Responsável pela segunda contagem',
-    verifiedCounter: 'Segundo contador verificado',
+    responsible: 'Segundo conferente',
+    verifiedCounter: 'Segundo conferente verificado',
     matchSentence: (value: string) => `As duas contagens conferem em ${value}.`,
     divergentSentence: (value: string) => `Existe uma diferença total de ${value}. Veja exatamente onde ela aparece.`,
     method: 'Método',
@@ -56,7 +56,7 @@ const RESULT_COPY = {
     denominationMethod: 'Por cédulas e moedas',
     evidenceA: 'Ver foto/comprovante da contagem 1',
     evidenceB: 'Ver foto/comprovante da contagem 2',
-    countedBy: 'Contado por',
+    countedBy: 'Conferente responsável',
     registeredAt: 'Registrado em',
     correct: 'Correto',
     recount: 'Contar novamente',
@@ -70,8 +70,8 @@ const RESULT_COPY = {
     workflowLabels: { counted: 'Contado', reviewed: 'Em conferência', deposited: 'Depositado', reconciled: 'Conferido com o banco', closed: 'Fechado' },
   },
   EN: {
-    responsible: 'Second-count owner',
-    verifiedCounter: 'Verified second counter',
+    responsible: 'Second checker',
+    verifiedCounter: 'Verified second checker',
     matchSentence: (value: string) => `Both counts match at ${value}.`,
     divergentSentence: (value: string) => `There is a total difference of ${value}. See exactly where it appears.`,
     method: 'Method',
@@ -95,7 +95,7 @@ const RESULT_COPY = {
   },
   ES: {
     responsible: 'Responsable del segundo conteo',
-    verifiedCounter: 'Segundo contador verificado',
+    verifiedCounter: 'Segundo conferente verificado',
     matchSentence: (value: string) => `Los dos conteos coinciden en ${value}.`,
     divergentSentence: (value: string) => `Existe una diferencia total de ${value}. Mira exactamente dónde aparece.`,
     method: 'Método',
@@ -104,7 +104,7 @@ const RESULT_COPY = {
     denominationMethod: 'Por billetes y monedas',
     evidenceA: 'Ver foto/comprobante del conteo 1',
     evidenceB: 'Ver foto/comprobante del conteo 2',
-    countedBy: 'Contado por',
+    countedBy: 'Conferente responsável',
     registeredAt: 'Registrado en',
     correct: 'Correcto',
     recount: 'Contar de nuevo',
