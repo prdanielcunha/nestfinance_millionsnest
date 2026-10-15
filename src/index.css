@@ -293,3 +293,122 @@ button,
 .nf-spec-paper :where(button, input) {
   min-height: 3rem;
 }
+
+
+/* NestFinance visual reference 15/10: ink-blue signature, gold hairline,
+   warm-ivory workspace, white ledger sheets. Semantic tokens keep all pages
+   on the same visual system rather than adding a parallel mockup. */
+.nf-reference-ui {
+  --nf-background-base: #f6f4ef;
+  --nf-background-deep: #efece4;
+  --nf-surface-default: #ffffff;
+  --nf-surface-secondary: #f6f4ef;
+  --nf-surface-elevated: #fffdfa;
+  --nf-glass-surface: rgba(255,255,255,.97);
+  --nf-glass-surface-strong: #ffffff;
+  --nf-border-subtle: #e3e1da;
+  --nf-border-strong: #cbd1cc;
+  --nf-text-primary: #17242c;
+  --nf-text-secondary: #42555c;
+  --nf-text-muted: #52636a;
+  --nf-accent-primary: #164a52;
+  --nf-accent-primary-soft: rgba(22,74,82,.08);
+  --nf-brand-gold: #a27736;
+  --nf-semantic-success: #21694e;
+  --nf-semantic-warning: #79500a;
+  --nf-semantic-danger: #a32932;
+  --nf-shadow-elevated: 0 5px 20px rgba(15,40,44,.055);
+  --nf-shadow-floating: 0 15px 35px rgba(15,40,44,.15);
+  --nf-focus-ring: 0 0 0 3px rgba(22,74,82,.24);
+  color-scheme: light;
+  background: var(--nf-background-base);
+  color: var(--nf-text-primary);
+}
+
+.nf-reference-ui .nf-spec-paper {
+  --nf-background-base: #f6f4ef;
+  --nf-surface-default: #ffffff;
+  --nf-surface-secondary: #f6f4ef;
+  --nf-surface-elevated: #fffdfa;
+  --nf-text-primary: #17242c;
+  --nf-text-secondary: #42555c;
+  --nf-text-muted: #52636a;
+  --nf-accent-primary: #164a52;
+  --nf-border-subtle: #e3e1da;
+  --nf-border-strong: #cbd1cc;
+  color-scheme: light;
+}
+
+.nf-reference-ui .nf-mobile-header,
+.nf-reference-ui .nf-design-hero {
+  --nf-text-primary: #ffffff;
+  --nf-text-secondary: #dde5e1;
+  --nf-text-muted: #c0cfcf;
+  --nf-accent-primary: #e7bc78;
+  --nf-border-subtle: rgba(231,188,120,.25);
+  --nf-border-strong: rgba(231,188,120,.45);
+  --nf-surface-default: #06343d;
+  --nf-surface-secondary: #0e414a;
+  --nf-surface-elevated: #0e414a;
+  color: #ffffff;
+  color-scheme: dark;
+  background: radial-gradient(ellipse at 75% -45%, #205561, #06343d 60%, #042b35);
+}
+.nf-reference-ui .nf-design-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 1.25rem 3.35rem;
+}
+.nf-reference-ui .nf-design-hero::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  left: -6%;
+  bottom: -.4rem;
+  width: 112%;
+  height: 3.2rem;
+  background: var(--nf-background-base);
+  clip-path: polygon(0 36%, 15% 24%, 32% 33%, 50% 60%, 69% 61%, 86% 38%, 100% 20%, 100% 100%, 0 100%);
+}
+.nf-reference-ui .nf-design-hero::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  left: -5%;
+  right: -5%;
+  bottom: 2.15rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e7bc78 20%, #e7bc78 80%, transparent);
+  transform: rotate(-1.5deg);
+}
+.nf-reference-ui .nf-mobile-footer {
+  background: #fffdfa;
+  border-top: 1px solid #e3e1da;
+  box-shadow: 0 -5px 18px rgba(14,35,40,.045);
+}
+.nf-reference-ui .nf-mobile-footer .nf-active-nav {
+  background: #f0dec0;
+  color: #073640;
+  border-radius: 1.25rem;
+}
+.nf-reference-ui .nf-main-workspace {
+  padding-inline: max(.75rem, env(safe-area-inset-left));
+}
+.nf-reference-ui .nf-paper-surface {
+  background: #fffdfa;
+  border: 1px solid #e5e1d6;
+  box-shadow: 0 3px 12px rgba(25,52,58,.035);
+}
+.nf-reference-ui .nf-primary-action {
+  background: #073d47;
+  color: #ffffff;
+  border-color: #073d47;
+}
+.nf-reference-ui .nf-primary-action:hover { background: #0d4c55; }
+.nf-reference-ui .nf-brand-wordmark { font-weight: 650; letter-spacing: -.04em; }
+.nf-reference-ui .nf-brand-wordmark span { color: #f0ca8b; }
+@media (min-width: 640px) {
+  .nf-reference-ui .nf-design-hero { padding: 2rem 2rem 4rem; }
+}
