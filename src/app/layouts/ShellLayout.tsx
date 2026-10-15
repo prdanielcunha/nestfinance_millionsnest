@@ -525,7 +525,7 @@ function ShellLayoutInner() {
   const primaryFabActions = orderedFabActions.slice(0, 4);
 
   return (
-    <div className="flex min-h-screen bg-background-base text-text-primary">
+    <div className="nf-reference-ui flex min-h-screen bg-background-base text-text-primary">
       <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
       <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
         <div className="flex h-16 items-center border-b border-border-subtle px-6">
@@ -662,27 +662,24 @@ function ShellLayoutInner() {
       </aside>
 
       <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
-        <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl md:hidden">
-          <NestFinanceLogo layout="symbol" className="h-8 w-8 shrink-0" priority />
+        <header className="nf-mobile-header sticky top-0 z-20 flex min-h-20 items-center gap-3 border-b border-brand-gold/20 px-3 py-2 md:hidden">
+          <span className="w-8 shrink-0" aria-hidden="true" />
           <button
             type="button"
             onClick={() => setMobileContextOpen(true)}
-            className="nf-interactive flex min-h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl px-3 text-left hover:bg-surface-secondary"
+            className="nf-interactive flex min-h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-3 text-center hover:bg-white/5"
             aria-label={copy.contextTitle}
           >
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-text-primary">
-                {activeFinanceEntityName || orgName}
-              </span>
-              <span className="mt-0.5 block truncate text-xs text-text-muted">
-                {activeFinanceEntityName ? orgName : EXPERIENCE_LABELS[language][experienceMode]}
-              </span>
+              <span className="nf-brand-wordmark block text-xl leading-6 text-white">Nest<span>Finance</span></span>
+              <span className="mt-0.5 block truncate text-sm text-white/90">{activeFinanceEntityName || orgName}</span>
             </span>
-            <ChevronsUpDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+            <ChevronsUpDown className="h-4 w-4 shrink-0 text-[#f0ca8b]" aria-hidden="true" />
           </button>
+          <span className="w-8 shrink-0" aria-hidden="true" />
         </header>
 
-        <div className="nf-operational mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="nf-operational nf-main-workspace mx-auto w-full max-w-7xl flex-1 p-3 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>
@@ -760,7 +757,7 @@ function ShellLayoutInner() {
             ref={fabButtonRef}
             type="button"
             onClick={() => setFabOpen((current) => !current)}
-            className="nf-interactive press-fx z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-text-primary/90 bg-text-primary text-background-base shadow-[var(--nf-shadow-floating)] hover:bg-white"
+            className="nf-interactive press-fx z-50 hidden h-14 w-14 items-center justify-center rounded-2xl border border-text-primary/90 bg-text-primary text-background-base shadow-[var(--nf-shadow-floating)] hover:bg-white md:flex"
             aria-label={fabOpen ? copy.closeActions : t('action_register_title')}
             aria-expanded={fabOpen}
             aria-controls={fabOpen ? fabMenuId : undefined}
@@ -770,34 +767,32 @@ function ShellLayoutInner() {
         </div>
       ) : null}
 
-      <nav className="fixed bottom-0 z-20 flex h-[calc(env(safe-area-inset-bottom,0)+3.5rem)] w-full items-center justify-around border-t border-border-subtle bg-surface-elevated/95 px-2 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-xl md:hidden" aria-label={t('shell_principal')}>
-        {primaryNavigation.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.route}
-            className={({ isActive }) =>
-              `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
-                isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
-              }`
-            }
-          >
-            <item.icon className="h-5 w-5" aria-hidden="true" />
-            <span className="w-full truncate px-1 text-center text-xs leading-none">{t(item.labelKey)}</span>
-          </NavLink>
-        ))}
-        {moreNavigation.length > 0 ? (
-          <NavLink
-            to={APP_ROUTES.more}
-            className={({ isActive }) =>
-              `nf-interactive flex h-full min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-1 ${
-                isActive ? 'font-semibold text-text-primary' : 'text-text-muted hover:text-text-secondary'
-              }`
-            }
-          >
-            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-            <span className="w-full truncate px-1 text-center text-xs leading-none">{t('nav_mais')}</span>
-          </NavLink>
-        ) : null}
+      <nav className="nf-mobile-footer fixed bottom-0 z-30 flex h-[calc(env(safe-area-inset-bottom,0)+4.25rem)] w-full items-center justify-around px-2 pb-[env(safe-area-inset-bottom,0)] md:hidden" aria-label={t('shell_principal')}>
+        <NavLink to={APP_ROUTES.finance} end className={({ isActive }) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
+          <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
+          <span>{t('nav_hoje')}</span>
+        </NavLink>
+        <NavLink to={countRoute} className={() => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${location.pathname.startsWith(APP_ROUTES.count) ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
+          <Receipt className="h-5 w-5" aria-hidden="true" />
+          <span>{t('nav_cultos')}</span>
+        </NavLink>
+        {canCreate ? (
+          <button type="button" onClick={() => setFabOpen((value) => !value)} aria-expanded={fabOpen}
+            aria-controls={fabOpen ? fabMenuId : undefined}
+            className={`nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${fabOpen || location.pathname.includes('/transactions/new') || location.pathname === APP_ROUTES.universalCapture ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            <span>{t('action_register_title')}</span>
+          </button>
+        ) : (
+          <span className="flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs text-text-muted" aria-disabled="true">
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            <span>{t('action_register_title')}</span>
+          </span>
+        )}
+        <NavLink to={APP_ROUTES.more} className={({ isActive }) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
+          <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+          <span>{t('nav_mais')}</span>
+        </NavLink>
       </nav>
 
       {mobileContextOpen ? (
