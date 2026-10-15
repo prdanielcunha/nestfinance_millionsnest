@@ -124,9 +124,10 @@ function draftKey(organizationId: string, entityId: string, sessionId: string, u
 }
 
 export default function CountVoiceQuickPage() {
+  const { user } = useAuth();
   return (
     <FinanceContextGuard>
-      <CountVoiceQuickContent />
+      <CountVoiceQuickContent key={user?.uid || 'no-user'} />
     </FinanceContextGuard>
   );
 }
