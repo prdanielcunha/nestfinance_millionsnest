@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, EyeOff, Files, Focus, ShieldX } from 'lucide-react';
+import { CheckCircle2, EyeOff, Files, Focus, ShieldX } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, Surface } from '@/src/components/foundation';
