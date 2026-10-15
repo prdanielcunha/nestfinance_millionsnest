@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, FlowFeedback, FlowStepHeader, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { FinanceTreasuryAreaBoundary } from '@/src/app/boundaries/FinanceTreasuryAreaBoundary';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
@@ -190,7 +191,9 @@ function buildInitialSelections(preview: CountProposalPreview): SelectionState {
 export default function CountProposalPage() {
   return (
     <FinanceContextGuard>
-      <CountProposalContent />
+      <FinanceTreasuryAreaBoundary>
+        <CountProposalContent />
+      </FinanceTreasuryAreaBoundary>
     </FinanceContextGuard>
   );
 }
