@@ -34,7 +34,7 @@ try {
   assert.equal(values.has(`nestfinance_count_draft_v1:${org}:${entity}:${session}`), true,
     'Unverified legacy drafts must not be exposed or destroyed without a recovery policy');
 
-  countDraftPersistence.save(org, entity, session, 'user_A', draft);
+  assert.equal(countDraftPersistence.save(org, entity, session, 'user_A', draft), true);
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_A')?.totalRaw, '12345');
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_B'), null,
     'A second user on the same device must never recover A\'s draft');
@@ -49,6 +49,15 @@ try {
   countDraftPersistence.clear(org, entity, session, 'user_A');
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_A'), null);
   assert.equal(countDraftPersistence.load(org, entity, session, 'user_B')?.totalRaw, '999');
+
+  const priorSetItem = mockStorage.setItem;
+  mockStorage.setItem = () => { throw new Error('STORAGE_BLOCKED'); };
+  try {
+    assert.equal(countDraftPersistence.save(org, entity, session, 'user_A', draft), false,
+      'A browser refusing localStorage must not produce a success signal');
+  } finally {
+    mockStorage.setItem = priorSetItem;
+  }
 
   const count = values.size;
   countDraftPersistence.save(org, entity, session, '', draft);
