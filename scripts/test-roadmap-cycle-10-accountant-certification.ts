@@ -181,5 +181,24 @@ verify(
   'realtime listeners, when present, are restricted to task/review/presence/close surfaces',
 );
 
+const accountantWorkspace = await fs.readFile('src/pages/finance/AccountantWorkspaceOverview.tsx', 'utf8');
+const accountantReports = await fs.readFile('src/pages/finance/ReportsPage.tsx', 'utf8');
+verify(accountantReports.includes('<AccountantWorkspaceOverview') && accountantReports.includes('showProfessionalWorkspace'),
+  'accountant screen is role-aware and rendered from the canonical Reports journey');
+verify(accountantWorkspace.includes('readiness.readiness.blockerCount'),
+  'accountant issues are taken from verified period readiness, never a mock');
+verify(accountantWorkspace.includes('APP_ROUTES.transactions') && accountantWorkspace.includes('APP_ROUTES.review') && accountantWorkspace.includes('APP_ROUTES.balance'),
+  'professional actions reuse existing authorized workspaces instead of parallel services');
+verify(accountantWorkspace.includes('disabled={!row.available}'),
+  'accountant links respect review permission');
+verify(accountantWorkspace.includes('notOfficial') && accountantWorkspace.includes('notAvailable') && accountantWorkspace.includes('accountingBody'),
+  'unavailable journal, ledger and trial balance are not misrepresented as certified');
+verify(accountantWorkspace.includes('PT: {') && accountantWorkspace.includes('EN: {') && accountantWorkspace.includes('ES: {'),
+  'accountant workspace help is translated into PT/EN/ES');
+verify(files.accountantPanel.includes('arquivos originais não estão incluídos') &&
+  files.accountantPanel.includes('originals are not bundled') &&
+  files.accountantPanel.includes('no se adjuntan los originales'),
+  'accountant CSV export does not promise a bundled document archive');
+
 console.log('\nRoadmap Cycle 10 engineering gate totals: ' + passed + ' Passed');
 console.log('Human pilot status remains evidence-driven and cannot be inferred from CI.');
