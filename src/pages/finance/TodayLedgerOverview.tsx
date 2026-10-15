@@ -107,7 +107,7 @@ export function TodayLedgerOverview({
   const dueCount = operational?.dueSoonCount ?? null;
 
   return (
-    <section aria-labelledby="nf-ledger-today-title" className="overflow-hidden rounded-[1.75rem] border border-border-strong bg-surface-default">
+    <section aria-labelledby="nf-ledger-today-title" className="nf-spec-paper overflow-hidden rounded-[1.75rem] border border-border-strong bg-surface-default">
       <div className="px-5 pt-7 pb-5 sm:px-8 sm:pt-8">
         <p className="text-sm font-semibold tracking-wide text-text-secondary">{copy.eyebrow}</p>
         <h1 id="nf-ledger-today-title" className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-tight text-text-primary sm:text-[2rem]">
