@@ -31,6 +31,8 @@ import {
 } from '@/shared/finance/count';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
 import { COUNT_COPY } from './countCopy';
+import { useAuth } from '@/src/hooks/useAuth';
+import { resolveFinanceAreaEntry } from '@/src/lib/financeAreaEntry';
 
 type BlindStep = 'choose' | 'count' | 'review';
 
@@ -65,6 +67,8 @@ const RESULT_COPY = {
     helpBody: 'Não escolha um valor no escuro. Faça uma nova contagem independente; se a diferença continuar, confira as fotos/comprovantes e peça ao responsável financeiro para revisar a evidência.',
     closeHelp: 'Fechar ajuda',
     prepareEntries: 'Preparar lançamentos',
+    handoffComplete: 'Contagem concluída pela equipe',
+    handoffBody: 'A tesouraria já pode consultar esta contagem e suas evidências. Não é necessário digitar novamente nem criar um lançamento aqui.',
     openReview: 'Abrir lançamentos em conferência',
     workflow: 'Etapa atual',
     workflowLabels: { counted: 'Contado', reviewed: 'Em conferência', deposited: 'Depositado', reconciled: 'Conferido com o banco', closed: 'Fechado' },
@@ -89,6 +93,8 @@ const RESULT_COPY = {
     helpBody: 'Do not choose a value blindly. Run another independent count; if the difference remains, review the photos/evidence and ask the finance owner to inspect it.',
     closeHelp: 'Close help',
     prepareEntries: 'Prepare entries',
+    handoffComplete: 'Count completed by the team',
+    handoffBody: 'Treasury can already see this count and its evidence. No retyping or financial transaction is needed here.',
     openReview: 'Open entries in review',
     workflow: 'Current stage',
     workflowLabels: { counted: 'Counted', reviewed: 'In review', deposited: 'Deposited', reconciled: 'Checked with bank', closed: 'Closed' },
@@ -113,6 +119,8 @@ const RESULT_COPY = {
     helpBody: 'No elijas un valor a ciegas. Haz un nuevo conteo independiente; si la diferencia continúa, revisa las fotos/comprobantes y pide al responsable financiero que revise la evidencia.',
     closeHelp: 'Cerrar ayuda',
     prepareEntries: 'Preparar movimientos',
+    handoffComplete: 'Conteo concluido por el equipo',
+    handoffBody: 'Tesorería ya puede revisar este conteo y sus evidencias sin volver a escribir importes.',
     openReview: 'Abrir movimientos en revisión',
     workflow: 'Etapa actual',
     workflowLabels: { counted: 'Contado', reviewed: 'En revisión', deposited: 'Depositado', reconciled: 'Conferido con el banco', closed: 'Cerrado' },
@@ -466,6 +474,8 @@ export function CountResultPanel({
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const resultCopy = RESULT_COPY[language];
+  const { accessState } = useAuth();
+  const countOnly = resolveFinanceAreaEntry(accessState).countOnlyRoleHint;
   const [starting, setStarting] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState(false);
@@ -651,7 +661,15 @@ export function CountResultPanel({
             </FlowFeedback>
           ) : null}
 
-          {matched ? (
+          {matched && countOnly ? (
+            <Surface variant="secondary" radius="xl" className="border-semantic-success/20 p-5">
+              <h3 className="text-lg font-semibold text-text-primary">{resultCopy.handoffComplete}</h3>
+              <p className="mt-2 text-base leading-relaxed text-text-secondary">{resultCopy.handoffBody}</p>
+              <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.count)}>
+                {copy.returnToCount}
+              </Button>
+            </Surface>
+          ) : matched ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <Button
                 size="lg"
