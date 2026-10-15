@@ -264,7 +264,7 @@ export function CountStartJourney({
   };
 
   return (
-    <Surface variant="default" radius="xl" className="p-5 sm:p-7">
+    <Surface variant="default" radius="xl" className="nf-spec-paper p-5 sm:p-7">
       <FlowStepHeader
         currentStep={stepNumber}
         totalSteps={3}
