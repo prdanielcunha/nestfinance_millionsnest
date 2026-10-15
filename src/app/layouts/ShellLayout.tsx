@@ -783,7 +783,7 @@ function ShellLayoutInner() {
         {canCount ? <NavLink to={countRoute} className={() => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${location.pathname.startsWith(APP_ROUTES.count) ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
           <Receipt className="h-5 w-5" aria-hidden="true" />
           <span>{t('nav_cultos')}</span>
-        </NavLink> : <NavLink to={entryProfile.canAccountant ? APP_ROUTES.accountant : APP_ROUTES.transactions} className={({isActive}) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}><FileText className="h-5 w-5" aria-hidden="true"/><span>{entryProfile.canAccountant ? (language === 'PT' ? 'Contador' : language === 'EN' ? 'Accountant' : 'Contador') : (language === 'PT' ? 'Financeiro' : language === 'EN' ? 'Finance' : 'Finanzas')}</span></NavLink>}
+        </NavLink> : <NavLink to={entryProfile.canAccountant ? APP_ROUTES.accountant : APP_ROUTES.treasury} className={({isActive}) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}><FileText className="h-5 w-5" aria-hidden="true"/><span>{entryProfile.canAccountant ? (language === 'PT' ? 'Contador' : language === 'EN' ? 'Accountant' : 'Contador') : (language === 'PT' ? 'Financeiro' : language === 'EN' ? 'Finance' : 'Finanzas')}</span></NavLink>}
         {canRegisterFinance ? (
           <button type="button" onClick={() => setFabOpen((value) => !value)} aria-expanded={fabOpen}
             aria-controls={fabOpen ? fabMenuId : undefined}
