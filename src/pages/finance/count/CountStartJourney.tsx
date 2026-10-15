@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Camera, Keyboard, FileText, Mic, ChevronRight } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import {
   Button,
@@ -182,26 +183,29 @@ function Option({
   onClick,
   emphasis = false,
   disabled = false,
+  symbol,
 }: {
   title: string;
   body: string;
   onClick: () => void;
   emphasis?: boolean;
   disabled?: boolean;
+  symbol?: 'camera' | 'keyboard' | 'sheet' | 'voice';
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`nf-interactive min-h-[6.5rem] rounded-2xl border p-5 text-left ${
+      className={`nf-interactive nf-paper-surface flex min-h-[6.5rem] w-full items-center gap-4 rounded-2xl border p-4 text-left ${
         emphasis
           ? 'border-accent-primary/40 bg-accent-primary/10'
           : 'border-border-subtle bg-surface-elevated hover:border-border-strong'
       }`}
     >
-      <span className="block text-lg font-semibold text-text-primary">{title}</span>
-      <span className="mt-1 block leading-relaxed text-text-secondary">{body}</span>
+      {symbol ? <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#d6c7b3] bg-[#f6efe3] text-[#073d47]">{symbol === 'camera' ? <Camera className="h-6 w-6" aria-hidden="true" /> : symbol === 'keyboard' ? <Keyboard className="h-6 w-6" aria-hidden="true" /> : symbol === 'sheet' ? <FileText className="h-6 w-6" aria-hidden="true" /> : <Mic className="h-6 w-6" aria-hidden="true" />}</span> : null}
+      <span className="min-w-0 flex-1"><span className="block text-lg font-semibold text-text-primary">{title}</span><span className="mt-1 block leading-relaxed text-text-secondary">{body}</span></span>
+      <ChevronRight className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
     </button>
   );
 }
@@ -264,7 +268,9 @@ export function CountStartJourney({
   };
 
   return (
-    <Surface variant="default" radius="xl" className="nf-spec-paper p-5 sm:p-7">
+    <Surface variant="default" radius="xl" className="nf-spec-paper overflow-hidden p-0">
+      <div className="nf-design-hero">
+        <div className="relative z-[3]">
       <FlowStepHeader
         currentStep={stepNumber}
         totalSteps={3}
@@ -272,6 +278,17 @@ export function CountStartJourney({
         stepLabel={copy.step(stepNumber)}
         description={description}
       />
+        <ol className="mt-6 flex items-center justify-around gap-2 text-center text-sm text-[#e4eee9]" aria-label={copy.step(stepNumber)}>
+          {[copy.church, language === 'PT' ? 'Valores' : language === 'EN' ? 'Amounts' : 'Valores', language === 'PT' ? 'Conferência' : language === 'EN' ? 'Review' : 'Revisión'].map((name, index) => (
+            <li key={name} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+              <span aria-current={stepNumber === index + 1 ? 'step' : undefined} className={`flex h-9 w-9 items-center justify-center rounded-full border text-base font-semibold ${stepNumber >= index + 1 ? 'border-[#f0ca8b] bg-[#f0ca8b] text-[#073d47]' : 'border-white/35 text-white/75'}`}>{index + 1}</span>
+              <span className="truncate text-xs">{name}</span>
+            </li>
+          ))}
+        </ol>
+        </div>
+      </div>
+      <div className="p-5 sm:p-7">
 
       <div className="mt-4 flex justify-start">
         <SpeakInstructionButton
@@ -368,12 +385,14 @@ export function CountStartJourney({
           <div className="grid gap-4">
             <Option
               emphasis
+              symbol="camera"
               title={copy.photo}
               body={copy.photoBody}
               onClick={() => void start('free_form')}
               disabled={creating}
             />
             <Option
+              symbol="keyboard"
               title={copy.phone}
               body={copy.phoneBody}
               onClick={() => void start('digital')}
@@ -385,8 +404,8 @@ export function CountStartJourney({
               {copy.otherWays}
             </summary>
             <div className="grid gap-3 pt-2 sm:grid-cols-2">
-              <Option title={copy.sheet} body={copy.sheetBody} onClick={() => void start('paper')} disabled={creating} />
-              <Option title={copy.voice} body={copy.voiceBody} onClick={() => void start('voice')} disabled={creating} />
+              <Option symbol="sheet" title={copy.sheet} body={copy.sheetBody} onClick={() => void start('paper')} disabled={creating} />
+              <Option symbol="voice" title={copy.voice} body={copy.voiceBody} onClick={() => void start('voice')} disabled={creating} />
               <button
                 type="button"
                 disabled={creating}
@@ -408,6 +427,7 @@ export function CountStartJourney({
         <FlowHelp title={title} openLabel={copy.helpOpen} closeLabel={copy.helpClose}>
           <p>{description}</p>
         </FlowHelp>
+      </div>
       </div>
     </Surface>
   );
