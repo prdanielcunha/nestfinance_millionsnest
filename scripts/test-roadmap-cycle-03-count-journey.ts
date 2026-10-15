@@ -49,7 +49,7 @@ assert.ok(draft.includes('organizationId'));
 assert.ok(draft.includes('financeEntityId'));
 assert.ok(draft.includes('sessionId'));
 assert.ok(draft.includes('userId'));
-assert.ok(draft.includes('removeUnsafeLegacyDraft'));
+assert.ok(draft.includes('never read it automatically'));
 assert.ok(draft.includes('nestfinance_count_draft_v2'));
 assert.ok(session.includes('const userId = user?.uid ||'));
 assert.ok(draft.includes('localStorage.setItem'));
