@@ -300,7 +300,11 @@ export default function FinancePage() {
 
   useEffect(() => {
     if (!redirectToRoleArea || setupStatus !== 'configured') return;
-    const target = entryAreas.preferred === 'count' ? APP_ROUTES.count : APP_ROUTES.reports;
+    const target = entryAreas.preferred === 'count'
+      ? APP_ROUTES.count
+      : entryAreas.preferred === 'accountant'
+        ? APP_ROUTES.reports
+        : APP_ROUTES.financeDaily;
     navigate(target, { replace: true });
   }, [redirectToRoleArea, setupStatus, entryAreas.preferred, navigate]);
 
