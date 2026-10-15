@@ -125,4 +125,17 @@ verify(reportsPage.includes('Fechamento oficial protegido'), 'monthly close does
 verify(periodClose.includes('financialMutation: false'), 'period review cannot mutate financial balances');
 verify(periodClose.includes('periodClosed: false'), 'period review cannot silently declare the month closed');
 
+const monthReview = readFileSync('src/pages/finance/MonthReviewOverview.tsx', 'utf8');
+verify(reportsPage.includes('<MonthReviewOverview') && reportsPage.includes('result={data}'),
+  'T27 month review uses scoped, server-provided period data');
+verify(monthReview.includes('amounts.postedIncomeCents') && monthReview.includes('amounts.postedExpenseCents'),
+  'monthly operational movements include only amounts marked posted, not draft/approved totals');
+verify(monthReview.includes('Saldo que veio do mês anterior') && monthReview.includes('Ainda não comprovável'),
+  'monthly review does not invent an opening or closing account balance');
+verify(monthReview.includes('result.readiness.blockerCount') && monthReview.includes('reports-blockers'),
+  'monthly review routes the user to actual readiness blockers');
+verify(monthReview.includes('A escrituração') === false && monthReview.includes('Esta pantalla no cierra el período'),
+  'monthly review has no financial posting or close mutation');
+verify(monthReview.includes('PT: {') && monthReview.includes('EN: {') && monthReview.includes('ES: {'),
+  'T27 copy supports Portuguese, English and Spanish');
 console.log('\nRoadmap Cycle 09 totals: ' + passed + ' Passed');
