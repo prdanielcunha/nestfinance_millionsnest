@@ -9,6 +9,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
 import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode, type FinanceInterfaceRole } from '@/src/lib/financeExperience';
 import { buildFinanceNavigation } from '@/src/lib/financeNavigationModel';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import {
   chooseCurrentSessionOrganization,
   resolveCurrentSessionOrganizations,
@@ -285,11 +286,13 @@ function ShellLayoutInner() {
   const profilePhoto = accessState.profile?.photoURL;
   const experienceMode = getFinanceExperienceMode(accessState);
   const interfaceRole = getFinanceInterfaceRole(accessState);
+  const entryProfile = getFinanceEntryProfile(accessState);
   const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReview = hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']);
   const canManage = hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']);
-  const canCount = canViewFinance && canCreate;
+  const canCount = entryProfile.canCount;
+  const canRegisterFinance = canCreate && entryProfile.canFinance;
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
 
   const [fabOpen, setFabOpen] = useState(false);
@@ -441,7 +444,9 @@ function ShellLayoutInner() {
     canManage,
   });
   const visibleNavigation = CANONICAL_NAVIGATION.filter(
-    (item) => !item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities),
+    (item) => (!item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities)) &&
+      (!entryProfile.countOnly || item.id === 'finance' || item.id === 'count') &&
+      (item.id !== 'count' || entryProfile.canCount),
   );
   const primaryNavigation = navigationProfile.primary
     .map((id) => visibleNavigation.find((item) => item.id === id))
@@ -464,7 +469,7 @@ function ShellLayoutInner() {
     ? `${copy.continueCountDescription} ${resumableCount.serviceLabel}`
     : copy.countDescription;
 
-  const actionCommands: FinancePaletteCommand[] = canCreate ? [
+  const actionCommands: FinancePaletteCommand[] = canRegisterFinance ? [
     ...(canCount ? [{ id: 'action:count', label: countLabel, route: countRoute, kind: 'action' as const }] : []),
     { id: 'action:income', label: t('shortcut_income'), route: `${APP_ROUTES.transactionCreate}?direction=income`, kind: 'action' as const },
     { id: 'action:expense', label: t('shortcut_expense'), route: `${APP_ROUTES.transactionCreate}?direction=expense`, kind: 'action' as const },
@@ -473,7 +478,7 @@ function ShellLayoutInner() {
   ] : [];
   const commandPaletteCommands = [...navigationCommands, ...actionCommands];
 
-  const allFabActions = canCreate ? [
+  const allFabActions = canRegisterFinance ? [
     ...(canCount ? [{
       id: 'count',
       label: countLabel,
@@ -684,7 +689,7 @@ function ShellLayoutInner() {
         </div>
       </main>
 
-      {canCreate &&
+      {canRegisterFinance &&
         !location.pathname.includes('/finance/transactions/new') &&
         !location.pathname.includes('/finance/transactions/edit') &&
         !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
@@ -772,23 +777,20 @@ function ShellLayoutInner() {
           <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
           <span>{t('nav_hoje')}</span>
         </NavLink>
-        <NavLink to={countRoute} className={() => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${location.pathname.startsWith(APP_ROUTES.count) ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
+        {canCount ? <NavLink to={countRoute} className={() => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${location.pathname.startsWith(APP_ROUTES.count) ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
           <Receipt className="h-5 w-5" aria-hidden="true" />
           <span>{t('nav_cultos')}</span>
-        </NavLink>
-        {canCreate ? (
+        </NavLink> : <NavLink to={entryProfile.canAccountant ? APP_ROUTES.accountant : APP_ROUTES.transactions} className={({isActive}) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}><FileText className="h-5 w-5" aria-hidden="true"/><span>{entryProfile.canAccountant ? (language === 'PT' ? 'Contador' : language === 'EN' ? 'Accountant' : 'Contador') : (language === 'PT' ? 'Financeiro' : language === 'EN' ? 'Finance' : 'Finanzas')}</span></NavLink>}
+        {canRegisterFinance ? (
           <button type="button" onClick={() => setFabOpen((value) => !value)} aria-expanded={fabOpen}
             aria-controls={fabOpen ? fabMenuId : undefined}
             className={`nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${fabOpen || location.pathname.includes('/transactions/new') || location.pathname === APP_ROUTES.universalCapture ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
             <Plus className="h-5 w-5" aria-hidden="true" />
             <span>{t('action_register_title')}</span>
           </button>
-        ) : (
-          <span className="flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs text-text-muted" aria-disabled="true">
-            <Plus className="h-5 w-5" aria-hidden="true" />
-            <span>{t('action_register_title')}</span>
-          </span>
-        )}
+        ) : canCount ? (
+          <NavLink to={APP_ROUTES.countTraining} className={({isActive}) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}><Receipt className="h-5 w-5" aria-hidden="true"/><span>{language === 'PT' ? 'Treinar' : language === 'EN' ? 'Practice' : 'Practicar'}</span></NavLink>
+        ) : <span className="flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs text-text-muted" aria-disabled="true"><Plus className="h-5 w-5" aria-hidden="true"/><span>{t('action_register_title')}</span></span>}
         <NavLink to={APP_ROUTES.more} className={({ isActive }) => `nf-interactive flex min-h-14 min-w-[4.25rem] flex-col items-center justify-center gap-1 px-2 text-xs ${isActive ? 'nf-active-nav font-semibold' : 'text-text-secondary'}`}>
           <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
           <span>{t('nav_mais')}</span>
