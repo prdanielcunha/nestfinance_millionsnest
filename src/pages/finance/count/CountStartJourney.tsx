@@ -139,7 +139,7 @@ const COPY = {
     otherBody: 'Solo informas el nombre y la fecha.',
     continue: 'Continuar un conteo',
     continueBody: 'Retoma exactamente donde te detuviste.',
-    secondCounter: 'Entrar como segundo conferente',
+    secondCounter: 'Entrar como segundo verificador',
     secondCounterBody: '¿Recibiste el código del primer revisor? Haz el segundo conteo sin ver el primero.',
     training: 'Practicar sin datos reales',
     trainingBody: 'Practica con valores ficticios. Nada se guarda.',
