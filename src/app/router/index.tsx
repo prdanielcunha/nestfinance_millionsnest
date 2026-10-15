@@ -11,6 +11,7 @@ import LoginPage from '@/src/pages/auth/LoginPage';
 
 // Lazy loaded pages to keep initial bundle small
 const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
+const TodayActionCenter = lazy(() => import('@/src/pages/finance/TodayActionCenter'));
 const SetupPage = lazy(() => import('@/src/pages/finance/SetupPage'));
 const FinanceSettingsPage = lazy(() => import('@/src/pages/finance/settings/FinanceSettingsPage'));
 const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/FinanceAccountsPage'));
@@ -83,6 +84,7 @@ const routes: RouteObject[] = [
         element: <ShellLayout />,
         children: [
           { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
+          { path: APP_ROUTES.financeDaily, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TodayActionCenter /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactions, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactionCreate, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.transactionDetail, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense>, VIEW_FINANCE) },
