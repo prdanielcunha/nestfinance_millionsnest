@@ -1129,7 +1129,7 @@ function TransactionCreateContent() {
                 </Surface>
               ) : null}
 
-              <section aria-labelledby="transaction-what-heading">
+              <section aria-labelledby="transaction-what-heading" className="nf-paper-surface rounded-2xl p-4 sm:p-6">
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
                     1
@@ -1215,7 +1215,7 @@ function TransactionCreateContent() {
                 </Surface>
               </section>
 
-              <section aria-labelledby="transaction-how-heading">
+              <section aria-labelledby="transaction-how-heading" className="nf-paper-surface rounded-2xl p-4 sm:p-6">
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
                     2
@@ -1424,7 +1424,7 @@ function TransactionCreateContent() {
               </section>
 
               {direction !== 'transfer' && direction !== 'liability_settlement' ? (
-                <section aria-labelledby="transaction-classification-heading">
+                <section aria-labelledby="transaction-classification-heading" className="nf-paper-surface rounded-2xl p-4 sm:p-6">
                   <Surface variant="secondary" radius="xl" className="p-5 sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -1625,7 +1625,7 @@ function TransactionCreateContent() {
                 </section>
               ) : null}
 
-              <section aria-labelledby="transaction-details-heading">
+              <section aria-labelledby="transaction-details-heading" className="nf-paper-surface rounded-2xl p-4 sm:p-6">
                 <Surface variant="secondary" radius="xl" className="p-5 sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
