@@ -36,7 +36,7 @@ const COPY = {
     conflict: 'Esta contagem mudou em outro dispositivo. Volte e carregue a versão mais recente.',
     draftSaved: 'Rascunho salvo neste aparelho',
     draftNotSaved: 'Rascunho ainda não foi salvo neste aparelho',
-    categories: { tithe: 'Dízimos', offering: 'Ofertas', other: 'Outras entradas', pix: 'Pix' },
+    categories: { tithe: 'Dízimos em dinheiro', offering: 'Ofertas em dinheiro', other: 'Outras entradas em dinheiro', pix: 'Pix (a classificar)' },
   },
   EN: {
     step: 'Step 1 of 1',
@@ -58,7 +58,7 @@ const COPY = {
     conflict: 'This count changed on another device. Go back and load the latest version.',
     draftSaved: 'Draft saved on this device',
     draftNotSaved: 'Draft not yet saved on this device',
-    categories: { tithe: 'Tithes', offering: 'Offerings', other: 'Other income', pix: 'Pix' },
+    categories: { tithe: 'Cash tithes', offering: 'Cash offerings', other: 'Other cash income', pix: 'Pix (to classify)' },
   },
   ES: {
     step: 'Paso 1 de 1',
@@ -80,7 +80,7 @@ const COPY = {
     conflict: 'Este conteo cambió en otro dispositivo. Vuelve y carga la versión más reciente.',
     draftSaved: 'Borrador guardado en este dispositivo',
     draftNotSaved: 'El borrador aún no se ha guardado en este dispositivo',
-    categories: { tithe: 'Diezmos', offering: 'Ofrendas', other: 'Otras entradas', pix: 'Pix' },
+    categories: { tithe: 'Diezmos en efectivo', offering: 'Ofrendas en efectivo', other: 'Otras entradas en efectivo', pix: 'Pix (por clasificar)' },
   },
 } as const;
 
