@@ -8,6 +8,7 @@ import { FinanceScreenHero } from '@/src/components/finance/FinanceScreenHero';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
 
 const COPY = {
@@ -58,6 +59,7 @@ function AccountantWorkspaceContent() {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const { accessState } = useAuth();
+  const entryProfile = getFinanceEntryProfile(accessState);
   const { activeFinanceEntityId } = useFinanceEntity();
   const [period, setPeriod] = useState(currentMonth);
   const copy = COPY[language];
@@ -69,6 +71,9 @@ function AccountantWorkspaceContent() {
     { title: copy.audit, subtitle: copy.auditSub, icon: ShieldCheck, route: APP_ROUTES.audit },
   ];
 
+  if (!entryProfile.canAccountant) {
+    return <main className="mx-auto max-w-3xl p-6"><p role="alert" className="rounded-2xl border border-border-strong bg-surface-default p-5 text-base text-text-primary">{language === 'PT' ? 'Este espaço exige permissão de prestação de contas ou contabilidade.' : language === 'EN' ? 'This workspace requires financial review or accounting access.' : 'Este espacio requiere permiso de revisión financiera o contabilidad.'}</p></main>;
+  }
   return (
     <main className="mx-auto max-w-5xl pb-24 md:pb-8">
       <FinanceEntityContextBar areaName={copy.area} />
