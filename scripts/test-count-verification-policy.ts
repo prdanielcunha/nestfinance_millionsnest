@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { CountV3ClassifiedReceipt } from '../shared/finance/countV3PurposeReceipt.js';
 import {
   evaluateCountVerifications,
   normalizeCountVerificationPolicy,
@@ -58,7 +59,7 @@ const classifiedLines = [
   { purpose: 'tithe' as const, receiptMethod: 'cash' as const, amountCents: 30000, classificationSource: 'explicit' as const },
   { purpose: 'offering' as const, receiptMethod: 'pix' as const, amountCents: 17000, classificationSource: 'explicit' as const },
 ];
-const classified = (index: number, lines = classifiedLines): CountVerificationEvidence => ({
+const classified = (index: number, lines: CountV3ClassifiedReceipt[] = classifiedLines): CountVerificationEvidence => ({
   verificationId: `classified_${index}`,
   mode: 'independent', operatorUid: `classified_user_${index}`,
   independentCounterUid: `classified_user_${index}`, lines,
