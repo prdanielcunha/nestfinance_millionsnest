@@ -27,6 +27,7 @@ for(const [text,term] of [
   [edit,'historyHasMore'],
   [edit,'historyCursor'],
   [edit,'aria-expanded={historyOpen}'],
+  [edit,"canViewOpeningHistory = hasEffectiveCapability(accessState,'finance.review')"],
   [workflow,'scripts/test-account-opening-history-emulator.ts'],
 ]) assert.ok(text.includes(term),'Missing history security/UX/pagination gate: '+term);
 for(const forbidden of ['financeJournalEntries','financeAggregates','financeBalances','transaction.create(', 'transaction.set(', 'transaction.update(']){
