@@ -1,5 +1,6 @@
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
+import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
 
 export type AvailabilityReason = 'emergency_disabled' | 'available';
 
@@ -52,7 +53,7 @@ export async function canManageFinanceBootstrap(uid: string, organizationId: str
   // Catalogs and bootstrap use this legacy helper instead of the transaction
   // request context. Count-only users must not see opening balances/accounts
   // or initialize treasury data merely because finance.view is shared by Hub.
-  if (isExplicitCountOnlySession(session)) {
+  if (isExplicitCountOnlySession(session) || explicitTeamOnlyGrant(session.permissions)) {
     return { canApply: false, reason: 'COUNT_TEAM_TREASURY_ACCESS_FORBIDDEN' };
   }
 
