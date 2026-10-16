@@ -55,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionRef = entityRef.collection('countVerificationSessions').doc(countSessionId);
 
     const payloadHash = hashPayload({ countSessionId, expectedVersion, selections: rawSelections });
+    const selectionHash = hashPayload(rawSelections);
     const keyHash = buildIdempotencyKeyHash(
       organizationId,
       financeEntityId,
@@ -83,6 +84,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // A new idempotency key cannot replay unrelated/old mapping intents.
           if (Number(session.countProposal?.sourceVersion) !== expectedVersion) {
             throw new Error('COUNT_VERSION_CONFLICT');
+          }
+          // A new request key may only replay the exact financial mapping originally accepted.
+          // Returning success for a different account/category/fund would falsely claim it was saved.
+          if (session.countProposal?.selectionHash !== selectionHash) {
+            throw new Error('COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS');
           }
           return {
             countSessionId,
@@ -344,6 +350,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'created',
             transactionIds,
             sourceVersion: expectedVersion,
+            selectionHash,
             createdByUid: uid,
             createdByLabel: actorLabel,
             createdAt: FieldValue.serverTimestamp(),
@@ -415,6 +422,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'COUNT_V3_NOT_ENABLED' });
     }
     if (message === 'COUNT_SESSION_NOT_FOUND') return res.status(404).json({ error: message });
+    if (message === 'COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS') {
+      return res.status(409).json({ error: message });
+    }
     if (message === 'COUNT_VERSION_CONFLICT' || message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
       return res.status(409).json({ error: message.includes('FINANCE_') ? 'FINANCE_IDEMPOTENCY_CONFLICT' : message });
     }
