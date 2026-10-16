@@ -76,6 +76,10 @@ const WORDS = {
     reviewApproval: 'Esta contagem exige decisão explícita da tesouraria antes de seguir.',
     reviewPending: 'A contagem está conferida. O envio para lançamento financeiro exige uma etapa separada de revisão e autorização.',
     reviewNoPosting: 'Prévia para análise apenas — não houve entrada, despesa nem movimento no saldo.',
+    acceptReview: 'Confirmar revisão da tesouraria',
+    acceptNote: 'Observação da revisão',
+    acceptNoteHint: 'Em contagem de uma só pessoa, explique a decisão com pelo menos 10 caracteres. A confirmação não lança valores.',
+    reviewAccepted: 'Revisão financeira confirmada. Os valores permanecem aguardando o lançamento autorizado.',
     invalid: 'Informe pelo menos um valor válido. Zero é aceito quando foi conferido.',
   },
   EN: {
@@ -120,6 +124,10 @@ const WORDS = {
     reviewApproval: 'This count requires an explicit treasury decision before proceeding.',
     reviewPending: 'The amounts agree. Financial drafts require a separate authorized review step.',
     reviewNoPosting: 'Review-only preview — no transaction or balance has changed.',
+    acceptReview: 'Confirm treasury review',
+    acceptNote: 'Review note',
+    acceptNoteHint: 'For a single-person count, explain the decision in at least 10 characters. Confirmation never posts money.',
+    reviewAccepted: 'Financial review confirmed. Figures still await separately authorized entry.',
     invalid: 'Enter at least one valid amount. A verified zero is allowed.',
   },
   ES: {
@@ -164,6 +172,10 @@ const WORDS = {
     reviewApproval: 'Este conteo requiere decisión explícita de tesorería antes de continuar.',
     reviewPending: 'Los importes coinciden. Los borradores financieros requieren revisión y autorización por separado.',
     reviewNoPosting: 'Vista para revisión — no cambió ninguna transacción ni saldo.',
+    acceptReview: 'Confirmar revisión de tesorería',
+    acceptNote: 'Nota de la revisión',
+    acceptNoteHint: 'En un conteo individual, explique la decisión con un mínimo de 10 caracteres. Confirmar no registra dinero.',
+    reviewAccepted: 'Revisión financiera confirmada. Los importes siguen esperando un registro autorizado.',
     invalid: 'Indique al menos un importe válido. Se acepta cero verificado.',
   },
 } as const;
@@ -225,6 +237,8 @@ function CountVerificationBody() {
   const [recountReason, setRecountReason] = useState('');
   const [treasuryPacket, setTreasuryPacket] = useState<CountV3TreasuryReviewPacket|null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [acceptBusy, setAcceptBusy] = useState(false);
+  const [reviewNote, setReviewNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -264,6 +278,7 @@ function CountVerificationBody() {
     setItems([]);
     setInvite(null);
     setTreasuryPacket(null);
+    setReviewNote('');
     retries.current = {};
     setMessage('');
     void refresh();
@@ -351,6 +366,31 @@ function CountVerificationBody() {
     language === 'PT' ? 'pt-BR' : language === 'EN' ? 'en-US' : 'es-ES',
     { style: 'currency', currency: 'BRL' },
   ).format(centsValue / 100);
+
+  const acceptTreasury = async () => {
+    if (!session || !canReview || acceptBusy || !treasuryPacket ||
+        treasuryPacket.snapshotVersion !== session.version ||
+        treasuryPacket.treasuryAccepted || treasuryPacket.requiresPurposeClassification) return;
+    const note = reviewNote.trim();
+    if (treasuryPacket.requiresExplicitTreasuryReview && note.length < 10) {
+      setError(w.invalid);
+      return;
+    }
+    setAcceptBusy(true); setError('');
+    try {
+      const key = retryKey('treasury', JSON.stringify([organizationId, entityId, session.id, session.version, note]));
+      await countV3Service.acceptTreasuryReview(organizationId, entityId, {
+        countSessionId: session.id, expectedVersion: session.version, note,
+      }, key);
+      delete retries.current.treasury;
+      setReviewNote('');
+      setMessage(w.reviewAccepted);
+      await refresh();
+      const next = await countV3Service.treasuryPreview(organizationId, entityId, session.id);
+      setTreasuryPacket(next.preview);
+    } catch (e) { setError(messageFor(e)); }
+    finally { setAcceptBusy(false); }
+  };
 
   const submit = async () => {
     if (!session || !canCreate || busy || session.status !== 'pending') return;
@@ -547,6 +587,27 @@ function CountVerificationBody() {
                   )}
                   {!treasuryPacket.requiresExplicitTreasuryReview && (
                     <p className="text-sm text-text-secondary">{w.reviewPending}</p>
+                  )}
+                  {treasuryPacket.treasuryAccepted ? (
+                    <p role="status" className="rounded-xl bg-semantic-success/10 p-3 text-sm font-semibold text-semantic-success">
+                      {w.reviewAccepted}
+                    </p>
+                  ) : treasuryPacket.requiresPurposeClassification ? null : (
+                    <div className="space-y-3 border-t border-border-subtle pt-4">
+                      <label className="block text-sm font-semibold text-text-primary">
+                        {w.acceptNote}
+                        <textarea value={reviewNote} onChange={event => setReviewNote(event.target.value)}
+                          maxLength={500} rows={2}
+                          className="mt-2 w-full rounded-xl border border-border-subtle bg-surface-base p-3 text-base text-text-primary"/>
+                        <span className="mt-2 block text-xs font-normal text-text-muted">{w.acceptNoteHint}</span>
+                      </label>
+                      <button type="button" disabled={acceptBusy ||
+                          (treasuryPacket.requiresExplicitTreasuryReview && reviewNote.trim().length < 10)}
+                        onClick={() => void acceptTreasury()}
+                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+                        {acceptBusy ? w.loading : w.acceptReview}
+                      </button>
+                    </div>
                   )}
                   <p className="rounded-xl bg-surface-secondary p-3 text-xs text-text-muted">{w.reviewNoPosting}</p>
                 </div>
