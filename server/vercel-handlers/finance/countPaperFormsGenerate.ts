@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountFirstStageOwner, assertCountSessionParticipant } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
@@ -40,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(
       req,
       'finance.create_drafts',
     );
@@ -80,6 +81,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           session.financeEntityId !== financeEntityId
         ) {
           throw new Error('COUNT_ENTITY_MISMATCH');
+        }
+
+        // A first operator may print the second form for another person, but
+        // an unrelated Count-only member cannot issue paper identities.
+        if (stage === 'count_a') {
+          assertCountFirstStageOwner(sessionList, session, uid);
+        } else {
+          assertCountSessionParticipant(sessionList, session, uid);
         }
 
         if (stage === 'count_a' && session.status !== 'counting_a') {
