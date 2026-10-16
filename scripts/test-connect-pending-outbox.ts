@@ -15,7 +15,7 @@ function makeDb() {
     version: 3, review: { status: 'pending' },
     updatedAt: { toDate: () => new Date(now - 1000) } };
   const doc = (kind: 'receipt'|'evidence') => ({
-    async get() { return { exists: true, data: () => kind === 'receipt' ? receipt : source }; },
+    async get() { return { exists: true, data: () => kind === 'receipt' ? structuredClone(receipt) : source }; },
   });
   const idempotencyRef: any = { doc(receiptId: string) {
     assert.equal(receiptId, key); return doc('receipt');
