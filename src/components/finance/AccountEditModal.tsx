@@ -98,18 +98,51 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
     setIsSubmitting(true);
     try {
       if (!activeFinanceEntityId) throw new Error('Organização financeira não selecionada.');
-      const payload = {
+      const payload: Parameters<typeof updateAccount>[0] = {
         accountId: account.id,
         name: name.trim(),
         institutionName: institutionName.trim() === '' ? null : institutionName.trim(),
         accountLast4: accountLast4.trim() === '' ? null : accountLast4.trim(),
         financeEntityId: activeFinanceEntityId,
       };
+      if (editingOpening) {
+        if (openingReason.trim().length < 10 || openingReason.trim().length > 240) {
+          throw new Error(w.invalid);
+        }
+        payload.expectedOpeningBalanceRevision = account.openingBalanceRevision ?? 0;
+        payload.openingBalanceReason = openingReason.trim();
+        if (openingMode === 'not_informed') {
+          payload.openingBalanceDeclaration = { status: 'not_informed' };
+        } else {
+          const amount = openingAmount.trim().replace(',', '.');
+          if (!/^-?\d{1,10}(?:\.\d{1,2})?$/.test(amount) || !openingDate) {
+            throw new Error(w.invalid);
+          }
+          if (openingSource==='other' && openingSourceNote.trim().length<5) {
+            throw new Error(w.invalid);
+          }
+          const [whole, fraction=''] = amount.split('.');
+          const sign = whole.startsWith('-') ? -1 : 1;
+          const cents = sign * (Math.abs(Number(whole))*100 + Number(fraction.padEnd(2,'0')));
+          if (!Number.isSafeInteger(cents) || Math.abs(cents)>999_999_999_999) {
+            throw new Error(w.invalid);
+          }
+          payload.openingBalanceDeclaration = {
+            status:'declared', amountCents:cents, asOf:openingDate,
+            source:openingSource, ...(openingSource==='other'?{sourceNote:openingSourceNote.trim()}:{}),
+          };
+        }
+      }
       const response = await updateAccount(payload);
       onSuccess(response.account);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Não foi possível atualizar a conta. Tente novamente.');
+      const code = String(err?.message || '');
+      setError(code === 'OPENING_BALANCE_VERSION_CONFLICT' ? w.conflict
+        : code === 'OPENING_BALANCE_LEGACY_RECONCILIATION_REQUIRED' ? w.legacy
+        : code === 'OPENING_BALANCE_LOCKED' ? w.locked
+        : code.startsWith('INVALID_OPENING_BALANCE_') ? w.invalid
+        : err.message || 'Não foi possível atualizar a conta. Tente novamente.');
       setIsSubmitting(false);
     }
   };
