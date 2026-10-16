@@ -100,3 +100,17 @@ export function assertCountCaptureStageOperator(
     throw { status: 403, error: 'COUNT_SESSION_NOT_ASSIGNED' };
   }
 }
+
+/** Count evidence mutations are private to the uploader until an explicit
+ * assisted-review grant exists. Sharing a capture ID cannot authorize edits
+ * or AI extraction of another person's photo. */
+export function assertCountCaptureOwner(
+  verifiedSession: VerifiedSession,
+  capture: CountSessionRecord,
+  uid: unknown,
+): void {
+  if (!isExplicitCountOnlySession(verifiedSession)) return;
+  if (!validActor(uid) || capture.createdByUid !== uid) {
+    throw { status: 403, error: 'COUNT_CAPTURE_NOT_ASSIGNED' };
+  }
+}
