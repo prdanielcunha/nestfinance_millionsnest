@@ -1,6 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { CountEntryDraft } from '../../shared/finance/count.js';
+import type { CountV3ClassifiedReceipt } from '../../shared/finance/countV3PurposeReceipt.js';
 
 export type CountV3Status = 'pending' | 'matched' | 'divergent' | 'requires_treasury_review';
 export type CountV3Session = {
@@ -25,7 +26,9 @@ export type CountV3Session = {
     mode: 'independent' | 'assisted';
     operatorUid: string;
     physicalCounterLabel?: string | null;
-    entries: CountEntryDraft[];
+    entries?: CountEntryDraft[];
+    lines?: CountV3ClassifiedReceipt[];
+    controlTotalCents?: number | null;
   }>;
   confirmedTotalCents: number | null;
 };
@@ -110,7 +113,9 @@ export const countV3Service = {
     expectedVersion: number;
     mode: 'independent' | 'assisted';
     physicalCounterLabel?: string;
-    entries: CountEntryDraft[];
+    entries?: CountEntryDraft[];
+    lines?: CountV3ClassifiedReceipt[];
+    controlTotalCents?: number | null;
   }, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;status:CountV3Status}>(
       org, 'count-verifications-submit', withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
