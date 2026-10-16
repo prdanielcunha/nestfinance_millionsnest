@@ -10,6 +10,7 @@ export const APP_ROUTES = {
   financeSettingsEntities: '/finance/settings/entities',
   financeSettingsFunds: '/finance/settings/funds',
   financeSettingsCategories: '/finance/settings/categories',
+  financeSettingsCountPolicy: '/finance/settings/count-policy',
   count: '/finance/count',
   countSession: '/finance/count/:sessionId',
   countJoin: '/finance/count/join',
