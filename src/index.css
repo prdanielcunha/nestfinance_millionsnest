@@ -25,6 +25,50 @@
 }
 
 :root {
+  --nf-background-base: #f6f4ef;
+  --nf-background-deep: #efede7;
+  --nf-surface-default: #ffffff;
+  --nf-surface-secondary: #f4f3ee;
+  --nf-surface-elevated: #ffffff;
+  --nf-glass-surface: rgba(255, 255, 255, 0.82);
+  --nf-glass-surface-strong: rgba(255, 255, 255, 0.94);
+  --nf-border-subtle: #e0e2df;
+  --nf-border-strong: #ccd2cd;
+
+  --nf-text-primary: #17242c;
+  --nf-text-secondary: #425b62;
+  --nf-text-muted: #56696f;
+
+  --nf-brand-gold: #a27736;
+  --nf-accent-primary: #1d4653;
+  --nf-accent-primary-soft: rgba(29, 70, 83, 0.1);
+  --nf-semantic-success: #21694e;
+  --nf-semantic-warning: #79500a;
+  --nf-semantic-danger: #a32932;
+
+  --nf-radius-sm: 0.625rem;
+  --nf-radius-md: 0.875rem;
+  --nf-radius-lg: 1.125rem;
+  --nf-radius-xl: 1.5rem;
+
+  --nf-shadow-elevated: 0 8px 28px rgba(23, 36, 44, 0.07);
+  --nf-shadow-floating: 0 18px 50px rgba(23, 36, 44, 0.14);
+
+  --nf-motion-fast: 150ms;
+  --nf-motion-standard: 200ms;
+  --nf-motion-slow: 250ms;
+  --nf-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --nf-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --nf-touch-min: 2.75rem;
+  --nf-touch-comfortable: 3rem;
+  --nf-focus-ring: 0 0 0 3px rgba(29, 70, 83, 0.22);
+
+  color-scheme: light;
+}
+
+/* Explicit persisted preference, not the OS media query. */
+:root[data-theme='dark'] {
   --nf-background-base: #06090e;
   --nf-background-deep: #0a0f14;
   --nf-surface-default: #0e1621;
@@ -99,7 +143,7 @@ textarea {
 }
 
 ::selection {
-  background-color: rgba(0, 214, 239, 0.24);
+  background-color: var(--nf-accent-primary-soft);
   color: var(--nf-text-primary);
 }
 
@@ -264,8 +308,7 @@ button,
   box-shadow: 0 8px 32px rgba(23,36,44,.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  .nf-spec-paper {
+:root[data-theme='dark'] .nf-spec-paper {
     --nf-background-base: #06090e;
     --nf-surface-default: #0e1621;
     --nf-surface-secondary: #101925;
@@ -283,7 +326,6 @@ button,
     --nf-shadow-elevated: 0 12px 30px rgba(0,0,0,.25);
     --nf-focus-ring: 0 0 0 3px rgba(69,217,232,.25);
     color-scheme: dark;
-  }
 }
 
 .nf-spec-paper :where(button, summary, input) {
