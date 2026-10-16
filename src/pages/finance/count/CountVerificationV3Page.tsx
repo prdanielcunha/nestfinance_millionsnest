@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardCopy, LockKeyhole, ShieldCheck, Users } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
@@ -9,7 +9,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countV3Service, COUNT_V3_UI_ENABLED, type CountV3Session } from '@/src/services/countV3Service';
-import type { CountEntryDraft, CountEntryType } from '../../../../../shared/finance/count.js';
+import type { CountEntryDraft, CountEntryType } from '../../../../shared/finance/count.js';
 
 const WORDS = {
   PT: {
@@ -180,7 +180,7 @@ function CountVerificationBody() {
     return () => { requestEpoch.current++; };
   }, [refresh]);
 
-  if (!enabled) return null;
+  if (!enabled) return <Navigate to={APP_ROUTES.count} replace />;
   const startPath = APP_ROUTES.countVerificationV3;
   const messageFor = (e: unknown) =>
     (e as {status?:number})?.status === 409 ? w.conflict : w.error;
