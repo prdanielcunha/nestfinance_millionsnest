@@ -34,6 +34,14 @@ assert.ok(handler.includes('buildCountV3DraftPlan(session, rawSelections)'),
   'Drafts must use reviewed source and exact explicit purpose-method mapping');
 assert.ok(handler.includes('Number(session.version) !== expectedVersion'));
 assert.ok(handler.includes('Number(session.countProposal?.sourceVersion) !== expectedVersion'));
+assert.ok(handler.includes('const selectionHash = hashPayload(rawSelections)'),
+  'A Count-to-ledger selection intent must be fingerprinted independently of request key');
+assert.ok(handler.includes('session.countProposal?.selectionHash !== selectionHash'),
+  'A new idempotency key must not falsely report saving different financial mapping');
+assert.ok(handler.includes('selectionHash,\n            createdByUid: uid'),
+  'Persist exact accepted mapping fingerprint atomically with generated transaction IDs');
+assert.ok(handler.includes("return res.status(409).json({ error: message });"),
+  'Conflicting financial mapping must have a recoverable conflict response');
 for (const term of [
   'getAccountsRef().doc(', 'getCategoriesRef().doc(', 'getFundsRef().doc(',
   'FINANCE_ACCOUNT_MISMATCH', 'FINANCE_CATEGORY_MISMATCH', 'FINANCE_FUND_MISMATCH',
