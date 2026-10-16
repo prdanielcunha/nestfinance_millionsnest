@@ -7,13 +7,14 @@ const volunteer = { ...count, roles: ['voluntário'] };
 const noncount = { ...count, roles: ['tesoureiro'] };
 const dualRole = { ...count, roles: ['conferente', 'financeiro'] };
 const elevated = { ...count, permissions: [...count.permissions, 'finance.review'] };
+const scopedCatalogManager = { ...count, permissions: [...count.permissions, 'finance.accounts.manage'] };
 const global = { ...count, isGlobalAccess: true };
 const owner = { ...count, organizationRole: 'owner' };
 const noSession = { ...count, granted: false };
 
 assert.equal(isExplicitCountOnlySession(count), true);
 assert.equal(isExplicitCountOnlySession(volunteer), true);
-for (const session of [noncount, dualRole, elevated, global, owner, noSession]) {
+for (const session of [noncount, dualRole, elevated, scopedCatalogManager, global, owner, noSession]) {
   assert.equal(isExplicitCountOnlySession(session), false, 'Actual treasury/admin authority must retain access');
 }
 for (const operation of [
@@ -65,7 +66,7 @@ for (const operation of [
     (error: unknown) => (error as { status: number; error: string }).status === 403 &&
       (error as { status: number; error: string }).error === 'FORBIDDEN_TREASURY_ROLE_REQUIRED');
 }
-for (const session of [noncount, dualRole, elevated, global, owner, noSession]) {
+for (const session of [noncount, dualRole, elevated, scopedCatalogManager, global, owner, noSession]) {
   assert.doesNotThrow(() => assertCountTeamReadBoundary(session, 'transactions-list'),
     'Genuine finance authority must retain access; canonical capability checks still apply');
 }
