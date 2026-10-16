@@ -75,6 +75,7 @@ export function serializeV3Session(session: Record<string, any>, uid: string, _p
     serviceDate: session.serviceDate,
     status,
     version: Number(session.version || 0),
+    recountCycle: Number(session.recountCycle || 0),
     policySnapshot: session.policySnapshot,
     participantCount: Array.isArray(session.participants) ? session.participants.length : 0,
     canManageInvite: session.createdByUid === uid && session.status === 'pending',
