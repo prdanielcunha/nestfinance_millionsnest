@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountCaptureOwner } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
@@ -37,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !isValidRequestId(requestId)
     ) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const captureRef = entityRef.collection('countCaptures').doc(captureId);
     const preflightDoc = await captureRef.get();
@@ -49,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       preflight.provenance !== 'free_form_note'
     ) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
 
+    assertCountCaptureOwner(sessionList, preflight, uid);
     const resolved = await resolveCountCaptureContext({ db, organizationId, financeEntityId, capture: preflight });
     assertCountCaptureStageOpen(resolved.identity.stage, resolved.session.status);
     if (isCountCaptureMaterialHidden(resolved.identity.stage, resolved.session.status)) {
@@ -77,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       if (!captureDoc.exists || !sessionDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const capture = captureDoc.data() || {};
+      assertCountCaptureOwner(sessionList, capture, uid);
       const session = sessionDoc.data() || {};
       if (capture.provenance !== 'free_form_note') throw new Error('COUNT_CAPTURE_NOT_FOUND');
       if (idemDoc.exists) {
@@ -160,6 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       if (!captureDoc.exists || !sessionDoc.exists || !idemDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const capture = captureDoc.data() || {};
+      assertCountCaptureOwner(sessionList, capture, uid);
       const session = sessionDoc.data() || {};
       const idem = idemDoc.data() || {};
       if (idem.status !== 'in_progress' || idem.payloadHash !== payloadHash) throw new Error('FINANCE_IDEMPOTENCY_CONFLICT');

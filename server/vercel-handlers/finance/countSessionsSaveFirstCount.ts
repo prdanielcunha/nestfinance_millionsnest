@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountFirstStageOwner } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { stageFinanceFact } from './factStream.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
@@ -30,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const normalizedEntries = normalizeCountEntries(entries);
     const totalCents = calculateCountEntriesTotalCents(normalizedEntries);
-    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, actorLabel, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const sessionsRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -61,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
+        assertCountFirstStageOwner(sessionList, session, uid);
         if (session.status !== 'counting_a') throw new Error('COUNT_INVALID_STATE');
         if (Number(session.version) !== expectedVersion) throw new Error('COUNT_VERSION_CONFLICT');
 

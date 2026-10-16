@@ -1,7 +1,8 @@
 import type { firestore } from 'firebase-admin';
+import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
-import { assertCountTeamDraftBoundary, assertCountTeamReadBoundary } from './countTeamOperationPolicy.js';
+import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
@@ -92,6 +93,16 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
   }
 
+  // A member who can administer teams but has no explicit finance grants
+  // must not inherit treasury from a broad organizational admin label.
+  if (explicitTeamOnlyGrant(sessionList.permissions)) {
+    throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+  }
+
+  // Enforce Count-only responsibility after canonical Hub session resolution,
+  // even when an ecclesiastical/organizational title carries legacy privileges.
+  assertCountTeamCapabilityBoundary(sessionList, requiredCapability);
+
   // Count and treasury currently share broad Hub finance capabilities.
   // Limit Count-only accounts at the verified server session boundary for both
   // mutation and read operations; the gateway operation is a trusted server marker.
@@ -128,6 +139,18 @@ function canonicalPermissions(sessionList: any): string[] {
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList?.isGlobalAccess) return true;
+  if (
+    explicitTeamOnlyGrant(sessionList?.permissions ?? sessionList?.capabilities) &&
+    (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities')
+  ) return false;
+
+  // Bypass no restriction through implicit owner/admin finance grants. The
+  // read/draft operation-specific gateway allowlists still apply separately.
+  if (isExplicitCountOnlySession(sessionList) &&
+      (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities') &&
+      !['finance.view', 'finance.create_drafts', 'finance.count.execute', 'finance.count.view'].includes(requestedCapability)) {
+    return false;
+  }
 
   const organizationRole = String(sessionList?.organizationRole || '').trim().toLowerCase();
   if (
