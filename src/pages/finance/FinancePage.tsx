@@ -11,6 +11,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { transactionsService } from '@/src/services/transactionsService';
 import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
+import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import { FinanceEntryChoices } from './FinanceEntryChoices';
 import { TodayActionCenter } from './TodayActionCenter';
 
@@ -485,7 +486,7 @@ export default function FinancePage() {
 
   // Keep the original dashboard behind an explicit optional route during the visual transition.
   // No permissions are granted by this redirect; route and APIs validate them independently.
-  if (!returnTo && entryProfile.countOnly) return <Navigate to={APP_ROUTES.count} replace />;
+  if (!returnTo && entryProfile.countOnly) return <Navigate to={COUNT_V3_UI_ENABLED && hasEffectiveCapability(accessState, 'finance.count.view') ? APP_ROUTES.countVerificationV3 : APP_ROUTES.count} replace />;
   if (!returnTo && entryProfile.accountantOnly) return <Navigate to={APP_ROUTES.accountant} replace />;
   if (!returnTo && entryProfile.financeOnly) return <Navigate to={APP_ROUTES.treasury} replace />;
   if (!searchParams.has('classic')) {
