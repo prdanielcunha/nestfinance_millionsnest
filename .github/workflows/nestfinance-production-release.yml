@@ -188,13 +188,43 @@ jobs:
           [[ "$VERSION" =~ ^sites/mn-nestfinance-555464791734/versions/[a-zA-Z0-9_-]+$ ]]
           echo "PREVIOUS_FINANCE_HOSTING_VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - name: Deploy Firestore indexes
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true'
-        run: npx firebase-tools@15.27.0 deploy --only firestore:indexes --project "$PROJECT_ID" --non-interactive
+      # Shared project millionsnest: Firestore rules/indexes are centrally owned by
+      # prdanielcunha/millionsnest. Deploying repo-local subsets here replaces
+      # cross-app authorization/indexes; never mutate shared policies from Finance.
+      - name: Verify canonical Hub shared Firestore Rules (read-only, fail-closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+          echo "::add-mask::$ACCESS_TOKEN"
+          curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://firebaserules.googleapis.com/v1/projects/millionsnest/releases/cloud.firestore" \
+            -o /tmp/finance-shared-rules-release.json
+          RULESET_NAME="$(jq -er '.rulesetName' /tmp/finance-shared-rules-release.json)"
+          [[ "$RULESET_NAME" =~ ^projects/millionsnest/rulesets/[a-zA-Z0-9-]+$ ]]
+          curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://firebaserules.googleapis.com/v1/$RULESET_NAME" \
+            -o /tmp/finance-shared-rules-source.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const files = JSON.parse(fs.readFileSync('/tmp/finance-shared-rules-source.json','utf8')).source?.files;
+          if (!Array.isArray(files) || files.length !== 1 || files[0].name !== 'firestore.rules' || typeof files[0].content !== 'string') {
+            console.error('NESTFINANCE_SHARED_FIRESTORE_SOURCE_INVALID');
+            process.exit(1);
+          }
+          const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
+          const approvedHubSha = 'c8804c9f34197fb60d71936532782622c3f9f5aa7fbd3bd70bd7575753353311';
+          if (liveSha !== approvedHubSha) {
+            console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
+            process.exit(1);
+          }
+          console.log('NESTFINANCE_HUB_CANONICAL_FIRESTORE_READONLY_OK');
+          NODE
+          unset ACCESS_TOKEN
 
-      - name: Deploy Firestore rules
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true'
-        run: npx firebase-tools@15.27.0 deploy --only firestore:rules --project "$PROJECT_ID" --non-interactive
 
       - name: Push Cloud Run image
         run: docker push "$IMAGE"
