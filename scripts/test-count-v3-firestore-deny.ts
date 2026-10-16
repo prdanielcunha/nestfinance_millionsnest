@@ -6,7 +6,7 @@ for (const part of ['countVerificationSessions','countVerificationInvites']) {
   const selector=`match /financeEntities/{entityId}/${part}/{document=**} {`;
   const i=rules.indexOf(selector);
   assert.ok(i>=0, part+' needs an explicit server-only Firestore rule');
-  const next=rules.indexOf('}',i);
+  const next=rules.indexOf('\n      }',i);
   const body=rules.slice(i,next);
   assert.ok(body.includes('allow read, create, update, delete: if false;'),
     part+' must not expose financial figures, counter identities, secrets, or edits to browser clients');
