@@ -57,6 +57,7 @@ import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsC
 import countSessionsList from '../server/vercel-handlers/finance/countSessionsList.js';
 import countVerificationsCreate from '../server/vercel-handlers/finance/countVerificationsCreate.js';
 import countVerificationsJoin from '../server/vercel-handlers/finance/countVerificationsJoin.js';
+import countVerificationsRefreshInvite from '../server/vercel-handlers/finance/countVerificationsRefreshInvite.js';
 import countVerificationsSubmit from '../server/vercel-handlers/finance/countVerificationsSubmit.js';
 import countVerificationsDetail from '../server/vercel-handlers/finance/countVerificationsDetail.js';
 import countVerificationsList from '../server/vercel-handlers/finance/countVerificationsList.js';
@@ -194,6 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-list': return countSessionsList(req, res);
     case 'count-verifications-create': return countVerificationsCreate(req, res);
     case 'count-verifications-join': return countVerificationsJoin(req, res);
+    case 'count-verifications-refresh-invite': return countVerificationsRefreshInvite(req, res);
     case 'count-verifications-submit': return countVerificationsSubmit(req, res);
     case 'count-verifications-detail': return countVerificationsDetail(req, res);
     case 'count-verifications-list': return countVerificationsList(req, res);
