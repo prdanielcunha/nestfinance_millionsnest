@@ -23,7 +23,8 @@ const TEXT = {
     month: 'Conferir o mês', monthDesc: 'Analise o período, as pendências e as informações para o contador.',
     transfer: 'Transferir entre contas', transferDesc: 'Uma transferência não deve duplicar receita.',
     incomingCount: 'Contagem já concluída?', incomingCountDesc: 'Confira as propostas com a origem do culto e as evidências, sem redigitar os valores.',
-    viewReview: 'Abrir conferência de propostas',
+    viewReview: 'Revisar lançamentos preparados',
+    openCount: 'Abrir contagens conferidas',
     repass: 'Repasses', repassDesc: 'Configuração e cálculos certificados serão entregues em etapa própria.',
   },
   EN: {
@@ -38,7 +39,7 @@ const TEXT = {
     month: 'Review the month', monthDesc: 'Inspect the period, outstanding items and accountant information.',
     transfer: 'Transfer between accounts', transferDesc: 'A transfer must not duplicate income.',
     incomingCount: 'Service count completed?', incomingCountDesc: 'Review proposals with service provenance and evidence; no manual re-entry.',
-    viewReview: 'Open proposal review', repass: 'Remittances', repassDesc: 'Certified calculation and configuration will be released separately.',
+    viewReview: 'Review prepared entries', openCount: 'Open verified counts', repass: 'Remittances', repassDesc: 'Certified calculation and configuration will be released separately.',
   },
   ES: {
     title: 'Cuidar las finanzas', subtitle: 'Ingresos, gastos, comprobantes, saldos y revisión mensual en un lugar.',
@@ -52,7 +53,7 @@ const TEXT = {
     month: 'Revisar el mes', monthDesc: 'Revisa el período, pendientes e información para el contador.',
     transfer: 'Transferir entre cuentas', transferDesc: 'Una transferencia no debe duplicar ingresos.',
     incomingCount: '¿Conteo terminado?', incomingCountDesc: 'Revisa propuestas con origen del culto y evidencias, sin volver a introducir valores.',
-    viewReview: 'Abrir revisión de propuestas', repass: 'Remesas', repassDesc: 'El cálculo y configuración certificados llegarán por separado.',
+    viewReview: 'Revisar movimientos preparados', openCount: 'Abrir conteos verificados', repass: 'Remesas', repassDesc: 'El cálculo y configuración certificados llegarán por separado.',
   },
 } as const;
 
@@ -92,14 +93,20 @@ function TreasuryHubContent() {
             <p className="mt-3 text-sm leading-relaxed text-text-muted">{copy.incomeDesc}</p>
           </section>
         ) : null}
-        {canReview ? (
+        {canCreate || canReview ? (
           <section className="nf-paper-surface rounded-2xl p-5" aria-label={copy.incomingCount}>
             <h2 className="text-lg font-semibold text-text-primary">{copy.incomingCount}</h2>
             <p className="mt-2 text-sm leading-relaxed text-text-secondary">{copy.incomingCountDesc}</p>
-            <button type="button" onClick={() => navigate(APP_ROUTES.financeReview)}
-              className="nf-interactive mt-4 min-h-14 w-full rounded-xl border border-[#164a52] bg-[#073d47] px-4 text-base font-semibold text-white">
-              {copy.viewReview} <ChevronRight className="ml-2 inline h-5 w-5" aria-hidden="true"/>
-            </button>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {canCreate ? <button type="button" onClick={() => navigate(APP_ROUTES.count)}
+                className="nf-interactive min-h-14 rounded-xl border border-[#164a52] bg-[#073d47] px-4 text-base font-semibold text-white">
+                {copy.openCount} <ChevronRight className="ml-1 inline h-5 w-5" aria-hidden="true"/>
+              </button> : null}
+              {canReview ? <button type="button" onClick={() => navigate(APP_ROUTES.financeReview)}
+                className="nf-interactive min-h-14 rounded-xl border border-border-strong bg-surface-default px-4 text-base font-semibold text-text-primary">
+                {copy.viewReview} <ChevronRight className="ml-1 inline h-5 w-5" aria-hidden="true"/>
+              </button> : null}
+            </div>
           </section>
         ) : null}
         <section aria-labelledby="treasury-follow-up-title">
