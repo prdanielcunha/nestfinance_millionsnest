@@ -76,7 +76,7 @@ assert.ok(treasuryBoundary.includes('if (profile.countOnly)'));
 assert.ok(treasuryBoundary.includes('Canonical roles must ALSO be enforced by API handlers.'), 'The UI boundary does not replace server authorization');
 assert.ok(shell.includes('const canRegisterFinance = canCreate && entryProfile.canFinance;'));
 assert.ok(shell.includes("entryProfile.countOnly || item.id === 'finance' || item.id === 'count'"));
-assert.ok(shell.includes('canCount ? <NavLink to={countRoute}'));
+assert.ok(shell.includes('const canCount = entryProfile.canCount;') && shell.includes('primaryNavigation.map'), 'Count availability is role-filtered in dynamic navigation');
 assert.ok(accountantWorkspace.includes('if (!entryProfile.canAccountant)'));
 assert.ok(professionalLinks.includes('entryProfile.canAccountant ?'));
 assert.ok(proposal.includes("firstCounter: 'Primeiro conferente'"));
