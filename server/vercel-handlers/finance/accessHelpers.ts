@@ -1,7 +1,7 @@
 import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
-import { assertCountTeamDraftBoundary } from './countTeamOperationPolicy.js';
+import { assertCountTeamDraftBoundary, assertCountTeamReadBoundary } from './countTeamOperationPolicy.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
@@ -92,10 +92,14 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
   }
 
-  // Gate Count-team accounts against treasury mutations at the authenticated
-  // session boundary. finance.create_drafts alone is shared with Count today.
+  // Count and treasury currently share broad Hub finance capabilities.
+  // Limit Count-only accounts at the verified server session boundary for both
+  // mutation and read operations; the gateway operation is a trusted server marker.
+  const gatewayOperation = (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation;
   if (requiredCapability === 'finance.create_drafts') {
-    assertCountTeamDraftBoundary(sessionList, (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation);
+    assertCountTeamDraftBoundary(sessionList, gatewayOperation);
+  } else if (requiredCapability === 'finance.view') {
+    assertCountTeamReadBoundary(sessionList, gatewayOperation);
   }
 
   const financeEntityId = req.body?.financeEntityId || req.query?.financeEntityId;
