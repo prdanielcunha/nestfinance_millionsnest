@@ -48,9 +48,13 @@ const AUTOSAVE_COPY = {
     saving: 'Salvando na nuvem…',
     cloud: 'Salvo na nuvem',
     local: 'Salvo neste aparelho. A nuvem será atualizada quando a internet voltar.',
+    localUnavailable: 'Este aparelho não permitiu salvar o rascunho. Mantenha a tela aberta e reconecte para enviar.',
     restored: 'Retomamos seu rascunho salvo neste aparelho.',
-    draftSaved: 'Rascunho da contagem salvo.',
+    draftSaved: 'Contagem em andamento. Revise os valores antes de enviar.',
     discardDraft: 'Descartar rascunho',
+    noMoney: 'Não houve nesta entrada',
+    noMoneyHint: 'Zero só será registrado após sua confirmação.',
+    zeroRequired: 'Se não houve entrada, confirme usando o botão “Não houve nesta entrada”.',
   },
   EN: {
     listen: 'Listen to instruction',
@@ -58,9 +62,13 @@ const AUTOSAVE_COPY = {
     saving: 'Saving to cloud…',
     cloud: 'Saved to cloud',
     local: 'Saved on this device. The cloud will update when the connection returns.',
+    localUnavailable: 'This device could not save the draft. Keep this page open and reconnect to upload it.',
     restored: 'We restored the draft saved on this device.',
-    draftSaved: 'Count draft saved.',
+    draftSaved: 'Count in progress. Review the amounts before sending.',
     discardDraft: 'Discard draft',
+    noMoney: 'Nothing received for this entry',
+    noMoneyHint: 'Zero is recorded only after you confirm it.',
+    zeroRequired: 'If nothing was received, confirm with “Nothing received for this entry”.',
   },
   ES: {
     listen: 'Escuchar instrucción',
@@ -68,9 +76,13 @@ const AUTOSAVE_COPY = {
     saving: 'Guardando en la nube…',
     cloud: 'Guardado en la nube',
     local: 'Guardado en este dispositivo. La nube se actualizará cuando vuelva la conexión.',
+    localUnavailable: 'Este dispositivo no pudo guardar el borrador. Mantén la pantalla abierta y vuelve a conectarte.',
     restored: 'Restauramos el borrador guardado en este dispositivo.',
-    draftSaved: 'Borrador del conteo guardado.',
+    draftSaved: 'Conteo en curso. Revisa los valores antes de enviar.',
     discardDraft: 'Descartar borrador',
+    noMoney: 'No hubo ingreso',
+    noMoneyHint: 'El cero se registra solo después de confirmarlo.',
+    zeroRequired: 'Si no hubo ingreso, confírmalo con “No hubo ingreso”.',
   },
 } as const;
 
@@ -102,7 +114,7 @@ function toDraftEntry(entry: NormalizedCountEntry): CountEntryDraft {
 }
 
 export default function CountSessionPage() {
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
 
@@ -127,7 +139,7 @@ export default function CountSessionPage() {
 
   return (
     <FinanceContextGuard>
-      <CountSessionContent />
+      <CountSessionContent key={user?.uid || 'no-user'} />
     </FinanceContextGuard>
   );
 }
@@ -135,21 +147,24 @@ export default function CountSessionPage() {
 function CountSessionContent() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { accessState } = useAuth();
+  const { accessState, user } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
   const autosaveCopy = AUTOSAVE_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const userId = user?.uid || '';
   const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
 
   const [session, setSession] = useState<CountSessionDetail | null>(null);
   const [entries, setEntries] = useState<NormalizedCountEntry[]>([]);
   const [step, setStep] = useState<Step>('choose');
   const [activeType, setActiveType] = useState<CountEntryType>('tithe');
-  const [method, setMethod] = useState<CountEntryMethod>('denominations');
+  const [method, setMethod] = useState<CountEntryMethod>('total');
   const [totalRaw, setTotalRaw] = useState('0');
   const [quantities, setQuantities] = useState<CountDenominationQuantities>({});
+  const [zeroExplicit, setZeroExplicit] = useState(false);
+  const [zeroRequired, setZeroRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -159,6 +174,7 @@ function CountSessionContent() {
   const [supportCode, setSupportCode] = useState<string | null>(null);
   const [cloudSaveState, setCloudSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [localSaveAvailable, setLocalSaveAvailable] = useState(false);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(false);
@@ -182,13 +198,16 @@ function CountSessionContent() {
   }, []);
 
   const loadSession = async (currentEpoch = ++epochRef.current) => {
-    if (!organizationId || !activeFinanceEntityId || !sessionId) return;
+    if (!organizationId || !activeFinanceEntityId || !sessionId || !userId) return;
     setLoading(true);
     setLoadError(false);
     setConflict(false);
     setSaveError(false);
     setSupportCode(null);
     setRestoredDraft(false);
+    setZeroExplicit(false);
+    setZeroRequired(false);
+    setLocalSaveAvailable(false);
     setDiscardError(false);
     setCloudSaveState('idle');
     try {
@@ -208,6 +227,7 @@ function CountSessionContent() {
           organizationId,
           activeFinanceEntityId,
           sessionId,
+          userId,
         );
         if (localDraft) {
           setActiveType(localDraft.activeType);
@@ -220,7 +240,7 @@ function CountSessionContent() {
           setStep('choose');
         }
       } else {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
 
       saveAttemptRef.current = null;
@@ -242,15 +262,17 @@ function CountSessionContent() {
     setEntries([]);
     setStep('choose');
     setRestoredDraft(false);
+    setZeroExplicit(false);
+    setZeroRequired(false);
     setCloudSaveState('idle');
     saveAttemptRef.current = null;
     secondStartAttemptRef.current = null;
     autosaveAttemptRef.current = null;
     autosaveInFlightRef.current = false;
-    if (organizationId && activeFinanceEntityId && sessionId) void loadSession(epoch);
-    // Canonical Count scope is organization + finance entity + session.
+    if (organizationId && activeFinanceEntityId && sessionId && userId) void loadSession(epoch);
+    // Local recovery also requires the authenticated user; server Count scope is canonical.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, activeFinanceEntityId, sessionId]);
+  }, [organizationId, activeFinanceEntityId, sessionId, userId]);
 
   useEffect(() => {
     if (
@@ -259,18 +281,20 @@ function CountSessionContent() {
       session.status !== 'counting_a' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
       return;
     }
 
-    countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, {
+    const persistedLocally = countDraftPersistence.save(organizationId, activeFinanceEntityId, sessionId, userId, {
       activeType,
       method,
       totalRaw,
       quantities,
       step,
     });
+    setLocalSaveAvailable(persistedLocally);
   }, [
     activeFinanceEntityId,
     activeType,
@@ -282,6 +306,7 @@ function CountSessionContent() {
     sessionId,
     step,
     totalRaw,
+    userId,
   ]);
 
   const entriesByType = useMemo(() => {
@@ -310,7 +335,9 @@ function CountSessionContent() {
   const openEntry = (type: CountEntryType) => {
     const existing = entriesByType.get(type);
     setActiveType(type);
-    setMethod(type === 'pix' ? 'total' : existing?.method || 'denominations');
+    setZeroExplicit(Boolean(existing && existing.totalCents === 0));
+    setZeroRequired(false);
+    setMethod(type === 'pix' ? 'total' : existing?.method || 'total');
     setTotalRaw(String(existing?.totalCents || 0));
     setQuantities({ ...(existing?.denominations || {}) });
     setSaveError(false);
@@ -321,6 +348,8 @@ function CountSessionContent() {
   };
 
   const setQuantity = (denomination: number, next: number) => {
+    setZeroExplicit(false);
+    setZeroRequired(false);
     const safe = Math.max(0, Math.min(1_000_000, next));
     setQuantities((current) => ({
       ...current,
@@ -349,8 +378,15 @@ function CountSessionContent() {
       step !== 'count' ||
       !organizationId ||
       !activeFinanceEntityId ||
-      !sessionId
+      !sessionId ||
+      !userId
     ) {
+      return;
+    }
+
+    if (workingTotal === 0 && !zeroExplicit) {
+      // An untouched category is not an explicit zero; do not autosave it as income.
+      setCloudSaveState('idle');
       return;
     }
 
@@ -462,6 +498,7 @@ function CountSessionContent() {
     step,
     totalRaw,
     workingTotal,
+    zeroExplicit,
   ]);
 
   const saveCurrentEntry = async () => {
@@ -472,6 +509,11 @@ function CountSessionContent() {
       cloudSaveState === 'saving' ||
       session.status !== 'counting_a'
     ) return;
+    if (workingTotal === 0 && !zeroExplicit) {
+      setZeroRequired(true);
+      return;
+    }
+    setZeroRequired(false);
     setSaveError(false);
     setConflict(false);
     setSupportCode(null);
@@ -567,7 +609,7 @@ function CountSessionContent() {
       setStartingSecond(false);
       setSupportCode(null);
       if (activeFinanceEntityId && sessionId) {
-        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+        countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       }
       await loadSession();
     } catch (error: any) {
@@ -604,7 +646,7 @@ function CountSessionContent() {
         idempotencyKey: makeToken('idcount_discard'),
         requestId: makeToken('req'),
       });
-      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId);
+      countDraftPersistence.clear(organizationId, activeFinanceEntityId, sessionId, userId);
       setDiscardConfirmOpen(false);
       navigate(APP_ROUTES.count, { replace: true });
     } catch (error: any) {
@@ -771,7 +813,7 @@ function CountSessionContent() {
                 : cloudSaveState === 'saved'
                   ? autosaveCopy.cloud
                   : cloudSaveState === 'local'
-                    ? autosaveCopy.local
+                    ? (localSaveAvailable ? autosaveCopy.local : autosaveCopy.localUnavailable)
                     : ''}
             </p>
           </div>
@@ -898,8 +940,8 @@ function CountSessionContent() {
                   <p className="text-sm font-medium text-text-primary">{copy.cashMode}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-border-subtle bg-surface-secondary/50 p-1">
                     {([
-                      ['denominations', copy.denominationMode],
                       ['total', copy.totalMode],
+                      ['denominations', copy.denominationMode],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -907,6 +949,8 @@ function CountSessionContent() {
                         aria-pressed={method === value}
                         onClick={() => {
                           setMethod(value);
+                          setZeroExplicit(false);
+                          setZeroRequired(false);
                           setSaveError(false);
                         }}
                         className={`min-h-12 rounded-xl px-3 text-sm font-semibold transition-colors ${method === value ? 'bg-surface-elevated text-text-primary shadow-sm' : 'text-text-muted'}`}
@@ -929,6 +973,8 @@ function CountSessionContent() {
                       onChange={(event) => {
                         const digits = event.target.value.replace(/\D/g, '');
                         setTotalRaw(String(Number.parseInt(digits || '0', 10) || 0));
+                        setZeroExplicit(false);
+                        setZeroRequired(false);
                         setSaveError(false);
                       }}
                       className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight text-text-primary outline-none tabular-nums sm:text-4xl"
@@ -941,11 +987,11 @@ function CountSessionContent() {
                   {COUNT_DENOMINATIONS_CENTS.map((denomination) => {
                     const quantity = Number(quantities[String(denomination)] || 0);
                     return (
-                      <div key={denomination} className="grid grid-cols-[5.5rem_minmax(9rem,1fr)_7rem] items-center gap-3 p-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_9rem] sm:p-4">
+                      <div key={denomination} className="grid grid-cols-2 items-center gap-3 p-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_9rem] sm:p-4">
                         <span className="text-sm font-semibold tabular-nums text-text-primary">
                           {formatDenomination(denomination, language)}
                         </span>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="order-3 col-span-2 flex items-center justify-center gap-2 sm:order-none sm:col-span-1">
                           <button
                             type="button"
                             aria-label={`${copy.quantity} -`}
@@ -970,7 +1016,7 @@ function CountSessionContent() {
                             <Plus className="h-5 w-5" aria-hidden="true" />
                           </button>
                         </div>
-                        <span className="text-right text-sm font-semibold tabular-nums text-text-secondary">
+                        <span className="order-2 text-right text-sm font-semibold tabular-nums text-text-secondary sm:order-none">
                           {formatReviewMoney(denomination * quantity, language, 'BRL')}
                         </span>
                       </div>
@@ -984,6 +1030,20 @@ function CountSessionContent() {
                 <p className="mt-2 text-3xl font-semibold tabular-nums text-text-primary">
                   {formatReviewMoney(workingTotal, language, 'BRL')}
                 </p>
+              </div>
+
+              <div className="mt-4">
+                <button type="button" disabled={saving} onClick={() => {
+                  setMethod('total');
+                  setTotalRaw('0');
+                  setZeroExplicit(true);
+                  setZeroRequired(false);
+                  setSaveError(false);
+                }} className="nf-interactive min-h-14 w-full rounded-xl border border-border-strong px-4 py-3 text-base font-semibold text-text-primary hover:bg-surface-secondary">
+                  {autosaveCopy.noMoney}
+                </button>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{autosaveCopy.noMoneyHint}</p>
+                {zeroRequired ? <FlowFeedback tone="warning" title={autosaveCopy.zeroRequired} /> : null}
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">

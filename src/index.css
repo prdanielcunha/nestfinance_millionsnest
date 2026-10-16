@@ -233,3 +233,77 @@ button,
 .nf-skip-link:focus-visible {
   transform: translateY(0);
 }
+
+
+/*
+ * Spec 2026-10-15, pages 28-30: purposeful paper-like work surfaces.
+ * Scoped to the two certified UX slices, not a new visual system.
+ * Semantic aliases are inherited by existing Foundation components.
+ * AA contrast checked for text/accents on white + ivory:
+ * primary 15.85:1, secondary 7.23:1, accent 10.23:1.
+ */
+.nf-spec-paper {
+  --nf-background-base: #f6f4ef;
+  --nf-surface-default: #ffffff;
+  --nf-surface-secondary: #f6f4ef;
+  --nf-surface-elevated: #ffffff;
+  --nf-text-primary: #17242c;
+  --nf-text-secondary: #425b62;
+  --nf-text-muted: #56696f;
+  --nf-accent-primary: #1d4653;
+  --nf-brand-gold: #a27736;
+  --nf-border-subtle: #e0e2df;
+  --nf-border-strong: #ccd2cd;
+  --nf-semantic-success: #21694e;
+  --nf-semantic-warning: #79500a;
+  --nf-semantic-danger: #a32932;
+  --nf-shadow-elevated: 0 6px 24px rgba(23,36,44,.06);
+  --nf-focus-ring: 0 0 0 3px rgba(29,70,83,.2);
+  color: var(--nf-text-primary);
+  color-scheme: light;
+  box-shadow: 0 8px 32px rgba(23,36,44,.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .nf-spec-paper {
+    --nf-background-base: #06090e;
+    --nf-surface-default: #0e1621;
+    --nf-surface-secondary: #101925;
+    --nf-surface-elevated: #142130;
+    --nf-text-primary: #f6f5f2;
+    --nf-text-secondary: #b9c5d0;
+    --nf-text-muted: #9baab8;
+    --nf-accent-primary: #45d9e8;
+    --nf-brand-gold: #d4af7a;
+    --nf-border-subtle: rgba(255,255,255,.12);
+    --nf-border-strong: rgba(255,255,255,.2);
+    --nf-semantic-success: #32d59a;
+    --nf-semantic-warning: #f5b942;
+    --nf-semantic-danger: #ff667a;
+    --nf-shadow-elevated: 0 12px 30px rgba(0,0,0,.25);
+    --nf-focus-ring: 0 0 0 3px rgba(69,217,232,.25);
+    color-scheme: dark;
+  }
+}
+
+.nf-spec-paper :where(button, summary, input) {
+  scroll-margin-bottom: 6rem;
+}
+
+.nf-spec-paper :where(button, input) {
+  min-height: 3rem;
+}
+
+/* Task-based finance entry: translucent, legible work cards. Theme-aware. */
+.nf-paper-surface {
+  background: var(--nf-surface-default);
+  border: 1px solid var(--nf-border-subtle);
+  box-shadow: 0 3px 16px rgba(14,35,40,.045);
+}
+.nf-primary-action {
+  background: #073d47;
+  color: #fff;
+  border: 1px solid #073d47;
+}
+.nf-primary-action:hover { background: #125661; }
+.nf-primary-action:focus-visible { outline: 3px solid var(--nf-accent-primary); outline-offset: 3px; }

@@ -32,6 +32,9 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { periodCloseService } from '@/src/services/periodCloseService';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
+import { AccountantWorkspaceOverview } from './AccountantWorkspaceOverview';
+import { MonthReviewOverview } from './MonthReviewOverview';
+import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
 import type {
   ReportMetricComparison,
   ReportRateComparison,
@@ -533,6 +536,8 @@ function ReportsContent() {
   const copy = COPY[language];
   const organizationId = accessState.organizationId || '';
   const canReview = hasEffectiveCapability(accessState, 'finance.review');
+  const financeRole = getFinanceInterfaceRole(accessState);
+  const showProfessionalWorkspace = financeRole === 'accountant' || financeRole === 'treasurer' || financeRole === 'administrator';
 
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState<PeriodCloseReadinessResponse | null>(null);
@@ -656,6 +661,7 @@ function ReportsContent() {
             </Surface>
           ) : data ? (
             <>
+              <MonthReviewOverview language={language} period={period} result={data} />
               <Surface variant="glass" radius="xl" className="overflow-hidden">
                 <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
                   <div className="p-5 sm:p-7">
@@ -847,13 +853,18 @@ function ReportsContent() {
                 </section>
               ) : null}
 
-              <AccountantPackagePanel
-                organizationId={organizationId}
-                financeEntityId={activeFinanceEntityId || ''}
-                period={period}
-              />
+              {showProfessionalWorkspace ? (
+                <AccountantWorkspaceOverview language={language} period={period} readiness={data} canReview={canReview} />
+              ) : null}
+              <div id="accountant-package" className="scroll-mt-24">
+                <AccountantPackagePanel
+                  organizationId={organizationId}
+                  financeEntityId={activeFinanceEntityId || ''}
+                  period={period}
+                />
+              </div>
 
-              <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+              <section id="reports-blockers" className="grid scroll-mt-24 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
                   <h2 className="text-lg font-semibold text-text-primary">{copy.nextActions}</h2>
                   {!data.readiness.blockers.length ? (

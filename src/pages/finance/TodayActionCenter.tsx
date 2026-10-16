@@ -45,6 +45,7 @@ import { subscribeFinanceDataChanges } from '@/src/services/financeFreshness';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
+import { TodayLedgerOverview } from './TodayLedgerOverview';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string; resumeTitle: string; resumeAction: string }> = {
   PT: {
@@ -1049,6 +1050,26 @@ export function TodayActionCenter() {
 
   return (
     <div className="space-y-6 pb-4">
+      <TodayLedgerOverview
+        language={language}
+        entityName={activeFinanceEntityName}
+        operational={operational}
+        countInProgress={activeCount ? { serviceLabel: activeCount.serviceLabel } : null}
+        transactionsToReview={effectiveSummary.readyForReview}
+        documentsToReview={effectiveInboxSummary.pendingReview}
+        nextTitle={priorityPresentation.title}
+        nextDescription={priorityPresentation.text}
+        nextAction={priorityPresentation.action}
+        onNext={() => navigate(priorityPresentation.route)}
+        onRegister={() => navigate(APP_ROUTES.universalCapture)}
+        canRegister={canCreate}
+        onCount={() => navigate(countActionRoute)}
+      />
+      <details className="rounded-2xl border border-border-subtle bg-surface-default/60 px-4 py-3 sm:px-6" defaultOpen={experienceMode === 'review' || experienceMode === 'ecosystem'}>
+        <summary className="nf-interactive min-h-12 cursor-pointer rounded-xl px-2 py-3 text-base font-semibold text-text-primary focus-visible:outline-accent-primary">
+          {language === 'EN' ? 'More financial details and professional tools' : language === 'ES' ? 'Más detalles financieros y herramientas profesionales' : 'Ver detalhes financeiros e ferramentas profissionais'}
+        </summary>
+        <div className="space-y-6 pt-5">
       <EcosystemOverviewPanel />
 
       {canCount ? (
@@ -1387,6 +1408,8 @@ export function TodayActionCenter() {
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-semantic-success" aria-hidden="true" />
         {copy.trust}
       </p>
+        </div>
+      </details>
     </div>
   );
 }

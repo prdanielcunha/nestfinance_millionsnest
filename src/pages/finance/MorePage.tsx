@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Building2, ChevronRight, ExternalLink, LogOut } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import {
   canManageFinanceEntities,
   hasAnyEffectiveCapability,
@@ -55,6 +56,7 @@ const NAV_DESCRIPTIONS: Record<Language, Partial<Record<FinanceNavigationId, str
 
 export default function MorePage() {
   const { accessState } = useAuth();
+  const entryProfile = getFinanceEntryProfile(accessState);
   const { t, language } = useLanguage();
   const accountCopy = ACCOUNT_COPY[language];
   const experienceMode = getFinanceExperienceMode(accessState);
@@ -100,6 +102,14 @@ export default function MorePage() {
         </section>
       ) : null}
 
+      {entryProfile.canAccountant ? (
+        <section aria-label={language === 'PT' ? 'Espaço do contador' : language === 'EN' ? 'Accountant workspace' : 'Espacio del contador'}>
+          <Link to={APP_ROUTES.accountant} className="nf-interactive flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-border-strong bg-surface-default p-4 text-base font-semibold text-text-primary">
+            <span>{language === 'PT' ? 'Espaço do contador' : language === 'EN' ? 'Accountant workspace' : 'Espacio del contador'}</span>
+            <ChevronRight className="h-5 w-5 shrink-0" aria-hidden="true"/>
+          </Link>
+        </section>
+      ) : null}
       {moreItems.length > 0 ? (
         <section aria-labelledby="more-areas-title">
           <h2 id="more-areas-title" className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">

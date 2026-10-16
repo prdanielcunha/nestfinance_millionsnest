@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { Button, FlowFeedback, FlowStepHeader, Surface } from '@/src/components/foundation';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
+import { FinanceTreasuryAreaBoundary } from '@/src/app/boundaries/FinanceTreasuryAreaBoundary';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
@@ -31,8 +32,8 @@ const COPY = {
     back: 'Voltar para a contagem',
     sourceTitle: 'Origem verificada',
     sourceBody: 'Estes valores vêm da dupla contagem. Fotos e folhas continuam ligadas à origem.',
-    firstCounter: 'Primeira contagem',
-    secondCounter: 'Segunda contagem',
+    firstCounter: 'Primeiro conferente',
+    secondCounter: 'Segundo conferente',
     evidence: 'Evidência',
     noEvidence: 'Sem foto vinculada. A trilha da contagem continua registrada.',
     lineLabels: { tithe: 'Dízimos', offering: 'Ofertas', other: 'Outras entradas', pix: 'Pix' },
@@ -190,7 +191,7 @@ function buildInitialSelections(preview: CountProposalPreview): SelectionState {
 export default function CountProposalPage() {
   return (
     <FinanceContextGuard>
-      <CountProposalContent />
+      <FinanceTreasuryAreaBoundary><CountProposalContent /></FinanceTreasuryAreaBoundary>
     </FinanceContextGuard>
   );
 }

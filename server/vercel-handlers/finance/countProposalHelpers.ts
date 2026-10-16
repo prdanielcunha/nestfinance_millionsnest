@@ -110,9 +110,8 @@ export function buildCountProposalPreview(input: {
   const proposalLines = lines.map((line) => {
     const suggestedAccount = bestUnique(input.accounts, (account) => accountRank(line.entryType, account));
     let suggestedCategory = bestUnique(incomeCategories, (category) => categoryRank(line.entryType, category));
-    if (!suggestedCategory && line.entryType === 'pix' && incomeCategories.length === 1) {
-      suggestedCategory = incomeCategories[0];
-    }
+    // Pix identifies only the payment method, never the purpose of a donation.
+    // Even when a church has one category, require an explicit human decision.
 
     return {
       ...line,
