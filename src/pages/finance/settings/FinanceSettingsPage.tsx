@@ -1,5 +1,6 @@
 import { APP_ROUTES } from '@/src/app/router/routes';
-import { ArrowLeft, ChevronRight, Landmark, Tags, Wallet } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Landmark, Tags, Wallet, Users } from 'lucide-react';
+import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import { useNavigate } from 'react-router-dom';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { Surface } from '@/src/components/foundation';
@@ -16,6 +17,8 @@ const COPY: Record<Language, {
   fundsBody: string;
   categories: string;
   categoriesBody: string;
+  countPolicy: string;
+  countPolicyBody: string;
 }> = {
   PT: {
     area: 'Ajustes',
@@ -28,6 +31,8 @@ const COPY: Record<Language, {
     fundsBody: 'Separe recursos livres e valores destinados a uma finalidade.',
     categories: 'Categorias',
     categoriesBody: 'Organize os motivos das entradas e saídas.',
+    countPolicy: 'Equipe de contagem',
+    countPolicyBody: 'Defina participantes, conferências independentes e contagem acompanhada.',
   },
   EN: {
     area: 'Settings',
@@ -40,6 +45,8 @@ const COPY: Record<Language, {
     fundsBody: 'Separate unrestricted resources from money assigned to a purpose.',
     categories: 'Categories',
     categoriesBody: 'Organize the reasons behind income and expenses.',
+    countPolicy: 'Counting team',
+    countPolicyBody: 'Set team capacity, independent checks and assisted counting.',
   },
   ES: {
     area: 'Ajustes',
@@ -52,6 +59,8 @@ const COPY: Record<Language, {
     fundsBody: 'Separa recursos libres de valores destinados a una finalidad.',
     categories: 'Categorías',
     categoriesBody: 'Organiza los motivos de los ingresos y egresos.',
+    countPolicy: 'Equipo de conteo',
+    countPolicyBody: 'Define capacidad, verificaciones independientes y conteo acompañado.',
   },
 };
 
@@ -64,6 +73,7 @@ export default function FinanceSettingsPage() {
     { id: 'accounts', title: copy.accounts, body: copy.accountsBody, icon: Landmark, route: APP_ROUTES.financeSettingsAccounts },
     { id: 'funds', title: copy.funds, body: copy.fundsBody, icon: Wallet, route: APP_ROUTES.financeSettingsFunds },
     { id: 'categories', title: copy.categories, body: copy.categoriesBody, icon: Tags, route: APP_ROUTES.financeSettingsCategories },
+    ...(COUNT_V3_UI_ENABLED ? [{ id: 'count-policy', title: copy.countPolicy, body: copy.countPolicyBody, icon: Users, route: APP_ROUTES.financeSettingsCountPolicy }] : []),
   ];
 
   return (
