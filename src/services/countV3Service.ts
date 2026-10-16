@@ -3,6 +3,7 @@ import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { CountEntryDraft } from '../../shared/finance/count.js';
 import type { CountV3ClassifiedReceipt } from '../../shared/finance/countV3PurposeReceipt.js';
 import type { CountV3TreasuryReviewPacket } from '../../shared/finance/countV3TreasuryReview.js';
+import type { CountV3DraftSelection } from '../../shared/finance/countV3DraftPlan.js';
 
 export type CountV3Status = 'pending' | 'matched' | 'divergent' | 'requires_treasury_review';
 export type CountV3Session = {
@@ -46,6 +47,22 @@ export type CountV3PolicyRecord = {
   financeEntityId: string;
   policy: CountV3Policy;
   revision: number;
+};
+
+export type CountV3ProposalPreview = {
+  countSessionId: string;
+  version: number;
+  serviceLabel: string;
+  serviceDate: string;
+  sourceReviewTotalCents: number;
+  independentConfirmed: number;
+  lines: Array<{lineKey:string;purpose:'tithe'|'offering'|'other';receiptMethod:string;amountCents:number}>;
+  accountOptions: Array<{id:string;name:string;type:string;nature:string|null}>;
+  categoryOptions: Array<{id:string;name:string}>;
+  fundOptions: Array<{id:string;name:string}>;
+  alreadyCreated: boolean;
+  transactionIds: string[];
+  postingPerformed: false;
 };
 
 export type CountV3ApiError = Error & { status?: number; code?: string };
@@ -134,6 +151,18 @@ export const countV3Service = {
   }, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;reviewStatus:'accepted';sourceVersion:number;financialMutation:false}>(
       org, 'count-verifications-accept-treasury-review',
+      withMutationIds({financeEntityId:entity,...input},idempotencyKey),
+    ),
+  proposalPreview: (org: string, entity: string, countSessionId: string) =>
+    call<{preview:CountV3ProposalPreview}>(
+      org, 'count-verifications-proposal-preview',
+      {financeEntityId:entity,countSessionId},
+    ),
+  createProposedDrafts: (org: string, entity: string, input: {
+    countSessionId:string;expectedVersion:number;selections:CountV3DraftSelection[];
+  }, idempotencyKey?:string) =>
+    call<{countSessionId:string;version:number;workflowState:string;transactionIds:string[];replayed:boolean}>(
+      org, 'count-verifications-create-proposed-drafts',
       withMutationIds({financeEntityId:entity,...input},idempotencyKey),
     ),
   treasuryPreview: (org: string, entity: string, countSessionId: string) =>

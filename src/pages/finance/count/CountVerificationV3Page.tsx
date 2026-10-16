@@ -80,6 +80,7 @@ const WORDS = {
     acceptNote: 'Observação da revisão',
     acceptNoteHint: 'Em contagem de uma só pessoa, explique a decisão com pelo menos 10 caracteres. A confirmação não lança valores.',
     reviewAccepted: 'Revisão financeira confirmada. Os valores permanecem aguardando o lançamento autorizado.',
+    prepareDrafts: 'Preparar rascunhos financeiros',
     invalid: 'Informe pelo menos um valor válido. Zero é aceito quando foi conferido.',
   },
   EN: {
@@ -128,6 +129,7 @@ const WORDS = {
     acceptNote: 'Review note',
     acceptNoteHint: 'For a single-person count, explain the decision in at least 10 characters. Confirmation never posts money.',
     reviewAccepted: 'Financial review confirmed. Figures still await separately authorized entry.',
+    prepareDrafts: 'Prepare financial drafts',
     invalid: 'Enter at least one valid amount. A verified zero is allowed.',
   },
   ES: {
@@ -176,6 +178,7 @@ const WORDS = {
     acceptNote: 'Nota de la revisión',
     acceptNoteHint: 'En un conteo individual, explique la decisión con un mínimo de 10 caracteres. Confirmar no registra dinero.',
     reviewAccepted: 'Revisión financiera confirmada. Los importes siguen esperando un registro autorizado.',
+    prepareDrafts: 'Preparar borradores financieros',
     invalid: 'Indique al menos un importe válido. Se acepta cero verificado.',
   },
 } as const;
@@ -589,9 +592,16 @@ function CountVerificationBody() {
                     <p className="text-sm text-text-secondary">{w.reviewPending}</p>
                   )}
                   {treasuryPacket.treasuryAccepted ? (
-                    <p role="status" className="rounded-xl bg-semantic-success/10 p-3 text-sm font-semibold text-semantic-success">
-                      {w.reviewAccepted}
-                    </p>
+                    <div className="space-y-3">
+                      <p role="status" className="rounded-xl bg-semantic-success/10 p-3 text-sm font-semibold text-semantic-success">
+                        {w.reviewAccepted}
+                      </p>
+                      <button type="button"
+                        onClick={() => navigate(APP_ROUTES.countVerificationV3Drafts.replace(':sessionId', session.id))}
+                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white">
+                        {w.prepareDrafts}
+                      </button>
+                    </div>
                   ) : treasuryPacket.requiresPurposeClassification ? null : (
                     <div className="space-y-3 border-t border-border-subtle pt-4">
                       <label className="block text-sm font-semibold text-text-primary">

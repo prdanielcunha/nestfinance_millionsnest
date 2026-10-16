@@ -82,4 +82,25 @@ const zero={
 assert.throws(()=>buildCountV3DraftPlan(zero,[selections[1]]),/COUNT_PROPOSAL_ZERO_TOTAL/,
   'A zero Count is valid evidence but must not create a zero-amount accounting entry');
 
+
+const cardRecord=(uid:string)=>({
+  verificationId:'verification_'+uid,operatorUid:uid,independentCounterUid:uid,
+  mode:'independent' as const,
+  lines:[{purpose:'offering' as const,receiptMethod:'card' as const,
+    amountCents:6500,classificationSource:'explicit' as const}],
+});
+const cardSession={...session,confirmations:[cardRecord('first'),cardRecord('second')]};
+assert.throws(()=>buildCountV3DraftPlan(cardSession,[{
+  purpose:'offering',receiptMethod:'card',accountId:'card_receivable',categoryId:'offerings',
+}]),/COUNT_PROPOSAL_CARD_DETAIL_REQUIRED/);
+const cardPlan=buildCountV3DraftPlan(cardSession,[{
+  purpose:'offering',receiptMethod:'card',accountId:'card_receivable',categoryId:'offerings',
+  cardSettlementMethod:'debit_card',
+}]);
+assert.equal(cardPlan.lines[0].receiptMethod,'card','Source still says card');
+assert.equal(cardPlan.lines[0].ledgerPaymentMethod,'debit_card','Ledger needs precise debit instrument');
+assert.throws(()=>buildCountV3DraftPlan(session,[{
+  ...selections[0],cardSettlementMethod:'credit_card',
+},selections[1]]),/COUNT_PROPOSAL_CARD_DETAIL_INCONSISTENT/);
+
 console.log('✅ Count v3 source-backed draft mapping blocks duplicate, guessed Pix, missing ledger targets and posting');
