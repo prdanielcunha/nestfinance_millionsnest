@@ -93,3 +93,5 @@ Não publique vulnerabilidades, segredos ou dados reais em Issues/PRs. Consulte 
 ---
 
 Copyright © 2026 NestFinance / MillionsNest project maintainers. Todos os direitos reservados.
+
+Connect `document.pending` recovery has an independent production-only IAM job path, default OFF. See `docs/CONNECT_OFFICIAL_FINANCE_PENDING_EVENT.md` for source configuration, durable pagination and outstanding real-runtime gates. It never deploys shared Firebase Rules or mutates financial transactions.

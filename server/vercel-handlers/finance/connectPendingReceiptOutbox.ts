@@ -32,7 +32,7 @@ export function financeConnectReceiptExtension(input: {
   } };
 }
 
-function isMarker(raw: unknown): raw is FinanceConnectReceiptOutbox {
+export function isFinanceConnectMarker(raw: unknown): raw is FinanceConnectReceiptOutbox {
   const m = raw as FinanceConnectReceiptOutbox;
   return !!m && m.schemaVersion === 1 &&
     [m.organizationId, m.financeEntityId, m.evidenceId].every(safe) &&
@@ -66,7 +66,7 @@ export async function recoverFinanceConnectReceipt(input: {
     const snapshot = await t.get(ref);
     const record = snapshot.data();
     const marker: unknown = record?.connectOutbox;
-    if (!snapshot.exists || record?.status !== 'completed' || !isMarker(marker) ||
+    if (!snapshot.exists || record?.status !== 'completed' || !isFinanceConnectMarker(marker) ||
         marker.organizationId !== input.organizationId ||
         marker.financeEntityId !== input.financeEntityId ||
         record?.result?.evidenceId !== marker.evidenceId ||
@@ -76,7 +76,7 @@ export async function recoverFinanceConnectReceipt(input: {
         Date.parse(marker.retryAt ?? '') > now) return null;
     if (marker.attempts >= 3) {
       t.update(ref, { 'connectOutbox.state': 'needs_review', 'connectOutbox.resultCode': 'retry_limit' });
-      return null;
+      return 'needs_review' as const;
     }
     t.update(ref, {
       'connectOutbox.state': 'processing', 'connectOutbox.leaseToken': token,
@@ -85,6 +85,7 @@ export async function recoverFinanceConnectReceipt(input: {
     });
     return { ...marker, attempts: marker.attempts + 1 };
   });
+  if (claimed === 'needs_review') return claimed;
   if (!claimed) return 'deferred';
 
   let outcome: 'accepted' | 'duplicate' | 'not_pending' | 'not_configured' | 'disabled' = 'not_pending';
@@ -114,7 +115,7 @@ export async function recoverFinanceConnectReceipt(input: {
   const updated = await input.db.runTransaction(async t => {
     const current = await t.get(ref);
     const marker: unknown = current.data()?.connectOutbox;
-    if (!isMarker(marker) || marker.state !== 'processing' ||
+    if (!isFinanceConnectMarker(marker) || marker.state !== 'processing' ||
         marker.leaseToken !== token) return null;
     const complete = outcome === 'accepted' || outcome === 'duplicate';
     const review = !complete && (outcome === 'not_pending' || claimed.attempts >= 3);
