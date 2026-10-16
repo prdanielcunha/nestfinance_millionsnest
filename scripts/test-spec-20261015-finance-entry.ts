@@ -39,6 +39,9 @@ const teamOnlyEntry = getFinanceEntryProfile(teamOnlyAdministratorState);
 assert.equal(teamOnlyEntry.canFinance, false);
 assert.equal(teamOnlyEntry.canCount, false);
 assert.equal(teamOnlyEntry.canAccountant, false);
+assert.equal(teamOnlyEntry.countOnly, false);
+assert.equal(teamOnlyEntry.financeOnly, false);
+assert.equal(teamOnlyEntry.accountantOnly, false);
 assert.equal(hasEffectiveCapability(teamOnlyAdministratorState, 'finance.view'), false);
 assert.equal(hasEffectiveCapability(teamOnlyAdministratorState, 'finance.create_drafts'), false);
 
