@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation, isExplicitCountOnlySession } from '../server/vercel-handlers/finance/countTeamOperationPolicy.js';
 import { hasEffectiveCapability } from '../server/vercel-handlers/finance/accessHelpers.js';
-import { assertActiveRecountOperator, assertCountCaptureStageOperator, assertCountFirstStageOwner, assertCountSessionParticipant, canReadCountSession, isCountSessionParticipant } from '../server/vercel-handlers/finance/countSessionParticipantPolicy.js';
+import { assertActiveRecountOperator, assertCountCaptureStageOperator, assertCountCaptureOwner, assertCountFirstStageOwner, assertCountSessionParticipant, canReadCountSession, isCountSessionParticipant } from '../server/vercel-handlers/finance/countSessionParticipantPolicy.js';
 
 const count = { granted: true, organizationRole: 'member', roles: ['count_team'], permissions: ['finance.view', 'finance.create_drafts'] };
 const volunteer = { ...count, roles: ['voluntário'] };
@@ -183,6 +183,16 @@ for (const [uid, stage] of [['unrelated', 'count_a'], ['second', 'count_a'], ['f
     (error: unknown) => (error as {status:number}).status === 403);
 }
 assert.doesNotThrow(() => assertCountCaptureStageOperator(mixedResponsibilities, firstCounterSession, 'unrelated', 'count_b'));
+const sealedPhoto = { createdByUid: 'first', countSessionId: 'synthetic_count' };
+assert.doesNotThrow(() => assertCountCaptureOwner(churchTreasurerCountOnly, sealedPhoto, 'first'));
+assert.throws(() => assertCountCaptureOwner(churchTreasurerCountOnly, sealedPhoto, 'second'),
+  (error: unknown) => (error as {status:number}).status === 403,
+  'Knowing a capture ID must not authorize another Count-only user's photo');
+assert.throws(() => assertCountCaptureOwner(churchTreasurerCountOnly, {}, 'first'),
+  (error: unknown) => (error as {status:number}).status === 403,
+  'Legacy capture without verified uploader fails closed for Count-only');
+assert.doesNotThrow(() => assertCountCaptureOwner(mixedResponsibilities, sealedPhoto, 'other'));
+
 
 
 for (const [file, assertion] of [
@@ -200,6 +210,21 @@ for (const [file, assertion] of [
 ] as const) {
   const source = readFileSync('server/vercel-handlers/finance/' + file, 'utf8');
   assert.ok(source.includes(assertion), file + ' must apply verified per-session permission in handler');
+}
+
+
+for (const file of [
+  'countCapturesFinalize.ts',
+  'countCapturesExtractCandidates.ts',
+  'countCapturesExtractDenominations.ts',
+  'countCapturesSaveReview.ts',
+  'countCapturesSaveDenominationReview.ts',
+  'countCapturesApplyToCount.ts',
+  'countFreeFormCapturesFinalize.ts',
+  'countFreeFormCapturesExtractCandidates.ts',
+]) {
+  const source = readFileSync('server/vercel-handlers/finance/' + file, 'utf8');
+  assert.ok(source.includes('assertCountCaptureOwner(sessionList, capture, uid)'), file + ' must verify uploader before photo mutations');
 }
 
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
