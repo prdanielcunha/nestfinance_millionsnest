@@ -17,7 +17,10 @@ const COPY = {
     moneySub: 'Tesouraria · Entradas, despesas, comprovantes, saldos e fechamento.',
     accountant: 'Espaço do contador',
     accountantSub: 'Contabilidade · Relatórios, auditoria e pacote mensal.',
-    income: 'Registrar entrada', expense: 'Registrar despesa', progress: 'Contagem concluída? Os valores seguem para revisão da tesouraria, sem redigitar.',
+    income: 'Registrar entrada', expense: 'Registrar despesa',
+    progress: 'Contagem concluída? Consulte o resumo conferido antes de registrar no financeiro.',
+    reviewCount: 'Revisar contagens conferidas',
+    reviewCountSub: 'Tesouraria · Consulte valores lacrados, pendências e critérios de revisão, sem movimentar saldo.',
   },
   EN: {
     heading: 'What will you take care of today?',
@@ -28,7 +31,10 @@ const COPY = {
     moneySub: 'Treasury · Income, expenses, receipts, balances and monthly review.',
     accountant: 'Accountant workspace',
     accountantSub: 'Accounting · Reports, audit and monthly package.',
-    income: 'Record income', expense: 'Record expense', progress: 'Completed counts go to treasury review with no duplicate entry.',
+    income: 'Record income', expense: 'Record expense',
+    progress: 'Once verified, review the Count summary before recording it in finance.',
+    reviewCount: 'Review completed counts',
+    reviewCountSub: 'Treasury · Inspect sealed totals, issues and review requirements without changing balances.',
   },
   ES: {
     heading: '¿Qué vas a atender hoy?',
@@ -39,7 +45,10 @@ const COPY = {
     moneySub: 'Tesorería · Ingresos, gastos, comprobantes, saldos y revisión mensual.',
     accountant: 'Espacio del contador',
     accountantSub: 'Contabilidad · Informes, auditoría y paquete mensual.',
-    income: 'Registrar ingreso', expense: 'Registrar gasto', progress: 'El conteo finalizado pasa a revisión de tesorería sin duplicar entradas.',
+    income: 'Registrar ingreso', expense: 'Registrar gasto',
+    progress: 'Cuando el conteo termine, revise el resumen antes de registrarlo en tesorería.',
+    reviewCount: 'Revisar conteos verificados',
+    reviewCountSub: 'Tesorería · Vea importes sellados, pendientes y criterios sin alterar saldos.',
   },
 } as const;
 
@@ -51,7 +60,8 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
     (hasEffectiveCapability(accessState, 'finance.count.view') ||
       hasEffectiveCapability(accessState, 'finance.count.execute'));
   const countTarget = canUseTeamCount ? APP_ROUTES.countVerificationV3 : APP_ROUTES.count;
-  if (!profile.canCount && !profile.canFinance && !profile.canAccountant) return null;
+  const canReviewCount = COUNT_V3_UI_ENABLED && hasEffectiveCapability(accessState, 'finance.review');
+  if (!profile.canCount && !profile.canFinance && !profile.canAccountant && !canReviewCount) return null;
   return (
     <section className="nf-paper-surface rounded-2xl p-4 sm:p-6" aria-labelledby="finance-entry-title">
       <div>
@@ -77,6 +87,17 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.moneySub}</span>
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          </button>
+        ) : null}
+        {canReviewCount && !profile.canCount ? (
+          <button type="button" onClick={() => navigate(APP_ROUTES.countVerificationV3)}
+            className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <ClipboardCheck className="h-8 w-8 shrink-0 text-accent-primary" aria-hidden="true"/>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-semibold text-text-primary">{copy.reviewCount}</span>
+              <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.reviewCountSub}</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
         {profile.canAccountant ? (
