@@ -62,6 +62,7 @@ assert.ok(routing.includes('path: APP_ROUTES.treasury, element: withTreasuryAcce
 assert.ok(treasuryHub.includes('APP_ROUTES.financeReview') && treasuryHub.includes('APP_ROUTES.balance') && treasuryHub.includes('APP_ROUTES.reports'));
 assert.ok(treasuryHub.includes('Registrar entrada') && treasuryHub.includes('Registrar despesa'));
 assert.ok(treasuryHub.includes('Contagem já concluída?'));
+assert.ok(treasuryHub.includes('onClick={() => navigate(APP_ROUTES.count)}') && treasuryHub.includes('onClick={() => navigate(APP_ROUTES.financeReview)}'), 'Verified counts must be discoverable before treasury review proposals are created');
 assert.ok(!treasuryHub.includes('countService.saveFirstCount'), 'Treasury must not repeat submitted Count values');
 assert.ok(countStart.includes('Entrar como segundo conferente'));
 assert.ok(countJoin.includes('segundo conferente'));
