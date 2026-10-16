@@ -85,7 +85,7 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
       payload.openingBalanceDeclaration = { status: 'not_informed' };
       if (openingMode === 'declared') {
         const normalizedAmount = openingAmount.trim().replace(',', '.');
-        if (!/^\\d{1,10}(?:\\.\\d{1,2})?$/.test(normalizedAmount) || !openingDate || !openingSource) {
+        if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(normalizedAmount) || !openingDate || !openingSource) {
           throw new Error(ob.invalid);
         }
         if (openingSource === 'other' && openingSourceNote.trim().length < 5) {
