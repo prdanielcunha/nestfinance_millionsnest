@@ -61,6 +61,8 @@ import countVerificationsRefreshInvite from '../server/vercel-handlers/finance/c
 import countVerificationsSubmit from '../server/vercel-handlers/finance/countVerificationsSubmit.js';
 import countVerificationsDetail from '../server/vercel-handlers/finance/countVerificationsDetail.js';
 import countVerificationsList from '../server/vercel-handlers/finance/countVerificationsList.js';
+import countVerificationPolicyGet from '../server/vercel-handlers/finance/countVerificationPolicyGet.js';
+import countVerificationPolicyUpdate from '../server/vercel-handlers/finance/countVerificationPolicyUpdate.js';
 import countSessionsCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
 import countSessionsDiscard from '../server/vercel-handlers/finance/countSessionsDiscard.js';
@@ -199,6 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-verifications-submit': return countVerificationsSubmit(req, res);
     case 'count-verifications-detail': return countVerificationsDetail(req, res);
     case 'count-verifications-list': return countVerificationsList(req, res);
+    case 'count-verifications-policy-get': return countVerificationPolicyGet(req, res);
+    case 'count-verifications-policy-update': return countVerificationPolicyUpdate(req, res);
     case 'count-sessions-create': return countSessionsCreate(req, res);
     case 'count-sessions-detail': return countSessionsDetail(req, res);
     case 'count-sessions-discard': return countSessionsDiscard(req, res);
