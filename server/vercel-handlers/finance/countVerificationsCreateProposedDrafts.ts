@@ -139,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           const accountMeta = validateAccountMetadata(accountData);
           if (!accountMeta.valid) throw new Error('FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE');
-          const compatibility = getCompatibility(accountMeta.type, line.receiptMethod, 'income');
+          const compatibility = getCompatibility(accountMeta.type, line.ledgerPaymentMethod, 'income');
           if (compatibility.level === 'impossible') throw new Error('FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE');
 
           if (!categoryDoc?.exists) throw new Error('FINANCE_CATEGORY_MISMATCH');
@@ -223,7 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             currency: 'BRL',
             occurredAt,
             recordedAt: new Date().toISOString(),
-            paymentMethod: line.receiptMethod,
+            paymentMethod: line.ledgerPaymentMethod,
             sourceContext: 'count_session',
             description,
             evidenceIds: [],
