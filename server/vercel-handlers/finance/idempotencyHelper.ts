@@ -34,7 +34,10 @@ export async function executeWithIdempotency<T>(
   keyHash: string,
   payloadHash: string,
   operationFn: (transaction: Transaction) => Promise<T>,
-  validateFn?: (transaction: Transaction) => Promise<void>
+  validateFn?: (transaction: Transaction) => Promise<void>,
+  // Optional opaque side-effect receipt, created atomically with the domain write.
+  // Never exposes external delivery errors inside the financial transaction.
+  receiptExtension?: (result: T) => Record<string, unknown>
 ): Promise<T> {
   return db.runTransaction(async (t) => {
     const docRef = idempotencyRef.doc(keyHash);
@@ -60,7 +63,7 @@ export async function executeWithIdempotency<T>(
 
     const result = await operationFn(t);
 
-    t.set(docRef, { status: 'completed', payloadHash, result, createdAt: FieldValue.serverTimestamp(), completedAt: FieldValue.serverTimestamp() });
+    t.set(docRef, { status: 'completed', payloadHash, result, createdAt: FieldValue.serverTimestamp(), completedAt: FieldValue.serverTimestamp(), ...(receiptExtension ? receiptExtension(result) : {}) });
     
     return result;
   });
