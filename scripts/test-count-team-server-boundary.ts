@@ -197,7 +197,7 @@ const sealedPhoto = { createdByUid: 'first', countSessionId: 'synthetic_count' }
 assert.doesNotThrow(() => assertCountCaptureOwner(churchTreasurerCountOnly, sealedPhoto, 'first'));
 assert.throws(() => assertCountCaptureOwner(churchTreasurerCountOnly, sealedPhoto, 'second'),
   (error: unknown) => (error as {status:number}).status === 403,
-  'Knowing a capture ID must not authorize another Count-only user's photo');
+  "Knowing a capture ID must not authorize another Count-only user's photo");
 assert.throws(() => assertCountCaptureOwner(churchTreasurerCountOnly, {}, 'first'),
   (error: unknown) => (error as {status:number}).status === 403,
   'Legacy capture without verified uploader fails closed for Count-only');
