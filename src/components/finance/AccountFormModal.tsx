@@ -252,6 +252,49 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
             <p className="text-xs text-text-muted">Apenas para facilitar a identificação. Não insira sua agência ou conta completa.</p>
           </div>
 
+          <fieldset className="space-y-3 rounded-xl border border-border-default bg-surface-elevated/40 p-4">
+            <legend className="px-1 text-base font-semibold text-text-base">{ob.heading}</legend>
+            <p className="text-sm leading-relaxed text-text-muted">{ob.description}</p>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-text-base">
+              <input type="radio" name="opening-mode" checked={openingMode==='not_informed'}
+                onChange={()=>setOpeningMode('not_informed')} disabled={loading} />
+              {ob.unknown}
+            </label>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-text-base">
+              <input type="radio" name="opening-mode" checked={openingMode==='declared'}
+                onChange={()=>setOpeningMode('declared')} disabled={loading} />
+              {ob.informed}
+            </label>
+            {openingMode==='declared' && <div className="space-y-3">
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-amount">{ob.amount}</label>
+              <input id="opening-amount" required type="text" inputMode="decimal" maxLength={14}
+                value={openingAmount} onChange={e=>setOpeningAmount(e.target.value)}
+                placeholder="1234,56" disabled={loading}
+                className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-date">{ob.asOf}</label>
+              <input id="opening-date" required type="date" min="1900-01-01" max="2100-12-31"
+                value={openingDate} onChange={e=>setOpeningDate(e.target.value)}
+                disabled={loading} className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-source">{ob.source}</label>
+              <select id="opening-source" required value={openingSource}
+                onChange={e=>setOpeningSource(e.target.value as typeof openingSource)}
+                disabled={loading} className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base">
+                <option value="bank_statement">{ob.bank}</option>
+                <option value="cash_count">{ob.physical}</option>
+                <option value="prior_records">{ob.records}</option>
+                <option value="other">{ob.other}</option>
+              </select>
+              {openingSource==='other' && <>
+                <label className="block text-sm font-medium text-text-base" htmlFor="opening-note">{ob.note}</label>
+                <input id="opening-note" required minLength={5} maxLength={240}
+                  value={openingSourceNote} onChange={e=>setOpeningSourceNote(e.target.value)}
+                  placeholder={ob.noteHint} disabled={loading}
+                  className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              </>}
+              <p role="status" className="text-sm leading-relaxed text-text-muted">{ob.pending}</p>
+            </div>}
+          </fieldset>
+
           <div className="pt-2 flex items-center gap-3">
             <button
               type="button"
