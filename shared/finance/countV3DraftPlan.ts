@@ -12,11 +12,13 @@ export type CountV3DraftSelection = {
   accountId: string;
   categoryId: string;
   fundId?: string | null;
+  cardSettlementMethod?: 'credit_card' | 'debit_card';
 };
 
 export type CountV3ProposedDraftLine = CountV3DraftSelection & {
   amountCents: number;
   lineKey: string;
+  ledgerPaymentMethod: string;
 };
 
 export type CountV3DraftPlan = {
@@ -110,8 +112,23 @@ export function buildCountV3DraftPlan(
     const original=sums.get(key);
     if (!original || selectedKeys.has(key)) throw new Error('COUNT_PROPOSAL_DUPLICATE_OR_UNKNOWN_SELECTION');
     selectedKeys.add(key);
+    const cardSettlementMethod = raw.cardSettlementMethod;
+    if (receiptMethod === 'card' &&
+        cardSettlementMethod !== 'credit_card' && cardSettlementMethod !== 'debit_card') {
+      throw new Error('COUNT_PROPOSAL_CARD_DETAIL_REQUIRED');
+    }
+    if (receiptMethod !== 'card' && cardSettlementMethod !== undefined &&
+        cardSettlementMethod !== null && cardSettlementMethod !== '') {
+      throw new Error('COUNT_PROPOSAL_CARD_DETAIL_INCONSISTENT');
+    }
     return {
       purpose:original.purpose,receiptMethod:original.receiptMethod,
+      ledgerPaymentMethod: receiptMethod === 'card'
+        ? cardSettlementMethod as 'credit_card' | 'debit_card'
+        : original.receiptMethod,
+      ...(receiptMethod === 'card'
+        ? {cardSettlementMethod: cardSettlementMethod as 'credit_card' | 'debit_card'}
+        : {}),
       amountCents:original.amountCents,lineKey:key,
       accountId:requiredId(raw.accountId,'ACCOUNT_ID'),
       categoryId:requiredId(raw.categoryId,'CATEGORY_ID'),
