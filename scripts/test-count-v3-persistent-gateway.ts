@@ -110,7 +110,7 @@ for (const [operation, filename] of [
   assert.ok(gateway.includes(`case 'count-verifications-${operation}':`));
   assert.ok(content.includes('assertCountV3Enabled()'), filename + ' must fail closed by default');
   assert.ok(content.includes('resolveFinanceRequestContext('), filename + ' must use canonical auth');
-  const canonicalGrant = ['create','join','submit'].includes(operation) ? 'finance.count.execute' : 'finance.count.view';
+  const canonicalGrant = ['create','join','submit','refresh-invite'].includes(operation) ? 'finance.count.execute' : 'finance.count.view';
   assert.ok(content.includes(`resolveFinanceRequestContext(req, '${canonicalGrant}')`),
     filename + ' must require Count-specific access, not general finance drafts');
   assert.ok(content.includes("Cache-Control', 'private, no-store"), filename + ' must disable response cache');
