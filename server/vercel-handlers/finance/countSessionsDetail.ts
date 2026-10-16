@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountSessionParticipant } from './countSessionParticipantPolicy.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
 
 function toIso(value: any) {
@@ -43,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { countSessionId } = req.body || {};
     if (!isValidCountSessionId(countSessionId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, uid, organizationId, financeEntityId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, financeEntityId, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
     const snapshot = await db
       .collection('organizations')
       .doc(organizationId)
@@ -59,6 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (data.financeEntityId !== financeEntityId || data.organizationId !== organizationId) {
       return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     }
+
+    assertCountSessionParticipant(sessionList, data, uid);
 
     const materialHidden = data.status === 'counting_b' || data.status === 'recounting';
     const session: any = {
