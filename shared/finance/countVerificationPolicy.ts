@@ -1,9 +1,13 @@
+import { normalizeCountEntries, type CountEntryDraft } from './count.js';
 import {
-  calculateCountEntriesTotalCents,
-  compareCountEntries,
-  normalizeCountEntries,
-  type CountEntryDraft,
-} from './count.js';
+  legacyCountToContributionAllocations,
+  summarizeContributions,
+  type ContributionAllocation,
+} from './contributionBreakdown.js';
+import {
+  validateCountV3ReceiptLines,
+  type CountV3ClassifiedReceipt,
+} from './countV3PurposeReceipt.js';
 
 /**
  * Proposed Count v2 domain contract; NOT wired to the production Count v1
@@ -35,7 +39,12 @@ export type CountVerificationEvidence = {
   /** Authenticated counter is required for independent confirmation. */
   independentCounterUid?: string | null;
   physicalCounterLabel?: string | null;
-  entries: CountEntryDraft[];
+  // Legacy Count V3 draft transport. Pix has no known PURPOSE and therefore
+  // requires treasury classification, never an automatic financial proposal.
+  entries?: CountEntryDraft[];
+  // Preferred contract: independent purpose and receipt-method dimensions.
+  lines?: CountV3ClassifiedReceipt[];
+  controlTotalCents?: number | null;
 };
 
 export type CountVerificationEvaluation = {
@@ -106,9 +115,41 @@ function validatedEvidence(
         evidence.independentCounterUid !== evidence.operatorUid)) {
     throw new Error('COUNT_INDEPENDENCE_NOT_AUTHENTICATED');
   }
+  if (Array.isArray(evidence.lines)) {
+    if (evidence.entries !== undefined) throw new Error('COUNT_VERIFICATION_MIXED_SCHEMA');
+    const result = validateCountV3ReceiptLines(evidence.lines, evidence.controlTotalCents ?? null);
+    return {
+      ...evidence,
+      lines: result.lines,
+      canonicalLines: result.lines as ContributionAllocation[],
+      totalCents: result.totalCents,
+      requiresPurposeReview: false,
+    };
+  }
+  if (!Array.isArray(evidence.entries)) throw new Error('COUNT_EMPTY_VERIFICATION');
+  // Compatibility: do not assign the purpose of old Pix receipts.
   const entries = normalizeCountEntries(evidence.entries);
   if (entries.length === 0) throw new Error('COUNT_EMPTY_VERIFICATION');
-  return { ...evidence, entries };
+  const canonicalLines = legacyCountToContributionAllocations(entries);
+  const summary = summarizeContributions(canonicalLines);
+  return {
+    ...evidence,
+    entries,
+    canonicalLines,
+    totalCents: summary.totalCents,
+    requiresPurposeReview: summary.requiresPurposeReview,
+  };
+}
+
+function receiptMatrixFingerprint(lines: ContributionAllocation[]): string {
+  const grouped = new Map<string, number>();
+  for (const line of lines) {
+    const key = line.purpose + '|' + line.receiptMethod;
+    const next = (grouped.get(key) || 0) + line.amountCents;
+    if (!Number.isSafeInteger(next) || next > 20_000_000_000) throw new Error('COUNT_TOTAL_OUT_OF_RANGE');
+    grouped.set(key, next);
+  }
+  return JSON.stringify([...grouped.entries()].sort(([a],[b]) => a.localeCompare(b)));
 }
 
 /**
@@ -146,16 +187,15 @@ export function evaluateCountVerifications(
   const reference = independentlyVerified[0] ?? null;
   const differencesFound = independentlyVerified.some((evidence, index) =>
     index > 0 && reference !== null &&
-    !compareCountEntries(reference.entries, evidence.entries).matched);
-  const totalCents = reference === null
-    ? null
-    : calculateCountEntriesTotalCents(normalizeCountEntries(reference.entries));
+    receiptMatrixFingerprint(reference.canonicalLines) !== receiptMatrixFingerprint(evidence.canonicalLines));
+  const totalCents = reference?.totalCents ?? null;
+  const requiresPurposeReview = independentlyVerified.some(evidence => evidence.requiresPurposeReview);
 
   let status: CountVerificationResult = 'pending';
   if (differencesFound) {
     status = 'divergent';
   } else if (independentlyVerified.length >= requiredIndependentConfirmations) {
-    status = requiredIndependentConfirmations === 1
+    status = requiredIndependentConfirmations === 1 || requiresPurposeReview
       ? 'requires_treasury_review'
       : 'matched';
   }
