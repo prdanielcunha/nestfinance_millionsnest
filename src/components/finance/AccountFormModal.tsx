@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Landmark, CreditCard, Wallet, PiggyBank, Building2 } from 'lucide-react';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 interface Props {
   onClose: () => void;
@@ -18,8 +19,16 @@ const ACCOUNT_TYPES: { id: AccountType; label: string; icon: any }[] = [
   { id: 'other', label: 'Outra', icon: Building2 },
 ];
 
+const OPENING_COPY = {
+  PT: { heading: 'Saldo inicial da conta', description: 'Informe quanto havia nesta conta numa data conhecida. Se não souber, cadastre agora e confira depois. Nenhum valor será somado ao saldo automaticamente.', unknown: 'Ainda não sei o saldo', informed: 'Informar saldo com origem', amount: 'Valor nessa data (R$)', asOf: 'Data do saldo', source: 'De onde veio esse valor?', bank: 'Extrato bancário', physical: 'Conferência do dinheiro em caixa', records: 'Registros anteriores', other: 'Outra origem', note: 'Explique a origem', noteHint: 'Ex.: registro assinado da tesouraria', pending: 'O valor ficará pendente de conferência, sem alterar saldos.', invalid: 'Informe o valor em reais, a data e a origem. Exemplo: 1234,56.', noteInvalid: 'Explique a origem em pelo menos 5 caracteres.' },
+  EN: { heading: 'Account opening balance', description: 'Enter the amount held in this account on a known date. If unknown, register the account and review it later. No balance will change automatically.', unknown: 'I do not know yet', informed: 'Enter an amount and source', amount: 'Amount on that date (BRL)', asOf: 'Balance date', source: 'Where is this amount from?', bank: 'Bank statement', physical: 'Physical cash count', records: 'Previous records', other: 'Other source', note: 'Explain the source', noteHint: 'e.g. signed treasury record', pending: 'The amount remains pending review and does not change balances.', invalid: 'Enter an amount, date and source. Example: 1234.56.', noteInvalid: 'Explain the source using at least 5 characters.' },
+  ES: { heading: 'Saldo inicial de la cuenta', description: 'Indique cuánto había en esta cuenta en una fecha conocida. Si no lo sabe, créela ahora y verifique después. Ningún saldo cambiará automáticamente.', unknown: 'Todavía no sé el saldo', informed: 'Informar el saldo y su origen', amount: 'Importe en esa fecha (BRL)', asOf: 'Fecha del saldo', source: '¿De dónde procede este importe?', bank: 'Extracto bancario', physical: 'Recuento físico del efectivo', records: 'Registros anteriores', other: 'Otro origen', note: 'Explique el origen', noteHint: 'P. ej., registro firmado por tesorería', pending: 'El importe quedará pendiente de revisión, sin cambiar los saldos.', invalid: 'Indique importe, fecha y origen. Ejemplo: 1234,56.', noteInvalid: 'Explique el origen con al menos 5 caracteres.' },
+} as const;
+
 export default function AccountFormModal({ onClose, onSuccess }: Props) {
   const { activeFinanceEntityId } = useFinanceEntity();
+  const { language } = useLanguage();
+  const ob = OPENING_COPY[language];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -27,6 +36,11 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
   const [type, setType] = useState<AccountType>('checking');
   const [institutionName, setInstitutionName] = useState('');
   const [accountLast4, setAccountLast4] = useState('');
+  const [openingMode, setOpeningMode] = useState<'not_informed' | 'declared'>('not_informed');
+  const [openingAmount, setOpeningAmount] = useState('');
+  const [openingDate, setOpeningDate] = useState('');
+  const [openingSource, setOpeningSource] = useState<'bank_statement' | 'cash_count' | 'prior_records' | 'other'>('bank_statement');
+  const [openingSourceNote, setOpeningSourceNote] = useState('');
   
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +82,26 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
         payload.accountLast4 = accountLast4.trim();
       }
 
+      payload.openingBalanceDeclaration = { status: 'not_informed' };
+      if (openingMode === 'declared') {
+        const normalizedAmount = openingAmount.trim().replace(',', '.');
+        if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(normalizedAmount) || !openingDate || !openingSource) {
+          throw new Error(ob.invalid);
+        }
+        if (openingSource === 'other' && openingSourceNote.trim().length < 5) {
+          throw new Error(ob.noteInvalid);
+        }
+        const [reais, fraction = ''] = normalizedAmount.split('.');
+        const amountCents = Number(reais) * 100 + Number(fraction.padEnd(2, '0'));
+        if (!Number.isSafeInteger(amountCents) || amountCents > 999_999_999_999) {
+          throw new Error(ob.invalid);
+        }
+        payload.openingBalanceDeclaration = {
+          status: 'declared', amountCents, asOf: openingDate,
+          source: openingSource, ...(openingSource === 'other' ? {sourceNote: openingSourceNote.trim()} : {}),
+        };
+      }
+
       const res = await fetch('/api/finance/accounts/create', {
         method: 'POST',
         headers: {
@@ -90,6 +124,8 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
            throw new Error('Nome inválido (entre 2 e 80 caracteres).');
         } else if (data.error === 'INVALID_INSTITUTION_NAME') {
            throw new Error('Nome da instituição não pode passar de 80 caracteres.');
+        } else if (String(data.error || '').startsWith('INVALID_OPENING_BALANCE_')) {
+           throw new Error(ob.invalid);
         } else if (data.error === 'INVALID_ACCOUNT_LAST4') {
            throw new Error('Últimos dígitos devem conter exatamente 4 números.');
         } else {
@@ -115,7 +151,7 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         ref={modalRef}
-        className="w-full max-w-md bg-surface-base border border-border-subtle rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md max-h-[92dvh] overflow-y-auto bg-surface-base border border-border-subtle rounded-2xl shadow-xl animate-in zoom-in-95 duration-200"
       >
         <div className="flex items-center justify-between p-4 border-b border-border-subtle">
           <h2 className="text-lg font-medium tracking-tight text-text-base">Adicionar Conta</h2>
@@ -215,6 +251,49 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
             />
             <p className="text-xs text-text-muted">Apenas para facilitar a identificação. Não insira sua agência ou conta completa.</p>
           </div>
+
+          <fieldset className="space-y-3 rounded-xl border border-border-default bg-surface-elevated/40 p-4">
+            <legend className="px-1 text-base font-semibold text-text-base">{ob.heading}</legend>
+            <p className="text-sm leading-relaxed text-text-muted">{ob.description}</p>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-text-base">
+              <input type="radio" name="opening-mode" checked={openingMode==='not_informed'}
+                onChange={()=>setOpeningMode('not_informed')} disabled={loading} />
+              {ob.unknown}
+            </label>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-text-base">
+              <input type="radio" name="opening-mode" checked={openingMode==='declared'}
+                onChange={()=>setOpeningMode('declared')} disabled={loading} />
+              {ob.informed}
+            </label>
+            {openingMode==='declared' && <div className="space-y-3">
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-amount">{ob.amount}</label>
+              <input id="opening-amount" required type="text" inputMode="decimal" maxLength={14}
+                value={openingAmount} onChange={e=>setOpeningAmount(e.target.value)}
+                placeholder="1234,56" disabled={loading}
+                className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-date">{ob.asOf}</label>
+              <input id="opening-date" required type="date" min="1900-01-01" max="2100-12-31"
+                value={openingDate} onChange={e=>setOpeningDate(e.target.value)}
+                disabled={loading} className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              <label className="block text-sm font-medium text-text-base" htmlFor="opening-source">{ob.source}</label>
+              <select id="opening-source" required value={openingSource}
+                onChange={e=>setOpeningSource(e.target.value as typeof openingSource)}
+                disabled={loading} className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base">
+                <option value="bank_statement">{ob.bank}</option>
+                <option value="cash_count">{ob.physical}</option>
+                <option value="prior_records">{ob.records}</option>
+                <option value="other">{ob.other}</option>
+              </select>
+              {openingSource==='other' && <>
+                <label className="block text-sm font-medium text-text-base" htmlFor="opening-note">{ob.note}</label>
+                <input id="opening-note" required minLength={5} maxLength={240}
+                  value={openingSourceNote} onChange={e=>setOpeningSourceNote(e.target.value)}
+                  placeholder={ob.noteHint} disabled={loading}
+                  className="min-h-12 w-full rounded-lg border border-border-default bg-surface-base px-3 text-base text-text-base" />
+              </>}
+              <p role="status" className="text-sm leading-relaxed text-text-muted">{ob.pending}</p>
+            </div>}
+          </fieldset>
 
           <div className="pt-2 flex items-center gap-3">
             <button

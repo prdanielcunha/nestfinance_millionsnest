@@ -7,6 +7,7 @@ import AccountFormModal from '@/src/components/finance/AccountFormModal';
 import { AccountEditModal } from '@/src/components/finance/AccountEditModal';
 import AccountActionMenu from '@/src/components/finance/AccountActionMenu';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { FinanceContextGuard } from '@/src/components/finance/FinanceContextGuard';
 
@@ -20,13 +21,28 @@ interface Account {
   accountLast4?: string;
   currency: string;
   active: boolean;
+  openingBalanceCents?: number;
+  openingBalanceDeclaration?: null | {
+    status: 'not_informed' | 'pending_review';
+    amountCents?: number;
+    asOf?: string;
+    source?: string;
+  };
 }
+
+const OPENING_STATUS_COPY = {
+  PT: { unknown: 'Saldo inicial não informado', pending: 'Saldo inicial pendente de conferência', legacy: 'Saldo legado: origem não verificada' },
+  EN: { unknown: 'Opening balance not provided', pending: 'Opening balance awaiting review', legacy: 'Legacy balance: source unverified' },
+  ES: { unknown: 'Saldo inicial no informado', pending: 'Saldo inicial pendiente de revisión', legacy: 'Saldo anterior: origen sin verificar' },
+} as const;
 
 type TabType = 'active' | 'archived';
 
 export default function FinanceAccountsPage() {
   const navigate = useNavigate();
   const { activeFinanceEntityId } = useFinanceEntity();
+  const { language } = useLanguage();
+  const openingText = OPENING_STATUS_COPY[language];
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +272,12 @@ export default function FinanceAccountsPage() {
                           </>
                         )}
                       </div>
+                      <p className="mt-1 text-xs leading-relaxed text-text-secondary">
+                        {account.openingBalanceDeclaration?.status === 'pending_review'
+                          ? openingText.pending
+                          : typeof account.openingBalanceCents === 'number'
+                            ? openingText.legacy : openingText.unknown}
+                      </p>
                     </div>
                     
                     <div className="shrink-0 flex items-center justify-end">
