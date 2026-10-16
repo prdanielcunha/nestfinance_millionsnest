@@ -81,6 +81,16 @@ for (const person of [churchTreasurerCountOnly, teamAdministratorCountOnly]) {
 }
 assert.equal(isExplicitCountOnlySession(churchSecretaryFinance), false);
 assert.equal(isExplicitCountOnlySession(mixedResponsibilities), false);
+const unknownGrant = {
+  ...churchTreasurerCountOnly,
+  permissions: [...churchTreasurerCountOnly.permissions, 'finance.balance.view'],
+};
+assert.equal(isExplicitCountOnlySession(unknownGrant), false, 'Extra grant disables Count-only marker until the fine-grained contract is certified');
+assert.equal(isExplicitCountOnlySession({
+  ...churchTreasurerCountOnly,
+  permissions: ['finance.count.view'],
+}), true, 'View-only Count responsibility is still independent of job title');
+
 assert.equal(hasEffectiveCapability(mixedResponsibilities, 'finance.review'), true);
 
 // Role classification has no fixed team size: the same signed-invariant policy
