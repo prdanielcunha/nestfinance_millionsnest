@@ -349,6 +349,16 @@ service cloud.firestore {
       match /financeEntities/{entityId}/transactionSearchIndex/{document=**} {
         allow read, create, update, delete: if false;
       }
+      // Count v3 secrets, individual blind verifications, archived recounts and
+      // hashed join codes MUST remain server-only. Authenticated clients use
+      // the canonical Finance gateway; direct Firestore SDK access is denied
+      // even for an organization owner or another Count participant.
+      match /financeEntities/{entityId}/countVerificationSessions/{document=**} {
+        allow read, create, update, delete: if false;
+      }
+      match /financeEntities/{entityId}/countVerificationInvites/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeEntities/{entityId}/universalEvidence/{id} {
         allow read, create, update, delete: if false;
       }
