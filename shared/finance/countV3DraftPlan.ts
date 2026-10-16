@@ -62,6 +62,13 @@ export function buildCountV3DraftPlan(
   if (session.treasuryReview?.status !== 'accepted') {
     throw new Error('COUNT_PROPOSAL_TREASURY_REVIEW_REQUIRED');
   }
+  // The reviewer signed the immediately preceding version. Do not create
+  // drafts from altered evidence or from an approval for an older cycle.
+  const acceptedSourceVersion = Number(session.treasuryReview.sourceVersion);
+  if (!Number.isSafeInteger(acceptedSourceVersion) || acceptedSourceVersion < 1 ||
+      packet.snapshotVersion !== acceptedSourceVersion + 1) {
+    throw new Error('COUNT_PROPOSAL_SOURCE_VERSION_STALE');
+  }
   if (packet.requiresPurposeClassification) {
     throw new Error('COUNT_PROPOSAL_PURPOSE_CLASSIFICATION_REQUIRED');
   }
