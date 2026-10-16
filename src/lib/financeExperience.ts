@@ -12,7 +12,8 @@ export type FinanceInterfaceRole =
   | 'volunteer'
   | 'treasurer'
   | 'administrator'
-  | 'accountant';
+  | 'accountant'
+  | 'viewer';
 
 export function getFinanceExperienceMode(accessState: EcosystemAccessState | null): FinanceExperienceMode {
   if (!accessState) return 'read_only';
@@ -59,7 +60,7 @@ function normalizedRoleHints(accessState: EcosystemAccessState | null) {
 export function getFinanceInterfaceRole(
   accessState: EcosystemAccessState | null,
 ): FinanceInterfaceRole {
-  if (!accessState) return 'accountant';
+  if (!accessState) return 'viewer';
 
   const roleHints = normalizedRoleHints(accessState);
   const hasHint = (...values: string[]) =>
@@ -100,5 +101,5 @@ export function getFinanceInterfaceRole(
     return 'volunteer';
   }
 
-  return 'accountant';
+  return 'viewer';
 }

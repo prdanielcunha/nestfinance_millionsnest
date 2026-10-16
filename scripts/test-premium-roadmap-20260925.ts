@@ -71,7 +71,7 @@ async function run() {
   assert.ok(shell.includes("startCount: 'Start count'"), 'EN Count action is missing');
   assert.ok(shell.includes("startCount: 'Iniciar conteo'"), 'ES Count action is missing');
   assert.ok(shell.includes("continueCount: 'Continuar contagem'"), 'Open Count must be resumable');
-  assert.ok(shell.includes("const canCount = canViewFinance && canCreate"), 'Count shortcut must require view + create');
+  assert.ok(shell.includes("const canCount = entryProfile.canCount;") && (await read("src/lib/financeEntryProfile.ts")).includes("canView && canDraft"), "Count shortcut must require view + create and a valid counting role");
   assert.ok(shell.includes("primaryFabActions = orderedFabActions.slice(0, 4)"), 'Mobile action sheet must cap primary actions');
   assert.ok(shell.includes("copy.seeAllActions"), 'Overflow actions must remain discoverable');
   assert.ok(shell.includes('role="dialog"'), 'Mobile action sheet must expose dialog semantics');

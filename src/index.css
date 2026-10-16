@@ -293,3 +293,17 @@ button,
 .nf-spec-paper :where(button, input) {
   min-height: 3rem;
 }
+
+/* Task-based finance entry: translucent, legible work cards. Theme-aware. */
+.nf-paper-surface {
+  background: var(--nf-surface-default);
+  border: 1px solid var(--nf-border-subtle);
+  box-shadow: 0 3px 16px rgba(14,35,40,.045);
+}
+.nf-primary-action {
+  background: #073d47;
+  color: #fff;
+  border: 1px solid #073d47;
+}
+.nf-primary-action:hover { background: #125661; }
+.nf-primary-action:focus-visible { outline: 3px solid var(--nf-accent-primary); outline-offset: 3px; }
