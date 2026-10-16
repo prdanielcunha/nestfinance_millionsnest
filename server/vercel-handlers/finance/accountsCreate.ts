@@ -227,6 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           active: true,
           schemaVersion: 1,
           openingBalanceDeclaration: openingDeclaration,
+          openingBalanceRevision: 1,
           createdAt: FieldValue.serverTimestamp(),
           createdBy: uid,
           updatedAt: FieldValue.serverTimestamp(),
@@ -270,6 +271,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         t.create(accountRef, accountData);
+        // Append-only provenance from the first write, including explicit unknown.
+        t.create(accountRef.collection('openingBalanceHistory').doc(), {
+          organizationId, financeEntityId, accountId,
+          revision: 1, previous: null, current: openingDeclaration,
+          reason: 'initial_account_creation', actorUid: uid,
+          createdAt: FieldValue.serverTimestamp(), schemaVersion: 1,
+        });
         t.create(uniqueKeyRef, uniqueKeyData);
         stageCanonicalAuditCreate(t, firestore, auditRef, auditData);
       });

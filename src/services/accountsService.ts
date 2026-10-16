@@ -1,4 +1,5 @@
 import { firebaseAuth } from '@/src/lib/firebase';
+import type { OpeningBalanceInput } from '../../shared/finance/openingBalanceDeclaration.js';
 
 function mapFinanceError(data: any, defaultMsg: string): string {
   const errorCode = data.error || data.message;
@@ -52,6 +53,9 @@ export async function updateAccount(data: {
   institutionName: string | null;
   accountLast4: string | null;
   financeEntityId: string;
+  openingBalanceDeclaration?: OpeningBalanceInput;
+  expectedOpeningBalanceRevision?: number;
+  openingBalanceReason?: string;
 }): Promise<any> {
   const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Não autenticado');
@@ -75,6 +79,10 @@ export async function updateAccount(data: {
   if (!res.ok) {
     if (res.status === 503) {
       throw new Error('A funcionalidade está temporariamente indisponível.');
+    }
+    // Preserve a machine-readable opening correction error for the localized modal.
+    if (typeof respData.error === 'string' && respData.error.startsWith('OPENING_BALANCE_')) {
+      throw new Error(respData.error);
     }
     throw new Error(mapFinanceError(respData, 'Não foi possível atualizar a conta. Tente novamente.'));
   }
