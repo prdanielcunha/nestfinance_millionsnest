@@ -30,6 +30,19 @@ export type CountV3Session = {
   confirmedTotalCents: number | null;
 };
 
+export type CountV3Policy = {
+  policyVersion: 3;
+  minimumIndependentConfirmations: number;
+  maximumParticipants: number;
+  allowAssisted: boolean;
+  singleCounterRequiresTreasuryReview: true;
+};
+export type CountV3PolicyRecord = {
+  financeEntityId: string;
+  policy: CountV3Policy;
+  revision: number;
+};
+
 export type CountV3ApiError = Error & { status?: number; code?: string };
 
 const MUTATIONS = new Set(['count-verifications-create', 'count-verifications-join', 'count-verifications-submit', 'count-verifications-refresh-invite']);
@@ -102,5 +115,10 @@ export const countV3Service = {
     call<{countSessionId:string;version:number;status:CountV3Status}>(
       org, 'count-verifications-submit', withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
     ),
+  getPolicy: (org: string, entity: string) =>
+    call<CountV3PolicyRecord>(org, 'count-verifications-policy-get', { financeEntityId: entity }),
+  updatePolicy: (org: string, entity: string, policy: CountV3Policy, expectedRevision: number, idempotencyKey?: string) =>
+    call<CountV3PolicyRecord>(org, 'count-verifications-policy-update',
+      withMutationIds({ financeEntityId: entity, policy, expectedRevision }, idempotencyKey)),
   isMutation: (operation: string) => MUTATIONS.has(operation),
 };

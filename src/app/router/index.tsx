@@ -20,6 +20,7 @@ const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/Fina
 const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/FinanceEntitiesPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
+const CountVerificationPolicyPage = lazy(() => import('@/src/pages/finance/settings/CountVerificationPolicyPage'));
 const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
 const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
 const CountJoinPage = lazy(() => import('@/src/pages/finance/count/CountJoinPage'));
@@ -116,6 +117,7 @@ const routes: RouteObject[] = [
           },
           { path: APP_ROUTES.financeSettingsFunds, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.financeSettingsCategories, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>, MANAGE_FINANCE) },
+          { path: APP_ROUTES.financeSettingsCountPolicy, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationPolicyPage /></Suspense>, ['finance.manage']) },
           { path: APP_ROUTES.count, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countJoin, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountJoinPage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countVerificationV3, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, COUNT_V3_READ) },
