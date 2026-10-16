@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { ArrowRight, Plus, Building2, AlertCircle, RefreshCw, Clock, ClipboardCheck, ArrowUpRight, ArrowDownLeft, MoveRight, Settings } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
 import FinanceBootstrapWizard from '@/src/components/finance/FinanceBootstrapWizard';
@@ -10,6 +10,9 @@ import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityC
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { transactionsService } from '@/src/services/transactionsService';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
+import { FinanceEntryChoices } from './FinanceEntryChoices';
+import { TodayActionCenter } from './TodayActionCenter';
 
 // Types for Query Tracking
 interface QueryState<T> {
@@ -144,6 +147,7 @@ export default function FinancePage() {
 
   const canCreateDrafts = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReview = hasEffectiveCapability(accessState, 'finance.review') || hasEffectiveCapability(accessState, 'finance.post_transactions');
+  const entryProfile = getFinanceEntryProfile(accessState);
 
   // Greeting based on current hour
   const greetingKey = useMemo(() => {
@@ -278,9 +282,10 @@ export default function FinancePage() {
     };
   }, [setupStatus, currentEpoch, fetchOnboardingData]);
 
-  // Handle active finance entity switch
+  // The new TodayActionCenter owns its own optimized read model. Do not run the
+  // legacy dashboard queries unless the older dashboard was explicitly opened.
   useEffect(() => {
-    if (!activeFinanceEntityId || !organizationId) return;
+    if (!searchParams.has('classic') || !activeFinanceEntityId || !organizationId) return;
 
     const abortController = new AbortController();
     loadDashboardData(activeFinanceEntityId, abortController.signal);
@@ -288,7 +293,7 @@ export default function FinancePage() {
     return () => {
       abortController.abort();
     };
-  }, [activeFinanceEntityId, organizationId, loadDashboardData]);
+  }, [activeFinanceEntityId, organizationId, loadDashboardData, searchParams]);
 
   const pendingEntities = entities.filter(e => bootstrapStatuses[e.id]?.status !== 'ready');
   const readyEntities = entities.filter(e => bootstrapStatuses[e.id]?.status === 'ready');
@@ -478,7 +483,26 @@ export default function FinancePage() {
     approvedState.status === 'error' || 
     draftsState.status === 'error';
 
-  // "Hoje" dashboard main view
+  // Keep the original dashboard behind an explicit optional route during the visual transition.
+  // No permissions are granted by this redirect; route and APIs validate them independently.
+  if (!returnTo && entryProfile.countOnly) return <Navigate to={APP_ROUTES.count} replace />;
+  if (!returnTo && entryProfile.accountantOnly) return <Navigate to={APP_ROUTES.accountant} replace />;
+  if (!returnTo && entryProfile.financeOnly) return <Navigate to={APP_ROUTES.treasury} replace />;
+  if (!searchParams.has('classic')) {
+    return (
+      <div className="mx-auto w-full max-w-5xl space-y-5 pb-24 md:pb-8">
+        <FinanceEntityContextBar areaName={t('today_title')} />
+        <FinanceEntryChoices language={language} profile={entryProfile} />
+        <TodayActionCenter />
+        <button type="button" onClick={() => navigate(`${APP_ROUTES.finance}?classic=1`)}
+          className="nf-interactive min-h-12 rounded-xl px-4 text-sm font-medium text-text-secondary underline underline-offset-4">
+          {language === 'PT' ? 'Abrir painel anterior e ferramentas avançadas' : language === 'EN' ? 'Open previous dashboard and advanced tools' : 'Abrir panel anterior y herramientas avanzadas'}
+        </button>
+      </div>
+    );
+  }
+
+  // "Hoje" legacy dashboard, available while parity is verified.
   return (
     <div className="flex flex-col h-full fade-in pb-20 md:pb-0 font-sans">
       <FinanceEntityContextBar areaName={t('today_title')} />
