@@ -211,7 +211,6 @@ const INTERFACE_ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, strin
     administrator: 'Administrador',
     accountant: 'Contador',
     viewer: 'Consulta',
-    viewer: 'Consulta',
   },
   EN: {
     volunteer: 'Volunteer',
@@ -225,6 +224,7 @@ const INTERFACE_ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, strin
     treasurer: 'Tesorero',
     administrator: 'Administrador',
     accountant: 'Contador',
+    viewer: 'Consulta',
   },
 };
 
