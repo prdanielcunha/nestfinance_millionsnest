@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountCaptureOwner } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
@@ -23,12 +24,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
     const reviewInput = validateCountCaptureReviewFields(fields);
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const captureRef = entityRef.collection('countCaptures').doc(captureId);
     const captureDoc = await captureRef.get();
     if (!captureDoc.exists) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
     const capture = captureDoc.data() || {};
+      assertCountCaptureOwner(sessionList, capture, uid);
     if (capture.organizationId !== organizationId || capture.financeEntityId !== financeEntityId) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });
     if (!['captured', 'reviewed'].includes(capture.status) || capture.version !== expectedVersion) return res.status(409).json({ error: 'COUNT_CAPTURE_VERSION_CONFLICT' });
 
