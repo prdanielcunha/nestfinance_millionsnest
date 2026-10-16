@@ -67,6 +67,7 @@ for (const person of [churchTreasurerCountOnly, teamAdministratorCountOnly]) {
   assert.equal(isExplicitCountOnlySession(person), true);
   assert.equal(hasEffectiveCapability(person, 'finance.review'), false);
   assert.equal(hasEffectiveCapability(person, 'finance.accounts.manage'), false);
+  assert.equal(hasEffectiveCapability(person, 'organization.manage_entities'), false);
   assert.throws(() => assertCountTeamCapabilityBoundary(person, 'finance.review'),
     (error: unknown) => (error as {status: number}).status === 403);
   assert.throws(() => assertCountTeamCapabilityBoundary(person, 'finance.manage'),
