@@ -85,8 +85,7 @@ assert.match(
 
 for (const required of [
   'branches: [ production ]',
-  'Deploy Firestore indexes',
-  'Deploy Firestore rules',
+  'Verify canonical Hub shared Firestore Rules (read-only, fail-closed)',
   'Push Cloud Run image',
   'Deploy Cloud Run revision',
   'Deploy Firebase Hosting',
@@ -104,8 +103,7 @@ for (const required of [
 }
 
 const releaseOrder = [
-  'Deploy Firestore indexes',
-  'Deploy Firestore rules',
+  'Verify canonical Hub shared Firestore Rules (read-only, fail-closed)',
   'Push Cloud Run image',
   'Deploy Cloud Run revision',
   'Deploy Firebase Hosting',
@@ -118,6 +116,15 @@ assert.deepEqual(
   releaseOrder,
   'Production release stages must remain in the certified order',
 );
+
+// Finance must never replace the shared-project Hub Firestore Rules or indexes.
+assert.doesNotMatch(
+  productionRelease,
+  /firebase(?:-tools@[^ ]+)?(?:\\s+\\S+)*?\\sdeploy\\s+--only\\s+firestore:(?:rules|indexes)/,
+  'Finance production must not publish shared Hub Firestore Rules or indexes',
+);
+assert.match(productionRelease, /NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT/, 'Fail closed on a changed shared Rules fingerprint');
+assert.match(productionRelease, /c8804c9f34197fb60d71936532782622c3f9f5aa7fbd3bd70bd7575753353311/, 'Require the audited canonical Hub fingerprint');
 
 assert.doesNotMatch(
   productionRelease,
