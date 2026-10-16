@@ -59,14 +59,16 @@ export function v3IsValidSessionId(id: unknown): id is string {
 
 /** Respond without user-entered financial material and without invitation secrets.
  * Draft evidence of other operators must never escape during a blind count. */
-export function serializeV3Session(session: Record<string, any>, uid: string, privileged: boolean) {
+export function serializeV3Session(session: Record<string, any>, uid: string, _privileged: boolean) {
   const confirmed = Array.isArray(session.confirmations)
     ? session.confirmations as CountVerificationEvidence[]
     : [];
   const status = String(session.status || 'pending');
   const blind = status === 'pending' || status === 'divergent';
   const mine = confirmed.filter(c => c.operatorUid === uid);
-  const visible = blind && !privileged ? mine : confirmed;
+  // Blindness applies even to a second counter with a separate treasury role.
+  // Financial authority must not weaken independence during verification.
+  const visible = blind ? mine : confirmed;
   return {
     id: session.id,
     serviceLabel: session.serviceLabel,
@@ -79,7 +81,7 @@ export function serializeV3Session(session: Record<string, any>, uid: string, pr
     confirmationCount: confirmed.length,
     independentConfirmed: confirmed.filter(c => c.mode === 'independent').length,
     assistedRecorded: confirmed.filter(c => c.mode === 'assisted').length,
-    materialHidden: blind && !privileged,
+    materialHidden: blind,
     ownConfirmations: visible.map(c => ({
       verificationId: c.verificationId,
       mode: c.mode,
