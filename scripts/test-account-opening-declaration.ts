@@ -7,10 +7,16 @@ assert.deepEqual(parseOpeningBalanceDeclaration(undefined), {status:'not_informe
 assert.deepEqual(parseOpeningBalanceDeclaration(null), {status:'not_informed'});
 assert.deepEqual(parseOpeningBalanceDeclaration({status:'not_informed'}), {status:'not_informed'});
 assert.deepEqual(parseOpeningBalanceDeclaration(valid), {...valid,status:'pending_review',sourceNote:''});
-assert.equal(parseOpeningBalanceDeclaration({...valid,amountCents:0}).amountCents, 0);
-assert.equal(parseOpeningBalanceDeclaration({...valid,amountCents:-120}).amountCents, -120);
+const zero = parseOpeningBalanceDeclaration({...valid,amountCents:0});
+assert.ok('amountCents' in zero);
+assert.equal(zero.amountCents, 0);
+const negative = parseOpeningBalanceDeclaration({...valid,amountCents:-120});
+assert.ok('amountCents' in negative);
+assert.equal(negative.amountCents, -120);
 assert.equal(parseOpeningBalanceDeclaration({...valid,asOf:'2024-02-29'}).status, 'pending_review');
-assert.equal(parseOpeningBalanceDeclaration({...valid,source:'other',sourceNote:'signed handover'}).sourceNote, 'signed handover');
+const other = parseOpeningBalanceDeclaration({...valid,source:'other',sourceNote:'signed handover'});
+assert.ok('sourceNote' in other);
+assert.equal(other.sourceNote, 'signed handover');
 for(const invalid of [
   {status:'declared'},
   {status:'not_informed',amountCents:0},
@@ -28,7 +34,7 @@ for(const invalid of [
   {...valid,source:'unknown'},
   {...valid,source:'other'},
   {...valid,sourceNote:'x'.repeat(241)},
-  {...valid,sourceNote:'line\\u0000break'},
+  {...valid,sourceNote:'line' + String.fromCharCode(0) + 'break'},
   {...valid,extra:'unsafe'},
   [],
   '0',
