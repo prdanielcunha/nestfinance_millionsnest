@@ -23,6 +23,7 @@ const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/Fi
 const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
 const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
 const CountJoinPage = lazy(() => import('@/src/pages/finance/count/CountJoinPage'));
+const CountVerificationV3Page = lazy(() => import('@/src/pages/finance/count/CountVerificationV3Page'));
 const CountProposalPage = lazy(() => import('@/src/pages/finance/count/CountProposalPage'));
 const CountTrainingPage = lazy(() => import('@/src/pages/finance/count/CountTrainingPage'));
 const CountVoiceQuickPage = lazy(() => import('@/src/pages/finance/count/CountVoiceQuickPage'));
@@ -116,6 +117,8 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.financeSettingsCategories, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.count, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countJoin, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountJoinPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.countVerificationV3, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.countVerificationV3Session, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countProposal, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountProposalPage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countTraining, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountTrainingPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countVoice, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVoiceQuickPage /></Suspense>, CREATE_FINANCE) },
