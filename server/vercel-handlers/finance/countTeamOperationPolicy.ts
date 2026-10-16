@@ -24,8 +24,38 @@ const roles = (session: CanonicalFinanceSession) => [
 const containsRole = (values: string[], words: string[]) =>
   values.some(value => words.some(word => value.includes(word)));
 
+/**
+ * Canonical explicit responsibility wins over an ecclesiastical/job title.
+ *
+ * During the Hub migration, Count still needs the shared finance.view and
+ * finance.create_drafts grants to reach the old endpoints. Those two grants
+ * are NOT treasury authority when finance.count.execute/view is present.
+ * Any other finance capability is treated as additional finance authority
+ * until the finer-grained Hub capability contract has been certified.
+ *
+ * This marker is read exclusively from the already verified Hub membership;
+ * caller-provided role labels and UI state never authorize the request.
+ */
+function hasCountOnlyCapabilityGrant(session: CanonicalFinanceSession): boolean | null {
+  const permissions = Array.isArray(session.permissions)
+    ? session.permissions
+    : Array.isArray(session.capabilities) ? session.capabilities : [];
+  const grants = permissions.filter((value): value is string => typeof value === 'string');
+  if (!grants.includes('finance.count.execute') && !grants.includes('finance.count.view')) {
+    return null; // Existing memberships retain the conservative legacy bridge.
+  }
+  return grants.every((grant) =>
+    grant === 'finance.view' ||
+    grant === 'finance.create_drafts' ||
+    grant === 'organization.manage_team' ||
+    grant.startsWith('finance.count.')
+  );
+}
+
 export function isExplicitCountOnlySession(session: CanonicalFinanceSession): boolean {
   if (!session?.granted || session.isGlobalAccess) return false;
+  const explicitGrant = hasCountOnlyCapabilityGrant(session);
+  if (explicitGrant !== null) return explicitGrant;
   const role = roles(session);
   if (containsRole(role, ['owner', 'admin', 'administrador', 'treasurer', 'tesoureiro', 'tesouraria', 'financeiro', 'finance_team', 'accountant', 'contador', 'contabil', 'contábil', 'accounting'])) return false;
   if (!containsRole(role, ['count_team', 'counting_team', 'equipe_contagem', 'contagem', 'conferente', 'volunteer', 'voluntario', 'voluntário'])) return false;
