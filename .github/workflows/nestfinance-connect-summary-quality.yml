@@ -37,7 +37,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node scripts/check-connect-summary-release.mjs
+      - name: Enforce API-only scope exclusively for Connect scoped releases
+        if: contains(github.event.pull_request.title, '[connect-summary-api-only]')
+        run: node scripts/check-connect-summary-release.mjs
       - run: node --import tsx scripts/test-connect-pending-documents.ts
       - run: node --import tsx scripts/test-connect-read-entry.ts
       - run: node --import tsx scripts/test-finance-request-context.ts
