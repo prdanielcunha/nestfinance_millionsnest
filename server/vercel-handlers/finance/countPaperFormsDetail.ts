@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountSessionParticipant } from './countSessionParticipantPolicy.js';
 import {
   COUNT_PAPER_TEMPLATE_VERSION,
   buildCountPaperQrPayload,
@@ -19,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, organizationId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
     const formRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -44,6 +45,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Count Paper Form integrity mismatch', { formId });
       return res.status(500).json({ error: 'COUNT_PAPER_INTEGRITY_ERROR' });
     }
+
+    const sessionDoc = await formRef.parent.parent!.collection('countSessions').doc(data.countSessionId).get();
+    if (!sessionDoc.exists) return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
+    const session = sessionDoc.data() || {};
+    if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
+      return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
+    }
+    assertCountSessionParticipant(sessionList, session, uid);
 
     const expectedChecksum = computeCountPaperChecksum({
       organizationId,
