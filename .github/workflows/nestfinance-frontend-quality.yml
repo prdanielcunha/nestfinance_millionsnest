@@ -9,6 +9,8 @@ on:
       - "server/vercel-handlers/finance/accountsCreate.ts"
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
+      - "scripts/test-account-opening-history.ts"
+      - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -113,6 +115,8 @@ on:
       - "server/vercel-handlers/finance/accountsCreate.ts"
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
+      - "scripts/test-account-opening-history.ts"
+      - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -227,6 +231,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify append-only account opening correction
+        run: npx tsx scripts/test-account-opening-history.ts
 
       - name: Verify opening balances have dates, source and no posting
         run: npx tsx scripts/test-account-opening-declaration.ts
