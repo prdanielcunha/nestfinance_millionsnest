@@ -140,7 +140,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const accountMeta = validateAccountMetadata(accountData);
           if (!accountMeta.valid) throw new Error('FINANCE_ACCOUNT_CONFIGURATION_INCOMPLETE');
           const compatibility = getCompatibility(accountMeta.type, line.ledgerPaymentMethod, 'income');
-          if (compatibility.level === 'impossible') throw new Error('FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE');
+          // A guided cash-to-bank flow requires a separate, verified deposit/
+          // withdrawal event. Do not create a bank income draft that skips it.
+          if (compatibility.level === 'impossible' || compatibility.level === 'guided_flow') {
+            throw new Error('FINANCE_PAYMENT_INSTRUMENT_INCOMPATIBLE');
+          }
 
           if (!categoryDoc?.exists) throw new Error('FINANCE_CATEGORY_MISMATCH');
           const categoryData = categoryDoc.data() || {};
@@ -407,6 +411,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     const message = String(error?.message || error?.code || '');
     console.error('Count V3 Proposed Drafts Error:', message.startsWith('COUNT_') || message.startsWith('FINANCE_') ? message : 'UNEXPECTED_ERROR');
+    if (error?.status === 404 && error?.error === 'COUNT_V3_NOT_ENABLED') {
+      return res.status(404).json({ error: 'COUNT_V3_NOT_ENABLED' });
+    }
     if (message === 'COUNT_SESSION_NOT_FOUND') return res.status(404).json({ error: message });
     if (message === 'COUNT_VERSION_CONFLICT' || message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
       return res.status(409).json({ error: message.includes('FINANCE_') ? 'FINANCE_IDEMPOTENCY_CONFLICT' : message });
