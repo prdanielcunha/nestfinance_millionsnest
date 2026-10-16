@@ -83,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch(error:any) {
     const message = String(error?.message || '');
-    if (message==='FINANCE_ENTITY_MISMATCH'||message==='FORBIDDEN_FINANCE_ACCESS'||
+    if (message==='Session not granted'||message==='FINANCE_ENTITY_MISMATCH'||message==='FORBIDDEN_FINANCE_ACCESS'||
         message==='COUNT_TEAM_TREASURY_ACCESS_FORBIDDEN') {
       return res.status(403).json({error:'FORBIDDEN'});
     }
