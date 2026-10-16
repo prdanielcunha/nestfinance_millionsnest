@@ -213,7 +213,7 @@ export function hasFinanceCapability(sessionList: any, requestedCapability: 'fin
       hasEffectiveCapability(sessionList, 'finance.count.execute')) return true;
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
   if (hasEffectiveCapability(sessionList, 'finance.manage')) return true;
-  if (requestedCapability === 'finance.return_to_draft' | 'finance.count.view' | 'finance.count.execute' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
+  if (requestedCapability === 'finance.return_to_draft' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
   if (requestedCapability === 'finance.invalidate_approval' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
   return false;
 }
