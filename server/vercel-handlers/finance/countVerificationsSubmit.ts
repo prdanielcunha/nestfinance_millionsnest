@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'COUNT_INVALID_ASSISTED_LABEL' });
     }
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.count.execute');
     const sessionRef = db.collection('organizations').doc(organizationId)
       .collection('financeEntities').doc(financeEntityId)
       .collection('countVerificationSessions').doc(countSessionId);
