@@ -8,7 +8,7 @@ import { stageFinanceSignalOpen, stageFinanceSignalResolve } from './signalProje
 import { generateEvidenceAuditId } from './universalEvidenceHelpers.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isUniversalEvidenceDocumentType } from '../../../shared/finance/universalEvidenceReview.js';
-import { publishCanonicalFinancePendingEvent } from './connectPendingEventPublisher.js';
+import { financeConnectReceiptExtension, recoverFinanceConnectReceipt } from './connectPendingReceiptOutbox.js';
 
 const validEvidenceId = (value: unknown): value is string =>
   typeof value === 'string' && /^evd_[a-f0-9]{32}$/.test(value);
@@ -178,33 +178,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reviewStatus: 'pending' as const,
         };
       },
+      undefined,
+      (committed) => financeConnectReceiptExtension({
+        enabled: process.env.NESTFINANCE_CONNECT_PENDING_EVENTS_ENABLED === 'true',
+        organizationId, financeEntityId, evidenceId, version: committed.version,
+      }),
     );
 
     if (process.env.NESTFINANCE_CONNECT_PENDING_EVENTS_ENABLED === 'true') {
-      // Canonical finance signal INBOX_REVIEW_REQUIRED already committed above.
-      // Re-read current tenant-scoped evidence before emitting one opaque
-      // operator alert. Never roll back finance on ambiguous Connect transport.
-      try {
-        const outcome = await publishCanonicalFinancePendingEvent({
-          enabled: true, organizationId, financeEntityId, evidenceId, version: result.version,
-          signingSecret: process.env.NESTFINANCE_CONNECT_SOURCE_EVENT_SECRET,
-          operatorTargetsJson: process.env.NESTFINANCE_CONNECT_OPERATOR_TARGETS_JSON,
-          loadOfficialPendingReview: async () => {
-            const saved = await evidenceRef.get();
-            if (!saved.exists) return null;
-            const value = saved.data() || {};
-            return {
-              organizationId: value.organizationId, financeEntityId: value.financeEntityId,
-              evidenceId: value.evidenceId, version: value.version,
-              reviewStatus: value.review?.status,
-              occurredAt: value.updatedAt?.toDate?.(),
-            };
-          },
-        });
-        console.info('[NestFinance Connect] ' + outcome);
-      } catch {
-        console.warn('[NestFinance Connect] NOT_ENQUEUED_OR_UNCONFIRMED');
-      }
+      // The event is stored atomically in the existing canonical finance
+      // idempotency receipt. An optional attempt may run after commit; never
+      // delay or roll back a completed classification to reach Connect.
+      void recoverFinanceConnectReceipt({
+        db, idempotencyRef: context.repository.getIdempotencyRef(),
+        receiptKey: keyHash, organizationId, financeEntityId, enabled: true,
+        signingSecret: process.env.NESTFINANCE_CONNECT_SOURCE_EVENT_SECRET,
+        operatorTargetsJson: process.env.NESTFINANCE_CONNECT_OPERATOR_TARGETS_JSON,
+      }).then(outcome => {
+        console.info('[NestFinance Connect Receipt] ' + outcome);
+      }).catch(() => {
+        console.warn('[NestFinance Connect Receipt] DEFERRED');
+      });
     }
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
