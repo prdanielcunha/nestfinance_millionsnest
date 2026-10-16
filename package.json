@@ -68,7 +68,7 @@
     "test:spec-20261015-experience": "tsx scripts/test-spec-20261015-experience.ts",
     "test:count-draft-privacy": "tsx scripts/test-count-draft-privacy.ts",
     "test:roadmap-cycle-04": "tsx scripts/test-roadmap-cycle-04-double-count.ts",
-    "test:roadmap-cycle-05": "tsx scripts/test-roadmap-cycle-05-count-to-proposals.ts && tsx scripts/test-contribution-dimensions.ts && tsx scripts/test-count-v2-contract.ts && tsx scripts/test-count-verification-policy.ts && tsx scripts/test-count-v3-persistent-gateway.ts && tsx scripts/test-count-v3-entity-policy.ts && tsx scripts/test-count-v3-purpose-receipt.ts && tsx scripts/test-count-v3-classified-journey.ts && tsx scripts/test-count-v3-audited-recount.ts && tsx scripts/test-count-v3-treasury-review.ts && tsx scripts/test-count-v3-treasury-acceptance.ts",
+    "test:roadmap-cycle-05": "tsx scripts/test-roadmap-cycle-05-count-to-proposals.ts && tsx scripts/test-contribution-dimensions.ts && tsx scripts/test-count-v2-contract.ts && tsx scripts/test-count-verification-policy.ts && tsx scripts/test-count-v3-persistent-gateway.ts && tsx scripts/test-count-v3-entity-policy.ts && tsx scripts/test-count-v3-purpose-receipt.ts && tsx scripts/test-count-v3-classified-journey.ts && tsx scripts/test-count-v3-audited-recount.ts && tsx scripts/test-count-v3-treasury-review.ts && tsx scripts/test-count-v3-treasury-acceptance.ts && tsx scripts/test-count-v3-draft-plan.ts",
     "test:count-v2-contract": "tsx scripts/test-count-v2-contract.ts",
     "test:contribution-dimensions": "tsx scripts/test-contribution-dimensions.ts",
     "test:roadmap-cycle-06": "tsx scripts/test-roadmap-cycle-06-universal-input.ts",
