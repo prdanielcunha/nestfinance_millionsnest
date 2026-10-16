@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
+import { useNestFinanceTheme } from '@/src/contexts/ThemeContext';
 import { EcosystemAccessBoundary } from '../boundaries/EcosystemAccessBoundary';
 import { FinanceEntityProvider, useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { APP_ROUTES } from '../router/routes';
-import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks, Search, LogOut, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Receipt, Wallet, Inbox, FileText, ShieldCheck, MoreHorizontal, Settings, Plus, Camera, Globe, ChevronsUpDown, ArrowRightLeft, ListChecks, Search, LogOut, ExternalLink, Sun, Moon } from 'lucide-react';
 import { useEffect, useRef, useState, type ElementType } from 'react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
@@ -233,6 +234,38 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'EN', label: 'EN' },
   { value: 'ES', label: 'ES' },
 ];
+
+function ThemeSwitcher({ language }: { language: Language }) {
+  const { theme, setTheme } = useNestFinanceTheme();
+  const labels = {
+    PT: { title: 'Aparência', light: 'Claro', dark: 'Escuro' },
+    EN: { title: 'Appearance', light: 'Light', dark: 'Dark' },
+    ES: { title: 'Apariencia', light: 'Claro', dark: 'Oscuro' },
+  }[language];
+
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">{labels.title}</p>
+      <div role="group" aria-label={labels.title} className="grid grid-cols-2 gap-1 rounded-xl border border-border-subtle bg-background-base p-1">
+        {([
+          { value: 'light' as const, label: labels.light, Icon: Sun },
+          { value: 'dark' as const, label: labels.dark, Icon: Moon },
+        ]).map(({ value, label, Icon }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={theme === value}
+            onClick={() => setTheme(value)}
+            className={`nf-interactive flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold focus-visible:outline-accent-primary ${theme === value ? 'bg-surface-elevated text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function getInitials(name: string) {
   if (!name) return '?';
@@ -646,6 +679,7 @@ function ShellLayoutInner() {
 
           <div className="mt-4 border-t border-border-subtle pt-3">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
+            <ThemeSwitcher language={language} />
             <ConnectSupportButton accessState={accessState} language={language} />
             <div className="mt-3 grid gap-1">
               <button
@@ -835,6 +869,7 @@ function ShellLayoutInner() {
             <div className="grid gap-3">
               <div className="rounded-2xl bg-background-base/60 p-3">
                 <LanguageSwitcher language={language} setLanguage={setLanguage} />
+            <ThemeSwitcher language={language} />
               </div>
               {accessState.isGlobalAccess ? (
                 <button
