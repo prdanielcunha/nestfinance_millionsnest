@@ -52,7 +52,10 @@ interface AccountEditModalProps {
 export function AccountEditModal({ isOpen, onClose, onSuccess, account }: AccountEditModalProps) {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
+  const { accessState } = useAuth();
+  const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const w = OPENING_EDIT_COPY[language];
+  const hw = HISTORY_COPY[language];
   const [name, setName] = useState(account.name);
   const [institutionName, setInstitutionName] = useState(account.institutionName || '');
   const [accountLast4, setAccountLast4] = useState(account.accountLast4 || '');
@@ -67,6 +70,14 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
   const [openingReason, setOpeningReason] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [historyOpen,setHistoryOpen] = useState(false);
+  const [historyItems,setHistoryItems] = useState<OpeningHistoryItem[]>([]);
+  const [historyCursor,setHistoryCursor] = useState<number|null>(null);
+  const [historyHasMore,setHistoryHasMore] = useState(false);
+  const [historyLoading,setHistoryLoading] = useState(false);
+  const [historyError,setHistoryError] = useState(false);
+  const [historyFetched,setHistoryFetched] = useState(false);
+  const historyEpoch = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -80,10 +91,47 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
       setOpeningSource(account.openingBalanceDeclaration?.source || 'bank_statement');
       setOpeningSourceNote(account.openingBalanceDeclaration?.sourceNote || '');
       setOpeningReason('');
+      historyEpoch.current++;
+      setHistoryOpen(false);
+      setHistoryItems([]);
+      setHistoryCursor(null);
+      setHistoryHasMore(false);
+      setHistoryLoading(false);
+      setHistoryError(false);
+      setHistoryFetched(false);
       setError('');
       setIsSubmitting(false);
     }
   }, [isOpen, account]);
+
+  const loadHistory = async (cursor?:number) => {
+    if (historyLoading || !activeFinanceEntityId || !organizationId) return;
+    const epoch = ++historyEpoch.current;
+    setHistoryLoading(true);
+    setHistoryError(false);
+    try {
+      const page=await fetchAccountOpeningHistory({
+        organizationId, financeEntityId:activeFinanceEntityId, accountId:account.id,
+        ...(cursor===undefined?{}:{beforeRevision:cursor}),
+      });
+      if(epoch!==historyEpoch.current)return;
+      setHistoryItems(prev=>cursor===undefined?page.items:[...prev,...page.items]);
+      setHistoryHasMore(page.hasMore);
+      setHistoryCursor(page.nextCursor);
+      setHistoryFetched(true);
+    } catch {
+      if(epoch===historyEpoch.current)setHistoryError(true);
+    } finally {
+      if(epoch===historyEpoch.current)setHistoryLoading(false);
+    }
+  };
+  const formatHistoryMoney = (cents:number) => new Intl.NumberFormat(
+    language==='PT'?'pt-BR':language==='EN'?'en-US':'es-ES',
+    {style:'currency',currency:'BRL'},
+  ).format(cents/100);
+  const historySourceLabel = (key?:string|null) =>
+    key==='bank_statement'?hw.bank:key==='cash_count'?hw.cash:
+    key==='prior_records'?hw.prior:key==='other'?hw.other:hw.unknown;
 
   if (!isOpen) return null;
 
