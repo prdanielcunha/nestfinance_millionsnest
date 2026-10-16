@@ -64,7 +64,7 @@ export function isExplicitCountOnlySession(session: CanonicalFinanceSession): bo
 }
 
 const COUNT_OPERATIONS = [
-  'count-sessions-', 'count-captures-', 'count-free-form-captures-', 'count-paper-forms-',
+  'count-sessions-', 'count-captures-', 'count-free-form-captures-', 'count-paper-forms-', 'count-verifications-',
 ];
 const COUNT_SHARED_NONPOSTING_OPERATIONS = new Set(['voice-transcription-create', 'journey-metrics-record']);
 const COUNT_OPERATIONS_REQUIRING_TREASURY = new Set(['count-sessions-create-proposed-drafts']);
@@ -120,6 +120,8 @@ const COUNT_READ_OPERATIONS = new Set([
   'count-sessions-detail',
   'count-paper-forms-detail',
   'count-captures-detail',
+  'count-verifications-list',
+  'count-verifications-detail',
 ]);
 
 export function isAllowedCountTeamReadOperation(operation: unknown): boolean {
