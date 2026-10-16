@@ -33,6 +33,9 @@ assert.equal(plan.lines.find(line=>line.purpose==='tithe')?.accountId,'cash_1');
 assert.equal(plan.lines.find(line=>line.purpose==='offering')?.receiptMethod,'pix');
 assert.equal(plan.postingPerformed,false);
 assert.equal(plan.treasuryReviewAccepted,true);
+assert.throws(()=>buildCountV3DraftPlan({...session,version:7},selections),
+  /COUNT_PROPOSAL_SOURCE_VERSION_STALE/,
+  'Acceptance must refer to the exact sealed evidence revision');
 assert.throws(()=>buildCountV3DraftPlan({...session,treasuryReview:null},selections),
   /COUNT_PROPOSAL_TREASURY_REVIEW_REQUIRED/);
 assert.throws(()=>buildCountV3DraftPlan(session,selections.slice(0,1)),
