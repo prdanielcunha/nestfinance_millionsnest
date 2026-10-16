@@ -1,4 +1,5 @@
 import type { firestore } from 'firebase-admin';
+import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
 import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
@@ -92,6 +93,12 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
   }
 
+  // A member who can administer teams but has no explicit finance grants
+  // must not inherit treasury from a broad organizational admin label.
+  if (explicitTeamOnlyGrant(sessionList.permissions)) {
+    throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+  }
+
   // Enforce Count-only responsibility after canonical Hub session resolution,
   // even when an ecclesiastical/organizational title carries legacy privileges.
   assertCountTeamCapabilityBoundary(sessionList, requiredCapability);
@@ -132,6 +139,11 @@ function canonicalPermissions(sessionList: any): string[] {
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList?.isGlobalAccess) return true;
+  if (
+    explicitTeamOnlyGrant(sessionList?.permissions ?? sessionList?.capabilities) &&
+    (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities')
+  ) return false;
+
   // Bypass no restriction through implicit owner/admin finance grants. The
   // read/draft operation-specific gateway allowlists still apply separately.
   if (isExplicitCountOnlySession(sessionList) &&
