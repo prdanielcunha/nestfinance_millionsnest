@@ -73,7 +73,7 @@ assert.ok(routing.includes('path: APP_ROUTES.transactionCreate, element: withTre
 assert.ok(routing.includes('path: APP_ROUTES.reports, element: withTreasuryAccess('));
 assert.ok(routing.includes('path: APP_ROUTES.universalCapture, element: withTreasuryAccess('));
 assert.ok(treasuryBoundary.includes('if (profile.countOnly)'));
-assert.ok(treasuryBoundary.includes('canonical'), 'The UI boundary does not replace server authorization');
+assert.ok(treasuryBoundary.includes('Canonical roles must ALSO be enforced by API handlers.'), 'The UI boundary does not replace server authorization');
 assert.ok(shell.includes('const canRegisterFinance = canCreate && entryProfile.canFinance;'));
 assert.ok(shell.includes("entryProfile.countOnly || item.id === 'finance' || item.id === 'count'"));
 assert.ok(shell.includes('canCount ? <NavLink to={countRoute}'));
