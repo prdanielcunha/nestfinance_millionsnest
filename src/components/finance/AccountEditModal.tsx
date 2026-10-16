@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { updateAccount } from '@/src/services/accountsService';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 interface FinanceAccount {
   id: string;
@@ -11,6 +12,27 @@ interface FinanceAccount {
   accountLast4?: string;
   currency: string;
   active: boolean;
+  openingBalanceCents?: number;
+  openingBalanceRevision?: number;
+  openingBalanceDeclaration?: null | {
+    status: 'not_informed' | 'pending_review' | 'confirmed';
+    amountCents?: number;
+    asOf?: string;
+    source?: 'bank_statement' | 'cash_count' | 'prior_records' | 'other';
+    sourceNote?: string;
+  };
+}
+
+const OPENING_EDIT_COPY = {
+  PT: { title: 'Corrigir saldo inicial informado', description: 'A correção guardará a versão anterior. Não altera saldo, extrato ou razão.', toggle: 'Preciso corrigir a abertura desta conta', unknown: 'Saldo ainda desconhecido', informed: 'Informar saldo com data e origem', amount: 'Valor na data (R$)', asOf: 'Data do saldo', source: 'Origem', bank: 'Extrato bancário', cash: 'Contagem do caixa', prior: 'Registros anteriores', other: 'Outra origem', note: 'Detalhes da origem', reason: 'Por que corrigir? (obrigatório)', example: 'Ex.: conferência do extrato pela tesouraria', invalid: 'Verifique valor, data, origem e justificativa.', conflict: 'Outra pessoa alterou esta abertura. Feche e reabra a conta antes de tentar novamente.', legacy: 'Saldo legado: a correção exige conciliação especializada e não pode ser feita aqui.', locked: 'A abertura está bloqueada para edição; solicite a revisão profissional.' },
+  EN: { title: 'Correct opening balance declaration', description: 'The previous version is kept. This does not change balances, statements or the ledger.', toggle: 'I need to correct this account opening', unknown: 'Balance still unknown', informed: 'Enter amount, date and source', amount: 'Amount at date (BRL)', asOf: 'Balance date', source: 'Source', bank: 'Bank statement', cash: 'Cash count', prior: 'Previous records', other: 'Other source', note: 'Source details', reason: 'Why is this correction needed? (required)', example: 'e.g. treasury statement reconciliation', invalid: 'Check amount, date, source and reason.', conflict: 'Another person edited this opening. Close and reopen the account before retrying.', legacy: 'Legacy balance: professional reconciliation is required; it cannot be corrected here.', locked: 'This opening is locked; request professional review.' },
+  ES: { title: 'Corregir declaración de saldo inicial', description: 'Se conserva la versión anterior. No altera saldos, extractos ni libro contable.', toggle: 'Necesito corregir la apertura de esta cuenta', unknown: 'Saldo todavía desconocido', informed: 'Informar importe, fecha y origen', amount: 'Importe en la fecha (BRL)', asOf: 'Fecha del saldo', source: 'Origen', bank: 'Extracto bancario', cash: 'Recuento de caja', prior: 'Registros anteriores', other: 'Otro origen', note: 'Detalles del origen', reason: '¿Por qué corregir? (obligatorio)', example: 'P. ej., conciliación del extracto por tesorería', invalid: 'Compruebe importe, fecha, origen y motivo.', conflict: 'Otra persona cambió la apertura. Cierre y vuelva a abrir la cuenta para intentarlo.', legacy: 'Saldo anterior: requiere conciliación profesional y no se puede corregir aquí.', locked: 'La apertura está bloqueada; solicite una revisión profesional.' },
+} as const;
+
+function openingAsReais(amountCents: number | undefined): string {
+  if (!Number.isSafeInteger(amountCents)) return '';
+  const cents = Math.abs(amountCents!);
+  return (amountCents! < 0 ? '-' : '') + Math.floor(cents / 100) + ',' + String(cents % 100).padStart(2,'0');
 }
 
 interface AccountEditModalProps {
@@ -22,9 +44,20 @@ interface AccountEditModalProps {
 
 export function AccountEditModal({ isOpen, onClose, onSuccess, account }: AccountEditModalProps) {
   const { activeFinanceEntityId } = useFinanceEntity();
+  const { language } = useLanguage();
+  const w = OPENING_EDIT_COPY[language];
   const [name, setName] = useState(account.name);
   const [institutionName, setInstitutionName] = useState(account.institutionName || '');
   const [accountLast4, setAccountLast4] = useState(account.accountLast4 || '');
+  const [editingOpening, setEditingOpening] = useState(false);
+  const [openingMode, setOpeningMode] = useState<'not_informed' | 'declared'>(
+    account.openingBalanceDeclaration?.status === 'pending_review' ? 'declared' : 'not_informed');
+  const [openingAmount, setOpeningAmount] = useState(openingAsReais(account.openingBalanceDeclaration?.amountCents));
+  const [openingDate, setOpeningDate] = useState(account.openingBalanceDeclaration?.asOf || '');
+  const [openingSource, setOpeningSource] = useState<'bank_statement' | 'cash_count' | 'prior_records' | 'other'>(
+    account.openingBalanceDeclaration?.source || 'bank_statement');
+  const [openingSourceNote, setOpeningSourceNote] = useState(account.openingBalanceDeclaration?.sourceNote || '');
+  const [openingReason, setOpeningReason] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,6 +66,13 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
       setName(account.name);
       setInstitutionName(account.institutionName || '');
       setAccountLast4(account.accountLast4 || '');
+      setEditingOpening(false);
+      setOpeningMode(account.openingBalanceDeclaration?.status === 'pending_review' ? 'declared' : 'not_informed');
+      setOpeningAmount(openingAsReais(account.openingBalanceDeclaration?.amountCents));
+      setOpeningDate(account.openingBalanceDeclaration?.asOf || '');
+      setOpeningSource(account.openingBalanceDeclaration?.source || 'bank_statement');
+      setOpeningSourceNote(account.openingBalanceDeclaration?.sourceNote || '');
+      setOpeningReason('');
       setError('');
       setIsSubmitting(false);
     }
