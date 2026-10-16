@@ -135,7 +135,7 @@ export function hasEffectiveCapability(sessionList: any, requestedCapability: st
   // Bypass no restriction through implicit owner/admin finance grants. The
   // read/draft operation-specific gateway allowlists still apply separately.
   if (isExplicitCountOnlySession(sessionList) &&
-      requestedCapability.startsWith('finance.') &&
+      (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities') &&
       !['finance.view', 'finance.create_drafts', 'finance.count.execute', 'finance.count.view'].includes(requestedCapability)) {
     return false;
   }
