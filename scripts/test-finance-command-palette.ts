@@ -36,7 +36,7 @@ async function run() {
   assert.ok(shell.includes('FinanceCommandPalette'));
   assert.ok(shell.includes("(event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k'"));
   assert.ok(shell.includes("kind: 'action' as const"));
-  assert.ok(shell.includes('canCreate ? ['));
+  assert.ok(shell.includes('canRegisterFinance ? ['), 'Count-only users must not see treasury commands');
   assert.ok(shell.includes('commandPaletteOpen'));
 
   assert.ok(palette.includes('role="dialog"'));
