@@ -16,7 +16,7 @@ import {
 } from '@/src/services/countV3Service';
 import type { CountV3DraftSelection } from '../../../../shared/finance/countV3DraftPlan.js';
 
-type Choice = {accountId:string;categoryId:string;fundId:string};
+type Choice = {accountId:string;categoryId:string;fundId:string;cardSettlementMethod:string};
 const WORDS={
   PT:{
     title:'Preparar lançamentos da contagem',
@@ -29,7 +29,8 @@ const WORDS={
     fund:'Fundo (opcional)',
     noAccount:'Escolha uma conta',
     noCategory:'Escolha uma categoria',
-    noFund:'Sem fundo',
+    noFund:'Sem fundo', cardKind:'O cartão foi débito ou crédito?',
+    cardPrompt:'Escolha o tipo do cartão', debit:'Débito', credit:'Crédito',
     tithe:'Dízimos',
     offering:'Ofertas',
     other:'Outras contribuições',
@@ -53,6 +54,7 @@ const WORDS={
     back:'Back to count',total:'Verified total',titleLine:'Source of amount',
     account:'Which account holds this money?',category:'Which income category?',fund:'Fund (optional)',
     noAccount:'Choose an account',noCategory:'Choose a category',noFund:'No fund',
+    cardKind:'Was this card payment debit or credit?',cardPrompt:'Choose the card type',debit:'Debit',credit:'Credit',
     tithe:'Tithes',offering:'Offerings',other:'Other contributions',
     cash:'Cash',pix:'PIX',card:'Card',bank_transfer:'Bank transfer',method_other:'Other method',
     create:'Create drafts for review',creating:'Creating drafts…',loading:'Loading amounts and accounts…',
@@ -69,6 +71,7 @@ const WORDS={
     back:'Volver al conteo',total:'Total verificado',titleLine:'Origen del importe',
     account:'¿En qué cuenta quedó el dinero?',category:'¿Qué categoría de ingreso?',fund:'Fondo (opcional)',
     noAccount:'Seleccione una cuenta',noCategory:'Seleccione una categoría',noFund:'Sin fondo',
+    cardKind:'¿El pago fue con tarjeta de débito o crédito?',cardPrompt:'Elija el tipo de tarjeta',debit:'Débito',credit:'Crédito',
     tithe:'Diezmos',offering:'Ofrendas',other:'Otras contribuciones',
     cash:'Efectivo',pix:'PIX',card:'Tarjeta',bank_transfer:'Transferencia bancaria',method_other:'Otra forma',
     create:'Crear borradores para revisión',creating:'Creando borradores…',loading:'Cargando importes y cuentas…',
@@ -125,12 +128,13 @@ function CountVerificationDraftsBody() {
   if(!canReview)return <main className="mx-auto max-w-xl p-6" role="alert">{w.access}</main>;
 
   const setChoice=(key:string,field:keyof Choice,value:string)=>{
-    setChoices(prev=>({...prev,[key]:{accountId:'',categoryId:'',fundId:'',...prev[key],[field]:value}}));
+    setChoices(prev=>({...prev,[key]:{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',...prev[key],[field]:value}}));
     setError('');
   };
   const incomplete=preview?.lines.some(line=>{
     const choice=choices[line.lineKey];
-    return !choice?.accountId || !choice?.categoryId;
+    return !choice?.accountId || !choice?.categoryId ||
+      (line.receiptMethod==='card' && !choice.cardSettlementMethod);
   })??true;
 
   const create=async()=>{
@@ -141,6 +145,7 @@ function CountVerificationDraftsBody() {
       accountId:choices[line.lineKey].accountId,
       categoryId:choices[line.lineKey].categoryId,
       fundId:choices[line.lineKey].fundId || null,
+      ...(line.receiptMethod==='card' ? {cardSettlementMethod: choices[line.lineKey].cardSettlementMethod as 'credit_card'|'debit_card'} : {}),
     }));
     const fingerprint=JSON.stringify([organizationId,entityId,sessionId,preview.version,selections]);
     if(attempt.current?.fingerprint!==fingerprint){
@@ -196,7 +201,7 @@ function CountVerificationDraftsBody() {
         <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">{money(preview.sourceReviewTotalCents)}</p>
       </Surface>
       {preview.lines.map(line=>{
-        const chosen=choices[line.lineKey]||{accountId:'',categoryId:'',fundId:''};
+        const chosen=choices[line.lineKey]||{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:''};
         const methodKey=line.receiptMethod==='other'?'method_other':line.receiptMethod as keyof typeof w;
         return <Surface key={line.lineKey} variant="elevated" radius="xl" className="space-y-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -224,6 +229,18 @@ function CountVerificationDraftsBody() {
               </select>
             </label>
           </div>
+          {line.receiptMethod==='card' && (
+            <label className="block text-sm font-semibold text-text-primary">
+              {w.cardKind}
+              <select value={chosen.cardSettlementMethod}
+                onChange={event=>setChoice(line.lineKey,'cardSettlementMethod',event.target.value)}
+                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+                <option value="">{w.cardPrompt}</option>
+                <option value="debit_card">{w.debit}</option>
+                <option value="credit_card">{w.credit}</option>
+              </select>
+            </label>
+          )}
           <label className="block text-sm font-semibold text-text-primary">
             {w.fund}
             <select value={chosen.fundId} onChange={e=>setChoice(line.lineKey,'fundId',e.target.value)}
