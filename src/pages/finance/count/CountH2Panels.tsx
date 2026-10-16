@@ -100,7 +100,7 @@ const RESULT_COPY = {
   ES: {
     responsible: 'Responsable del segundo conteo',
     verifiedCounter: 'Segundo verificador confirmado',
-    waitingTreasury: 'Conteo revisado. Tesorería puede preparar movimientos vinculados al culto y evidencias sin volver a introducir los valores.'
+    waitingTreasury: 'Conteo revisado. Tesorería puede preparar movimientos vinculados al culto y evidencias sin volver a introducir los valores.',
     matchSentence: (value: string) => `Los dos conteos coinciden en ${value}.`,
     divergentSentence: (value: string) => `Existe una diferencia total de ${value}. Mira exactamente dónde aparece.`,
     method: 'Método',
