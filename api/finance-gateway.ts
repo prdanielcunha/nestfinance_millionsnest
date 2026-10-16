@@ -124,6 +124,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     operation = operation[0];
   }
 
+  // Trusted operation is assigned by this gateway before query normalization.
+  // The client cannot select a different handler by setting a body field.
+  (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation =
+    typeof operation === 'string' ? operation : undefined;
   if (req.query) {
     delete req.query.operation;
   }
