@@ -55,6 +55,11 @@ import transactionsRepairApprovalVerification from '../server/vercel-handlers/fi
 import accountsRepairCanonical from '../server/vercel-handlers/finance/accountsRepairCanonical.js';
 import accountsConfigureCustom from '../server/vercel-handlers/finance/accountsConfigureCustom.js';
 import countSessionsList from '../server/vercel-handlers/finance/countSessionsList.js';
+import countVerificationsCreate from '../server/vercel-handlers/finance/countVerificationsCreate.js';
+import countVerificationsJoin from '../server/vercel-handlers/finance/countVerificationsJoin.js';
+import countVerificationsSubmit from '../server/vercel-handlers/finance/countVerificationsSubmit.js';
+import countVerificationsDetail from '../server/vercel-handlers/finance/countVerificationsDetail.js';
+import countVerificationsList from '../server/vercel-handlers/finance/countVerificationsList.js';
 import countSessionsCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
 import countSessionsDetail from '../server/vercel-handlers/finance/countSessionsDetail.js';
 import countSessionsDiscard from '../server/vercel-handlers/finance/countSessionsDiscard.js';
@@ -187,6 +192,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'transactions-repair-approval-verification': return transactionsRepairApprovalVerification(req, res);
     case 'transactions-posting-plan-preview': return transactionsPostingPlanPreview(req, res);
     case 'count-sessions-list': return countSessionsList(req, res);
+    case 'count-verifications-create': return countVerificationsCreate(req, res);
+    case 'count-verifications-join': return countVerificationsJoin(req, res);
+    case 'count-verifications-submit': return countVerificationsSubmit(req, res);
+    case 'count-verifications-detail': return countVerificationsDetail(req, res);
+    case 'count-verifications-list': return countVerificationsList(req, res);
     case 'count-sessions-create': return countSessionsCreate(req, res);
     case 'count-sessions-detail': return countSessionsDetail(req, res);
     case 'count-sessions-discard': return countSessionsDiscard(req, res);
