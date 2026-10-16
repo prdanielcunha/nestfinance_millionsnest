@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation, isExplicitCountOnlySession } from '../server/vercel-handlers/finance/countTeamOperationPolicy.js';
 import { hasEffectiveCapability } from '../server/vercel-handlers/finance/accessHelpers.js';
-import { assertActiveRecountOperator, assertCountFirstStageOwner, assertCountSessionParticipant, canReadCountSession, isCountSessionParticipant } from '../server/vercel-handlers/finance/countSessionParticipantPolicy.js';
+import { assertActiveRecountOperator, assertCountCaptureStageOperator, assertCountFirstStageOwner, assertCountSessionParticipant, canReadCountSession, isCountSessionParticipant } from '../server/vercel-handlers/finance/countSessionParticipantPolicy.js';
 
 const count = { granted: true, organizationRole: 'member', roles: ['count_team'], permissions: ['finance.view', 'finance.create_drafts'] };
 const volunteer = { ...count, roles: ['voluntário'] };
@@ -176,6 +176,14 @@ assert.doesNotThrow(() => assertActiveRecountOperator(churchTreasurerCountOnly, 
 assert.throws(() => assertActiveRecountOperator(churchTreasurerCountOnly, firstCounterSession, 'first'),
   (error: unknown) => (error as {status:number}).status === 403);
 assert.doesNotThrow(() => assertActiveRecountOperator(mixedResponsibilities, firstCounterSession, 'unrelated'));
+assert.doesNotThrow(() => assertCountCaptureStageOperator(churchTreasurerCountOnly, firstCounterSession, 'first', 'count_a'));
+assert.doesNotThrow(() => assertCountCaptureStageOperator(churchTreasurerCountOnly, firstCounterSession, 'second', 'count_b'));
+for (const [uid, stage] of [['unrelated', 'count_a'], ['second', 'count_a'], ['first', 'count_b'], ['unrelated', 'count_b'], ['second', 'invalid']]) {
+  assert.throws(() => assertCountCaptureStageOperator(churchTreasurerCountOnly, firstCounterSession, uid, stage),
+    (error: unknown) => (error as {status:number}).status === 403);
+}
+assert.doesNotThrow(() => assertCountCaptureStageOperator(mixedResponsibilities, firstCounterSession, 'unrelated', 'count_b'));
+
 
 for (const [file, assertion] of [
   ['countSessionsDetail.ts', 'assertCountSessionParticipant(sessionList, data, uid)'],
@@ -185,6 +193,10 @@ for (const [file, assertion] of [
   ['countSessionsStartSecondCount.ts', 'assertCountFirstStageOwner(sessionList, session, uid)'],
   ['countSessionsStartRecount.ts', 'assertCountSessionParticipant(sessionList, session, uid)'],
   ['countSessionsSubmitRecount.ts', 'assertActiveRecountOperator(sessionList, session, uid)'],
+  ['countPaperFormsDetail.ts', 'assertCountSessionParticipant(sessionList, session, uid)'],
+  ['countCapturesDetail.ts', 'assertCountSessionParticipant(sessionList, resolved.session, uid)'],
+  ['countCapturesStart.ts', 'assertCountCaptureStageOperator(sessionList, liveSessionDoc.data() || {}, uid, canonical.form.stage)'],
+  ['countFreeFormCapturesStart.ts', 'assertCountCaptureStageOperator(sessionList, liveSession, uid, liveStage)'],
 ] as const) {
   const source = readFileSync('server/vercel-handlers/finance/' + file, 'utf8');
   assert.ok(source.includes(assertion), file + ' must apply verified per-session permission in handler');
