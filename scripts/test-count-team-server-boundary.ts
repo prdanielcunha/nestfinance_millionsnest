@@ -91,6 +91,16 @@ assert.equal(isExplicitCountOnlySession({
   ...churchTreasurerCountOnly,
   permissions: ['finance.count.view'],
 }), true, 'View-only Count responsibility is still independent of job title');
+const viewOnlyCount = { ...churchTreasurerCountOnly, permissions: ['finance.view', 'finance.create_drafts', 'finance.count.view'] };
+assert.equal(isExplicitCountOnlySession(viewOnlyCount), true);
+assert.doesNotThrow(() => assertCountTeamReadBoundary(viewOnlyCount, 'count-sessions-detail'));
+assert.throws(() => assertCountTeamDraftBoundary(viewOnlyCount, 'count-sessions-create'),
+  (error: unknown) => (error as {status:number;error:string}).status === 403 &&
+    (error as {error:string}).error === 'FORBIDDEN_COUNT_EXECUTION_REQUIRED');
+assert.throws(() => assertCountTeamDraftBoundary(viewOnlyCount, 'count-sessions-discard'),
+  (error: unknown) => (error as {status:number}).status === 403);
+assert.doesNotThrow(() => assertCountTeamDraftBoundary(churchTreasurerCountOnly, 'count-sessions-create'));
+
 
 assert.equal(hasEffectiveCapability(mixedResponsibilities, 'finance.review'), true);
 
