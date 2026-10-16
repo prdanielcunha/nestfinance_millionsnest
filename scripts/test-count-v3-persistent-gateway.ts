@@ -75,6 +75,28 @@ for (const name of ['detail', 'list']) {
 }
 assert.throws(() => assertCountTeamReadBoundary(onlyCount, 'accounts-list'));
 
+// A participant does not require the shared finance.view/create_drafts grants
+// to access Count v3. They are not treasury permissions and never authorize posting.
+const countExecuteOnly = { granted: true, organizationRole: 'member',
+  permissions: ['finance.count.execute'] };
+const countViewOnly = { granted: true, organizationRole: 'member',
+  permissions: ['finance.count.view'] };
+const deniedTeamAdmin = { granted: true, organizationRole: 'admin',
+  permissions: ['organization.manage_team'] };
+const { hasFinanceCapability } = await import('../server/vercel-handlers/finance/accessHelpers.js');
+for (const item of [countExecuteOnly, countViewOnly]) {
+  assert.equal(hasFinanceCapability(item, 'finance.count.view'), true);
+  assert.equal(hasFinanceCapability(item, 'finance.view'), false);
+  assert.equal(hasFinanceCapability(item, 'finance.create_drafts'), false);
+  assert.equal(hasFinanceCapability(item, 'finance.approve_for_posting'), false);
+}
+assert.equal(hasFinanceCapability(countExecuteOnly, 'finance.count.execute'), true);
+assert.equal(hasFinanceCapability(countViewOnly, 'finance.count.execute'), false);
+assert.equal(hasFinanceCapability(deniedTeamAdmin, 'finance.count.execute'), false);
+assert.doesNotThrow(() => assertCountTeamDraftBoundary(countExecuteOnly, 'count-verifications-submit'));
+assert.doesNotThrow(() => assertCountTeamReadBoundary(countViewOnly, 'count-verifications-detail'));
+
+
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 for (const [operation, filename] of [
   ['create', 'countVerificationsCreate.ts'], ['join', 'countVerificationsJoin.ts'],
@@ -85,6 +107,9 @@ for (const [operation, filename] of [
   assert.ok(gateway.includes(`case 'count-verifications-${operation}':`));
   assert.ok(content.includes('assertCountV3Enabled()'), filename + ' must fail closed by default');
   assert.ok(content.includes('resolveFinanceRequestContext('), filename + ' must use canonical auth');
+  const canonicalGrant = ['create','join','submit'].includes(operation) ? 'finance.count.execute' : 'finance.count.view';
+  assert.ok(content.includes(`resolveFinanceRequestContext(req, '${canonicalGrant}')`),
+    filename + ' must require Count-specific access, not general finance drafts');
   assert.ok(content.includes("Cache-Control', 'private, no-store"), filename + ' must disable response cache');
 }
 const create = readFileSync('server/vercel-handlers/finance/countVerificationsCreate.ts', 'utf8');
