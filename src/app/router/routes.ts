@@ -13,6 +13,8 @@ export const APP_ROUTES = {
   count: '/finance/count',
   countSession: '/finance/count/:sessionId',
   countJoin: '/finance/count/join',
+  countVerificationV3: '/finance/count/team',
+  countVerificationV3Session: '/finance/count/team/:sessionId',
   countProposal: '/finance/count/:sessionId/proposals',
   countTraining: '/finance/count/training',
   countVoice: '/finance/count/:sessionId/voice',
