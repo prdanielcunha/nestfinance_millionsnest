@@ -94,6 +94,13 @@ export function assertCountTeamCapabilityBoundary(
 /** Fail closed for count-only workers when a generic draft capability is shared. */
 export function assertCountTeamDraftBoundary(session: CanonicalFinanceSession, operation: unknown) {
   if (!isExplicitCountOnlySession(session)) return;
+  // Hub's explicit view-only responsibility cannot mutate Count artifacts.
+  // This applies even if the legacy API transport still carries create_drafts.
+  const grants = Array.isArray(session.permissions) ? session.permissions : session.capabilities;
+  if (Array.isArray(grants) && grants.includes('finance.count.view') &&
+      !grants.includes('finance.count.execute')) {
+    throw { status: 403, error: 'FORBIDDEN_COUNT_EXECUTION_REQUIRED' };
+  }
   if (!isAllowedCountTeamDraftOperation(operation)) {
     throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
   }
