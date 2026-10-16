@@ -62,6 +62,7 @@ import countVerificationsSubmit from '../server/vercel-handlers/finance/countVer
 import countVerificationsReopen from '../server/vercel-handlers/finance/countVerificationsReopen.js';
 import countVerificationsTreasuryPreview from '../server/vercel-handlers/finance/countVerificationsTreasuryPreview.js';
 import countVerificationsAcceptTreasuryReview from '../server/vercel-handlers/finance/countVerificationsAcceptTreasuryReview.js';
+import countVerificationsCreateProposedDrafts from '../server/vercel-handlers/finance/countVerificationsCreateProposedDrafts.js';
 import countVerificationsDetail from '../server/vercel-handlers/finance/countVerificationsDetail.js';
 import countVerificationsList from '../server/vercel-handlers/finance/countVerificationsList.js';
 import countVerificationPolicyGet from '../server/vercel-handlers/finance/countVerificationPolicyGet.js';
@@ -205,6 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-verifications-reopen': return countVerificationsReopen(req, res);
     case 'count-verifications-treasury-preview': return countVerificationsTreasuryPreview(req, res);
     case 'count-verifications-accept-treasury-review': return countVerificationsAcceptTreasuryReview(req, res);
+    case 'count-verifications-create-proposed-drafts': return countVerificationsCreateProposedDrafts(req, res);
     case 'count-verifications-detail': return countVerificationsDetail(req, res);
     case 'count-verifications-list': return countVerificationsList(req, res);
     case 'count-verifications-policy-get': return countVerificationPolicyGet(req, res);
