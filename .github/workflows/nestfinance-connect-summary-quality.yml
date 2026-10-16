@@ -37,9 +37,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Enforce API-only scope exclusively for Connect scoped releases
+      # The narrow Connect Summary scope gate applies only to releases explicitly
+      # labeled [connect-summary-api-only]; security workflow edits use full QA.
+      - run: node scripts/check-connect-summary-release.mjs
         if: contains(github.event.pull_request.title, '[connect-summary-api-only]')
-        run: node scripts/check-connect-summary-release.mjs
       - run: node --import tsx scripts/test-connect-pending-documents.ts
       - run: node --import tsx scripts/test-connect-read-entry.ts
       - run: node --import tsx scripts/test-finance-request-context.ts
