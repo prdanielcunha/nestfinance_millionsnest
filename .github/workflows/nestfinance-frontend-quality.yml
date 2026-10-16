@@ -5,6 +5,10 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "shared/finance/openingBalanceDeclaration.ts"
+      - "server/vercel-handlers/finance/accountsCreate.ts"
+      - "server/vercel-handlers/finance/accountsList.ts"
+      - "scripts/test-account-opening-declaration.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -105,6 +109,10 @@ on:
       - main
     paths:
       - "src/**"
+      - "shared/finance/openingBalanceDeclaration.ts"
+      - "server/vercel-handlers/finance/accountsCreate.ts"
+      - "server/vercel-handlers/finance/accountsList.ts"
+      - "scripts/test-account-opening-declaration.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -219,6 +227,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify opening balances have dates, source and no posting
+        run: npx tsx scripts/test-account-opening-declaration.ts
 
       - name: Verify native PDF text extractor I2F
         run: npm run test:universal-evidence-pdf-text-extractor-i2f
