@@ -72,6 +72,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-verifications-submit', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-verifications-detail', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-verifications-list', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-verifications-policy-get', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-verifications-policy-update', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-list', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-create', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'count-sessions-detail', exposure: 'gateway' },
