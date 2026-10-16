@@ -103,6 +103,17 @@ for (const size of [1, 2, 5, 20]) {
   for (const actor of actors) assert.equal(isExplicitCountOnlySession(actor), true);
 }
 
+const teamOnlyAdministrator = {
+  ...count, organizationRole: 'admin', roles: ['administrator'],
+  permissions: ['organization.manage_team'],
+};
+assert.equal(isExplicitCountOnlySession(teamOnlyAdministrator), false,
+  'Team admin alone must not be misidentified as an active counter');
+for (const permission of ['finance.view', 'finance.create_drafts', 'finance.review', 'finance.manage', 'organization.manage_entities']) {
+  assert.equal(hasEffectiveCapability(teamOnlyAdministrator, permission), false,
+    'Team-only administrator must never inherit treasury authority');
+}
+
 const readableCountResources = [
   'count-sessions-list',
   'count-sessions-detail',
@@ -135,6 +146,7 @@ for (const session of [noncount, dualRole, elevated, scopedCatalogManager, globa
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 const resolver = readFileSync('server/vercel-handlers/finance/accessHelpers.ts', 'utf8');
 const bootstrap = readFileSync('server/vercel-handlers/finance/bootstrapAvailabilityHelper.ts', 'utf8');
+assert.ok(bootstrap.includes('explicitTeamOnlyGrant(session.permissions)'), 'legacy bootstrap must deny team-only admin');
 assert.ok(bootstrap.includes('isExplicitCountOnlySession(session)') && bootstrap.includes('COUNT_TEAM_TREASURY_ACCESS_FORBIDDEN'), 'legacy catalog/bootstrap helper must deny Count-only before returning treasury catalog rows');
 for (const readFile of ['accountsList.ts', 'fundsList.ts', 'categoriesList.ts']) {
   const source = readFileSync('server/vercel-handlers/finance/' + readFile, 'utf8');
@@ -142,6 +154,7 @@ for (const readFile of ['accountsList.ts', 'fundsList.ts', 'categoriesList.ts'])
 }
 
 assert.ok(gateway.includes('__nestFinanceResolvedGatewayOperation') && gateway.indexOf('__nestFinanceResolvedGatewayOperation') < gateway.indexOf('delete req.query.operation'), 'operation must be marked by gateway before deleting user query');
+assert.ok(resolver.includes('explicitTeamOnlyGrant(sessionList.permissions)'), 'gateway must guard team-only admins after canonical session');
 assert.ok(resolver.includes('assertCountTeamCapabilityBoundary(sessionList, requiredCapability)'), 'verified Count-only responsibility must guard every capability');
 assert.ok(resolver.includes("if (requiredCapability === 'finance.create_drafts')") && resolver.includes('assertCountTeamDraftBoundary(sessionList'), 'guard must run on server after verified session');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamDraftBoundary(sessionList'), 'never trust body/client roles');
