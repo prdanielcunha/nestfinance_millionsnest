@@ -75,6 +75,7 @@ export function serializeV3Session(session: Record<string, any>, uid: string, pr
     version: Number(session.version || 0),
     policySnapshot: session.policySnapshot,
     participantCount: Array.isArray(session.participants) ? session.participants.length : 0,
+    canManageInvite: session.createdByUid === uid && session.status === 'pending',
     confirmationCount: confirmed.length,
     independentConfirmed: confirmed.filter(c => c.mode === 'independent').length,
     assistedRecorded: confirmed.filter(c => c.mode === 'assisted').length,
