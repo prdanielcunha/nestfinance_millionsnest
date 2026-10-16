@@ -77,3 +77,26 @@ export function assertActiveRecountOperator(
     throw { status: 403, error: 'COUNT_SESSION_NOT_ASSIGNED' };
   }
 }
+
+/**
+ * A paper/photo capture belongs to the active independent counting stage.
+ * A shared QR identifies the paper, never the operator's authority.
+ */
+export function assertCountCaptureStageOperator(
+  verifiedSession: VerifiedSession,
+  countSession: CountSessionRecord,
+  uid: unknown,
+  stage: unknown,
+): void {
+  if (!isExplicitCountOnlySession(verifiedSession)) return;
+  if (stage === 'count_a') {
+    assertCountFirstStageOwner(verifiedSession, countSession, uid);
+    return;
+  }
+  if (stage !== 'count_b' || !validActor(uid) ||
+    !countSession.secondCountAssignedToUid ||
+    countSession.secondCountAssignedToUid !== uid ||
+    (countSession.countA?.enteredByUid || countSession.countA?.countedByUid) === uid) {
+    throw { status: 403, error: 'COUNT_SESSION_NOT_ASSIGNED' };
+  }
+}
