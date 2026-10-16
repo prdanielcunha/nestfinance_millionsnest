@@ -66,11 +66,11 @@ export function normalizeCountVerificationPolicy(
   const maximum = source.maximumParticipants === undefined
     ? 20
     : source.maximumParticipants;
-  if (!Number.isInteger(minimum) || (minimum as number) < 1 || (minimum as number) > 20) {
+  if (typeof minimum !== 'number' || !Number.isInteger(minimum) || minimum < 1 || minimum > 20) {
     throw new Error('COUNT_INVALID_CONFIRMATION_QUORUM');
   }
-  if (!Number.isInteger(maximum) || (maximum as number) < 1 || (maximum as number) > 20 ||
-      (maximum as number) < (minimum as number)) {
+  if (typeof maximum !== 'number' || !Number.isInteger(maximum) || maximum < 1 || maximum > 20 ||
+      maximum < (minimum as number)) {
     throw new Error('COUNT_INVALID_TEAM_CAPACITY');
   }
   if (source.allowAssisted !== undefined && typeof source.allowAssisted !== 'boolean') {
