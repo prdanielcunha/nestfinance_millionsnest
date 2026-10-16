@@ -34,6 +34,7 @@ export type CountV3TreasuryReviewPacket = {
   requiresExplicitTreasuryReview: boolean;
   /** False until a separately authorized review-and-draft workflow exists. */
   draftCreationAvailable: false;
+  treasuryAccepted: boolean;
 };
 
 export function buildCountV3TreasuryReviewPacket(session: Record<string, any>): CountV3TreasuryReviewPacket {
@@ -94,5 +95,6 @@ export function buildCountV3TreasuryReviewPacket(session: Record<string, any>): 
     requiresExplicitTreasuryReview: storedStatus === 'requires_treasury_review' ||
       summary.requiresPurposeReview,
     draftCreationAvailable: false,
+    treasuryAccepted: session.treasuryReview?.status === 'accepted',
   };
 }
