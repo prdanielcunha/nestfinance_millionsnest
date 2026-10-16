@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getFinanceEntryProfile } from '../src/lib/financeEntryProfile.js';
+import { hasEffectiveCapability } from '../src/lib/permissions.js';
 import type { EcosystemAccessState } from '../src/types/access.js';
 
 function state(roles: string[], capabilities: string[]): EcosystemAccessState {
@@ -12,6 +13,32 @@ assert.equal(countOnly.countOnly, true);
 assert.equal(countOnly.canCount, true);
 assert.equal(countOnly.canFinance, false);
 assert.equal(countOnly.canAccountant, false);
+
+// "Treasurer" is a church title, not financial authority. The canonical Hub
+// membership must be able to grant Count-only responsibility regardless of it.
+const countOnlyTreasurerState = state(['tesoureiro'], [...minimum, 'finance.count.execute']);
+const countOnlyTreasurer = getFinanceEntryProfile(countOnlyTreasurerState);
+assert.equal(countOnlyTreasurer.canCount, true);
+assert.equal(countOnlyTreasurer.canFinance, false);
+assert.equal(countOnlyTreasurer.canAccountant, false);
+assert.equal(countOnlyTreasurer.countOnly, true);
+assert.equal(countOnlyTreasurer.roleBasis, 'explicit');
+assert.equal(hasEffectiveCapability(countOnlyTreasurerState, 'finance.review'), false);
+assert.equal(hasEffectiveCapability(countOnlyTreasurerState, 'finance.accounts.manage'), false);
+assert.equal(hasEffectiveCapability(countOnlyTreasurerState, 'organization.manage_entities'), false);
+
+const countOnlyTeamAdminState = { ...state(['administrador de equipe'], [...minimum, 'finance.count.execute', 'organization.manage_team']), organizationRole: 'admin' };
+assert.equal(getFinanceEntryProfile(countOnlyTeamAdminState).countOnly, true);
+assert.equal(hasEffectiveCapability(countOnlyTeamAdminState, 'finance.manage'), false);
+
+const secretaryFinanceState = state(['secretária'], [...minimum, 'finance.review']);
+assert.equal(getFinanceEntryProfile(secretaryFinanceState).canFinance, true);
+assert.equal(getFinanceEntryProfile(secretaryFinanceState).countOnly, false);
+
+const dualResponsibility = getFinanceEntryProfile(state(['tesoureiro'], [...minimum, 'finance.count.execute', 'finance.review']));
+assert.equal(dualResponsibility.canCount, true);
+assert.equal(dualResponsibility.canFinance, true);
+assert.equal(dualResponsibility.countOnly, false);
 
 const volunteer = getFinanceEntryProfile(state(['voluntário'], minimum));
 assert.equal(volunteer.countOnly, true);
