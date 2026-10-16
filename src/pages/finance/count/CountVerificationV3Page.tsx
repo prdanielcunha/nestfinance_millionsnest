@@ -22,7 +22,7 @@ const WORDS = {
     joinTitle: 'Participar da contagem',
     joinCode: 'Código de convite',
     join: 'Entrar na equipe',
-    codeTitle: 'Convide sua equipe',
+    codeTitle: 'Convide sua equipe', regenerate: 'Gerar novo convite',
     codeHelp: 'Compartilhe o código apenas com quem participará desta contagem. Ele expira em 4 horas.',
     copy: 'Copiar código',
     open: 'Abrir contagem',
@@ -59,7 +59,7 @@ const WORDS = {
     title: 'Team verification', subtitle: 'Each person records their own count. Other values remain hidden until the process closes.',
     newSession: 'Start a service count', label: 'Service name', date: 'Service date', create: 'Create count',
     joinTitle: 'Join a count', joinCode: 'Invitation code', join: 'Join the team',
-    codeTitle: 'Invite your team', codeHelp: 'Share this code only with assigned participants. It expires in 4 hours.',
+    codeTitle: 'Invite your team', regenerate: 'Generate a new invitation', codeHelp: 'Share this code only with assigned participants. It expires in 4 hours.',
     copy: 'Copy code', open: 'Open count', mySessions: 'Team counts', empty: 'No counts available for this church and role.',
     loading: 'Loading...', retry: 'Try again',
     independent: 'Independent count', assisted: 'Record someone else’s count',
@@ -81,7 +81,7 @@ const WORDS = {
     title: 'Conferencia en equipo', subtitle: 'Cada persona registra su conteo. Los importes ajenos permanecen ocultos hasta cerrar.',
     newSession: 'Abrir conteo del culto', label: 'Nombre del culto', date: 'Fecha del culto', create: 'Crear conteo',
     joinTitle: 'Participar del conteo', joinCode: 'Código de invitación', join: 'Unirse al equipo',
-    codeTitle: 'Invite a su equipo', codeHelp: 'Comparta el código solo con los participantes. Vence en 4 horas.',
+    codeTitle: 'Invite a su equipo', regenerate: 'Generar una nueva invitación', codeHelp: 'Comparta el código solo con los participantes. Vence en 4 horas.',
     copy: 'Copiar código', open: 'Abrir conteo', mySessions: 'Conteos del equipo', empty: 'No hay conteos disponibles para esta iglesia y función.',
     loading: 'Cargando...', retry: 'Intentar de nuevo',
     independent: 'Conteo independiente', assisted: 'Registrar el conteo de otra persona',
@@ -216,6 +216,19 @@ function CountVerificationBody() {
     finally { setBusy(false); }
   };
 
+  const regenerateInvite = async () => {
+    if (!session || !session.canManageInvite || !canCreate || busy) return;
+    setBusy(true); setError('');
+    try {
+      const key = retryKey('refresh', JSON.stringify([organizationId, entityId, session.id, session.version]));
+      const result = await countV3Service.refreshInvite(organizationId, entityId, session.id, session.version, key);
+      delete retries.current.refresh;
+      setInvite({ sessionId: result.countSessionId, code: result.joinCode });
+      await refresh();
+    } catch (e) { setError(messageFor(e)); }
+    finally { setBusy(false); }
+  };
+
   const submit = async () => {
     if (!session || !canCreate || busy || session.status !== 'pending') return;
     const entries = makeEntries(values);
@@ -280,6 +293,26 @@ function CountVerificationBody() {
               <Users className="h-4 w-4" aria-hidden="true" /> {session.participantCount} {w.team.toLowerCase()}
             </div>
             {session.materialHidden && <p className="mt-3 rounded-lg bg-accent-primary/10 p-3 text-sm text-accent-primary">{w.wait}</p>}
+            {session.canManageInvite && canCreate &&
+                session.participantCount < session.policySnapshot.maximumParticipants && (
+              <div className="mt-4 border-t border-border-subtle pt-4">
+                <button type="button" disabled={busy} onClick={() => void regenerateInvite()}
+                  className="nf-interactive min-h-11 rounded-xl border border-border-subtle px-4 text-sm font-semibold text-accent-primary disabled:opacity-50">
+                  {busy ? w.loading : w.regenerate}
+                </button>
+                <p className="mt-2 text-xs leading-relaxed text-text-muted">{w.codeHelp}</p>
+              </div>
+            )}
+            {invite?.sessionId === session.id && (
+              <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-surface-secondary p-4">
+                <code className="font-mono text-xl font-semibold tracking-wider text-text-primary">{invite.code}</code>
+                <button type="button" onClick={() => void navigator.clipboard?.writeText(invite.code)}
+                  className="nf-interactive inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm font-semibold text-text-primary">
+                  <ClipboardCopy className="h-4 w-4" aria-hidden="true" />{w.copy}
+                </button>
+              </div>
+            )}
+
           </Surface>
           {session.status === 'pending' ? (
             <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
