@@ -52,6 +52,35 @@ const unequal = evaluateCountVerifications([member(1), divergence], defaultPolic
 assert.equal(unequal.status, 'divergent', 'Equal grand totals with swapped purposes must diverge');
 assert.equal(unequal.differencesFound, true);
 
+// Two operators can agree on the GRAND TOTAL and still disagree on
+// whether Pix money was tithe or offering; this MUST NOT be auto-matched.
+const classifiedLines = [
+  { purpose: 'tithe' as const, receiptMethod: 'cash' as const, amountCents: 30000, classificationSource: 'explicit' as const },
+  { purpose: 'offering' as const, receiptMethod: 'pix' as const, amountCents: 17000, classificationSource: 'explicit' as const },
+];
+const classified = (index: number, lines = classifiedLines): CountVerificationEvidence => ({
+  verificationId: `classified_${index}`,
+  mode: 'independent', operatorUid: `classified_user_${index}`,
+  independentCounterUid: `classified_user_${index}`, lines,
+  controlTotalCents: 47000,
+});
+assert.equal(evaluateCountVerifications([classified(1), classified(2)], defaultPolicy).status, 'matched');
+const sameGrandTotalWrongMethod = [
+  classifiedLines[0],
+  { ...classifiedLines[1], purpose: 'tithe' as const },
+];
+assert.equal(evaluateCountVerifications([classified(1), classified(2, sameGrandTotalWrongMethod)], defaultPolicy).status, 'divergent');
+
+const legacyPix = (index: number): CountVerificationEvidence => ({
+  ...member(index),
+  entries: [...money, { type: 'pix', method: 'total', totalCents: 5000 }],
+});
+const uncertain = evaluateCountVerifications([legacyPix(7), legacyPix(8)], defaultPolicy);
+assert.equal(uncertain.totalCents, 52000);
+assert.equal(uncertain.status, 'requires_treasury_review',
+  'Legacy Pix with unknown purpose must never become an automatically matched financial proposal');
+assert.equal(evaluateCountVerifications([classified(1), legacyPix(9)], defaultPolicy).status, 'divergent');
+
 const assisted = {
   verificationId: 'assisted_1',
   mode: 'assisted' as const,
