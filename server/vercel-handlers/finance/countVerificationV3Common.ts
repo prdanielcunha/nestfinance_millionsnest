@@ -88,6 +88,8 @@ export function serializeV3Session(session: Record<string, any>, uid: string, _p
       operatorUid: c.operatorUid,
       physicalCounterLabel: c.physicalCounterLabel || null,
       entries: c.entries,
+      lines: c.lines,
+      controlTotalCents: c.controlTotalCents ?? null,
     })),
     // Monetary totals are deliberately absent from list and blind session views.
     confirmedTotalCents: !blind && status === 'matched'

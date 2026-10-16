@@ -5,6 +5,7 @@ import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { normalizeCountEntries } from '../../../shared/finance/count.js';
+import { validateCountV3ReceiptLines } from '../../../shared/finance/countV3PurposeReceipt.js';
 import {
   evaluateCountVerifications,
   normalizeCountVerificationPolicy,
@@ -24,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   try {
     assertCountV3Enabled();
-    const { financeEntityId, countSessionId, expectedVersion, mode, physicalCounterLabel, entries, idempotencyKey, requestId } = req.body || {};
+    const { financeEntityId, countSessionId, expectedVersion, mode, physicalCounterLabel, entries, lines, controlTotalCents, idempotencyKey, requestId } = req.body || {};
     if (typeof financeEntityId !== 'string' || !financeEntityId ||
         !v3IsValidSessionId(countSessionId) ||
         !Number.isSafeInteger(expectedVersion) || expectedVersion < 1 ||
@@ -32,8 +33,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         !isValidIdempotencyKey(idempotencyKey) || !isValidRequestId(requestId)) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
-    const normalizedEntries = normalizeCountEntries(entries);
-    if (!normalizedEntries.length) return res.status(400).json({ error: 'COUNT_EMPTY_VERIFICATION' });
+    // This API accepts either a canonical purpose×receipt-method collection
+    // or the previous Count v3 draft shape for compatibility, never both.
+    if (lines !== undefined && entries !== undefined) {
+      return res.status(400).json({ error: 'COUNT_VERIFICATION_MIXED_SCHEMA' });
+    }
+    const classified = lines !== undefined
+      ? validateCountV3ReceiptLines(lines, controlTotalCents ?? null)
+      : null;
+    const normalizedEntries = classified ? null : normalizeCountEntries(entries);
+    if (!classified && !normalizedEntries?.length) {
+      return res.status(400).json({ error: 'COUNT_EMPTY_VERIFICATION' });
+    }
+    if (!classified && controlTotalCents !== undefined) {
+      return res.status(400).json({ error: 'COUNT_V3_CONTROL_TOTAL_REQUIRES_CLASSIFIED_LINES' });
+    }
     const label = mode === 'assisted'
       ? typeof physicalCounterLabel === 'string' ? physicalCounterLabel.trim() : ''
       : null;
@@ -45,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionRef = db.collection('organizations').doc(organizationId)
       .collection('financeEntities').doc(financeEntityId)
       .collection('countVerificationSessions').doc(countSessionId);
-    const material = { countSessionId, expectedVersion, mode, physicalCounterLabel: label, entries: normalizedEntries };
+    const material = { countSessionId, expectedVersion, mode, physicalCounterLabel: label, lines: classified?.lines ?? null, entries: normalizedEntries, controlTotalCents: classified?.controlTotalCents ?? null };
     const payloadHash = hashPayload(material);
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_v3_submit', idempotencyKey);
 
@@ -65,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         verificationId, mode, operatorUid: uid,
         independentCounterUid: mode === 'independent' ? uid : null,
         physicalCounterLabel: label,
-        entries: normalizedEntries,
+        ...(classified ? { lines: classified.lines, controlTotalCents: classified.controlTotalCents } : { entries: normalizedEntries! }),
       }];
       const evaluation = evaluateCountVerifications(next, policySnapshot);
       const nextVersion = expectedVersion + 1;
