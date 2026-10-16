@@ -4,6 +4,7 @@ import { updateAccount } from '@/src/services/accountsService';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { fetchAccountOpeningHistory, type OpeningHistoryItem } from '@/src/services/accountOpeningHistoryService';
 
 interface FinanceAccount {
@@ -54,6 +55,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
   const { language } = useLanguage();
   const { accessState } = useAuth();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
+  const canViewOpeningHistory = hasEffectiveCapability(accessState,'finance.review');
   const w = OPENING_EDIT_COPY[language];
   const hw = HISTORY_COPY[language];
   const [name, setName] = useState(account.name);
@@ -376,7 +378,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                     placeholder={w.example} className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-base text-text-primary" />
                 </div>}
               </>}
-              <button type="button" aria-expanded={historyOpen} aria-controls="opening-history-panel"
+              {canViewOpeningHistory && <button type="button" aria-expanded={historyOpen} aria-controls="opening-history-panel"
                 disabled={historyLoading || !activeFinanceEntityId || !organizationId}
                 onClick={()=>{
                   if(historyOpen){setHistoryOpen(false);historyEpoch.current++;setHistoryLoading(false);}
@@ -384,8 +386,8 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                 }}
                 className="min-h-12 w-full rounded-xl border border-border-default bg-surface-secondary px-4 py-3 text-left text-sm font-semibold text-text-primary disabled:opacity-50">
                 {historyOpen?hw.hide:hw.view}
-              </button>
-              {historyOpen&&<section id="opening-history-panel" aria-label={hw.title} className="space-y-3">
+              </button>}
+              {canViewOpeningHistory && historyOpen&&<section id="opening-history-panel" aria-label={hw.title} className="space-y-3">
                 <h3 className="text-base font-semibold text-text-primary">{hw.title}</h3>
                 {historyError && <div role="alert" className="space-y-2 rounded-lg border border-border-default p-3 text-sm">
                   <p>{hw.error}</p>
