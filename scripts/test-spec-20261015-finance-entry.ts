@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { explicitCountOnlyGrant } from '../shared/finance/countResponsibility.js';
 import { getFinanceEntryProfile } from '../src/lib/financeEntryProfile.js';
 import { hasEffectiveCapability } from '../src/lib/permissions.js';
 import type { EcosystemAccessState } from '../src/types/access.js';
@@ -8,6 +9,9 @@ function state(roles: string[], capabilities: string[]): EcosystemAccessState {
   return { status: 'granted', organizationRole: 'member', roles, capabilities, organizationId: 'synthetic_org' };
 }
 const minimum = ['finance.view', 'finance.create_drafts'];
+assert.equal(explicitCountOnlyGrant(['finance.count.execute', 'finance.view', 42]), null, 'Malformed Hub grants cannot be silently filtered');
+assert.equal(explicitCountOnlyGrant(['finance.count.execute', 'finance.view']), true);
+assert.equal(explicitCountOnlyGrant(['finance.count.execute', 'finance.review']), false);
 const countOnly = getFinanceEntryProfile(state(['count_team'], minimum));
 assert.equal(countOnly.countOnly, true);
 assert.equal(countOnly.canCount, true);
