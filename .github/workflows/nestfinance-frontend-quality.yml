@@ -10,6 +10,8 @@ on:
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
       - "scripts/test-account-opening-history.ts"
+      - "scripts/test-account-opening-history-read.ts"
+      - "src/services/accountOpeningHistoryService.ts"
       - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
@@ -116,6 +118,8 @@ on:
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
       - "scripts/test-account-opening-history.ts"
+      - "scripts/test-account-opening-history-read.ts"
+      - "src/services/accountOpeningHistoryService.ts"
       - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
@@ -231,6 +235,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify secure paginated opening history viewer
+        run: npx tsx scripts/test-account-opening-history-read.ts
 
       - name: Verify append-only account opening correction
         run: npx tsx scripts/test-account-opening-history.ts
