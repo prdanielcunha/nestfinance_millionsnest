@@ -15,6 +15,7 @@ export type CountV3Session = {
     allowAssisted: boolean;
   };
   participantCount: number;
+  canManageInvite: boolean;
   confirmationCount: number;
   independentConfirmed: number;
   assistedRecorded: number;
@@ -31,7 +32,7 @@ export type CountV3Session = {
 
 export type CountV3ApiError = Error & { status?: number; code?: string };
 
-const MUTATIONS = new Set(['count-verifications-create', 'count-verifications-join', 'count-verifications-submit']);
+const MUTATIONS = new Set(['count-verifications-create', 'count-verifications-join', 'count-verifications-submit', 'count-verifications-refresh-invite']);
 export const COUNT_V3_UI_ENABLED = import.meta.env.VITE_NESTFINANCE_COUNT_V3_ENABLED === 'true';
 
 function token(prefix: string) {
@@ -85,6 +86,11 @@ export const countV3Service = {
   join: (org: string, entity: string, joinCode: string, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;alreadyJoined:boolean}>(
       org, 'count-verifications-join', withMutationIds({ financeEntityId: entity, joinCode }, idempotencyKey),
+    ),
+  refreshInvite: (org: string, entity: string, countSessionId: string, expectedVersion: number, idempotencyKey?: string) =>
+    call<{ countSessionId: string; version: number; joinCode: string; expiresAt: string }>(
+      org, 'count-verifications-refresh-invite',
+      withMutationIds({ financeEntityId: entity, countSessionId, expectedVersion }, idempotencyKey),
     ),
   submit: (org: string, entity: string, input: {
     countSessionId: string;
