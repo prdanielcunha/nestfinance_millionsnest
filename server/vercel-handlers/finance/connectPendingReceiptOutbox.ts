@@ -52,7 +52,7 @@ export async function recoverFinanceConnectReceipt(input: {
   receiptKey: string; organizationId: string; financeEntityId: string;
   enabled: boolean; signingSecret?: string; operatorTargetsJson?: string;
   now?: () => number; fetchImpl?: typeof fetch;
-}): Promise<'disabled' | 'deferred' | 'completed' | 'needs_review' | 'pending'> {
+}): Promise<'disabled' | 'deferred' | 'complete' | 'needs_review' | 'pending'> {
   if (!input.enabled || !safe(input.organizationId) || !safe(input.financeEntityId) ||
       !/^[a-f0-9]{64}$/.test(input.receiptKey) ||
       !input.signingSecret || input.signingSecret.length < 32 ||
