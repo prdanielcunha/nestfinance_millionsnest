@@ -59,6 +59,9 @@ assert.deepEqual(peerView.ownConfirmations, [], 'Blind second counter cannot see
 assert.equal(peerView.confirmedTotalCents, null);
 const firstView = serializeV3Session(participantSession, 'first', false);
 assert.equal(firstView.ownConfirmations.length, 1);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'first', false).canManageInvite, true);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'second', false).canManageInvite, false);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first', status: 'matched' }, 'first', false).canManageInvite, false);
 assert.equal(serializeV3Session(participantSession, 'second', true).ownConfirmations.length, 1);
 
 const onlyCount = { granted: true, organizationRole: 'member',
@@ -100,7 +103,7 @@ assert.doesNotThrow(() => assertCountTeamReadBoundary(countViewOnly, 'count-veri
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 for (const [operation, filename] of [
   ['create', 'countVerificationsCreate.ts'], ['join', 'countVerificationsJoin.ts'],
-  ['submit', 'countVerificationsSubmit.ts'], ['detail', 'countVerificationsDetail.ts'],
+  ['submit', 'countVerificationsSubmit.ts'], ['refresh-invite', 'countVerificationsRefreshInvite.ts'], ['detail', 'countVerificationsDetail.ts'],
   ['list', 'countVerificationsList.ts'],
 ]) {
   const content = readFileSync('server/vercel-handlers/finance/' + filename, 'utf8');
@@ -114,6 +117,10 @@ for (const [operation, filename] of [
 }
 const create = readFileSync('server/vercel-handlers/finance/countVerificationsCreate.ts', 'utf8');
 const join = readFileSync('server/vercel-handlers/finance/countVerificationsJoin.ts', 'utf8');
+const inviteRefresh = readFileSync('server/vercel-handlers/finance/countVerificationsRefreshInvite.ts', 'utf8');
+assert.ok(inviteRefresh.includes('session.createdByUid !== uid'), 'Invite replacement must be creator-only');
+assert.ok(inviteRefresh.includes('transaction.delete('), 'Prior invite must be revoked transactionally');
+assert.ok(inviteRefresh.includes("resolveFinanceRequestContext(req, 'finance.count.execute')"), 'Only Count execution can refresh invitations');
 const submit = readFileSync('server/vercel-handlers/finance/countVerificationsSubmit.ts', 'utf8');
 assert.ok(create.includes('countV3PolicyFromEntity(context.financeEntity)'), 'Quorum must derive from persisted entity policy');
 assert.ok(join.includes('participants.includes(uid)') && join.includes('transaction.update(sessionRef'),
