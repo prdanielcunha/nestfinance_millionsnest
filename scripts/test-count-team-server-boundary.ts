@@ -72,6 +72,13 @@ for (const session of [noncount, dualRole, elevated, global, owner, noSession]) 
 
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 const resolver = readFileSync('server/vercel-handlers/finance/accessHelpers.ts', 'utf8');
+const bootstrap = readFileSync('server/vercel-handlers/finance/bootstrapAvailabilityHelper.ts', 'utf8');
+assert.ok(bootstrap.includes('isExplicitCountOnlySession(session)') && bootstrap.includes('COUNT_TEAM_TREASURY_ACCESS_FORBIDDEN'), 'legacy catalog/bootstrap helper must deny Count-only before returning treasury catalog rows');
+for (const readFile of ['accountsList.ts', 'fundsList.ts', 'categoriesList.ts']) {
+  const source = readFileSync('server/vercel-handlers/finance/' + readFile, 'utf8');
+  assert.ok(source.includes('requireFinanceEntityAccess('), readFile + ' must keep checked entity authorization through the guarded helper');
+}
+
 assert.ok(gateway.includes('__nestFinanceResolvedGatewayOperation') && gateway.indexOf('__nestFinanceResolvedGatewayOperation') < gateway.indexOf('delete req.query.operation'), 'operation must be marked by gateway before deleting user query');
 assert.ok(resolver.includes("if (requiredCapability === 'finance.create_drafts')") && resolver.includes('assertCountTeamDraftBoundary(sessionList'), 'guard must run on server after verified session');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamDraftBoundary(sessionList'), 'never trust body/client roles');
