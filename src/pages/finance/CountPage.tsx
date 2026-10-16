@@ -225,7 +225,7 @@ function CountHomeContent() {
             </div>
           </header>
 
-          {COUNT_V3_UI_ENABLED && hasEffectiveCapability(accessState, 'finance.count.view') ? (
+          {COUNT_V3_UI_ENABLED && (hasEffectiveCapability(accessState, 'finance.count.view') || hasEffectiveCapability(accessState, 'finance.count.execute')) ? (
             <Surface variant="elevated" radius="xl" className="border-accent-primary/20 bg-accent-primary/5 p-5">
               <p className="text-base font-semibold text-text-primary">
                 {language === 'PT' ? 'Contagem com equipe flexível' : language === 'EN' ? 'Flexible team count' : 'Conteo con equipo flexible'}
