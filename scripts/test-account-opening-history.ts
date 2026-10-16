@@ -19,7 +19,7 @@ for(const [source,terms] of [
     'No balance will change automatically'.replace('No balance will change automatically','The previous version is kept')]],
   [svc,['expectedOpeningBalanceRevision?: number','openingBalanceReason?: string','openingBalanceDeclaration?: OpeningBalanceInput']],
 ] as const)for(const term of terms)assert.ok(source.includes(term),'Missing opening revision or audit safeguard: '+term);
-for(const forbidden of ['financeJournalEntries', 'financeAggregates', 'financeBalances', 'openingBalanceCents =', 'openingBalanceCents: correctedOpening'])
+for(const forbidden of ['financeJournalEntries', 'financeAggregates', 'financeBalances', 'accountUpdateData.openingBalanceCents =', 'openingBalanceCents: correctedOpening'])
   assert.ok(!update.includes(forbidden),'Correction may not post or change balance: '+forbidden);
 assert.ok(edit.includes('OPENING_EDIT_COPY[language]'), 'Corrections must be localized');
 assert.ok(edit.includes('minLength={10}') && edit.includes('openingReason.trim().length < 10'));
