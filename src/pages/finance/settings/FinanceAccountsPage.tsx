@@ -22,6 +22,7 @@ interface Account {
   currency: string;
   active: boolean;
   openingBalanceCents?: number;
+  openingBalanceRevision?: number;
   openingBalanceDeclaration?: null | {
     status: 'not_informed' | 'pending_review';
     amountCents?: number;
