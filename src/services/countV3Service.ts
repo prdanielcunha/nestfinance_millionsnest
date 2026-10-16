@@ -10,6 +10,7 @@ export type CountV3Session = {
   serviceDate: string;
   status: CountV3Status;
   version: number;
+  recountCycle: number;
   policySnapshot: {
     minimumIndependentConfirmations: number;
     maximumParticipants: number;
@@ -119,6 +120,13 @@ export const countV3Service = {
   }, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;status:CountV3Status}>(
       org, 'count-verifications-submit', withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
+    ),
+  reopen: (org: string, entity: string, input: {
+    countSessionId: string; expectedVersion: number; reason: string;
+  }, idempotencyKey?: string) =>
+    call<{ countSessionId: string; status: CountV3Status; version: number; recountCycle: number }>(
+      org, 'count-verifications-reopen',
+      withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
     ),
   getPolicy: (org: string, entity: string) =>
     call<CountV3PolicyRecord>(org, 'count-verifications-policy-get', { financeEntityId: entity }),
