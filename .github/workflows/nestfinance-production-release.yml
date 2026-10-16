@@ -16,6 +16,7 @@ concurrency:
 
 env:
   CONNECT_SUMMARY_API_ONLY: ${{ contains(github.event.pull_request.title, '[connect-summary-api-only]') }}
+  CONNECT_SOURCE_RECOVERY_ONLY: ${{ contains(github.event.pull_request.title, '[connect-source-recovery-only]') }}
   PROJECT_ID: millionsnest
   REGION: us-central1
   SERVICE: nestfinance-api
@@ -45,6 +46,10 @@ jobs:
       - name: Guard scoped Connect API source
         if: env.CONNECT_SUMMARY_API_ONLY == 'true'
         run: node scripts/check-connect-summary-release.mjs
+
+      - name: Guard reviewed source recovery API release
+        if: env.CONNECT_SOURCE_RECOVERY_ONLY == 'true'
+        run: node scripts/check-connect-source-recovery-release.mjs
 
       - name: Authenticate with MillionsNest production WIF
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
@@ -231,7 +236,7 @@ jobs:
         run: docker push "$IMAGE"
 
       - name: Publish scoped API image preserving existing configuration
-        if: env.CONNECT_SUMMARY_API_ONLY == 'true'
+        if: env.CONNECT_SUMMARY_API_ONLY == 'true' || env.CONNECT_SOURCE_RECOVERY_ONLY == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -258,7 +263,7 @@ jobs:
           echo FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED
 
       - name: Verify exact scoped API digest and route traffic
-        if: env.CONNECT_SUMMARY_API_ONLY == 'true'
+        if: env.CONNECT_SUMMARY_API_ONLY == 'true' || env.CONNECT_SOURCE_RECOVERY_ONLY == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -268,7 +273,7 @@ jobs:
           echo "FINANCE_CONNECT_EXACT_IMAGE_RELEASE_SHA=$GITHUB_SHA"
 
       - name: Deploy Cloud Run revision
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true'
+        if: env.CONNECT_SUMMARY_API_ONLY != 'true' && env.CONNECT_SOURCE_RECOVERY_ONLY != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -299,7 +304,7 @@ jobs:
           echo "NESTFINANCE_EXACT_RELEASE_CUTOVER=$REVISION"
 
       - name: Allow Firebase Hosting invocation
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true'
+        if: env.CONNECT_SUMMARY_API_ONLY != 'true' && env.CONNECT_SOURCE_RECOVERY_ONLY != 'true'
         run: |
           gcloud run services add-iam-policy-binding "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --member="allUsers"             --role="roles/run.invoker"             --quiet
 
@@ -455,7 +460,7 @@ jobs:
           SUPPORT_STATUS="$(curl --silent --show-error --max-time 30 --output /tmp/finance-support-auth.json --write-out '%{http_code}' -X POST "$BASE/api/system-gateway?operation=connect-support-draft" -H 'Content-Type: application/json' -H 'x-organization-id: release-smoke-synthetic' --data '{"locale":"pt-BR"}')"
           test "$SUPPORT_STATUS" = 401
           echo NESTFINANCE_CONNECT_SUPPORT_AUTHORITY_OK
-          if [ "$CONNECT_SUMMARY_API_ONLY" = 'true' ]; then
+          if [ "$CONNECT_SUMMARY_API_ONLY" = 'true' ] || [ "$CONNECT_SOURCE_RECOVERY_ONLY" = 'true' ]; then
             gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-after.json
             jq -S '{runtime:(.spec.template.spec | .containers[0] |= (del(.image) | .env = ((.env // []) | map(select(.name != "NESTFINANCE_RELEASE_SHA")) | sort_by(.name)))),serviceLabels:.metadata.labels,templateLabels:.spec.template.metadata.labels,serviceAnnotations:(.metadata.annotations | del(.["run.googleapis.com/operation-id"],.["run.googleapis.com/urls"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["serving.knative.dev/creator"],.["serving.knative.dev/lastModifier"])),templateAnnotations:(.spec.template.metadata.annotations | del(.["client.knative.dev/user-image"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["run.googleapis.com/operation-id"]))}' /tmp/finance-after.json > /tmp/finance-config-after.json
             cmp --silent /tmp/finance-config-before.json /tmp/finance-config-after.json

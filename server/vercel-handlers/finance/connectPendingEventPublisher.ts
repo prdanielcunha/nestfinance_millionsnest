@@ -25,6 +25,26 @@ const safe = (v: unknown): v is string =>
   typeof v === 'string' && v.trim() === v && v.length > 0 && v.length <= 180 &&
   !/[\\/\u0000-\u001f\u007f]/.test(v);
 
+
+export function parseFinanceOperatorTargets(operatorTargetsJson: string | undefined) {
+  if (!operatorTargetsJson || operatorTargetsJson.length > 16000) return null;
+  try {
+    const parsed: unknown = JSON.parse(operatorTargetsJson);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const items = Object.entries(parsed);
+    if (items.length > 100 || items.some(([org, candidate]) => {
+      if (!safe(org) || !candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return true;
+      const v = candidate as Record<string, unknown>;
+      return Object.keys(v).length !== 2 ||
+        !Object.keys(v).every(k => ['recipientUid', 'conversationId'].includes(k)) ||
+        !safe(v.recipientUid) || !safe(v.conversationId);
+    })) return null;
+    return parsed as Record<string, { recipientUid: string; conversationId: string }>;
+  } catch { return null; }
+
+
+}
+
 /** Connect receives only an opaque operator alert for a canonical finance signal.
  * It never receives documents, amounts, identity documents or tax records.
  * This bridge is not an alternative to finance.view/RBAC and never sends Meta. */
@@ -36,20 +56,7 @@ export async function publishCanonicalFinancePendingEvent(input: FinanceConnectP
 
   if (!input.signingSecret || input.signingSecret.length < 32 || input.signingSecret.length > 4096 ||
       !input.operatorTargetsJson || input.operatorTargetsJson.length > 16000) return 'not_configured';
-  let target: { recipientUid: string; conversationId: string } | undefined;
-  try {
-    const parsed: unknown = JSON.parse(input.operatorTargetsJson);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 'not_configured';
-    const items = Object.entries(parsed);
-    if (items.length > 100 || items.some(([org, candidate]) => {
-      if (!safe(org) || !candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return true;
-      const v = candidate as Record<string, unknown>;
-      return Object.keys(v).length !== 2 ||
-        !Object.keys(v).every(k => ['recipientUid', 'conversationId'].includes(k)) ||
-        !safe(v.recipientUid) || !safe(v.conversationId);
-    })) return 'not_configured';
-    target = (parsed as Record<string, typeof target>)[input.organizationId];
-  } catch { return 'not_configured'; }
+  const target = parseFinanceOperatorTargets(input.operatorTargetsJson)?.[input.organizationId];
   if (!target) return 'not_configured';
 
   const actual = await input.loadOfficialPendingReview();

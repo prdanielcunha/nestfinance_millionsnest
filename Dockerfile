@@ -6,7 +6,7 @@ RUN npm ci --no-audit --no-fund
 
 COPY . .
 RUN npm run build
-RUN npm run build:cloudrun
+RUN npm run build:cloudrun && npx esbuild server/runConnectPendingRecovery.ts --bundle --platform=node --format=esm --packages=external --outfile=server-dist/connect-recovery.mjs
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
