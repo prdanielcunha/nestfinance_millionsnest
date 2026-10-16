@@ -60,6 +60,13 @@ const WORDS = {
     permission: 'Seu perfil permite consultar, mas não registrar conferências.',
     error: 'Não foi possível concluir. Verifique sua conexão e tente novamente.',
     conflict: 'Esta contagem foi atualizada por outra pessoa. Recarregue os dados antes de continuar.',
+    recountCycle: 'Ciclo da conferência',
+    recount: 'Solicitar nova contagem',
+    recountHint: 'Os valores não coincidiram. Somente a gestão financeira pode reabrir, preservando as conferências anteriores em auditoria.',
+    recountReason: 'Por que uma nova contagem é necessária?',
+    recountReasonHint: 'Descreva o motivo (mínimo 10 caracteres). Os valores lacrados serão preservados e um novo ciclo começará vazio.',
+    reopen: 'Reabrir para conferência independente',
+    reopened: 'Novo ciclo aberto. Os participantes podem conferir novamente.',
     invalid: 'Informe pelo menos um valor válido. Zero é aceito quando foi conferido.',
   },
   EN: {
@@ -89,6 +96,13 @@ const WORDS = {
     permission: 'Your role allows reading, not submitting counts.',
     error: 'Could not complete this action. Check your connection and try again.',
     conflict: 'Someone else updated this count. Refresh before continuing.',
+    recountCycle: 'Verification cycle',
+    recount: 'Request a new count',
+    recountHint: 'Amounts differ. Only authorized finance managers can reopen; previous evidence is retained for audit.',
+    recountReason: 'Why do you need another count?',
+    recountReasonHint: 'Describe the reason (minimum 10 characters). Previous sealed amounts are archived; a new cycle starts empty.',
+    reopen: 'Reopen for independent verification',
+    reopened: 'New cycle opened. Team members can verify again.',
     invalid: 'Enter at least one valid amount. A verified zero is allowed.',
   },
   ES: {
@@ -118,6 +132,13 @@ const WORDS = {
     permission: 'Su función permite consultar, pero no registrar conteos.',
     error: 'No se pudo completar. Revise su conexión e intente de nuevo.',
     conflict: 'Alguien actualizó este conteo. Recargue antes de continuar.',
+    recountCycle: 'Ciclo de verificación',
+    recount: 'Solicitar un nuevo conteo',
+    recountHint: 'Los importes difieren. Solo gestión financiera puede reabrir sin eliminar las evidencias anteriores.',
+    recountReason: '¿Por qué se necesita otro conteo?',
+    recountReasonHint: 'Explique el motivo (mínimo 10 caracteres). Las cifras selladas se archivan y comienza un ciclo nuevo.',
+    reopen: 'Reabrir para verificación independiente',
+    reopened: 'Nuevo ciclo abierto. Los participantes pueden volver a verificar.',
     invalid: 'Indique al menos un importe válido. Se acepta cero verificado.',
   },
 } as const;
@@ -159,6 +180,7 @@ function CountVerificationBody() {
   const entityId = activeFinanceEntityId || '';
   const enabled = COUNT_V3_UI_ENABLED;
   const canCreate = hasEffectiveCapability(accessState, 'finance.count.execute');
+  const canReopen = hasEffectiveCapability(accessState, 'finance.manage');
   const [items, setItems] = useState<CountV3Session[]>([]);
   const [session, setSession] = useState<CountV3Session | null>(null);
   const [label, setLabel] = useState('');
@@ -174,6 +196,7 @@ function CountVerificationBody() {
   const [controlTotal, setControlTotal] = useState('');
   const [mode, setMode] = useState<'independent'|'assisted'>('independent');
   const [physicalCounterLabel, setPhysicalCounterLabel] = useState('');
+  const [recountReason, setRecountReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -261,6 +284,24 @@ function CountVerificationBody() {
     finally { setBusy(false); }
   };
 
+  const reopen = async () => {
+    if (!session || session.status !== 'divergent' || !canReopen || busy) return;
+    const reason = recountReason.trim();
+    if (reason.length < 10 || reason.length > 500) { setError(w.invalid); return; }
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const key = retryKey('reopen', JSON.stringify([organizationId, entityId, session.id, session.version, reason]));
+      await countV3Service.reopen(organizationId, entityId, {
+        countSessionId: session.id, expectedVersion: session.version, reason,
+      }, key);
+      delete retries.current.reopen;
+      setRecountReason('');
+      setMessage(w.reopened);
+      await refresh();
+    } catch (e) { setError(messageFor(e)); }
+    finally { setBusy(false); }
+  };
+
   const submit = async () => {
     if (!session || !canCreate || busy || session.status !== 'pending') return;
     const lines = makeClassifiedLines(values);
@@ -328,6 +369,7 @@ function CountVerificationBody() {
             </div>
             <div className="mt-5 flex items-center gap-2 border-t border-border-subtle pt-4 text-sm text-text-muted">
               <Users className="h-4 w-4" aria-hidden="true" /> {session.participantCount} {w.team.toLowerCase()}
+              {session.recountCycle > 0 && <span className="ml-auto">{w.recountCycle}: {session.recountCycle + 1}</span>}
             </div>
             {session.materialHidden && <p className="mt-3 rounded-lg bg-accent-primary/10 p-3 text-sm text-accent-primary">{w.wait}</p>}
             {session.canManageInvite && canCreate &&
@@ -425,6 +467,22 @@ function CountVerificationBody() {
           ) : <Surface variant="elevated" radius="xl" className="flex items-center gap-3 p-6">
             <CheckCircle2 className="h-6 w-6 text-accent-primary" aria-hidden="true" />
             <p className="text-sm font-medium text-text-primary">{statusLabels[session.status]}</p>
+          </Surface>}
+          {session.status === 'divergent' && canReopen && <Surface variant="elevated" radius="xl" className="space-y-4 p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-text-primary">{w.recount}</h2>
+            <p className="text-sm leading-relaxed text-text-muted">{w.recountHint}</p>
+            <label className="block text-sm font-semibold text-text-primary">
+              {w.recountReason}
+              <textarea value={recountReason} onChange={event => setRecountReason(event.target.value)}
+                minLength={10} maxLength={500} rows={3}
+                className="mt-2 w-full rounded-xl border border-border-subtle bg-surface-base p-3 text-base text-text-primary"/>
+              <span className="mt-2 block text-xs font-normal text-text-muted">{w.recountReasonHint}</span>
+            </label>
+            <button type="button" disabled={busy || recountReason.trim().length < 10}
+              onClick={() => void reopen()}
+              className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+              {busy ? w.loading : w.reopen}
+            </button>
           </Surface>}
         </>
       ) : !sessionId ? (
