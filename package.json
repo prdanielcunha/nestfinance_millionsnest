@@ -80,7 +80,7 @@
     "test:roadmap-cycle-10": "tsx scripts/test-roadmap-cycle-10-accountant-certification.ts",
     "test:premium-roadmap-20260925": "tsx scripts/test-premium-roadmap-20260925.ts",
     "test:transaction-create-no-posting": "tsx scripts/test-transaction-create-no-posting.ts",
-    "test:connect-pending-events": "tsx scripts/test-connect-pending-events.ts"
+    "test:connect-pending-events": "tsx scripts/test-connect-pending-events.ts && tsx scripts/test-connect-pending-outbox.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
