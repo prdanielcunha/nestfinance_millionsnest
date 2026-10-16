@@ -1,4 +1,5 @@
 import { EcosystemAccessState } from "../types/access";
+import { explicitCountOnlyGrant } from '../../shared/finance/countResponsibility.js';
 
 export function canManageFinanceEntities(accessState: EcosystemAccessState): boolean {
   return hasEffectiveCapability(accessState, 'organization.manage_entities');
@@ -7,6 +8,14 @@ export function canManageFinanceEntities(accessState: EcosystemAccessState): boo
 export function hasEffectiveCapability(accessState: EcosystemAccessState | null, capability: string): boolean {
   if (!accessState) return false;
   if (accessState.isGlobalAccess) return true;
+
+  // UI adapts to the same signed Hub responsibility classification as the
+  // server. This is a display restriction only; API authorization is mandatory.
+  if (
+    explicitCountOnlyGrant(accessState.capabilities) === true &&
+    (capability.startsWith('finance.') || capability === 'organization.manage_entities') &&
+    !['finance.view', 'finance.create_drafts', 'finance.count.execute', 'finance.count.view'].includes(capability)
+  ) return false;
 
   const organizationRole = String(accessState.organizationRole || '').trim().toLowerCase();
   if (
