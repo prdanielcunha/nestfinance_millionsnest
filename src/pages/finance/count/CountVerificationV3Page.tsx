@@ -53,7 +53,7 @@ const WORDS = {
     permission: 'Seu perfil permite consultar, mas não registrar conferências.',
     error: 'Não foi possível concluir. Verifique sua conexão e tente novamente.',
     conflict: 'Esta contagem foi atualizada por outra pessoa. Recarregue os dados antes de continuar.',
-    invalid: 'Informe pelo menos um valor válido e maior que zero.',
+    invalid: 'Informe pelo menos um valor válido. Zero é aceito quando foi conferido.',
   },
   EN: {
     title: 'Team verification', subtitle: 'Each person records their own count. Other values remain hidden until the process closes.',
@@ -75,7 +75,7 @@ const WORDS = {
     permission: 'Your role allows reading, not submitting counts.',
     error: 'Could not complete this action. Check your connection and try again.',
     conflict: 'Someone else updated this count. Refresh before continuing.',
-    invalid: 'Enter at least one valid amount greater than zero.',
+    invalid: 'Enter at least one valid amount. A verified zero is allowed.',
   },
   ES: {
     title: 'Conferencia en equipo', subtitle: 'Cada persona registra su conteo. Los importes ajenos permanecen ocultos hasta cerrar.',
@@ -97,7 +97,7 @@ const WORDS = {
     permission: 'Su función permite consultar, pero no registrar conteos.',
     error: 'No se pudo completar. Revise su conexión e intente de nuevo.',
     conflict: 'Alguien actualizó este conteo. Recargue antes de continuar.',
-    invalid: 'Indique al menos un valor válido mayor que cero.',
+    invalid: 'Indique al menos un importe válido. Se acepta cero verificado.',
   },
 } as const;
 
@@ -117,7 +117,8 @@ function makeEntries(raw: Record<CountEntryType, string>): CountEntryDraft[] | n
     if (!raw[type].trim()) continue;
     const amount = cents(raw[type]);
     if (amount === null) return null;
-    if (amount > 0) entries.push({ type, method: 'total', totalCents: amount });
+    // A deliberately entered zero is valid evidence, not the same as blank.
+    entries.push({ type, method: 'total', totalCents: amount });
   }
   return entries.length ? entries : null;
 }
@@ -136,7 +137,11 @@ function CountVerificationBody() {
   const [items, setItems] = useState<CountV3Session[]>([]);
   const [session, setSession] = useState<CountV3Session | null>(null);
   const [label, setLabel] = useState('');
-  const [date, setDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  });
   const [joinCode, setJoinCode] = useState('');
   const [invite, setInvite] = useState<{sessionId:string;code:string}|null>(null);
   const [values, setValues] = useState<Record<CountEntryType,string>>({ tithe:'', offering:'', other:'', pix:'' });
