@@ -55,6 +55,10 @@ assert.ok(handler.includes('paymentMethod: line.ledgerPaymentMethod,'),
   'Posted-method candidate must not reuse ambiguous card label');
 assert.ok(page.includes("line.receiptMethod==='card'") && page.includes('cardSettlementMethod'),
   'Card entry requires explicit debit or credit choice');
+assert.ok(handler.includes("compatibility.level === 'guided_flow'"),
+  'Cash-to-bank deposit and withdrawals need their own verified flow');
+assert.ok(handler.includes("error?.status === 404 && error?.error === 'COUNT_V3_NOT_ENABLED'"),
+  'Feature-disabled draft endpoint must return 404 instead of a server error');
 assert.ok(handler.includes('countReceiptMethod: line.receiptMethod'), 'Drafts retain receipt method');
 assert.ok(handler.includes('countEntryType: line.purpose'), 'Drafts retain classified purpose');
 assert.ok(handler.includes('countSchemaVersion: 3'), 'Source must be traceable to new Count schema');
