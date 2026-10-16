@@ -129,6 +129,13 @@ export const countV3Service = {
       org, 'count-verifications-reopen',
       withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
     ),
+  acceptTreasuryReview: (org: string, entity: string, input: {
+    countSessionId: string; expectedVersion: number; note?: string;
+  }, idempotencyKey?: string) =>
+    call<{countSessionId:string;version:number;reviewStatus:'accepted';sourceVersion:number;financialMutation:false}>(
+      org, 'count-verifications-accept-treasury-review',
+      withMutationIds({financeEntityId:entity,...input},idempotencyKey),
+    ),
   treasuryPreview: (org: string, entity: string, countSessionId: string) =>
     call<{preview: CountV3TreasuryReviewPacket}>(
       org, 'count-verifications-treasury-preview',
