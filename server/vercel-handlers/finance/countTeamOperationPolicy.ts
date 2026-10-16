@@ -1,5 +1,5 @@
 /**
- * Server-side role barrier for transaction mutations until dedicated Hub capabilities
+ * Server-side role barrier for treasury mutations and sensitive reads until dedicated Hub capabilities
  * finance.count.* and finance.treasury.* are issued canonically.
  *
  * The session argument MUST come from resolveEcosystemSession after verified Firebase auth.
@@ -57,6 +57,34 @@ export function isAllowedCountTeamDraftOperation(operation: unknown): boolean {
 export function assertCountTeamDraftBoundary(session: CanonicalFinanceSession, operation: unknown) {
   if (!isExplicitCountOnlySession(session)) return;
   if (!isAllowedCountTeamDraftOperation(operation)) {
+    throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+  }
+}
+
+/**
+ * A Count-only member can read the counting artifacts needed for their
+ * assignment, not treasury accounts, balances, transactions, reports,
+ * reconciliation or the accountant package. Keep this a finite allowlist:
+ * new finance.view endpoints fail closed until explicitly reviewed.
+ *
+ * The Count proposal preview intentionally remains treasury-only: it fetches
+ * accounts, funds and categories, unlike the session/capture read models.
+ */
+const COUNT_READ_OPERATIONS = new Set([
+  'count-sessions-list',
+  'count-sessions-detail',
+  'count-paper-forms-detail',
+  'count-captures-detail',
+]);
+
+export function isAllowedCountTeamReadOperation(operation: unknown): boolean {
+  return typeof operation === 'string' && COUNT_READ_OPERATIONS.has(operation);
+}
+
+/** Role restriction in addition to, never instead of, canonical tenant/entity authorization. */
+export function assertCountTeamReadBoundary(session: CanonicalFinanceSession, operation: unknown) {
+  if (!isExplicitCountOnlySession(session)) return;
+  if (!isAllowedCountTeamReadOperation(operation)) {
     throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
   }
 }
