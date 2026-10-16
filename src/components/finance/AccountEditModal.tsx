@@ -376,6 +376,55 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                     placeholder={w.example} className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-base text-text-primary" />
                 </div>}
               </>}
+              <button type="button" aria-expanded={historyOpen} aria-controls="opening-history-panel"
+                disabled={historyLoading || !activeFinanceEntityId || !organizationId}
+                onClick={()=>{
+                  if(historyOpen){setHistoryOpen(false);historyEpoch.current++;setHistoryLoading(false);}
+                  else {setHistoryOpen(true);if(!historyFetched)void loadHistory();}
+                }}
+                className="min-h-12 w-full rounded-xl border border-border-default bg-surface-secondary px-4 py-3 text-left text-sm font-semibold text-text-primary disabled:opacity-50">
+                {historyOpen?hw.hide:hw.view}
+              </button>
+              {historyOpen&&<section id="opening-history-panel" aria-label={hw.title} className="space-y-3">
+                <h3 className="text-base font-semibold text-text-primary">{hw.title}</h3>
+                {historyError && <div role="alert" className="space-y-2 rounded-lg border border-border-default p-3 text-sm">
+                  <p>{hw.error}</p>
+                  <button type="button" disabled={historyLoading}
+                    onClick={()=>void loadHistory(historyFetched && historyCursor!==null?historyCursor:undefined)}
+                    className="min-h-12 rounded-lg border border-border-default px-4 font-semibold">{hw.retry}</button>
+                </div>}
+                {historyLoading && <p role="status" className="text-sm text-text-secondary">{hw.loading}</p>}
+                {historyFetched && historyItems.length===0 && !historyLoading && !historyError &&
+                  <p role="status" className="text-sm text-text-secondary">{hw.empty}</p>}
+                {historyItems.length>0&&<ol className="space-y-3">
+                  {historyItems.map(item=><li key={item.revision} className="rounded-xl border border-border-default bg-surface-secondary p-3 text-sm text-text-primary">
+                    <h4 className="font-semibold">{hw.change} {item.revision}</h4>
+                    {item.createdAt&&<p className="mt-1 text-text-secondary">{hw.created}: {new Date(item.createdAt).toLocaleString(language==='PT'?'pt-BR':language==='EN'?'en-US':'es-ES')}</p>}
+                    {item.actorRecorded&&<p className="mt-1 text-xs text-text-secondary">{hw.recorded}</p>}
+                    {([['previous',item.previous,hw.previous],['current',item.current,hw.current]] as const).map(([key,record,heading])=>
+                      <div key={key} className="mt-3 border-t border-border-default pt-2">
+                        <p className="font-semibold">{heading}</p>
+                        {!record||record.status==='not_informed'
+                          ? <p className="mt-1 text-text-secondary">{hw.unknown}</p>
+                          : <div className="mt-1 space-y-1 text-text-secondary">
+                            <p>{record.status==='confirmed'?hw.confirmed:hw.pending}</p>
+                            {typeof record.amountCents==='number'&&<p>{hw.amount}: {formatHistoryMoney(record.amountCents)}</p>}
+                            {record.asOf&&<p>{hw.date}: {record.asOf}</p>}
+                            {record.source&&<p>{hw.source}: {historySourceLabel(record.source)}</p>}
+                            {record.sourceNote&&<p>{record.sourceNote}</p>}
+                          </div>}
+                      </div>
+                    )}
+                    {item.reason&&<p className="mt-2 border-t border-border-default pt-2 text-text-secondary"><span className="font-semibold">{hw.reason}:</span> {item.reason}</p>}
+                  </li>)}
+                </ol>}
+                {historyHasMore&&<div className="space-y-2">
+                  <p className="text-sm text-text-secondary">{hw.remaining}</p>
+                  <button type="button" disabled={historyLoading||historyCursor===null}
+                    onClick={()=>{if(historyCursor!==null)void loadHistory(historyCursor);}}
+                    className="min-h-12 w-full rounded-xl border border-border-default px-4 text-sm font-semibold text-text-primary disabled:opacity-50">{hw.more}</button>
+                </div>}
+              </section>}
             </fieldset>
 
             {/* Save Area Buffer */}
