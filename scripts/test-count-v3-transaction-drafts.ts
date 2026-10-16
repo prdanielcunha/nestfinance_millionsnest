@@ -75,7 +75,17 @@ assert.ok(handler.includes('countProposal: {') && handler.includes('transaction.
 assert.ok(routes.includes('APP_ROUTES.countVerificationV3Drafts') && routes.includes("['finance.review']"),
   'Protected route may only be reached by treasury reviewer');
 assert.ok(page.includes('countV3Service.proposalPreview(') && page.includes('countV3Service.createProposedDrafts('));
-assert.ok(page.includes('preview.accountOptions.map(') && page.includes('preview.categoryOptions.map('));
+assert.ok(page.includes('compatibleAccounts.map(') && page.includes('preview.categoryOptions.map('),
+  'Only eligible accounts should be presented, never all accounts');
+assert.ok(page.includes("getCompatibility(option.type,receiptInstrument,'income')"),
+  'UI must reflect the same account-instrument compatibility as canonical backend');
+assert.ok(page.includes("field==='cardSettlementMethod'?{accountId:''}"),
+  'Changing debit/credit must clear stale account selection');
+assert.ok(page.includes('COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS'),
+  'Different financial selections must show an explicit conflict, not a misleading source-version error');
+for(const label of ['Não há conta compatível','No compatible account','No hay una cuenta compatible']){
+  assert.ok(page.includes(label),'PT/EN/ES must explain missing configured account');
+}
 assert.ok(page.includes('preview.fundOptions.map(') && page.includes('!choice?.accountId || !choice?.categoryId'));
 assert.ok(page.includes('fingerprint') && page.includes('idcountv3draft_'),
   'Mobile retry should reuse its idempotency key');

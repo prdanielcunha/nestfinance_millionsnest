@@ -9,6 +9,7 @@ import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { getCompatibility } from '../../../../shared/finance/smartLogic.js';
 import {
   COUNT_V3_UI_ENABLED,
   countV3Service,
@@ -45,6 +46,9 @@ const WORDS={
     review:'Abrir fila de revisão',
     error:'Não foi possível carregar ou criar os rascunhos. Verifique e tente novamente.',
     conflict:'A versão da contagem mudou. Recarregue antes de continuar.',
+    alreadyCreated:'Esta contagem já tem lançamentos preparados com outra classificação. Abra a fila de revisão para corrigir; nenhum lançamento novo foi criado.',
+    noCompatible:'Não há conta compatível com esta forma de recebimento. Solicite à tesouraria que configure uma conta adequada.',
+    cardFirst:'Escolha débito ou crédito para mostrar as contas compatíveis.',
     retry:'Tentar novamente',
     access:'Você não tem autorização financeira para preparar lançamentos.',
   },
@@ -63,6 +67,9 @@ const WORDS={
     successTitle:'Entries prepared',successBody:'Drafts are in the review queue with no balance impact.',
     review:'Open review queue',error:'Could not load or create drafts. Check and retry.',
     conflict:'The count changed. Refresh before continuing.',retry:'Retry',
+    alreadyCreated:'This count already has financial entries prepared with another mapping. Open the review queue to correct them; no new entry was created.',
+    noCompatible:'No compatible account is configured for this receipt method. Ask treasury to configure a suitable account.',
+    cardFirst:'Select debit or credit to see compatible accounts.',
     access:'Your role cannot prepare financial entries.',
   },
   ES:{
@@ -80,6 +87,9 @@ const WORDS={
     successTitle:'Movimientos preparados',successBody:'Los borradores están en revisión sin afectar saldos.',
     review:'Abrir cola de revisión',error:'No fue posible cargar o crear borradores. Intente nuevamente.',
     conflict:'El conteo cambió. Actualice antes de continuar.',retry:'Reintentar',
+    alreadyCreated:'Este conteo ya tiene movimientos preparados con otra clasificación. Abra la revisión para corregirlos; no se creó ningún movimiento nuevo.',
+    noCompatible:'No hay una cuenta compatible para esta forma de cobro. Solicite a tesorería que configure una cuenta adecuada.',
+    cardFirst:'Elija débito o crédito para ver las cuentas compatibles.',
     access:'Su función no autoriza preparar movimientos financieros.',
   },
 } as const;
@@ -128,7 +138,11 @@ function CountVerificationDraftsBody() {
   if(!canReview)return <main className="mx-auto max-w-xl p-6" role="alert">{w.access}</main>;
 
   const setChoice=(key:string,field:keyof Choice,value:string)=>{
-    setChoices(prev=>({...prev,[key]:{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',...prev[key],[field]:value}}));
+    setChoices(prev=>({...prev,[key]:{
+      accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',...prev[key],
+      [field]:value,
+      ...(field==='cardSettlementMethod'?{accountId:''}:{})
+    }}));
     setError('');
   };
   const incomplete=preview?.lines.some(line=>{
@@ -159,7 +173,9 @@ function CountVerificationDraftsBody() {
       },attempt.current.key);
       attempt.current=null;setDone(true);
     }catch(e){
-      setError((e as {status?:number})?.status===409?w.conflict:w.error);
+      const problem=e as {status?:number;code?:string};
+      setError(problem?.code==='COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS'
+        ?w.alreadyCreated:problem?.status===409?w.conflict:w.error);
     }finally{setBusy(false);}
   };
   const money=(amount:number)=>new Intl.NumberFormat(
@@ -190,7 +206,7 @@ function CountVerificationDraftsBody() {
         <h2 className="text-xl font-semibold text-text-primary">{w.successTitle}</h2>
         <p className="mt-2 text-sm text-text-secondary">{w.successBody}</p>
         <button type="button" onClick={()=>navigate(APP_ROUTES.financeReview)}
-          className="nf-interactive mt-5 min-h-12 rounded-xl bg-accent-primary px-5 font-semibold text-white">
+          className="nf-interactive mt-5 min-h-14 rounded-xl bg-accent-primary px-5 font-semibold text-white">
           {w.review}
         </button>
       </Surface>
@@ -203,6 +219,15 @@ function CountVerificationDraftsBody() {
       {preview.lines.map(line=>{
         const chosen=choices[line.lineKey]||{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:''};
         const methodKey=line.receiptMethod==='other'?'method_other':line.receiptMethod as keyof typeof w;
+        const receiptInstrument=line.receiptMethod==='card'
+          ? chosen.cardSettlementMethod : line.receiptMethod;
+        const compatibleAccounts=receiptInstrument
+          ? preview.accountOptions.filter(option=>{
+            if(!option.type || option.nature==='clearing')return false;
+            const compatibility=getCompatibility(option.type,receiptInstrument,'income');
+            return compatibility.level==='recommended'||compatibility.level==='allowed_with_context';
+          })
+          : [];
         return <Surface key={line.lineKey} variant="elevated" radius="xl" className="space-y-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -211,40 +236,46 @@ function CountVerificationDraftsBody() {
             </div>
             <p className="text-xl font-semibold tabular-nums text-text-primary">{money(line.amountCents)}</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-semibold text-text-primary">
-              {w.account}
-              <select value={chosen.accountId} onChange={e=>setChoice(line.lineKey,'accountId',e.target.value)}
-                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
-                <option value="">{w.noAccount}</option>
-                {preview.accountOptions.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}
-              </select>
-            </label>
-            <label className="block text-sm font-semibold text-text-primary">
-              {w.category}
-              <select value={chosen.categoryId} onChange={e=>setChoice(line.lineKey,'categoryId',e.target.value)}
-                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
-                <option value="">{w.noCategory}</option>
-                {preview.categoryOptions.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}
-              </select>
-            </label>
-          </div>
           {line.receiptMethod==='card' && (
             <label className="block text-sm font-semibold text-text-primary">
               {w.cardKind}
               <select value={chosen.cardSettlementMethod}
                 onChange={event=>setChoice(line.lineKey,'cardSettlementMethod',event.target.value)}
-                className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+                className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
                 <option value="">{w.cardPrompt}</option>
                 <option value="debit_card">{w.debit}</option>
                 <option value="credit_card">{w.credit}</option>
               </select>
             </label>
           )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-semibold text-text-primary">
+              {w.account}
+              <select value={chosen.accountId} onChange={e=>setChoice(line.lineKey,'accountId',e.target.value)}
+                className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+                <option value="">{w.noAccount}</option>
+                {compatibleAccounts.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}
+              </select>
+              {line.receiptMethod==='card'&&!receiptInstrument&&(
+                <span className="mt-2 block text-sm font-normal text-text-secondary">{w.cardFirst}</span>
+              )}
+              {receiptInstrument&&compatibleAccounts.length===0&&(
+                <span className="mt-2 block text-sm font-normal text-semantic-danger">{w.noCompatible}</span>
+              )}
+            </label>
+            <label className="block text-sm font-semibold text-text-primary">
+              {w.category}
+              <select value={chosen.categoryId} onChange={e=>setChoice(line.lineKey,'categoryId',e.target.value)}
+                className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+                <option value="">{w.noCategory}</option>
+                {preview.categoryOptions.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}
+              </select>
+            </label>
+          </div>
           <label className="block text-sm font-semibold text-text-primary">
             {w.fund}
             <select value={chosen.fundId} onChange={e=>setChoice(line.lineKey,'fundId',e.target.value)}
-              className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+              className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
               <option value="">{w.noFund}</option>
               {preview.fundOptions.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
@@ -254,7 +285,7 @@ function CountVerificationDraftsBody() {
       {incomplete&&<p role="status" className="rounded-xl bg-semantic-warning/10 p-4 text-sm text-semantic-warning">{w.missing}</p>}
       <div className="sticky bottom-0 -mx-4 border-t border-border-subtle bg-surface-base/95 px-4 py-4 backdrop-blur-md sm:mx-0 sm:border-0">
         <button type="button" disabled={incomplete||busy} onClick={()=>void create()}
-          className="nf-interactive min-h-12 w-full rounded-xl bg-accent-primary px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+          className="nf-interactive min-h-14 w-full rounded-xl bg-accent-primary px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
           {busy?w.creating:w.create}
         </button>
       </div>
