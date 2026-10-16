@@ -1,3 +1,5 @@
+import { explicitCountOnlyGrant } from '../../../shared/finance/countResponsibility.js';
+
 /**
  * Server-side role barrier for treasury mutations and sensitive reads until dedicated Hub capabilities
  * finance.count.* and finance.treasury.* are issued canonically.
@@ -37,19 +39,8 @@ const containsRole = (values: string[], words: string[]) =>
  * caller-provided role labels and UI state never authorize the request.
  */
 function hasCountOnlyCapabilityGrant(session: CanonicalFinanceSession): boolean | null {
-  const permissions = Array.isArray(session.permissions)
-    ? session.permissions
-    : Array.isArray(session.capabilities) ? session.capabilities : [];
-  const grants = permissions.filter((value): value is string => typeof value === 'string');
-  if (!grants.includes('finance.count.execute') && !grants.includes('finance.count.view')) {
-    return null; // Existing memberships retain the conservative legacy bridge.
-  }
-  return grants.every((grant) =>
-    grant === 'finance.view' ||
-    grant === 'finance.create_drafts' ||
-    grant === 'organization.manage_team' ||
-    grant.startsWith('finance.count.')
-  );
+  const grants = Array.isArray(session.permissions) ? session.permissions : session.capabilities;
+  return explicitCountOnlyGrant(grants);
 }
 
 export function isExplicitCountOnlySession(session: CanonicalFinanceSession): boolean {
