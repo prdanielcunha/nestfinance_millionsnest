@@ -16,6 +16,7 @@ export const APP_ROUTES = {
   countJoin: '/finance/count/join',
   countVerificationV3: '/finance/count/team',
   countVerificationV3Session: '/finance/count/team/:sessionId',
+  countVerificationV3Drafts: '/finance/count/team/:sessionId/prepare',
   countProposal: '/finance/count/:sessionId/proposals',
   countTraining: '/finance/count/training',
   countVoice: '/finance/count/:sessionId/voice',
