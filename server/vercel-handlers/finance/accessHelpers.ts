@@ -1,6 +1,7 @@
 import type { firestore } from 'firebase-admin';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
+import { assertCountTeamDraftBoundary } from './countTeamOperationPolicy.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
@@ -89,6 +90,12 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
   if (tokenOrgId && headerOrgId && tokenOrgId !== headerOrgId) {
     console.error(`[CRITICAL] Multi-tenant violation attempt: User ${uid} with tokenOrg ${tokenOrgId} attempted to access headerOrg ${headerOrgId}`);
     throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
+  }
+
+  // Gate Count-team accounts against treasury mutations at the authenticated
+  // session boundary. finance.create_drafts alone is shared with Count today.
+  if (requiredCapability === 'finance.create_drafts') {
+    assertCountTeamDraftBoundary(sessionList, (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation);
   }
 
   const financeEntityId = req.body?.financeEntityId || req.query?.financeEntityId;
