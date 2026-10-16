@@ -268,6 +268,61 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               
             </div>
             
+            <fieldset className="space-y-3 rounded-xl border border-border-default p-4">
+              <legend className="px-1 text-base font-semibold text-text-primary">{w.title}</legend>
+              <p className="text-sm leading-relaxed text-text-secondary">{w.description}</p>
+              {typeof account.openingBalanceCents==='number' && !account.openingBalanceDeclaration ? (
+                <p role="status" className="text-sm text-text-secondary">{w.legacy}</p>
+              ) : account.openingBalanceDeclaration?.status === 'confirmed' ? (
+                <p role="status" className="text-sm text-text-secondary">{w.locked}</p>
+              ) : <>
+                <label className="flex min-h-12 items-center gap-3 text-sm font-medium text-text-primary">
+                  <input type="checkbox" checked={editingOpening}
+                    onChange={e=>setEditingOpening(e.target.checked)} disabled={isSubmitting} />
+                  {w.toggle}
+                </label>
+                {editingOpening && <div className="space-y-3">
+                  <label className="flex min-h-12 items-center gap-3 text-sm text-text-primary">
+                    <input type="radio" checked={openingMode==='not_informed'} name="edit-opening-mode"
+                      onChange={()=>setOpeningMode('not_informed')} disabled={isSubmitting} />{w.unknown}
+                  </label>
+                  <label className="flex min-h-12 items-center gap-3 text-sm text-text-primary">
+                    <input type="radio" checked={openingMode==='declared'} name="edit-opening-mode"
+                      onChange={()=>setOpeningMode('declared')} disabled={isSubmitting} />{w.informed}
+                  </label>
+                  {openingMode==='declared'&&<>
+                    <label htmlFor="correct-opening-amount" className="block text-sm font-medium text-text-primary">{w.amount}</label>
+                    <input id="correct-opening-amount" type="text" inputMode="decimal" required maxLength={14}
+                      value={openingAmount} onChange={e=>setOpeningAmount(e.target.value)} disabled={isSubmitting}
+                      className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary" />
+                    <label htmlFor="correct-opening-date" className="block text-sm font-medium text-text-primary">{w.asOf}</label>
+                    <input id="correct-opening-date" type="date" required min="1900-01-01" max="2100-12-31"
+                      value={openingDate} onChange={e=>setOpeningDate(e.target.value)} disabled={isSubmitting}
+                      className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary" />
+                    <label htmlFor="correct-opening-source" className="block text-sm font-medium text-text-primary">{w.source}</label>
+                    <select id="correct-opening-source" value={openingSource}
+                      onChange={e=>setOpeningSource(e.target.value as typeof openingSource)} disabled={isSubmitting}
+                      className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary">
+                      <option value="bank_statement">{w.bank}</option>
+                      <option value="cash_count">{w.cash}</option>
+                      <option value="prior_records">{w.prior}</option>
+                      <option value="other">{w.other}</option>
+                    </select>
+                    {openingSource==='other' && <>
+                      <label htmlFor="correct-opening-source-note" className="block text-sm font-medium text-text-primary">{w.note}</label>
+                      <input id="correct-opening-source-note" type="text" required minLength={5} maxLength={240}
+                        value={openingSourceNote} onChange={e=>setOpeningSourceNote(e.target.value)} disabled={isSubmitting}
+                        className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary" />
+                    </>}
+                  </>}
+                  <label htmlFor="correct-opening-reason" className="block text-sm font-medium text-text-primary">{w.reason}</label>
+                  <textarea id="correct-opening-reason" required minLength={10} maxLength={240} rows={3}
+                    value={openingReason} onChange={e=>setOpeningReason(e.target.value)} disabled={isSubmitting}
+                    placeholder={w.example} className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-base text-text-primary" />
+                </div>}
+              </>}
+            </fieldset>
+
             {/* Save Area Buffer */}
             <div className="h-4" />
           </form>
