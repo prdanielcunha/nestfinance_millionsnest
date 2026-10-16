@@ -31,7 +31,7 @@ export function parseOpeningBalanceDeclaration(input: unknown): OpeningBalanceDe
     return { status: 'not_informed' };
   }
   if (raw.status !== 'declared') throw new Error('INVALID_OPENING_BALANCE_DECLARATION');
-  if (!Number.isSafeInteger(raw.amountCents) || Math.abs(raw.amountCents as number) > 999_999_999_999) {
+  if (typeof raw.amountCents !== 'number' || !Number.isSafeInteger(raw.amountCents) || Math.abs(raw.amountCents) > 999_999_999_999) {
     throw new Error('INVALID_OPENING_BALANCE_AMOUNT');
   }
   if (typeof raw.asOf !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.asOf)) {
