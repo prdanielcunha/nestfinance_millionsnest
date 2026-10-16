@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { FINANCE_GATEWAY_PATH } from '../config/api';
 import type { CountEntryDraft } from '../../shared/finance/count.js';
 import type { CountV3ClassifiedReceipt } from '../../shared/finance/countV3PurposeReceipt.js';
+import type { CountV3TreasuryReviewPacket } from '../../shared/finance/countV3TreasuryReview.js';
 
 export type CountV3Status = 'pending' | 'matched' | 'divergent' | 'requires_treasury_review';
 export type CountV3Session = {
@@ -127,6 +128,11 @@ export const countV3Service = {
     call<{ countSessionId: string; status: CountV3Status; version: number; recountCycle: number }>(
       org, 'count-verifications-reopen',
       withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
+    ),
+  treasuryPreview: (org: string, entity: string, countSessionId: string) =>
+    call<{preview: CountV3TreasuryReviewPacket}>(
+      org, 'count-verifications-treasury-preview',
+      { financeEntityId: entity, countSessionId },
     ),
   getPolicy: (org: string, entity: string) =>
     call<CountV3PolicyRecord>(org, 'count-verifications-policy-get', { financeEntityId: entity }),

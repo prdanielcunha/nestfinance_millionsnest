@@ -52,7 +52,7 @@ const TransactionReviewDetailPage = lazy(() => import('@/src/pages/finance/trans
 
 const VIEW_FINANCE = ['finance.view'] as const;
 const CREATE_FINANCE = ['finance.create_drafts'] as const;
-const COUNT_V3_READ = ['finance.count.view', 'finance.count.execute'] as const;
+const COUNT_V3_READ = ['finance.count.view', 'finance.count.execute', 'finance.review'] as const;
 const REVIEW_FINANCE = ['finance.review', 'finance.approve_for_posting'] as const;
 const INBOX_FINANCE = ['finance.view', 'finance.create_drafts', 'finance.review'] as const;
 const MANAGE_FINANCE = ['finance.manage', 'organization.manage_entities'] as const;

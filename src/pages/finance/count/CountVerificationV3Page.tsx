@@ -11,6 +11,7 @@ import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countV3Service, COUNT_V3_UI_ENABLED, type CountV3Session } from '@/src/services/countV3Service';
 import type { ContributionReceiptMethod } from '../../../../shared/finance/contributionBreakdown.js';
 import type { CountV3ClassifiedReceipt } from '../../../../shared/finance/countV3PurposeReceipt.js';
+import type { CountV3TreasuryReviewPacket } from '../../../../shared/finance/countV3TreasuryReview.js';
 
 const WORDS = {
   PT: {
@@ -67,6 +68,14 @@ const WORDS = {
     recountReasonHint: 'Descreva o motivo (mínimo 10 caracteres). Os valores lacrados serão preservados e um novo ciclo começará vazio.',
     reopen: 'Reabrir para conferência independente',
     reopened: 'Novo ciclo aberto. Os participantes podem conferir novamente.',
+    reviewTitle: 'Conferência para a tesouraria',
+    reviewHint: 'Somente quem revisa o financeiro pode consultar este resumo. Nenhum lançamento nem saldo será alterado.',
+    reviewOpen: 'Conferir valores recebidos',
+    reviewTotal: 'Total conferido',
+    reviewClassification: 'Há recebimento com finalidade ainda não identificada. Classifique manualmente antes de criar qualquer lançamento.',
+    reviewApproval: 'Esta contagem exige decisão explícita da tesouraria antes de seguir.',
+    reviewPending: 'A contagem está conferida. O envio para lançamento financeiro exige uma etapa separada de revisão e autorização.',
+    reviewNoPosting: 'Prévia para análise apenas — não houve entrada, despesa nem movimento no saldo.',
     invalid: 'Informe pelo menos um valor válido. Zero é aceito quando foi conferido.',
   },
   EN: {
@@ -103,6 +112,14 @@ const WORDS = {
     recountReasonHint: 'Describe the reason (minimum 10 characters). Previous sealed amounts are archived; a new cycle starts empty.',
     reopen: 'Reopen for independent verification',
     reopened: 'New cycle opened. Team members can verify again.',
+    reviewTitle: 'Count for treasury review',
+    reviewHint: 'Only finance reviewers can see this packet. No transaction or balance will change.',
+    reviewOpen: 'Review received amounts',
+    reviewTotal: 'Verified total',
+    reviewClassification: 'Some receipts have an unknown purpose. Classify them manually before creating a financial entry.',
+    reviewApproval: 'This count requires an explicit treasury decision before proceeding.',
+    reviewPending: 'The amounts agree. Financial drafts require a separate authorized review step.',
+    reviewNoPosting: 'Review-only preview — no transaction or balance has changed.',
     invalid: 'Enter at least one valid amount. A verified zero is allowed.',
   },
   ES: {
@@ -139,6 +156,14 @@ const WORDS = {
     recountReasonHint: 'Explique el motivo (mínimo 10 caracteres). Las cifras selladas se archivan y comienza un ciclo nuevo.',
     reopen: 'Reabrir para verificación independiente',
     reopened: 'Nuevo ciclo abierto. Los participantes pueden volver a verificar.',
+    reviewTitle: 'Conteo para tesorería',
+    reviewHint: 'Solo revisores financieros pueden ver este resumen. No cambia movimientos ni saldos.',
+    reviewOpen: 'Revisar importes recibidos',
+    reviewTotal: 'Total verificado',
+    reviewClassification: 'Algunos recibos tienen destino desconocido. Clasifíquelos manualmente antes de crear un asiento.',
+    reviewApproval: 'Este conteo requiere decisión explícita de tesorería antes de continuar.',
+    reviewPending: 'Los importes coinciden. Los borradores financieros requieren revisión y autorización por separado.',
+    reviewNoPosting: 'Vista para revisión — no cambió ninguna transacción ni saldo.',
     invalid: 'Indique al menos un importe válido. Se acepta cero verificado.',
   },
 } as const;
@@ -181,6 +206,7 @@ function CountVerificationBody() {
   const enabled = COUNT_V3_UI_ENABLED;
   const canCreate = hasEffectiveCapability(accessState, 'finance.count.execute');
   const canReopen = hasEffectiveCapability(accessState, 'finance.manage');
+  const canReview = hasEffectiveCapability(accessState, 'finance.review');
   const [items, setItems] = useState<CountV3Session[]>([]);
   const [session, setSession] = useState<CountV3Session | null>(null);
   const [label, setLabel] = useState('');
@@ -197,6 +223,8 @@ function CountVerificationBody() {
   const [mode, setMode] = useState<'independent'|'assisted'>('independent');
   const [physicalCounterLabel, setPhysicalCounterLabel] = useState('');
   const [recountReason, setRecountReason] = useState('');
+  const [treasuryPacket, setTreasuryPacket] = useState<CountV3TreasuryReviewPacket|null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -235,6 +263,7 @@ function CountVerificationBody() {
     setSession(null);
     setItems([]);
     setInvite(null);
+    setTreasuryPacket(null);
     retries.current = {};
     setMessage('');
     void refresh();
@@ -296,11 +325,32 @@ function CountVerificationBody() {
       }, key);
       delete retries.current.reopen;
       setRecountReason('');
+      setTreasuryPacket(null);
       setMessage(w.reopened);
       await refresh();
     } catch (e) { setError(messageFor(e)); }
     finally { setBusy(false); }
   };
+
+  const openTreasuryPreview = async () => {
+    if (!session || !canReview || reviewBusy ||
+        !['matched','requires_treasury_review'].includes(session.status)) return;
+    setReviewBusy(true); setError('');
+    try {
+      const { preview } = await countV3Service.treasuryPreview(organizationId, entityId, session.id);
+      if (preview.snapshotVersion !== session.version) {
+        setError(w.conflict);
+      } else {
+        setTreasuryPacket(preview);
+      }
+    } catch (e) { setError(messageFor(e)); }
+    finally { setReviewBusy(false); }
+  };
+
+  const currency = (centsValue: number) => new Intl.NumberFormat(
+    language === 'PT' ? 'pt-BR' : language === 'EN' ? 'en-US' : 'es-ES',
+    { style: 'currency', currency: 'BRL' },
+  ).format(centsValue / 100);
 
   const submit = async () => {
     if (!session || !canCreate || busy || session.status !== 'pending') return;
@@ -468,6 +518,41 @@ function CountVerificationBody() {
             <CheckCircle2 className="h-6 w-6 text-accent-primary" aria-hidden="true" />
             <p className="text-sm font-medium text-text-primary">{statusLabels[session.status]}</p>
           </Surface>}
+
+          {canReview && (session.status === 'matched' || session.status === 'requires_treasury_review') && (
+            <Surface variant="elevated" radius="xl" className="space-y-4 p-5 sm:p-6">
+              <h2 className="text-lg font-semibold text-text-primary">{w.reviewTitle}</h2>
+              <p className="text-sm leading-relaxed text-text-muted">{w.reviewHint}</p>
+              <button type="button" disabled={reviewBusy} onClick={() => void openTreasuryPreview()}
+                className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+                {reviewBusy ? w.loading : w.reviewOpen}
+              </button>
+              {treasuryPacket?.sessionId === session.id && treasuryPacket.snapshotVersion === session.version && (
+                <div aria-live="polite" className="space-y-3 border-t border-border-subtle pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{w.reviewTotal}</p>
+                  <p className="text-2xl font-semibold tabular-nums text-text-primary">{currency(treasuryPacket.countedTotalCents)}</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {PURPOSES.map(purpose => <div key={purpose} className="rounded-xl bg-surface-secondary p-3">
+                      <p className="text-xs font-medium text-text-muted">{w[purpose]}</p>
+                      <p className="mt-1 font-semibold tabular-nums text-text-primary">
+                        {currency(treasuryPacket.summary.byPurpose[purpose])}
+                      </p>
+                    </div>)}
+                  </div>
+                  {treasuryPacket.requiresPurposeClassification && (
+                    <p className="rounded-xl bg-semantic-warning/10 p-3 text-sm text-semantic-warning">{w.reviewClassification}</p>
+                  )}
+                  {treasuryPacket.requiresExplicitTreasuryReview && (
+                    <p className="rounded-xl bg-semantic-warning/10 p-3 text-sm text-semantic-warning">{w.reviewApproval}</p>
+                  )}
+                  {!treasuryPacket.requiresExplicitTreasuryReview && (
+                    <p className="text-sm text-text-secondary">{w.reviewPending}</p>
+                  )}
+                  <p className="rounded-xl bg-surface-secondary p-3 text-xs text-text-muted">{w.reviewNoPosting}</p>
+                </div>
+              )}
+            </Surface>
+          )}
           {session.status === 'divergent' && canReopen && <Surface variant="elevated" radius="xl" className="space-y-4 p-5 sm:p-6">
             <h2 className="text-lg font-semibold text-text-primary">{w.recount}</h2>
             <p className="text-sm leading-relaxed text-text-muted">{w.recountHint}</p>

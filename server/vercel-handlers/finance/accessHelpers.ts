@@ -210,7 +210,8 @@ export function hasFinanceCapability(sessionList: any, requestedCapability: 'fin
   // Executing Count implicitly allows the Count-specific read model, not
   // general treasury finance.view. This never grants posting or drafts.
   if (requestedCapability === 'finance.count.view' &&
-      hasEffectiveCapability(sessionList, 'finance.count.execute')) return true;
+      (hasEffectiveCapability(sessionList, 'finance.count.execute') ||
+        hasEffectiveCapability(sessionList, 'finance.review'))) return true;
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
   if (hasEffectiveCapability(sessionList, 'finance.manage')) return true;
   if (requestedCapability === 'finance.return_to_draft' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
