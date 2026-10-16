@@ -85,6 +85,21 @@ export function isAllowedCountTeamDraftOperation(operation: unknown): boolean {
     COUNT_OPERATIONS.some(prefix => operation.startsWith(prefix));
 }
 
+/**
+ * A Count-only user may hold a legacy owner/admin or church-treasurer title.
+ * No such title can elevate the user into review, approval, posting or setup
+ * when their verified Hub capabilities explicitly restrict them to Count.
+ */
+export function assertCountTeamCapabilityBoundary(
+  session: CanonicalFinanceSession,
+  requiredCapability: string,
+) {
+  if (!isExplicitCountOnlySession(session)) return;
+  if (requiredCapability !== 'finance.view' && requiredCapability !== 'finance.create_drafts') {
+    throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+  }
+}
+
 /** Fail closed for count-only workers when a generic draft capability is shared. */
 export function assertCountTeamDraftBoundary(session: CanonicalFinanceSession, operation: unknown) {
   if (!isExplicitCountOnlySession(session)) return;
