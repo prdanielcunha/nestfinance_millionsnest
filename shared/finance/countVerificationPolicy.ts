@@ -10,7 +10,7 @@ import {
 } from './countV3PurposeReceipt.js';
 
 /**
- * Proposed Count v2 domain contract; NOT wired to the production Count v1
+ * Count v3 domain contract; it does not modify production Count v1
  * gateway. Only the verified server may choose a policy for an entity.
  *
  * The authentication layer must bind operatorUid to the verified session.
@@ -147,7 +147,8 @@ function receiptMatrixFingerprint(lines: ContributionAllocation[]): string {
     const key = line.purpose + '|' + line.receiptMethod;
     const next = (grouped.get(key) || 0) + line.amountCents;
     if (!Number.isSafeInteger(next) || next > 20_000_000_000) throw new Error('COUNT_TOTAL_OUT_OF_RANGE');
-    grouped.set(key, next);
+    if (next === 0) grouped.delete(key);
+    else grouped.set(key, next);
   }
   return JSON.stringify([...grouped.entries()].sort(([a],[b]) => a.localeCompare(b)));
 }
