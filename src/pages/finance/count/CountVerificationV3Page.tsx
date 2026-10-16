@@ -132,10 +132,7 @@ function CountVerificationBody() {
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const entityId = activeFinanceEntityId || '';
   const enabled = COUNT_V3_UI_ENABLED;
-  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts') &&
-    (!accessState.capabilities?.includes('finance.count.view') ||
-      accessState.capabilities?.includes('finance.count.execute') ||
-      accessState.capabilities?.includes('finance.manage'));
+  const canCreate = hasEffectiveCapability(accessState, 'finance.count.execute');
   const [items, setItems] = useState<CountV3Session[]>([]);
   const [session, setSession] = useState<CountV3Session | null>(null);
   const [label, setLabel] = useState('');
