@@ -48,6 +48,13 @@ for(const forbidden of ["status: 'posted'",'financeJournalEntries','financeBalan
   'buildCountProposalLines(', 'resolveCanonicalCountEntries(']){
   assert.ok(!handler.includes(forbidden),'Must never auto-post or use v1 count: '+forbidden);
 }
+
+assert.ok(handler.includes("getCompatibility(accountMeta.type, line.ledgerPaymentMethod, 'income')"),
+  'Finance account compatibility must use precise credit/debit card method');
+assert.ok(handler.includes('paymentMethod: line.ledgerPaymentMethod,'),
+  'Posted-method candidate must not reuse ambiguous card label');
+assert.ok(page.includes("line.receiptMethod==='card'") && page.includes('cardSettlementMethod'),
+  'Card entry requires explicit debit or credit choice');
 assert.ok(handler.includes('countReceiptMethod: line.receiptMethod'), 'Drafts retain receipt method');
 assert.ok(handler.includes('countEntryType: line.purpose'), 'Drafts retain classified purpose');
 assert.ok(handler.includes('countSchemaVersion: 3'), 'Source must be traceable to new Count schema');
