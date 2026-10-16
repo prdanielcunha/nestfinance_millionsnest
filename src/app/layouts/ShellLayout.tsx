@@ -9,6 +9,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasAnyEffectiveCapability, hasEffectiveCapability } from '@/src/lib/permissions';
 import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode, type FinanceInterfaceRole } from '@/src/lib/financeExperience';
 import { buildFinanceNavigation } from '@/src/lib/financeNavigationModel';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import {
   chooseCurrentSessionOrganization,
   resolveCurrentSessionOrganizations,
@@ -209,18 +210,21 @@ const INTERFACE_ROLE_LABELS: Record<Language, Record<FinanceInterfaceRole, strin
     treasurer: 'Tesoureiro',
     administrator: 'Administrador',
     accountant: 'Contador',
+    viewer: 'Consulta',
   },
   EN: {
     volunteer: 'Volunteer',
     treasurer: 'Treasurer',
     administrator: 'Administrator',
     accountant: 'Accountant',
+    viewer: 'Viewer',
   },
   ES: {
     volunteer: 'Voluntario',
     treasurer: 'Tesorero',
     administrator: 'Administrador',
     accountant: 'Contador',
+    viewer: 'Consulta',
   },
 };
 
@@ -285,11 +289,13 @@ function ShellLayoutInner() {
   const profilePhoto = accessState.profile?.photoURL;
   const experienceMode = getFinanceExperienceMode(accessState);
   const interfaceRole = getFinanceInterfaceRole(accessState);
+  const entryProfile = getFinanceEntryProfile(accessState);
   const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReview = hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']);
   const canManage = hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']);
-  const canCount = canViewFinance && canCreate;
+  const canCount = entryProfile.canCount;
+  const canRegisterFinance = canCreate && entryProfile.canFinance;
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
 
   const [fabOpen, setFabOpen] = useState(false);
@@ -441,7 +447,9 @@ function ShellLayoutInner() {
     canManage,
   });
   const visibleNavigation = CANONICAL_NAVIGATION.filter(
-    (item) => !item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities),
+    (item) => (!item.requiredAnyCapabilities || hasAnyEffectiveCapability(accessState, item.requiredAnyCapabilities)) &&
+      (!entryProfile.countOnly || item.id === 'finance' || item.id === 'count') &&
+      (item.id !== 'count' || entryProfile.canCount),
   );
   const primaryNavigation = navigationProfile.primary
     .map((id) => visibleNavigation.find((item) => item.id === id))
@@ -464,7 +472,7 @@ function ShellLayoutInner() {
     ? `${copy.continueCountDescription} ${resumableCount.serviceLabel}`
     : copy.countDescription;
 
-  const actionCommands: FinancePaletteCommand[] = canCreate ? [
+  const actionCommands: FinancePaletteCommand[] = canRegisterFinance ? [
     ...(canCount ? [{ id: 'action:count', label: countLabel, route: countRoute, kind: 'action' as const }] : []),
     { id: 'action:income', label: t('shortcut_income'), route: `${APP_ROUTES.transactionCreate}?direction=income`, kind: 'action' as const },
     { id: 'action:expense', label: t('shortcut_expense'), route: `${APP_ROUTES.transactionCreate}?direction=expense`, kind: 'action' as const },
@@ -473,7 +481,7 @@ function ShellLayoutInner() {
   ] : [];
   const commandPaletteCommands = [...navigationCommands, ...actionCommands];
 
-  const allFabActions = canCreate ? [
+  const allFabActions = canRegisterFinance ? [
     ...(canCount ? [{
       id: 'count',
       label: countLabel,
@@ -687,7 +695,7 @@ function ShellLayoutInner() {
         </div>
       </main>
 
-      {canCreate &&
+      {canRegisterFinance &&
         !location.pathname.includes('/finance/transactions/new') &&
         !location.pathname.includes('/finance/transactions/edit') &&
         !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
