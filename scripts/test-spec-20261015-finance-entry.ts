@@ -31,6 +31,17 @@ const countOnlyTeamAdminState = { ...state(['administrador de equipe'], [...mini
 assert.equal(getFinanceEntryProfile(countOnlyTeamAdminState).countOnly, true);
 assert.equal(hasEffectiveCapability(countOnlyTeamAdminState, 'finance.manage'), false);
 
+const teamOnlyAdministratorState = {
+  ...state(['administrador de equipe'], ['organization.manage_team']),
+  organizationRole: 'admin',
+};
+const teamOnlyEntry = getFinanceEntryProfile(teamOnlyAdministratorState);
+assert.equal(teamOnlyEntry.canFinance, false);
+assert.equal(teamOnlyEntry.canCount, false);
+assert.equal(teamOnlyEntry.canAccountant, false);
+assert.equal(hasEffectiveCapability(teamOnlyAdministratorState, 'finance.view'), false);
+assert.equal(hasEffectiveCapability(teamOnlyAdministratorState, 'finance.create_drafts'), false);
+
 const secretaryFinanceState = state(['secretária'], [...minimum, 'finance.review']);
 assert.equal(getFinanceEntryProfile(secretaryFinanceState).canFinance, true);
 assert.equal(getFinanceEntryProfile(secretaryFinanceState).countOnly, false);
