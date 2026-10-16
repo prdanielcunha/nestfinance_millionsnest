@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue, type DocumentReference, type Firestore } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountCaptureOwner } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isCountCaptureMaterialHidden, isValidCountCaptureId, isValidCountCaptureSha256, type CountCaptureRegion } from '../../../shared/finance/countCapture.js';
@@ -77,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const regions = validateCountCaptureDenominationRegionInputs(rawRegions);
     verifyRegionBytes(regions);
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const captureRef = entityRef.collection('countCaptures').doc(captureId);
     const preflight = await captureRef.get();
@@ -97,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [captureDoc, sessionDoc, idemDoc] = await Promise.all([transaction.get(captureRef), transaction.get(canonical.sessionRef), transaction.get(idempotencyRef)]);
       if (!captureDoc.exists || !sessionDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const capture = captureDoc.data() || {};
+      assertCountCaptureOwner(sessionList, capture, uid);
       const session = sessionDoc.data() || {};
       if (capture.organizationId !== organizationId || capture.financeEntityId !== financeEntityId || session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       assertCaptureMatchesCanonical(capture, canonical);
@@ -130,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [captureDoc, sessionDoc, idemDoc] = await Promise.all([transaction.get(captureRef), transaction.get(canonical.sessionRef), transaction.get(idempotencyRef)]);
       if (!captureDoc.exists || !sessionDoc.exists || !idemDoc.exists) throw new Error('COUNT_CAPTURE_NOT_FOUND');
       const capture = captureDoc.data() || {};
+      assertCountCaptureOwner(sessionList, capture, uid);
       const session = sessionDoc.data() || {};
       const idem = idemDoc.data() || {};
       if (idem.status !== 'in_progress' || idem.payloadHash !== payloadHash) throw new Error('FINANCE_IDEMPOTENCY_CONFLICT');
