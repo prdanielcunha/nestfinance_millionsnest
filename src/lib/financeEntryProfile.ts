@@ -1,5 +1,6 @@
 import type { EcosystemAccessState } from '../types/access';
 import { hasEffectiveCapability } from './permissions';
+import { explicitCountOnlyGrant, hasExplicitCountResponsibility } from '../../shared/finance/countResponsibility.js';
 
 export type FinanceEntryProfile = {
   canCount: boolean;
@@ -21,6 +22,8 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
   const empty = { canCount: false, canFinance: false, canAccountant: false, countOnly: false,
     financeOnly: false, accountantOnly: false, roleBasis: 'capability_fallback' as const };
   if (!access) return empty;
+  const countGrant = explicitCountOnlyGrant(access.capabilities);
+  const explicitCount = hasExplicitCountResponsibility(access.capabilities);
   const roles = rolesOf(access);
   const roleIs = (...words: string[]) => roles.some(role => words.some(word => role.includes(word)));
   const isAdmin = access.isGlobalAccess ||
@@ -35,13 +38,13 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
   const hasTreasuryPowers = hasEffectiveCapability(access, 'finance.review') ||
     hasEffectiveCapability(access, 'finance.approve_for_posting') ||
     hasEffectiveCapability(access, 'finance.post_transactions');
-  const canCount = canView && canDraft && (countRole || isAdmin || (!treasuryRole && !accountantRole));
-  const explicitlyCountOnly = countRole && !treasuryRole && !accountantRole && !isAdmin && !hasTreasuryPowers;
+  const canCount = canView && canDraft && (explicitCount || countRole || isAdmin || (!treasuryRole && !accountantRole));
+  const explicitlyCountOnly = countGrant === true || (countRole && !treasuryRole && !accountantRole && !isAdmin && !hasTreasuryPowers);
   // create_drafts is shared by Count and transactions. Do not mistake this
   // capability alone for a financial-operations role if Count is explicitly assigned.
   const canFinance = canView && !explicitlyCountOnly && (isAdmin || treasuryRole ||
     hasTreasuryPowers || (canDraft && !countRole && !accountantRole));
-  const canAccountant = canView && (accountantRole || isAdmin || hasEffectiveCapability(access, 'finance.accountant.view_exports'));
+  const canAccountant = canView && !explicitlyCountOnly && (accountantRole || isAdmin || hasEffectiveCapability(access, 'finance.accountant.view_exports'));
   const accountantOnly = accountantRole && !isAdmin && !countRole && !treasuryRole &&
     !hasTreasuryPowers && !canDraft && canView;
   return {
@@ -51,6 +54,6 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
     countOnly: canCount && !canFinance && !canAccountant,
     financeOnly: canFinance && !canCount && !canAccountant,
     accountantOnly,
-    roleBasis: countRole || treasuryRole || accountantRole || isAdmin ? 'explicit' : 'capability_fallback',
+    roleBasis: explicitCount || countRole || treasuryRole || accountantRole || isAdmin ? 'explicit' : 'capability_fallback',
   };
 }
