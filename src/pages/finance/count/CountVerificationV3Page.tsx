@@ -9,7 +9,8 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countV3Service, COUNT_V3_UI_ENABLED, type CountV3Session } from '@/src/services/countV3Service';
-import type { CountEntryDraft, CountEntryType } from '../../../../shared/finance/count.js';
+import type { ContributionReceiptMethod } from '../../../../shared/finance/contributionBreakdown.js';
+import type { CountV3ClassifiedReceipt } from '../../../../shared/finance/countV3PurposeReceipt.js';
 
 const WORDS = {
   PT: {
@@ -37,7 +38,13 @@ const WORDS = {
     tithe: 'Dízimos (R$)',
     offering: 'Ofertas (R$)',
     other: 'Outras contribuições (R$)',
-    pix: 'PIX (R$)',
+    methodTitle: 'Como a contribuição foi recebida?',
+    methodHint: 'Escolha como foi recebido, depois separe dízimos, ofertas e outras contribuições.',
+    method_cash: 'Dinheiro', method_pix: 'PIX', method_card: 'Cartão',
+    method_bank_transfer: 'Transferência bancária', method_other: 'Outra forma',
+    classificationHint: 'PIX é a forma de recebimento, não o tipo da contribuição.',
+    controlTotal: 'Total anotado no papel (opcional)',
+    controlTotalHint: 'Se preenchido, deve coincidir exatamente com a soma informada.',
     submit: 'Salvar minha conferência',
     pending: 'Aguardando outras conferências',
     matched: 'Conferências coincidentes',
@@ -65,7 +72,14 @@ const WORDS = {
     independent: 'Independent count', assisted: 'Record someone else’s count',
     assistedHelp: 'For someone who counted on paper or has no account. This does not count as a second independent check.',
     name: 'Name of physical counter', tithe: 'Tithes (BRL)', offering: 'Offerings (BRL)',
-    other: 'Other contributions (BRL)', pix: 'PIX (BRL)', submit: 'Save my count',
+    other: 'Other contributions (BRL)', submit: 'Save my count',
+    methodTitle: 'How was the contribution received?',
+    methodHint: 'Choose the receipt method, then separate tithes, offerings and other contributions.',
+    method_cash: 'Cash', method_pix: 'PIX', method_card: 'Card',
+    method_bank_transfer: 'Bank transfer', method_other: 'Other method',
+    classificationHint: 'PIX is a receipt method, not a contribution purpose.',
+    controlTotal: 'Written control total (optional)',
+    controlTotalHint: 'If filled, it must equal the entered total.',
     pending: 'Awaiting other verifications', matched: 'Counts match',
     divergent: 'Count difference — needs review', treasury: 'Single verification — financial review required',
     statusTip: 'Counting never automatically posts income or changes balances. The finance team handles the next step.',
@@ -87,7 +101,14 @@ const WORDS = {
     independent: 'Conteo independiente', assisted: 'Registrar el conteo de otra persona',
     assistedHelp: 'Para alguien que contó en papel o no tiene cuenta. No equivale a una segunda verificación independiente.',
     name: 'Nombre de quien contó', tithe: 'Diezmos (BRL)', offering: 'Ofrendas (BRL)',
-    other: 'Otras contribuciones (BRL)', pix: 'PIX (BRL)', submit: 'Guardar mi conteo',
+    other: 'Otras contribuciones (BRL)', submit: 'Guardar mi conteo',
+    methodTitle: '¿Cómo se recibió la contribución?',
+    methodHint: 'Seleccione la forma y separe diezmos, ofrendas y otras contribuciones.',
+    method_cash: 'Efectivo', method_pix: 'PIX', method_card: 'Tarjeta',
+    method_bank_transfer: 'Transferencia bancaria', method_other: 'Otra forma',
+    classificationHint: 'PIX es la forma de recepción, no el destino de la contribución.',
+    controlTotal: 'Total anotado en papel (opcional)',
+    controlTotalHint: 'Si se informa, debe coincidir exactamente con lo registrado.',
     pending: 'Esperando otras verificaciones', matched: 'Conteos coincidentes',
     divergent: 'Diferencia detectada — requiere revisión', treasury: 'Conferencia única — revisión financiera obligatoria',
     statusTip: 'El conteo no registra ingresos ni cambia saldos automáticamente. Finanzas hará el próximo paso.',
@@ -101,26 +122,30 @@ const WORDS = {
   },
 } as const;
 
-const TYPES: CountEntryType[] = ['tithe', 'offering', 'other', 'pix'];
+const PURPOSES = ['tithe', 'offering', 'other'] as const;
+const METHODS: ContributionReceiptMethod[] = ['cash', 'pix', 'card', 'bank_transfer', 'other'];
+type Purpose = typeof PURPOSES[number];
 
-function cents(raw: string): number | null {
+function amountToCents(raw: string): number | null {
   const cleaned = raw.trim().replace(',', '.');
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  if (!/^\\d+(\\.\\d{1,2})?$/.test(cleaned)) return null;
   const number = Number(cleaned);
   if (!Number.isFinite(number) || number > 100000000) return null;
   return Math.round(number * 100);
 }
 
-function makeEntries(raw: Record<CountEntryType, string>): CountEntryDraft[] | null {
-  const entries: CountEntryDraft[] = [];
-  for (const type of TYPES) {
-    if (!raw[type].trim()) continue;
-    const amount = cents(raw[type]);
-    if (amount === null) return null;
-    // A deliberately entered zero is valid evidence, not the same as blank.
-    entries.push({ type, method: 'total', totalCents: amount });
+function makeClassifiedLines(raw: Record<string,string>): CountV3ClassifiedReceipt[] | null {
+  const lines: CountV3ClassifiedReceipt[] = [];
+  for (const method of METHODS) {
+    for (const purpose of PURPOSES) {
+      const value = raw[`${method}:${purpose}`] || '';
+      if (!value.trim()) continue;
+      const amount = amountToCents(value);
+      if (amount === null) return null;
+      lines.push({ purpose, receiptMethod: method, amountCents: amount, classificationSource: 'explicit' });
+    }
   }
-  return entries.length ? entries : null;
+  return lines.length ? lines : null;
 }
 
 function CountVerificationBody() {
@@ -144,7 +169,9 @@ function CountVerificationBody() {
   });
   const [joinCode, setJoinCode] = useState('');
   const [invite, setInvite] = useState<{sessionId:string;code:string}|null>(null);
-  const [values, setValues] = useState<Record<CountEntryType,string>>({ tithe:'', offering:'', other:'', pix:'' });
+  const [values, setValues] = useState<Record<string,string>>({});
+  const [selectedMethod, setSelectedMethod] = useState<ContributionReceiptMethod>('cash');
+  const [controlTotal, setControlTotal] = useState('');
   const [mode, setMode] = useState<'independent'|'assisted'>('independent');
   const [physicalCounterLabel, setPhysicalCounterLabel] = useState('');
   const [busy, setBusy] = useState(false);
@@ -236,19 +263,24 @@ function CountVerificationBody() {
 
   const submit = async () => {
     if (!session || !canCreate || busy || session.status !== 'pending') return;
-    const entries = makeEntries(values);
-    if (!entries) { setError(w.invalid); return; }
+    const lines = makeClassifiedLines(values);
+    if (!lines) { setError(w.invalid); return; }
+    const controlTotalCents = controlTotal.trim() ? amountToCents(controlTotal) : null;
+    if (controlTotal.trim() && controlTotalCents === null) { setError(w.invalid); return; }
+    const sum = lines.reduce((total, line) => total + line.amountCents, 0);
+    if (controlTotalCents !== null && sum !== controlTotalCents) { setError(w.invalid); return; }
     if (mode === 'assisted' && !physicalCounterLabel.trim()) { setError(w.invalid); return; }
     setBusy(true); setError(''); setMessage('');
     try {
-      const key = retryKey('submit', JSON.stringify([organizationId, entityId, session.id, session.version, mode, physicalCounterLabel, entries]));
+      const key = retryKey('submit', JSON.stringify([organizationId, entityId, session.id, session.version, mode, physicalCounterLabel, lines, controlTotalCents]));
       await countV3Service.submit(organizationId, entityId, {
         countSessionId: session.id, expectedVersion: session.version,
-        mode, physicalCounterLabel, entries,
+        mode, physicalCounterLabel, lines, controlTotalCents,
       }, key);
       delete retries.current.submit;
       setMessage(w.saved);
-      setValues({ tithe:'', offering:'', other:'', pix:'' });
+      setValues({});
+      setControlTotal('');
       await refresh();
     } catch (e) { setError(messageFor(e)); }
     finally { setBusy(false); }
@@ -340,16 +372,45 @@ function CountVerificationBody() {
                     <input value={physicalCounterLabel} onChange={event => setPhysicalCounterLabel(event.target.value)}
                       maxLength={120} className="mt-2 w-full rounded-xl border border-border-subtle bg-surface-base p-3" />
                   </label>}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {TYPES.map(type => (
-                      <label key={type} className="block text-sm font-medium text-text-primary">
-                        {w[type]}
-                        <input inputMode="decimal" placeholder="0,00" value={values[type]}
-                          onChange={event => setValues(prev => ({...prev,[type]:event.target.value}))}
-                          className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base tabular-nums text-text-primary" />
+                  <fieldset>
+                    <legend className="text-sm font-semibold text-text-primary">{w.methodTitle}</legend>
+                    <p className="mt-1 text-sm leading-relaxed text-text-muted">{w.methodHint}</p>
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-2" aria-label={w.methodTitle}>
+                      {METHODS.map(method => {
+                        const selected = selectedMethod === method;
+                        const filled = PURPOSES.some(purpose => (values[`${method}:${purpose}`] || '').trim());
+                        return <button key={method} type="button" aria-pressed={selected}
+                          onClick={() => setSelectedMethod(method)}
+                          className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-semibold ${selected
+                            ? 'border-accent-primary bg-accent-primary text-white'
+                            : 'border-border-subtle bg-surface-secondary text-text-primary'}`}>
+                          {w[`method_${method}` as keyof typeof w]}{filled ? ' ✓' : ''}
+                        </button>;
+                      })}
+                    </div>
+                    <p className="mt-2 text-xs text-text-muted">{w.classificationHint}</p>
+                  </fieldset>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {PURPOSES.map((purpose: Purpose) => (
+                      <label key={purpose} className="block text-sm font-semibold text-text-primary">
+                        {w[purpose]}
+                        <input inputMode="decimal" placeholder="0,00"
+                          value={values[`${selectedMethod}:${purpose}`] || ''}
+                          onChange={event => setValues(prev => ({
+                            ...prev, [`${selectedMethod}:${purpose}`]: event.target.value,
+                          }))}
+                          className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base tabular-nums text-text-primary"/>
                       </label>
                     ))}
                   </div>
+                  <label className="block text-sm font-medium text-text-primary">
+                    {w.controlTotal}
+                    <input inputMode="decimal" placeholder="0,00" value={controlTotal}
+                      onChange={event => setControlTotal(event.target.value)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base tabular-nums text-text-primary"/>
+                    <span className="mt-2 block text-xs font-normal text-text-muted">{w.controlTotalHint}</span>
+                  </label>
+
                   {mode === 'independent' && session.ownConfirmations.some(c => c.mode === 'independent') && (
                     <p className="text-sm font-medium text-semantic-warning">{w.already}</p>
                   )}
