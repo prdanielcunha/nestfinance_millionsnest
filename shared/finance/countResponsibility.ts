@@ -31,3 +31,16 @@ export function hasExplicitCountResponsibility(capabilities: unknown): boolean {
     (value) => value === 'finance.count.execute' || value === 'finance.count.view',
   );
 }
+
+/** Team administration is not financial administration. */
+export function explicitTeamOnlyGrant(capabilities: unknown): boolean {
+  const grants = Array.isArray(capabilities)
+    ? capabilities.filter((value): value is string => typeof value === 'string')
+    : [];
+  return grants.includes('organization.manage_team') &&
+    !grants.some((grant) =>
+      grant === '*' ||
+      grant === 'organization.manage_entities' ||
+      grant.startsWith('finance.')
+    );
+}
