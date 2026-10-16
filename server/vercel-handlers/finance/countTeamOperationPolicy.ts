@@ -35,7 +35,9 @@ export function isExplicitCountOnlySession(session: CanonicalFinanceSession): bo
   if (permissions.some(p => typeof p === 'string' && (
     p === '*' || p === 'finance.manage' || p === 'finance.review' ||
     p === 'finance.approve_for_posting' || p === 'finance.post_transactions' ||
-    p === 'finance.accountant.view_exports' || p === 'organization.manage_entities'
+    p === 'finance.accountant.view_exports' || p === 'organization.manage_entities' ||
+    p === 'finance.accounts.manage' || p === 'finance.accounts.repair' ||
+    p === 'finance.funds.manage' || p === 'finance.categories.manage'
   ))) return false;
   return true;
 }
