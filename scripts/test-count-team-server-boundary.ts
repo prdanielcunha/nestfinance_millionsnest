@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation, isExplicitCountOnlySession } from '../server/vercel-handlers/finance/countTeamOperationPolicy.js';
 import { hasEffectiveCapability } from '../server/vercel-handlers/finance/accessHelpers.js';
+import { assertActiveRecountOperator, assertCountFirstStageOwner, assertCountSessionParticipant, canReadCountSession, isCountSessionParticipant } from '../server/vercel-handlers/finance/countSessionParticipantPolicy.js';
 
 const count = { granted: true, organizationRole: 'member', roles: ['count_team'], permissions: ['finance.view', 'finance.create_drafts'] };
 const volunteer = { ...count, roles: ['voluntário'] };
@@ -141,6 +142,52 @@ for (const operation of [
 for (const session of [noncount, dualRole, elevated, scopedCatalogManager, global, owner, noSession]) {
   assert.doesNotThrow(() => assertCountTeamReadBoundary(session, 'transactions-list'),
     'Genuine finance authority must retain access; canonical capability checks still apply');
+}
+
+
+const firstCounterSession = {
+  createdByUid: 'first',
+  countA: { enteredByUid: 'first', countedByUid: 'first' },
+  secondCountAssignedToUid: 'second',
+  countB: { enteredByUid: 'second' },
+  activeRecount: { startedByUid: 'third' },
+  recountAttempts: [{ enteredByUid: 'fourth' }],
+};
+for (const uid of ['first', 'second', 'third', 'fourth']) {
+  assert.equal(isCountSessionParticipant(firstCounterSession, uid), true);
+  assert.equal(canReadCountSession(churchTreasurerCountOnly, firstCounterSession, uid), true);
+  assert.doesNotThrow(() => assertCountSessionParticipant(churchTreasurerCountOnly, firstCounterSession, uid));
+}
+for (const uid of ['', 'unrelated', undefined]) {
+  assert.equal(isCountSessionParticipant(firstCounterSession, uid), false);
+  assert.equal(canReadCountSession(churchTreasurerCountOnly, firstCounterSession, uid), false);
+  assert.throws(() => assertCountSessionParticipant(churchTreasurerCountOnly, firstCounterSession, uid),
+    (error: unknown) => (error as {status:number}).status === 403);
+}
+assert.equal(canReadCountSession(mixedResponsibilities, firstCounterSession, 'unrelated'), true,
+  'Finance personnel retain existing entity-scoped privileges');
+assert.doesNotThrow(() => assertCountFirstStageOwner(churchTreasurerCountOnly, firstCounterSession, 'first'));
+assert.throws(() => assertCountFirstStageOwner(churchTreasurerCountOnly, firstCounterSession, 'second'),
+  (error: unknown) => (error as {status:number}).status === 403,
+  'Second counter must not alter the first counter draft');
+assert.throws(() => assertCountFirstStageOwner(churchTreasurerCountOnly, firstCounterSession, 'unrelated'),
+  (error: unknown) => (error as {status:number}).status === 403);
+assert.doesNotThrow(() => assertActiveRecountOperator(churchTreasurerCountOnly, firstCounterSession, 'third'));
+assert.throws(() => assertActiveRecountOperator(churchTreasurerCountOnly, firstCounterSession, 'first'),
+  (error: unknown) => (error as {status:number}).status === 403);
+assert.doesNotThrow(() => assertActiveRecountOperator(mixedResponsibilities, firstCounterSession, 'unrelated'));
+
+for (const [file, assertion] of [
+  ['countSessionsDetail.ts', 'assertCountSessionParticipant(sessionList, data, uid)'],
+  ['countSessionsList.ts', 'canReadCountSession(sessionList, doc.data() || {}, uid)'],
+  ['countSessionsSaveFirstCount.ts', 'assertCountFirstStageOwner(sessionList, session, uid)'],
+  ['countSessionsDiscard.ts', 'assertCountFirstStageOwner(sessionList, session, uid)'],
+  ['countSessionsStartSecondCount.ts', 'assertCountFirstStageOwner(sessionList, session, uid)'],
+  ['countSessionsStartRecount.ts', 'assertCountSessionParticipant(sessionList, session, uid)'],
+  ['countSessionsSubmitRecount.ts', 'assertActiveRecountOperator(sessionList, session, uid)'],
+] as const) {
+  const source = readFileSync('server/vercel-handlers/finance/' + file, 'utf8');
+  assert.ok(source.includes(assertion), file + ' must apply verified per-session permission in handler');
 }
 
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
