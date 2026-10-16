@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
     const hashedCode = countV3InviteHash(normalizeCountV3JoinCode(joinCode));
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.count.execute');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const inviteRef = entityRef.collection('countVerificationInvites').doc(hashedCode);
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_v3_join', idempotencyKey);
