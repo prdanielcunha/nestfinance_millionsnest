@@ -236,6 +236,18 @@ function CountVerificationDraftsBody() {
             </div>
             <p className="text-xl font-semibold tabular-nums text-text-primary">{money(line.amountCents)}</p>
           </div>
+          {line.receiptMethod==='card' && (
+            <label className="block text-sm font-semibold text-text-primary">
+              {w.cardKind}
+              <select value={chosen.cardSettlementMethod}
+                onChange={event=>setChoice(line.lineKey,'cardSettlementMethod',event.target.value)}
+                className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
+                <option value="">{w.cardPrompt}</option>
+                <option value="debit_card">{w.debit}</option>
+                <option value="credit_card">{w.credit}</option>
+              </select>
+            </label>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-text-primary">
               {w.account}
@@ -260,18 +272,6 @@ function CountVerificationDraftsBody() {
               </select>
             </label>
           </div>
-          {line.receiptMethod==='card' && (
-            <label className="block text-sm font-semibold text-text-primary">
-              {w.cardKind}
-              <select value={chosen.cardSettlementMethod}
-                onChange={event=>setChoice(line.lineKey,'cardSettlementMethod',event.target.value)}
-                className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary">
-                <option value="">{w.cardPrompt}</option>
-                <option value="debit_card">{w.debit}</option>
-                <option value="credit_card">{w.credit}</option>
-              </select>
-            </label>
-          )}
           <label className="block text-sm font-semibold text-text-primary">
             {w.fund}
             <select value={chosen.fundId} onChange={e=>setChoice(line.lineKey,'fundId',e.target.value)}
