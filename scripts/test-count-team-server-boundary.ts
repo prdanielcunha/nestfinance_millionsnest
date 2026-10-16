@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation, isExplicitCountOnlySession } from '../server/vercel-handlers/finance/countTeamOperationPolicy.js';
+import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation, isExplicitCountOnlySession } from '../server/vercel-handlers/finance/countTeamOperationPolicy.js';
+import { hasEffectiveCapability } from '../server/vercel-handlers/finance/accessHelpers.js';
 
 const count = { granted: true, organizationRole: 'member', roles: ['count_team'], permissions: ['finance.view', 'finance.create_drafts'] };
 const volunteer = { ...count, roles: ['voluntário'] };
@@ -42,6 +43,55 @@ for (const operation of [
 assert.doesNotThrow(() => assertCountTeamDraftBoundary(dualRole, 'transactions-create-draft'));
 assert.doesNotThrow(() => assertCountTeamDraftBoundary(owner, 'transactions-create-draft'));
 
+// A church title does not convey financial capabilities. Explicit responsibility
+// is sourced from the verified Hub membership; the legacy generic grants are
+// supported until dedicated count endpoints replace them.
+const churchTreasurerCountOnly = {
+  ...count, roles: ['tesoureiro'],
+  permissions: [...count.permissions, 'finance.count.execute'],
+};
+const teamAdministratorCountOnly = {
+  ...count, organizationRole: 'admin', roles: ['administrador de equipe'],
+  permissions: [...count.permissions, 'finance.count.execute', 'organization.manage_team'],
+};
+const churchSecretaryFinance = {
+  ...count, roles: ['secretária'],
+  permissions: [...count.permissions, 'finance.review'],
+};
+const mixedResponsibilities = {
+  ...churchTreasurerCountOnly,
+  permissions: [...churchTreasurerCountOnly.permissions, 'finance.review'],
+};
+
+for (const person of [churchTreasurerCountOnly, teamAdministratorCountOnly]) {
+  assert.equal(isExplicitCountOnlySession(person), true);
+  assert.equal(hasEffectiveCapability(person, 'finance.review'), false);
+  assert.equal(hasEffectiveCapability(person, 'finance.accounts.manage'), false);
+  assert.throws(() => assertCountTeamCapabilityBoundary(person, 'finance.review'),
+    (error: unknown) => (error as {status: number}).status === 403);
+  assert.throws(() => assertCountTeamCapabilityBoundary(person, 'finance.manage'),
+    (error: unknown) => (error as {status: number}).status === 403);
+  assert.doesNotThrow(() => assertCountTeamCapabilityBoundary(person, 'finance.view'));
+  assert.doesNotThrow(() => assertCountTeamCapabilityBoundary(person, 'finance.create_drafts'));
+  assert.throws(() => assertCountTeamReadBoundary(person, 'transactions-summary'),
+    (error: unknown) => (error as {status: number}).status === 403);
+  assert.throws(() => assertCountTeamDraftBoundary(person, 'transactions-create-draft'),
+    (error: unknown) => (error as {status: number}).status === 403);
+}
+assert.equal(isExplicitCountOnlySession(churchSecretaryFinance), false);
+assert.equal(isExplicitCountOnlySession(mixedResponsibilities), false);
+assert.equal(hasEffectiveCapability(mixedResponsibilities, 'finance.review'), true);
+
+// Role classification has no fixed team size: the same signed-invariant policy
+// applies to 1, 2, 5 or 20 workers, with no records or identities shared.
+for (const size of [1, 2, 5, 20]) {
+  const actors = Array.from({length: size}, (_, i) => ({
+    ...churchTreasurerCountOnly, actorId: `synthetic_${i}`,
+  }));
+  assert.equal(actors.length, size);
+  for (const actor of actors) assert.equal(isExplicitCountOnlySession(actor), true);
+}
+
 const readableCountResources = [
   'count-sessions-list',
   'count-sessions-detail',
@@ -81,9 +131,10 @@ for (const readFile of ['accountsList.ts', 'fundsList.ts', 'categoriesList.ts'])
 }
 
 assert.ok(gateway.includes('__nestFinanceResolvedGatewayOperation') && gateway.indexOf('__nestFinanceResolvedGatewayOperation') < gateway.indexOf('delete req.query.operation'), 'operation must be marked by gateway before deleting user query');
+assert.ok(resolver.includes('assertCountTeamCapabilityBoundary(sessionList, requiredCapability)'), 'verified Count-only responsibility must guard every capability');
 assert.ok(resolver.includes("if (requiredCapability === 'finance.create_drafts')") && resolver.includes('assertCountTeamDraftBoundary(sessionList'), 'guard must run on server after verified session');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamDraftBoundary(sessionList'), 'never trust body/client roles');
 assert.ok(resolver.includes("requiredCapability === 'finance.view'") && resolver.includes('assertCountTeamReadBoundary(sessionList, gatewayOperation)'), 'server read path must apply Count role restriction');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamReadBoundary(sessionList'), 'read gate must run after verified canonical session');
 
-console.log('✅ Count-only treasury read and mutation restrictions plus legacy compatibility passed');
+console.log('✅ Count-only titles, canonical responsibility, elevated capability denial and legacy access passed');
