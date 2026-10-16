@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const normalizedLabel = validateCountServiceLabel(serviceLabel);
     const normalizedDate = validateCountServiceDate(serviceDate);
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.count.execute');
     const policySnapshot = countV3PolicyFromEntity(context.financeEntity);
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_v3_create', idempotencyKey);

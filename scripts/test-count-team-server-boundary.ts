@@ -250,7 +250,7 @@ for (const readFile of ['accountsList.ts', 'fundsList.ts', 'categoriesList.ts'])
 assert.ok(gateway.includes('__nestFinanceResolvedGatewayOperation') && gateway.indexOf('__nestFinanceResolvedGatewayOperation') < gateway.indexOf('delete req.query.operation'), 'operation must be marked by gateway before deleting user query');
 assert.ok(resolver.includes('explicitTeamOnlyGrant(sessionList.permissions)'), 'gateway must guard team-only admins after canonical session');
 assert.ok(resolver.includes('assertCountTeamCapabilityBoundary(sessionList, requiredCapability)'), 'verified Count-only responsibility must guard every capability');
-assert.ok(resolver.includes("if (requiredCapability === 'finance.create_drafts')") && resolver.includes('assertCountTeamDraftBoundary(sessionList'), 'guard must run on server after verified session');
+assert.ok(resolver.includes("if (requiredCapability === 'finance.create_drafts' || requiredCapability === 'finance.count.execute')") && resolver.includes('assertCountTeamDraftBoundary(sessionList'), 'guard must run on server after verified session');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamDraftBoundary(sessionList'), 'never trust body/client roles');
 assert.ok(resolver.includes("requiredCapability === 'finance.view'") && resolver.includes('assertCountTeamReadBoundary(sessionList, gatewayOperation)'), 'server read path must apply Count role restriction');
 assert.ok(resolver.indexOf('const sessionList = await resolveEcosystemSession') < resolver.indexOf('assertCountTeamReadBoundary(sessionList'), 'read gate must run after verified canonical session');

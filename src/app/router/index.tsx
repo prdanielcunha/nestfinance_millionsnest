@@ -51,6 +51,7 @@ const TransactionReviewDetailPage = lazy(() => import('@/src/pages/finance/trans
 
 const VIEW_FINANCE = ['finance.view'] as const;
 const CREATE_FINANCE = ['finance.create_drafts'] as const;
+const COUNT_V3_READ = ['finance.count.view', 'finance.count.execute'] as const;
 const REVIEW_FINANCE = ['finance.review', 'finance.approve_for_posting'] as const;
 const INBOX_FINANCE = ['finance.view', 'finance.create_drafts', 'finance.review'] as const;
 const MANAGE_FINANCE = ['finance.manage', 'organization.manage_entities'] as const;
@@ -117,8 +118,8 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.financeSettingsCategories, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.count, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countJoin, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountJoinPage /></Suspense>, CREATE_FINANCE) },
-          { path: APP_ROUTES.countVerificationV3, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, VIEW_FINANCE) },
-          { path: APP_ROUTES.countVerificationV3Session, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.countVerificationV3, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, COUNT_V3_READ) },
+          { path: APP_ROUTES.countVerificationV3Session, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, COUNT_V3_READ) },
           { path: APP_ROUTES.countProposal, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountProposalPage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countTraining, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountTrainingPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countVoice, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVoiceQuickPage /></Suspense>, CREATE_FINANCE) },

@@ -59,7 +59,11 @@ assert.deepEqual(peerView.ownConfirmations, [], 'Blind second counter cannot see
 assert.equal(peerView.confirmedTotalCents, null);
 const firstView = serializeV3Session(participantSession, 'first', false);
 assert.equal(firstView.ownConfirmations.length, 1);
-assert.equal(serializeV3Session(participantSession, 'second', true).ownConfirmations.length, 1);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'first', false).canManageInvite, true);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'second', false).canManageInvite, false);
+assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first', status: 'matched' }, 'first', false).canManageInvite, false);
+assert.equal(serializeV3Session(participantSession, 'second', true).ownConfirmations.length, 0,
+  'A treasury-role participant must still count blind, not read another operator material');
 
 const onlyCount = { granted: true, organizationRole: 'member',
   permissions: ['finance.count.execute', 'finance.view', 'finance.create_drafts'] };
@@ -75,20 +79,49 @@ for (const name of ['detail', 'list']) {
 }
 assert.throws(() => assertCountTeamReadBoundary(onlyCount, 'accounts-list'));
 
+// A participant does not require the shared finance.view/create_drafts grants
+// to access Count v3. They are not treasury permissions and never authorize posting.
+const countExecuteOnly = { granted: true, organizationRole: 'member',
+  permissions: ['finance.count.execute'] };
+const countViewOnly = { granted: true, organizationRole: 'member',
+  permissions: ['finance.count.view'] };
+const deniedTeamAdmin = { granted: true, organizationRole: 'admin',
+  permissions: ['organization.manage_team'] };
+const { hasFinanceCapability } = await import('../server/vercel-handlers/finance/accessHelpers.js');
+for (const item of [countExecuteOnly, countViewOnly]) {
+  assert.equal(hasFinanceCapability(item, 'finance.count.view'), true);
+  assert.equal(hasFinanceCapability(item, 'finance.view'), false);
+  assert.equal(hasFinanceCapability(item, 'finance.create_drafts'), false);
+  assert.equal(hasFinanceCapability(item, 'finance.approve_for_posting'), false);
+}
+assert.equal(hasFinanceCapability(countExecuteOnly, 'finance.count.execute'), true);
+assert.equal(hasFinanceCapability(countViewOnly, 'finance.count.execute'), false);
+assert.equal(hasFinanceCapability(deniedTeamAdmin, 'finance.count.execute'), false);
+assert.doesNotThrow(() => assertCountTeamDraftBoundary(countExecuteOnly, 'count-verifications-submit'));
+assert.doesNotThrow(() => assertCountTeamReadBoundary(countViewOnly, 'count-verifications-detail'));
+
+
 const gateway = readFileSync('api/finance-gateway.ts', 'utf8');
 for (const [operation, filename] of [
   ['create', 'countVerificationsCreate.ts'], ['join', 'countVerificationsJoin.ts'],
-  ['submit', 'countVerificationsSubmit.ts'], ['detail', 'countVerificationsDetail.ts'],
+  ['submit', 'countVerificationsSubmit.ts'], ['refresh-invite', 'countVerificationsRefreshInvite.ts'], ['detail', 'countVerificationsDetail.ts'],
   ['list', 'countVerificationsList.ts'],
 ]) {
   const content = readFileSync('server/vercel-handlers/finance/' + filename, 'utf8');
   assert.ok(gateway.includes(`case 'count-verifications-${operation}':`));
   assert.ok(content.includes('assertCountV3Enabled()'), filename + ' must fail closed by default');
   assert.ok(content.includes('resolveFinanceRequestContext('), filename + ' must use canonical auth');
+  const canonicalGrant = ['create','join','submit','refresh-invite'].includes(operation) ? 'finance.count.execute' : 'finance.count.view';
+  assert.ok(content.includes(`resolveFinanceRequestContext(req, '${canonicalGrant}')`),
+    filename + ' must require Count-specific access, not general finance drafts');
   assert.ok(content.includes("Cache-Control', 'private, no-store"), filename + ' must disable response cache');
 }
 const create = readFileSync('server/vercel-handlers/finance/countVerificationsCreate.ts', 'utf8');
 const join = readFileSync('server/vercel-handlers/finance/countVerificationsJoin.ts', 'utf8');
+const inviteRefresh = readFileSync('server/vercel-handlers/finance/countVerificationsRefreshInvite.ts', 'utf8');
+assert.ok(inviteRefresh.includes('session.createdByUid !== uid'), 'Invite replacement must be creator-only');
+assert.ok(inviteRefresh.includes('transaction.delete('), 'Prior invite must be revoked transactionally');
+assert.ok(inviteRefresh.includes("resolveFinanceRequestContext(req, 'finance.count.execute')"), 'Only Count execution can refresh invitations');
 const submit = readFileSync('server/vercel-handlers/finance/countVerificationsSubmit.ts', 'utf8');
 assert.ok(create.includes('countV3PolicyFromEntity(context.financeEntity)'), 'Quorum must derive from persisted entity policy');
 assert.ok(join.includes('participants.includes(uid)') && join.includes('transaction.update(sessionRef'),

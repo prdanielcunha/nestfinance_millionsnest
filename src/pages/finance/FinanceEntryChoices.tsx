@@ -2,6 +2,9 @@ import { ArrowDownLeft, ArrowUpRight, BookOpenCheck, ChevronRight, ClipboardChec
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import type { FinanceEntryProfile } from '@/src/lib/financeEntryProfile';
+import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import type { Language } from '@/src/contexts/LanguageContext';
 
 const COPY = {
@@ -43,6 +46,11 @@ const COPY = {
 export function FinanceEntryChoices({ language, profile }: { language: Language; profile: FinanceEntryProfile }) {
   const navigate = useNavigate();
   const copy = COPY[language];
+  const { accessState } = useAuth();
+  const canUseTeamCount = COUNT_V3_UI_ENABLED &&
+    (hasEffectiveCapability(accessState, 'finance.count.view') ||
+      hasEffectiveCapability(accessState, 'finance.count.execute'));
+  const countTarget = canUseTeamCount ? APP_ROUTES.countVerificationV3 : APP_ROUTES.count;
   if (!profile.canCount && !profile.canFinance && !profile.canAccountant) return null;
   return (
     <section className="nf-paper-surface rounded-2xl p-4 sm:p-6" aria-labelledby="finance-entry-title">
@@ -52,7 +60,7 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {profile.canCount ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.count)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#d6c7b3] bg-[#fffaf1] p-4 text-left hover:border-[#a27736]">
+          <button type="button" onClick={() => navigate(countTarget)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#d6c7b3] bg-[#fffaf1] p-4 text-left hover:border-[#a27736]">
             <ClipboardCheck className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.count}</span>

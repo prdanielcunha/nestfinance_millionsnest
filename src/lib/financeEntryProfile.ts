@@ -39,7 +39,12 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
   const hasTreasuryPowers = hasEffectiveCapability(access, 'finance.review') ||
     hasEffectiveCapability(access, 'finance.approve_for_posting') ||
     hasEffectiveCapability(access, 'finance.post_transactions');
-  const canCount = !teamOnly && canView && canDraft && (explicitCount || countRole || isAdmin || (!treasuryRole && !accountantRole));
+  const hasDedicatedCountAccess = explicitCount && (
+    hasEffectiveCapability(access, 'finance.count.execute') ||
+    hasEffectiveCapability(access, 'finance.count.view')
+  );
+  const canCount = !teamOnly && (hasDedicatedCountAccess ||
+    (canView && canDraft && (explicitCount || countRole || isAdmin || (!treasuryRole && !accountantRole))));
   const explicitlyCountOnly = countGrant === true || (countRole && !treasuryRole && !accountantRole && !isAdmin && !hasTreasuryPowers);
   // create_drafts is shared by Count and transactions. Do not mistake this
   // capability alone for a financial-operations role if Count is explicitly assigned.

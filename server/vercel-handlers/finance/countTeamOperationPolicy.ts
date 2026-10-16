@@ -86,7 +86,8 @@ export function assertCountTeamCapabilityBoundary(
   requiredCapability: string,
 ) {
   if (!isExplicitCountOnlySession(session)) return;
-  if (requiredCapability !== 'finance.view' && requiredCapability !== 'finance.create_drafts') {
+  if (requiredCapability !== 'finance.view' && requiredCapability !== 'finance.create_drafts' &&
+      requiredCapability !== 'finance.count.view' && requiredCapability !== 'finance.count.execute') {
     throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
   }
 }

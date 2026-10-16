@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (typeof financeEntityId !== 'string' || !financeEntityId || !v3IsValidSessionId(countSessionId)) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
-    const { db, uid, organizationId, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, sessionList } = await resolveFinanceRequestContext(req, 'finance.count.view');
     const doc = await db.collection('organizations').doc(organizationId)
       .collection('financeEntities').doc(financeEntityId)
       .collection('countVerificationSessions').doc(countSessionId).get();
