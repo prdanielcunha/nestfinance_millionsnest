@@ -315,8 +315,9 @@ export default function FinanceAccountsPage() {
           isOpen={!!editingAccount}
           account={editingAccount as any}
           onClose={() => setEditingAccount(null)}
-          onSuccess={(updatedAccount) => {
-            setAccounts(prev => prev.map(a => a.id === updatedAccount.id ? updatedAccount : a));
+          onSuccess={() => {
+            // Reload canonical server data rather than replacing the full row with a partial update DTO.
+            void fetchAccounts();
             setSuccessMsg('Conta atualizada.');
             setTimeout(() => setSuccessMsg(null), 3000);
           }}
