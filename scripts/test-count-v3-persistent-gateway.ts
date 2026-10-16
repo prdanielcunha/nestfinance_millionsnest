@@ -62,7 +62,8 @@ assert.equal(firstView.ownConfirmations.length, 1);
 assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'first', false).canManageInvite, true);
 assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first' }, 'second', false).canManageInvite, false);
 assert.equal(serializeV3Session({ ...participantSession, createdByUid: 'first', status: 'matched' }, 'first', false).canManageInvite, false);
-assert.equal(serializeV3Session(participantSession, 'second', true).ownConfirmations.length, 1);
+assert.equal(serializeV3Session(participantSession, 'second', true).ownConfirmations.length, 0,
+  'A treasury-role participant must still count blind, not read another operator material');
 
 const onlyCount = { granted: true, organizationRole: 'member',
   permissions: ['finance.count.execute', 'finance.view', 'finance.create_drafts'] };
