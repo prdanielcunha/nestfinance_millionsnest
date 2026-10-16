@@ -35,9 +35,8 @@ export function hasExplicitCountResponsibility(capabilities: unknown): boolean {
 
 /** Team administration is not financial administration. */
 export function explicitTeamOnlyGrant(capabilities: unknown): boolean {
-  const grants = Array.isArray(capabilities)
-    ? capabilities.filter((value): value is string => typeof value === 'string')
-    : [];
+  if (!Array.isArray(capabilities) || capabilities.some(value => typeof value !== 'string')) return false;
+  const grants: string[] = capabilities;
   return grants.includes('organization.manage_team') &&
     !grants.some((grant) =>
       grant === '*' ||
