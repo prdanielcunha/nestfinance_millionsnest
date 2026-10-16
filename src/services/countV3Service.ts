@@ -68,8 +68,8 @@ async function call<T>(
   return response.json() as Promise<T>;
 }
 
-function withMutationIds<T extends Record<string, unknown>>(body: T) {
-  return { ...body, idempotencyKey: token('idcountv3'), requestId: token('req') };
+function withMutationIds<T extends Record<string, unknown>>(body: T, idempotencyKey?: string) {
+  return { ...body, idempotencyKey: idempotencyKey || token('idcountv3'), requestId: token('req') };
 }
 
 export const countV3Service = {
@@ -77,14 +77,14 @@ export const countV3Service = {
     call<{items: CountV3Session[]}>(org, 'count-verifications-list', { financeEntityId: entity }),
   detail: (org: string, entity: string, id: string) =>
     call<{session: CountV3Session}>(org, 'count-verifications-detail', { financeEntityId: entity, countSessionId: id }),
-  create: (org: string, entity: string, label: string, date: string) =>
+  create: (org: string, entity: string, label: string, date: string, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;joinCode:string;expiresAt:string}>(
       org, 'count-verifications-create',
-      withMutationIds({ financeEntityId: entity, serviceLabel: label, serviceDate: date }),
+      withMutationIds({ financeEntityId: entity, serviceLabel: label, serviceDate: date }, idempotencyKey),
     ),
-  join: (org: string, entity: string, joinCode: string) =>
+  join: (org: string, entity: string, joinCode: string, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;alreadyJoined:boolean}>(
-      org, 'count-verifications-join', withMutationIds({ financeEntityId: entity, joinCode }),
+      org, 'count-verifications-join', withMutationIds({ financeEntityId: entity, joinCode }, idempotencyKey),
     ),
   submit: (org: string, entity: string, input: {
     countSessionId: string;
@@ -92,9 +92,9 @@ export const countV3Service = {
     mode: 'independent' | 'assisted';
     physicalCounterLabel?: string;
     entries: CountEntryDraft[];
-  }) =>
+  }, idempotencyKey?: string) =>
     call<{countSessionId:string;version:number;status:CountV3Status}>(
-      org, 'count-verifications-submit', withMutationIds({ financeEntityId: entity, ...input }),
+      org, 'count-verifications-submit', withMutationIds({ financeEntityId: entity, ...input }, idempotencyKey),
     ),
   isMutation: (operation: string) => MUTATIONS.has(operation),
 };
