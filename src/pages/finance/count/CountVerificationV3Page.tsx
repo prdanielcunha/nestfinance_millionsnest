@@ -150,6 +150,14 @@ function CountVerificationBody() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const requestEpoch = useRef(0);
+  const retries = useRef<Record<string,{fingerprint:string;key:string}>>({});
+  const retryKey = (kind: string, fingerprint: string) => {
+    if (retries.current[kind]?.fingerprint !== fingerprint) {
+      if (typeof crypto?.randomUUID !== 'function') throw new Error('COUNT_SECURE_RANDOM_UNAVAILABLE');
+      retries.current[kind] = { fingerprint, key: 'idcountv3_' + crypto.randomUUID() };
+    }
+    return retries.current[kind].key;
+  };
 
   const refresh = useCallback(async () => {
     if (!enabled || !organizationId || !entityId) return;
@@ -175,6 +183,7 @@ function CountVerificationBody() {
     setSession(null);
     setItems([]);
     setInvite(null);
+    retries.current = {};
     setMessage('');
     void refresh();
     return () => { requestEpoch.current++; };
@@ -189,7 +198,9 @@ function CountVerificationBody() {
     if (!canCreate || busy || !label.trim() || !date) return;
     setBusy(true); setError('');
     try {
-      const result = await countV3Service.create(organizationId, entityId, label.trim(), date);
+      const key = retryKey('create', JSON.stringify([organizationId, entityId, label.trim(), date]));
+      const result = await countV3Service.create(organizationId, entityId, label.trim(), date, key);
+      delete retries.current.create;
       setInvite({ sessionId: result.countSessionId, code: result.joinCode });
       await refresh();
     } catch (e) { setError(messageFor(e)); }
@@ -200,7 +211,9 @@ function CountVerificationBody() {
     if (!canCreate || busy || !joinCode.trim()) return;
     setBusy(true); setError('');
     try {
-      const result = await countV3Service.join(organizationId, entityId, joinCode);
+      const key = retryKey('join', JSON.stringify([organizationId, entityId, joinCode.trim().toUpperCase()]));
+      const result = await countV3Service.join(organizationId, entityId, joinCode, key);
+      delete retries.current.join;
       navigate(startPath + '/' + result.countSessionId);
     } catch (e) { setError(messageFor(e)); }
     finally { setBusy(false); }
@@ -213,10 +226,12 @@ function CountVerificationBody() {
     if (mode === 'assisted' && !physicalCounterLabel.trim()) { setError(w.invalid); return; }
     setBusy(true); setError(''); setMessage('');
     try {
+      const key = retryKey('submit', JSON.stringify([organizationId, entityId, session.id, session.version, mode, physicalCounterLabel, entries]));
       await countV3Service.submit(organizationId, entityId, {
         countSessionId: session.id, expectedVersion: session.version,
         mode, physicalCounterLabel, entries,
-      });
+      }, key);
+      delete retries.current.submit;
       setMessage(w.saved);
       setValues({ tithe:'', offering:'', other:'', pix:'' });
       await refresh();
