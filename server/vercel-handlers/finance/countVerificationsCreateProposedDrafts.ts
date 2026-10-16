@@ -80,6 +80,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? session.countProposal.transactionIds.filter((value: unknown) => typeof value === 'string')
           : [];
         if (existingTransactionIds.length > 0) {
+          // A new idempotency key cannot replay unrelated/old mapping intents.
+          if (Number(session.countProposal?.sourceVersion) !== expectedVersion) {
+            throw new Error('COUNT_VERSION_CONFLICT');
+          }
           return {
             countSessionId,
             version: Number(session.version || expectedVersion),
