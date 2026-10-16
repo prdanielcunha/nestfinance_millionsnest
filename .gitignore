@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Cloud Run generated bundles
+server-dist/
