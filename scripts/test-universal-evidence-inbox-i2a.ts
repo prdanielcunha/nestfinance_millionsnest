@@ -33,6 +33,7 @@ verify(page.includes('universalEvidenceInboxService.list'), 'Inbox reads through
 verify(!page.includes('firebase/firestore') && !service.includes('firebase/firestore'), 'Frontend performs no direct Firestore evidence reads');
 verify(service.includes('operation=universal-evidence-list'), 'Client calls only the certified finance gateway operation');
 verify(service.includes("getIdToken()") && service.includes("x-organization-id"), 'Client sends authenticated canonical compatibility headers');
+verify(!service.includes('getNestFinanceAppCheckToken') && !service.includes("x-firebase-appcheck"), 'Inbox navigation does not depend on a browser reCAPTCHA App Check token; canonical Firebase identity and server RBAC remain authoritative');
 verify(handler.includes("resolveFinanceRequestContext(req, 'finance.view')"), 'Server requires finance.view through shared request context');
 verify(handler.includes(".collection('organizations')") && handler.includes(".collection('financeEntities')") && handler.includes(".collection('universalEvidence')"), 'Server read is nested under organization and finance entity');
 verify(handler.includes("orderBy('createdAt', 'desc')") && handler.includes('startAfter(cursorDoc)'), 'Inbox pagination is deterministic and cursor-based');
