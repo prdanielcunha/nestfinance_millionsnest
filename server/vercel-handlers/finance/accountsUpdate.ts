@@ -364,9 +364,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           accountUpdateData.availabilityBehavior = availabilityBehavior;
         }
 
+        if (isOpeningChanged) {
+          accountUpdateData.openingBalanceDeclaration = correctedOpening;
+          accountUpdateData.openingBalanceRevision = openingRevision + 1;
+          // An append-only correction record is written atomically with the account metadata.
+          // It never mutates openingBalanceCents, journal, balances or aggregates.
+          t.create(openingHistoryRef, {
+            organizationId, financeEntityId, accountId, revision: openingRevision + 1,
+            previous: openingBefore, current: correctedOpening,
+            reason: correctionReason, actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(), schemaVersion: 1,
+          });
+        }
+
         t.update(accountRef, accountUpdateData);
 
         const auditChanges: any = {};
+        if (isOpeningChanged) {
+          auditChanges.openingBalanceDeclaration = {
+            fromStatus: openingBefore.status,
+            toStatus: correctedOpening?.status,
+            fromRevision: openingRevision, toRevision: openingRevision + 1,
+            reason: correctionReason,
+          };
+        }
         if (isNameChanged || isVisualNameChanged) {
           auditChanges.name = { from: currentName, to: trimmedName };
         }
@@ -413,13 +434,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             institutionName: parsedInstitutionName || undefined,
             accountLast4: parsedAccountLast4 || undefined,
             currency: accountData.currency,
-            active: accountData.active
+            active: accountData.active,
+            openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore,
+            openingBalanceRevision: isOpeningChanged ? openingRevision + 1 : openingRevision
           }
         };
       });
 
       return res.status(200).json(result);
     } catch (txError: any) {
+      if ([
+        'OPENING_BALANCE_VERSION_CONFLICT',
+        'OPENING_BALANCE_LEGACY_RECONCILIATION_REQUIRED',
+        'OPENING_BALANCE_LOCKED',
+      ].includes(txError.message)) {
+        return res.status(409).json({ error: txError.message });
+      }
       if (txError.message === 'ACCOUNT_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'ACCOUNT_ALREADY_EXISTS' });
       }
