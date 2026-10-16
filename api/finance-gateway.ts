@@ -60,6 +60,7 @@ import countVerificationsJoin from '../server/vercel-handlers/finance/countVerif
 import countVerificationsRefreshInvite from '../server/vercel-handlers/finance/countVerificationsRefreshInvite.js';
 import countVerificationsSubmit from '../server/vercel-handlers/finance/countVerificationsSubmit.js';
 import countVerificationsReopen from '../server/vercel-handlers/finance/countVerificationsReopen.js';
+import countVerificationsTreasuryPreview from '../server/vercel-handlers/finance/countVerificationsTreasuryPreview.js';
 import countVerificationsDetail from '../server/vercel-handlers/finance/countVerificationsDetail.js';
 import countVerificationsList from '../server/vercel-handlers/finance/countVerificationsList.js';
 import countVerificationPolicyGet from '../server/vercel-handlers/finance/countVerificationPolicyGet.js';
@@ -201,6 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-verifications-refresh-invite': return countVerificationsRefreshInvite(req, res);
     case 'count-verifications-submit': return countVerificationsSubmit(req, res);
     case 'count-verifications-reopen': return countVerificationsReopen(req, res);
+    case 'count-verifications-treasury-preview': return countVerificationsTreasuryPreview(req, res);
     case 'count-verifications-detail': return countVerificationsDetail(req, res);
     case 'count-verifications-list': return countVerificationsList(req, res);
     case 'count-verifications-policy-get': return countVerificationPolicyGet(req, res);
