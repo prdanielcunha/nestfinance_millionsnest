@@ -106,7 +106,7 @@ function AccountantWorkspaceContent() {
           <h2 id="accountant-package-heading" className="mb-2 text-xl font-semibold text-text-primary">{copy.packageTitle}</h2>
           <p className="mb-4 text-base leading-relaxed text-text-secondary">{copy.packageHint}</p>
           {organizationId && activeFinanceEntityId ? (
-            <AccountantPackagePanel key={organizationId + ':' + activeFinanceEntityId + ':' + period}
+            <AccountantPackagePanel
               organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} />
           ) : (
             <p className="rounded-xl border border-border-subtle bg-surface-default p-5 text-base text-text-secondary">{copy.noEntity}</p>
