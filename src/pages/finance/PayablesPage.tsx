@@ -117,7 +117,7 @@ function PayablesContent(){
   useEffect(()=>{
     let alive=true;
     const abort=new AbortController();
-    setItems([]);setNextCursor(null);setListError(false);setLoading(true);setMessage(null);
+    setItems([]);setNextCursor(null);setListError(false);setLoading(true);setMessage(null);setSaving(false);
     savedFingerprint.current=null;saveLock.current=false;
     if(!activeFinanceEntityId||!organizationId){setLoading(false);return ()=>{alive=false;abort.abort();};}
     void payablesService.list(organizationId,activeFinanceEntityId,undefined,abort.signal)
