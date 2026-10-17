@@ -6,6 +6,36 @@ const app = readFileSync('src/App.tsx', 'utf8');
 const ctx = readFileSync('src/contexts/ThemeContext.tsx', 'utf8');
 const shell = readFileSync('src/app/layouts/ShellLayout.tsx', 'utf8');
 
+// WCAG relative luminance: verify the real token pairs, including primary
+// controls whose foreground must change when the accent becomes bright cyan.
+function luminance(hex: string): number {
+  const values = hex.match(/[a-f\d]{2}/gi)!.map(value => {
+    const channel = parseInt(value, 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+}
+function contrast(a: string, b: string): number {
+  const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+for (const selector of [':root', ":root[data-theme='dark']"]) {
+  const block = css.slice(css.indexOf(`${selector} {`)).split('}')[0];
+  const token = (name: string) => {
+    const value = block.match(new RegExp(`--nf-${name}: (#[a-fA-F0-9]{6});`))?.[1];
+    assert.ok(value, `Missing contrast token ${selector}/${name}`);
+    return value;
+  };
+  for (const foreground of ['text-primary', 'text-secondary', 'text-muted', 'accent-primary']) {
+    for (const background of ['background-base', 'surface-default', 'surface-secondary']) {
+      assert.ok(contrast(token(foreground), token(background)) >= 4.5,
+        `WCAG AA contrast failed: ${selector}/${foreground} on ${background}`);
+    }
+  }
+  assert.ok(contrast(token('background-base'), token('accent-primary')) >= 4.5,
+    `Primary control text must remain readable in ${selector}`);
+}
+
 // Approved default identity and user-controlled night appearance.
 assert.ok(css.includes('--nf-background-base: #f6f4ef;'));
 assert.ok(css.includes('--nf-surface-default: #ffffff;'));

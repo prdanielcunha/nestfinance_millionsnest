@@ -517,7 +517,7 @@ function CountVerificationBody() {
                         return <button key={method} type="button" aria-pressed={selected}
                           onClick={() => setSelectedMethod(method)}
                           className={`nf-interactive min-h-11 shrink-0 rounded-xl border px-4 text-sm font-semibold ${selected
-                            ? 'border-accent-primary bg-accent-primary text-white'
+                            ? 'border-accent-primary bg-accent-primary text-background-base'
                             : 'border-border-subtle bg-surface-secondary text-text-primary'}`}>
                           {w[`method_${method}` as keyof typeof w]}{filled ? ' ✓' : ''}
                         </button>;
@@ -551,7 +551,7 @@ function CountVerificationBody() {
                   )}
                   <button type="button" disabled={busy || (mode === 'independent' && session.ownConfirmations.some(c => c.mode === 'independent'))}
                     onClick={() => void submit()}
-                    className="nf-interactive min-h-12 w-full rounded-xl bg-accent-primary px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                    className="nf-interactive min-h-12 w-full rounded-xl bg-accent-primary px-5 font-semibold text-background-base disabled:cursor-not-allowed disabled:opacity-50">
                     {busy ? w.loading : w.submit}
                   </button>
                 </div>
@@ -567,7 +567,7 @@ function CountVerificationBody() {
               <h2 className="text-lg font-semibold text-text-primary">{w.reviewTitle}</h2>
               <p className="text-sm leading-relaxed text-text-muted">{w.reviewHint}</p>
               <button type="button" disabled={reviewBusy} onClick={() => void openTreasuryPreview()}
-                className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+                className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base disabled:opacity-50">
                 {reviewBusy ? w.loading : w.reviewOpen}
               </button>
               {treasuryPacket?.sessionId === session.id && treasuryPacket.snapshotVersion === session.version && (
@@ -598,7 +598,7 @@ function CountVerificationBody() {
                       </p>
                       <button type="button"
                         onClick={() => navigate(APP_ROUTES.countVerificationV3Drafts.replace(':sessionId', session.id))}
-                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white">
+                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base">
                         {w.prepareDrafts}
                       </button>
                     </div>
@@ -614,7 +614,7 @@ function CountVerificationBody() {
                       <button type="button" disabled={acceptBusy ||
                           (treasuryPacket.requiresExplicitTreasuryReview && reviewNote.trim().length < 10)}
                         onClick={() => void acceptTreasury()}
-                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+                        className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base disabled:opacity-50">
                         {acceptBusy ? w.loading : w.acceptReview}
                       </button>
                     </div>
@@ -636,7 +636,7 @@ function CountVerificationBody() {
             </label>
             <button type="button" disabled={busy || recountReason.trim().length < 10}
               onClick={() => void reopen()}
-              className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white disabled:opacity-50">
+              className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base disabled:opacity-50">
               {busy ? w.loading : w.reopen}
             </button>
           </Surface>}
@@ -655,7 +655,7 @@ function CountVerificationBody() {
                   className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-text-primary" />
               </label>
               <button type="button" disabled={busy || !label.trim() || !date} onClick={()=>void create()}
-                className="nf-interactive min-h-12 w-full rounded-xl bg-accent-primary px-4 font-semibold text-white disabled:opacity-50">
+                className="nf-interactive min-h-12 w-full rounded-xl bg-accent-primary px-4 font-semibold text-background-base disabled:opacity-50">
                 {busy ? w.loading : w.create}
               </button>
             </Surface>
@@ -682,7 +682,7 @@ function CountVerificationBody() {
                 <ClipboardCopy className="h-4 w-4" aria-hidden="true" />{w.copy}
               </button>
               <button type="button" onClick={() => navigate(startPath+'/'+invite.sessionId)}
-                className="nf-interactive min-h-11 rounded-xl bg-accent-primary px-4 text-sm font-semibold text-white">{w.open}</button>
+                className="nf-interactive min-h-11 rounded-xl bg-accent-primary px-4 text-sm font-semibold text-background-base">{w.open}</button>
             </div>
           </Surface>}
           <div>

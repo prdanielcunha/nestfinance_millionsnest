@@ -439,7 +439,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               type="submit"
               form="account-edit-form"
               disabled={isSubmitting}
-              className="w-full h-11 bg-accent-primary hover:bg-accent-secondary text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full h-11 bg-accent-primary hover:bg-accent-secondary text-background-base font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

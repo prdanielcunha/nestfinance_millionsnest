@@ -392,7 +392,7 @@ export default function AccountRepairCard({
                 type="button"
                 onClick={() => void handleSaveCustomConfig()}
                 disabled={loading || !representation}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 text-base font-semibold text-white transition-colors hover:bg-accent-primary/90 disabled:opacity-50"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 text-base font-semibold text-background-base transition-colors hover:bg-accent-primary/90 disabled:opacity-50"
               >
                 {loading ? (
                   <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />

@@ -184,7 +184,7 @@ export default function FundFormModal({ onClose, onSuccess }: Props) {
                   onClick={() => setColorToken(col.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-accent-primary focus:ring-offset-2 focus:ring-offset-surface-base ${
                     colorToken === col.id
-                      ? 'border-accent-primary bg-accent-primary/10 text-white'
+                      ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
                       : 'border-border-default bg-surface-elevated text-text-muted hover:text-text-base hover:border-border-strong'
                   }`}
                 >
@@ -207,7 +207,7 @@ export default function FundFormModal({ onClose, onSuccess }: Props) {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center justify-center h-10 px-5 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center h-10 px-5 rounded-lg bg-accent-primary text-background-base text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />

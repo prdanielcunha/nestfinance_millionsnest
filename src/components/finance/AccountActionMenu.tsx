@@ -204,7 +204,7 @@ export default function AccountActionMenu({ account, onSuccess, onError, isOpen,
                   type="button"
                   onClick={showConfirmArchive ? handleArchive : handleReactivate}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 sm:py-2.5 bg-accent-primary hover:bg-accent-hover text-white rounded-xl font-medium transition-colors flex items-center justify-center disabled:opacity-50 min-h-[44px]"
+                  className="flex-1 px-4 py-3 sm:py-2.5 bg-accent-primary hover:bg-accent-hover text-background-base rounded-xl font-medium transition-colors flex items-center justify-center disabled:opacity-50 min-h-[44px]"
                 >
                   {loading ? (
                     <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
