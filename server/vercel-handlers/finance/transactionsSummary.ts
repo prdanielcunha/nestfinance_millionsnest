@@ -122,6 +122,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const postedAdjustments = boundedQuery(context.repository, financeEntityId, 'adjustment', 'posted');
 
     const dueThroughDate = plusDays(localDate, 7);
+    // Registered obligations are NOT the same as OCR-suggested invoice dates.
+    // Keep counts independent; the same invoice may exist in both collections.
+    const registeredDueQuery = entityRef.collection('financePayables')
+      .where('dueDate', '>=', localDate)
+      .where('dueDate', '<=', dueThroughDate)
+      .limit(101);
+
     const dueQuery = entityRef
       .collection('universalEvidence')
       .where('transactionAnalysis.analysis.dueDate.value', '>=', localDate)
@@ -142,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       postedAdjustmentCount,
       accountSnapshot,
       dueSnapshot,
+      registeredDueSnapshot,
     ] = await Promise.all([
       draftQuery.select('returnedToDraftAt', 'returnedToDraftReason', 'returnedToDraftComment').get(),
       countQuery(readyQuery),
@@ -156,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       countQuery(postedAdjustments),
       context.repository.getAccountsQuery().limit(1001).get(),
       dueQuery.get(),
+      registeredDueQuery.get(),
     ]);
 
     if (accountSnapshot.size > 1000) {
@@ -199,12 +208,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return typeof dueDate === 'string' && settlement === 'unpaid' ? total + 1 : total;
     }, 0);
 
+    const registeredPayablesDueSoonTruncated = registeredDueSnapshot.size > 100;
+    const registeredPayablesDueSoonCount = registeredDueSnapshot.docs.slice(0, 100)
+      .reduce((total:number,doc:any)=>{
+        const bill=doc.data()||{};
+        if(bill.organizationId!==organizationId||bill.financeEntityId!==financeEntityId)
+          throw Object.assign(new Error('PAYABLE_SCOPE_MISMATCH'),{status:409});
+        const open=['awaiting_review','open','partially_paid'].includes(bill.status);
+        if(!open)return total;
+        // A corrupted settlement cannot be silently treated as a valid bill.
+        if(!Number.isSafeInteger(bill.remainingCents)||bill.remainingCents<=0)
+          throw Object.assign(new Error('PAYABLE_AMOUNT_INTEGRITY'),{status:409});
+        return total+1;
+      },0);
+
     const operational: TodayOperationalSnapshot = {
       localDate,
       incomeCents: Math.max(0, todayIncomeTotal - todayIncomeReversedTotal),
       expenseCents: Math.max(0, todayExpenseTotal - todayExpenseReversedTotal),
       dueSoonCount,
       dueSoonTruncated,
+      registeredPayablesDueSoonCount,
+      registeredPayablesDueSoonTruncated,
       balance: buildTodayOperationalBalance({
         activeAssetAccounts,
         postedIncomeCents,
@@ -234,6 +259,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('Transactions Summary Error:', error);
 
+    if (error?.status === 409) return res.status(409).json({error:'PAYABLE_READ_INTEGRITY_ERROR'});
     if (error.status === 401 || error.status === 403) {
       return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     }
