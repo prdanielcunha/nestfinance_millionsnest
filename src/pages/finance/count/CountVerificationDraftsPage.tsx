@@ -17,7 +17,7 @@ import {
 } from '@/src/services/countV3Service';
 import type { CountV3DraftSelection } from '../../../../shared/finance/countV3DraftPlan.js';
 
-type Choice = {accountId:string;categoryId:string;fundId:string;cardSettlementMethod:string};
+type Choice = {accountId:string;categoryId:string;fundId:string;cardSettlementMethod:string;receivedDate:string};
 const WORDS={
   PT:{
     title:'Preparar lançamentos da contagem',
@@ -25,6 +25,8 @@ const WORDS={
     back:'Voltar à contagem',
     total:'Total conferido',
     titleLine:'Origem do valor',
+    receivedDate:'Em que dia este pagamento foi recebido?',
+    receivedHelp:'Confira a data no comprovante. Use uma data por total. Se houver recebimentos em dias diferentes, registre-os individualmente no financeiro; não repita estes valores na contagem.',
     account:'Em qual conta o dinheiro ficou?',
     category:'Qual é a categoria desta entrada?',
     fund:'Fundo (opcional)',
@@ -56,6 +58,8 @@ const WORDS={
     title:'Prepare count financial entries',
     description:'The treasury has accepted this count. Choose where each amount was received and how to classify it. Nothing will be posted yet.',
     back:'Back to count',total:'Verified total',titleLine:'Source of amount',
+    receivedDate:'When was this payment received?',
+    receivedHelp:'Check the payment evidence date. Use one date per total. For receipts on different days, record them individually in finance; do not repeat those amounts in this count.',
     account:'Which account holds this money?',category:'Which income category?',fund:'Fund (optional)',
     noAccount:'Choose an account',noCategory:'Choose a category',noFund:'No fund',
     cardKind:'Was this card payment debit or credit?',cardPrompt:'Choose the card type',debit:'Debit',credit:'Credit',
@@ -76,6 +80,8 @@ const WORDS={
     title:'Preparar movimientos del conteo',
     description:'La tesorería ya aceptó el conteo. Seleccione dónde se recibió cada importe y cómo clasificarlo. Todavía no se contabiliza.',
     back:'Volver al conteo',total:'Total verificado',titleLine:'Origen del importe',
+    receivedDate:'¿Qué día se recibió este pago?',
+    receivedHelp:'Revise la fecha del comprobante. Use una fecha por total. Para ingresos de días diferentes, regístrelos individualmente en finanzas; no los repita en el conteo.',
     account:'¿En qué cuenta quedó el dinero?',category:'¿Qué categoría de ingreso?',fund:'Fondo (opcional)',
     noAccount:'Seleccione una cuenta',noCategory:'Seleccione una categoría',noFund:'Sin fondo',
     cardKind:'¿El pago fue con tarjeta de débito o crédito?',cardPrompt:'Elija el tipo de tarjeta',debit:'Débito',credit:'Crédito',
@@ -139,7 +145,7 @@ function CountVerificationDraftsBody() {
 
   const setChoice=(key:string,field:keyof Choice,value:string)=>{
     setChoices(prev=>({...prev,[key]:{
-      accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',...prev[key],
+      accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',receivedDate:'',...prev[key],
       [field]:value,
       ...(field==='cardSettlementMethod'?{accountId:''}:{})
     }}));
@@ -148,6 +154,7 @@ function CountVerificationDraftsBody() {
   const incomplete=preview?.lines.some(line=>{
     const choice=choices[line.lineKey];
     return !choice?.accountId || !choice?.categoryId ||
+      (line.receiptMethod!=='cash' && !choice.receivedDate) ||
       (line.receiptMethod==='card' && !choice.cardSettlementMethod);
   })??true;
 
@@ -159,6 +166,7 @@ function CountVerificationDraftsBody() {
       accountId:choices[line.lineKey].accountId,
       categoryId:choices[line.lineKey].categoryId,
       fundId:choices[line.lineKey].fundId || null,
+      receivedDate:choices[line.lineKey].receivedDate || preview.serviceDate,
       ...(line.receiptMethod==='card' ? {cardSettlementMethod: choices[line.lineKey].cardSettlementMethod as 'credit_card'|'debit_card'} : {}),
     }));
     const fingerprint=JSON.stringify([organizationId,entityId,sessionId,preview.version,selections]);
@@ -217,7 +225,7 @@ function CountVerificationDraftsBody() {
         <p className="mt-1 text-2xl font-semibold tabular-nums text-text-primary">{money(preview.sourceReviewTotalCents)}</p>
       </Surface>
       {preview.lines.map(line=>{
-        const chosen=choices[line.lineKey]||{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:''};
+        const chosen=choices[line.lineKey]||{accountId:'',categoryId:'',fundId:'',cardSettlementMethod:'',receivedDate:''};
         const methodKey=line.receiptMethod==='other'?'method_other':line.receiptMethod as keyof typeof w;
         const receiptInstrument=line.receiptMethod==='card'
           ? chosen.cardSettlementMethod : line.receiptMethod;
@@ -248,6 +256,13 @@ function CountVerificationDraftsBody() {
               </select>
             </label>
           )}
+          <label className="block text-sm font-semibold text-text-primary">
+            {w.receivedDate}
+            <input type="date" required value={chosen.receivedDate || (line.receiptMethod==='cash' ? preview.serviceDate : '')}
+              onChange={event=>setChoice(line.lineKey,'receivedDate',event.target.value)}
+              className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary" />
+            <span className="mt-2 block text-sm font-normal text-text-secondary">{w.receivedHelp}</span>
+          </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-text-primary">
               {w.account}

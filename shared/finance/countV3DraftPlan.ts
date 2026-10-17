@@ -3,6 +3,7 @@ import {
   type CountV3TreasuryReviewPacket,
 } from './countV3TreasuryReview.js';
 import type { ContributionReceiptMethod } from './contributionBreakdown.js';
+import { validReceiptDate } from './receivedIncome.js';
 
 type ClassifiedPurpose = 'tithe' | 'offering' | 'other';
 
@@ -13,9 +14,11 @@ export type CountV3DraftSelection = {
   categoryId: string;
   fundId?: string | null;
   cardSettlementMethod?: 'credit_card' | 'debit_card';
+  receivedDate?: string;
 };
 
 export type CountV3ProposedDraftLine = CountV3DraftSelection & {
+  receivedDate: string;
   amountCents: number;
   lineKey: string;
   ledgerPaymentMethod: string;
@@ -121,7 +124,12 @@ export function buildCountV3DraftPlan(
         cardSettlementMethod !== null && cardSettlementMethod !== '') {
       throw new Error('COUNT_PROPOSAL_CARD_DETAIL_INCONSISTENT');
     }
+    // Physical cash belongs to the service day. Digital receipts require an
+    // explicit date checked against payment evidence; never guess service day.
+    const receivedDate = raw.receivedDate || (receiptMethod === 'cash' ? session.serviceDate : null);
+    if (!validReceiptDate(receivedDate)) throw new Error('COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED');
     return {
+      receivedDate,
       purpose:original.purpose,receiptMethod:original.receiptMethod,
       ledgerPaymentMethod: receiptMethod === 'card'
         ? cardSettlementMethod as 'credit_card' | 'debit_card'

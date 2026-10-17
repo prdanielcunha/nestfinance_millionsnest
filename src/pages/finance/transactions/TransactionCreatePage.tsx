@@ -1234,15 +1234,17 @@ function TransactionCreateContent() {
                         htmlFor="transaction-date"
                         className="text-sm font-medium text-text-primary"
                       >
-                        {copy.date}
+                        {direction === 'income' ? copy.receivedDate : copy.date}
                       </label>
                       <input
                         id="transaction-date"
+                        aria-describedby={direction === 'income' ? 'transaction-received-date-help' : undefined}
                         type="date"
                         value={occurredAt}
                         onChange={(event) => setOccurredAt(event.target.value)}
                         className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary outline-none focus:border-accent-primary"
                       />
+                      {direction === 'income' && <p id="transaction-received-date-help" className="mt-2 text-sm leading-relaxed text-text-secondary">{copy.receivedDateHelp}</p>}
                     </div>
                   </div>
                 </Surface>
