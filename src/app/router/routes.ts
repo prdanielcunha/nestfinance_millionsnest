@@ -34,6 +34,8 @@ export const APP_ROUTES = {
   audit: '/finance/audit',
   more: '/finance/more',
   transactions: '/finance/transactions',
+  payables: '/finance/payables',
+  payableCreate: '/finance/payables/new',
   transactionCreate: '/finance/transactions/new',
   transactionDetail: '/finance/transactions/:transactionId',
   transactionDetailLegacy: '/finance/transactions/:transactionId/advanced',
