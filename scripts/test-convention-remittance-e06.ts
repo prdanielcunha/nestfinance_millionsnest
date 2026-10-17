@@ -55,7 +55,7 @@ const split=run([
 ], [r1,r2]);
 assert.equal(split.complete,true);
 assert.equal(split.eligibleBaseCents,24000);
-assert.equal(split.remittanceDueCents,2800,'800 old 5? 10% and 2000 new 12.5%');
+assert.equal(split.remittanceDueCents,2800,'800 old at 10%, 2000 new at 12.5%');
 assert.deepEqual(split.segments.map(x=>x.remittanceDueCents),[800,2000]);
 const overlap=run([source('tx_overlap','tithe','cash',10000)], [rule,{...rule,revision:2,effectiveFrom:'2026-10-10'}]);
 assert.equal(overlap.complete,false);
@@ -67,8 +67,7 @@ assert.equal(around.remittanceDueCents,1,'round base per policy version, not eac
 
 const fail=(f:()=>unknown,label:string)=>assert.throws(f,undefined,label);
 fail(()=>run([...receipts,receipts[0]]),'duplicate transaction ids');
-fail(()=>run([source('tx_foreign','tithe','pix',1000).constructor === Object ?
-  {...source('tx_foreign','tithe','pix',1000),financeEntityId:'other'}: receipts[0]]),'cross church source');
+fail(()=>run([{...source('tx_foreign','tithe','pix',1000),financeEntityId:'other'}]),'cross church source');
 fail(()=>run([source('tx_na','tithe','cash',NaN)]),'invalid amount');
 fail(()=>run([source('tx_float','tithe','cash',25.1)]),'non-integer cents');
 fail(()=>run([source('tx_minus','tithe','cash',-100)]),'negative amount');
