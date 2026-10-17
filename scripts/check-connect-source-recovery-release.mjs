@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 // Reviewed exact source-only candidate. All other production files must remain unchanged.
 const reviewedHashes = {
-  ".github/workflows/nestfinance-production-release.yml": "2cb91322f2f83c77afb5344de119f957b025b795eafe104b77c971ca5d913b58",
+  "scripts/test_firebase_hosting_cloudrun_policy.ts": "08a64fd89a07ace2d711114c1ff97ef75c558a37d81bc73c198a922edec7bc03",
+  ".github/workflows/nestfinance-production-release.yml": "a0a17fca6ac9b410570a4ce24fae0f17be1aac607ab3c242f66969e64ba71263",
   ".gitignore": "fc8c10371d58c0b63200b9854fe7967f21d4d907b81c030e5d3cf4a603d6d2e8",
   "Dockerfile": "a0e138ea99814d62cf96d24be25fd02dfbd4f9bf5eb202aa723301b06b10d6f2",
   "README.md": "f55c492d8b7c3a39f1370a53dc2a505c12e3bb464354d29862fe7172d57ed968",
