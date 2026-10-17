@@ -222,7 +222,7 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          const approvedHubSha = 'c8804c9f34197fb60d71936532782622c3f9f5aa7fbd3bd70bd7575753353311';
+          const approvedHubSha = '277e117297a140c0d621286962efbd8552b10567571c5174e9601c3ba6f80ae5';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);
