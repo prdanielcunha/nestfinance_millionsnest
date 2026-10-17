@@ -42,7 +42,7 @@ service cloud.firestore {
 
     function isServerOnlyFinanceCollection(collectionName) {
       return collectionName in [
-        'financeSettings', 'financeCategories', 'financeAccounts',
+        'financeSettings', 'financeCategories', 'financeAccounts', 'financeObligations',
         'financeEntities', 'financeFunds', 'financeTransactions',
         'financeAllocations', 'financeAuditLogs', 'financeIdempotency',
         'financeJournalEntries', 'financeJournalLines', 'financeAggregates',
@@ -335,6 +335,11 @@ service cloud.firestore {
       match /financeAccounts/{id} {
         allow read: if canReadNestFinance(orgId);
         allow write: if false;
+      }
+      // Unpaid obligations are private treasury records. Reading or creating
+      // them requires the scoped Finance gateway, never direct Firebase SDK.
+      match /financeObligations/{id=**} {
+        allow read, create, update, delete: if false;
       }
       match /financeEntities/{id} {
         allow read: if canReadNestFinance(orgId);
