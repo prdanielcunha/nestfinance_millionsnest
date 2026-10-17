@@ -319,6 +319,11 @@ function PayablesContent(){
             <AlertCircle aria-hidden="true" className="h-5 w-5 text-semantic-warning"/>{copy.listError}
             <button type="button" onClick={()=>void refresh()} className="font-semibold text-accent-primary underline">{copy.retry}</button>
           </div>:null}
+          {reviewMessage && <p role="status" aria-live="polite"
+            className={`mt-4 rounded-xl border p-4 text-sm leading-relaxed ${reviewMessage==='success'?'border-semantic-success/30 text-semantic-success':'border-semantic-warning/30 text-text-primary'}`}>
+            {reviewMessage==='success'?copy.reviewSuccess:
+              reviewMessage==='conflict'?copy.reviewConflict:copy.reviewFailed}
+          </p>}
           {!loading&&!listError&&items.length===0?<p className="mt-4 rounded-2xl border border-border-subtle bg-surface-default p-5 text-base text-text-secondary">{copy.empty}</p>:null}
           <div className="mt-4 space-y-3">
             {items.map(item=><article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
@@ -331,8 +336,39 @@ function PayablesContent(){
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border-subtle pt-4 text-sm text-text-secondary">
                 <span className="flex items-center gap-2"><CalendarDays aria-hidden="true" className="h-4 w-4"/>{copy.dueLabel} {shortDate(item.dueDate)}</span>
-                <span className="flex items-center gap-2 font-medium text-semantic-warning"><FileClock aria-hidden="true" className="h-4 w-4"/>{copy.nonPosting}</span>
+                <span className="flex items-center gap-2 font-medium text-semantic-warning">
+                  <FileClock aria-hidden="true" className="h-4 w-4"/>
+                  {item.status==='open'?copy.reviewedUnpaid:copy.nonPosting}
+                </span>
               </div>
+              {canReview && reviewEnabled===true && item.status==='awaiting_review' && (
+                <div className="mt-4 border-t border-border-subtle pt-4">
+                  {reviewTarget!==item.id ? (
+                    <button type="button" disabled={reviewProcessing}
+                      onClick={()=>{setReviewTarget(item.id);setReviewMessage(null);}}
+                      className="nf-interactive min-h-14 w-full rounded-xl border border-border-strong bg-surface-secondary px-4 text-base font-semibold text-accent-primary disabled:opacity-50">
+                      {copy.reviewAction}
+                    </button>
+                  ) : (
+                    <div className="space-y-3 rounded-xl border border-border-strong bg-surface-secondary p-4">
+                      <p className="text-base font-semibold text-text-primary">{copy.reviewQuestion}</p>
+                      <p className="text-sm leading-relaxed text-text-secondary">{copy.reviewExplanation}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button type="button" disabled={reviewProcessing}
+                          onClick={()=>setReviewTarget(null)}
+                          className="nf-interactive min-h-14 rounded-xl border border-border-strong bg-surface-default px-4 text-base font-semibold text-text-primary disabled:opacity-50">
+                          {copy.reviewCancel}
+                        </button>
+                        <button type="button" disabled={reviewProcessing}
+                          onClick={()=>void confirmReview(item)}
+                          className="nf-interactive min-h-14 rounded-xl bg-accent-primary px-4 text-base font-semibold text-background-base disabled:opacity-50">
+                          {reviewProcessing?copy.reviewProcessing:copy.reviewConfirm}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </article>)}
           </div>
           {loading?<p aria-live="polite" className="mt-4 text-sm text-text-secondary">{copy.loading}</p>:null}
