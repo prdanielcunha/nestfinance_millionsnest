@@ -23,7 +23,7 @@ const TEXT:Record<Language,{
   reviewAction:string;reviewQuestion:string;reviewExplanation:string;reviewConfirm:string;
   reviewCancel:string;reviewProcessing:string;reviewSuccess:string;reviewFailed:string;
   reviewedUnpaid:string;reviewConflict:string;
-  overdue:string;dueToday:string;dueIn:string;badDueData:string;partialUnpaid:string;
+  overdue:string;dueToday:string;dueIn:string;daySingular:string;dayPlural:string;badDueData:string;partialUnpaid:string;
   settledUnverified:string;cancelled:string;
 }> = {
   PT:{
@@ -50,7 +50,7 @@ const TEXT:Record<Language,{
     reviewSuccess:'Conta conferida. Continua sem pagamento e sem alteração de saldo.',
     reviewFailed:'Não foi possível conferir. Verifique e tente novamente.',
     reviewedUnpaid:'Conferida · Ainda não paga',reviewConflict:'A conta mudou. A lista foi atualizada; confira novamente.',
-    overdue:'Vencida há',dueToday:'Vence hoje',dueIn:'Vence em',badDueData:'Verificar dados de valor e vencimento',
+    overdue:'Vencida há',dueToday:'Vence hoje',dueIn:'Vence em',daySingular:'dia',dayPlural:'dias',badDueData:'Verificar dados de valor e vencimento',
     partialUnpaid:'Parcialmente paga · Valor restante pendente',settledUnverified:'Marcada como quitada · Verificar comprovante',
     cancelled:'Cancelada',
   },
@@ -78,7 +78,7 @@ const TEXT:Record<Language,{
     reviewSuccess:'Reviewed. The bill remains unpaid and balances were not changed.',
     reviewFailed:'Could not review this bill. Please try again.',
     reviewedUnpaid:'Reviewed · Still unpaid',reviewConflict:'This bill changed. List refreshed; please review it again.',
-    overdue:'Overdue by',dueToday:'Due today',dueIn:'Due in',badDueData:'Check amount and due-date details',
+    overdue:'Overdue by',dueToday:'Due today',dueIn:'Due in',daySingular:'day',dayPlural:'days',badDueData:'Check amount and due-date details',
     partialUnpaid:'Partially paid · Remaining amount due',settledUnverified:'Marked as settled · Verify proof',
     cancelled:'Cancelled',
   },
@@ -106,7 +106,7 @@ const TEXT:Record<Language,{
     reviewSuccess:'Factura revisada. Sigue sin pagar y los saldos no cambiaron.',
     reviewFailed:'No fue posible revisar esta factura. Inténtelo de nuevo.',
     reviewedUnpaid:'Revisada · Sin pagar',reviewConflict:'La factura cambió. La lista fue actualizada; revise de nuevo.',
-    overdue:'Vencida hace',dueToday:'Vence hoy',dueIn:'Vence en',badDueData:'Verifique importes y vencimiento',
+    overdue:'Vencida hace',dueToday:'Vence hoy',dueIn:'Vence en',daySingular:'día',dayPlural:'días',badDueData:'Verifique importes y vencimiento',
     partialUnpaid:'Parcialmente pagada · Importe pendiente',settledUnverified:'Marcada como liquidada · Verificar comprobante',
     cancelled:'Cancelada',
   },
@@ -258,9 +258,9 @@ function PayablesContent(){
     }
   };
   const urgencyText=(state:PayableDueState)=>{
-    if(state.kind==='overdue')return `${copy.overdue} ${state.days} ${state.days===1?'dia':'dias'}`;
+    if(state.kind==='overdue')return `${copy.overdue} ${state.days} ${state.days===1?copy.daySingular:copy.dayPlural}`;
     if(state.kind==='today')return copy.dueToday;
-    if(state.kind==='upcoming')return `${copy.dueIn} ${state.days} ${state.days===1?'dia':'dias'}`;
+    if(state.kind==='upcoming')return `${copy.dueIn} ${state.days} ${state.days===1?copy.daySingular:copy.dayPlural}`;
     if(state.kind==='invalid')return copy.badDueData;
     return null;
   };
@@ -357,7 +357,7 @@ function PayablesContent(){
             {items.map(item=>{
               const urgency=getPayableDueState({...item,today:localCivilDay(new Date())});
               const dueText=urgencyText(urgency);
-              return <article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">;
+              return <article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-lg font-semibold text-text-primary">{item.description}</h3>
