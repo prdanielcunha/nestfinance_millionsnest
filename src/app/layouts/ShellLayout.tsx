@@ -305,6 +305,7 @@ function LanguageSwitcher({ language, setLanguage, compact = false }: { language
 }
 
 function ShellLayoutInner() {
+  const { theme } = useNestFinanceTheme();
   const { accessState } = useAuth();
   const {
     activeFinanceEntityId,
@@ -570,7 +571,7 @@ function ShellLayoutInner() {
       <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
       <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
         <div className="flex h-16 items-center border-b border-border-subtle px-6">
-          <NestFinanceLogo layout="horizontal" compact className="h-7 w-auto" />
+          <NestFinanceLogo layout="horizontal" surface={theme} compact className="h-7 w-auto" />
         </div>
 
         <div className="flex-1 space-y-1 overflow-y-auto p-4">
