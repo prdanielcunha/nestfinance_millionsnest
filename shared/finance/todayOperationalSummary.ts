@@ -8,6 +8,9 @@ export type TodayOperationalSnapshot = {
   expenseCents: number;
   dueSoonCount: number;
   dueSoonTruncated: boolean;
+  /** Verified registered unpaid obligations, separate from documentary suggestions to avoid double counting. */
+  registeredPayablesDueSoonCount?: number;
+  registeredPayablesDueSoonTruncated?: boolean;
   balance: TodayOperationalBalance;
   source: {
     deterministic: true;
