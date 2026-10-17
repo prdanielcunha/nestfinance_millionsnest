@@ -14,6 +14,8 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-reactivate', exposure: 'rewrite', url: '/api/finance/accounts/reactivate' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-update', exposure: 'rewrite', url: '/api/finance/accounts/update' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-opening-history', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-create', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-list', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-repair-canonical', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-configure-custom', exposure: 'gateway' },
 
