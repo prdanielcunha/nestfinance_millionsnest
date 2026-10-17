@@ -31,6 +31,8 @@ import entitiesBootstrapPreview from '../server/vercel-handlers/finance/entities
 import entitiesBootstrapApply from '../server/vercel-handlers/finance/entitiesBootstrapApply.js';
 import entitiesBootstrapVerify from '../server/vercel-handlers/finance/entitiesBootstrapVerify.js';
 import transactionsList from '../server/vercel-handlers/finance/transactionsList.js';
+import payablesCreateDraft from '../server/vercel-handlers/finance/payablesCreateDraft.js';
+import payablesList from '../server/vercel-handlers/finance/payablesList.js';
 import transactionWorkspaceViewsList from '../server/vercel-handlers/finance/transactionWorkspaceViewsList.js';
 import transactionWorkspaceViewsSave from '../server/vercel-handlers/finance/transactionWorkspaceViewsSave.js';
 import transactionWorkspaceViewsDelete from '../server/vercel-handlers/finance/transactionWorkspaceViewsDelete.js';
@@ -177,6 +179,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'entities-bootstrap-apply': return entitiesBootstrapApply(req, res);
     case 'entities-bootstrap-verify': return entitiesBootstrapVerify(req, res);
     case 'transactions-list': return transactionsList(req, res);
+    case 'payables-create-draft': return payablesCreateDraft(req, res);
+    case 'payables-list': return payablesList(req, res);
     case 'transaction-workspace-views-list': return transactionWorkspaceViewsList(req, res);
     case 'transaction-workspace-views-save': return transactionWorkspaceViewsSave(req, res);
     case 'transaction-workspace-views-delete': return transactionWorkspaceViewsDelete(req, res);
