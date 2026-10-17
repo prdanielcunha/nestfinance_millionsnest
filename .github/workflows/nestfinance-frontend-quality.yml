@@ -14,6 +14,8 @@ on:
       - "scripts/test-payables-ui-t18-t19.ts"
       - "server/vercel-handlers/finance/payablesCreate.ts"
       - "server/vercel-handlers/finance/payablesList.ts"
+      - "server/vercel-handlers/finance/payablesReview.ts"
+      - "scripts/test-payables-review-ui.ts"
       - "firestore.rules"
       - "scripts/test-convention-remittance-e06.ts"
       - "server/vercel-handlers/finance/accountsCreate.ts"
@@ -132,6 +134,8 @@ on:
       - "scripts/test-payables-ui-t18-t19.ts"
       - "server/vercel-handlers/finance/payablesCreate.ts"
       - "server/vercel-handlers/finance/payablesList.ts"
+      - "server/vercel-handlers/finance/payablesReview.ts"
+      - "scripts/test-payables-review-ui.ts"
       - "firestore.rules"
       - "scripts/test-convention-remittance-e06.ts"
       - "server/vercel-handlers/finance/accountsCreate.ts"
@@ -261,6 +265,9 @@ jobs:
 
       - name: Verify Today registered unpaid bills versus evidence due candidates
         run: npx tsx scripts/test-today-registered-payables-ui.ts
+
+      - name: Verify human payable review access and non-payment guidance
+        run: npx tsx scripts/test-payables-review-ui.ts
 
       - name: Verify T18 T19 unpaid bill contract and three-language guidance
         run: npx tsx scripts/test-payables-ui-t18-t19.ts
