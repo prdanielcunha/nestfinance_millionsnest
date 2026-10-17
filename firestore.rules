@@ -340,6 +340,11 @@ service cloud.firestore {
         allow read: if canReadNestFinance(orgId);
         allow write: if false;
       }
+      // Unpaid bills contain private suppliers and dates. Only the authenticated
+      // Finance gateway (server IAM) may read or write their contents.
+      match /financeEntities/{entityId}/financePayables/{document=**} {
+        allow read, create, update, delete: if false;
+      }
       match /financeEntities/{entityId}/workspaceViewOwners/{ownerId}/{document=**} {
         allow read, create, update, delete: if false;
       }
