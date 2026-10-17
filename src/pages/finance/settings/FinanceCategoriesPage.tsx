@@ -160,7 +160,7 @@ export default function FinanceCategoriesPage() {
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px]"
+              className="flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px]"
             >
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Categoria
@@ -252,7 +252,7 @@ export default function FinanceCategoriesPage() {
 
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center justify-center h-11 px-4 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px] shrink-0"
+                className="flex items-center justify-center h-11 px-4 rounded-lg bg-accent-primary text-background-base text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98] min-h-[44px] shrink-0"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Categoria

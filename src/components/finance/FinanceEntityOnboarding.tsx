@@ -220,7 +220,7 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                     <button 
                       type="submit"
                       disabled={loading || taxId.length < 14}
-                      className="w-full h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white font-medium rounded-xl disabled:opacity-50 transition-colors"
+                      className="w-full h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-background-base font-medium rounded-xl disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <>
@@ -327,7 +327,7 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                          setErrorMsg(null);
                          setStep(3);
                      }}
-                     className="w-full sm:w-auto px-6 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white font-medium rounded-xl transition-colors"
+                     className="w-full sm:w-auto px-6 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-background-base font-medium rounded-xl transition-colors"
                    >
                      Confirmar e avançar <ArrowRight className="w-4 h-4 ml-2" />
                    </button>
@@ -412,7 +412,7 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                          setErrorMsg(null);
                          setStep(4);
                      }}
-                     className="w-full sm:w-auto px-6 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white font-medium rounded-xl transition-colors"
+                     className="w-full sm:w-auto px-6 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-background-base font-medium rounded-xl transition-colors"
                    >
                      Revisar dados <ArrowRight className="w-4 h-4 ml-2" />
                    </button>
@@ -475,7 +475,7 @@ export default function FinanceEntityOnboarding({ onClose, onSuccess }: Props) {
                    <button 
                      onClick={handleCreate}
                      disabled={loading}
-                     className="w-full sm:w-auto px-8 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                     className="w-full sm:w-auto px-8 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-background-base font-medium rounded-xl transition-colors disabled:opacity-50"
                    >
                      {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Criar igreja'}
                    </button>

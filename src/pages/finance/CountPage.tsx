@@ -239,7 +239,7 @@ function CountHomeContent() {
               </p>
               <button type="button"
                 onClick={() => navigate(APP_ROUTES.countVerificationV3)}
-                className="nf-interactive mt-4 min-h-11 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-white">
+                className="nf-interactive mt-4 min-h-11 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base">
                 {language === 'PT' ? 'Usar contagem em equipe' : language === 'EN' ? 'Use team count' : 'Usar conteo en equipo'}
               </button>
             </Surface>

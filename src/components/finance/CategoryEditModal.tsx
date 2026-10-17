@@ -145,7 +145,7 @@ export default function CategoryEditModal({ isOpen, onClose, onSuccess, onError,
             <button
               type="submit"
               disabled={loading || name.trim().length < 2}
-              className="w-full flex items-center justify-center bg-accent-primary hover:bg-accent-hover active:bg-accent-pressed text-white rounded-xl py-3.5 font-medium transition-colors min-h-[44px] disabled:opacity-50"
+              className="w-full flex items-center justify-center bg-accent-primary hover:bg-accent-hover active:bg-accent-pressed text-background-base rounded-xl py-3.5 font-medium transition-colors min-h-[44px] disabled:opacity-50"
             >
               {loading ? (
                 <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />

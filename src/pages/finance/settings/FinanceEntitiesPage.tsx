@@ -147,7 +147,7 @@ export default function FinanceEntitiesPage() {
               </p>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center justify-center h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors shadow-lg shadow-accent-primary/20 active:scale-[0.98]"
+                className="flex items-center justify-center h-12 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors shadow-lg shadow-accent-primary/20 active:scale-[0.98]"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Adicionar igreja
@@ -161,7 +161,7 @@ export default function FinanceEntitiesPage() {
                    </h2>
                    <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center justify-center py-2 px-4 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
+                        className="flex items-center justify-center py-2 px-4 rounded-lg bg-accent-primary text-background-base text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
                    >
                         <Plus className="w-4 h-4 mr-2" />
                         Adicionar igreja

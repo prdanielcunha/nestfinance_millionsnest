@@ -187,7 +187,7 @@ function PolicyBody() {
             <span className="text-xs text-text-muted">{w.version}: {record.revision}</span>
             <button type="button" disabled={busy || minimum>maximum}
               onClick={() => void submit()}
-              className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-6 text-sm font-semibold text-white disabled:opacity-50">
+              className="nf-interactive min-h-12 rounded-xl bg-accent-primary px-6 text-sm font-semibold text-background-base disabled:opacity-50">
               {busy ? w.saving : w.save}
             </button>
           </div>

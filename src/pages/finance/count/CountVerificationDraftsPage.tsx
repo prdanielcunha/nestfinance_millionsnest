@@ -214,7 +214,7 @@ function CountVerificationDraftsBody() {
         <h2 className="text-xl font-semibold text-text-primary">{w.successTitle}</h2>
         <p className="mt-2 text-sm text-text-secondary">{w.successBody}</p>
         <button type="button" onClick={()=>navigate(APP_ROUTES.financeReview)}
-          className="nf-interactive mt-5 min-h-14 rounded-xl bg-accent-primary px-5 font-semibold text-white">
+          className="nf-interactive mt-5 min-h-14 rounded-xl bg-accent-primary px-5 font-semibold text-background-base">
           {w.review}
         </button>
       </Surface>
@@ -300,7 +300,7 @@ function CountVerificationDraftsBody() {
       {incomplete&&<p role="status" className="rounded-xl bg-semantic-warning/10 p-4 text-sm text-semantic-warning">{w.missing}</p>}
       <div className="sticky bottom-0 -mx-4 border-t border-border-subtle bg-surface-base/95 px-4 py-4 backdrop-blur-md sm:mx-0 sm:border-0">
         <button type="button" disabled={incomplete||busy} onClick={()=>void create()}
-          className="nf-interactive min-h-14 w-full rounded-xl bg-accent-primary px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+          className="nf-interactive min-h-14 w-full rounded-xl bg-accent-primary px-5 font-semibold text-background-base disabled:cursor-not-allowed disabled:opacity-50">
           {busy?w.creating:w.create}
         </button>
       </div>

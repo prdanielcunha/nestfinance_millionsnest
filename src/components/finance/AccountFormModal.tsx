@@ -307,7 +307,7 @@ export default function AccountFormModal({ onClose, onSuccess }: Props) {
             <button
               type="submit"
               disabled={loading || name.trim().length < 2}
-              className="flex-1 flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

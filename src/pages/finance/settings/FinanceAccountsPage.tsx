@@ -177,7 +177,7 @@ export default function FinanceAccountsPage() {
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
+              className="flex items-center justify-center h-11 px-5 rounded-lg bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
             >
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Conta
@@ -211,7 +211,7 @@ export default function FinanceAccountsPage() {
 
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center justify-center py-2 px-3 rounded-lg bg-accent-primary text-white text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
+                className="flex items-center justify-center py-2 px-3 rounded-lg bg-accent-primary text-background-base text-sm font-medium hover:bg-accent-hover transition-colors active:scale-[0.98]"
               >
                 <Plus className="w-4 h-4 mr-1.5" />
                 Nova Conta
