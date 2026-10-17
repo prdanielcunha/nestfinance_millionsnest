@@ -6,6 +6,9 @@ import { resolveFinanceRequestContext } from './accessHelpers.js';
 export default async function handler(req:VercelRequest,res:VercelResponse){
   res.setHeader('Cache-Control','private, no-store');
   if(req.method!=='POST')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
+  if(process.env.NESTFINANCE_PAYABLE_DRAFTS_ENABLED!=='true') {
+    return res.status(503).json({error:'PAYABLE_DRAFTS_NOT_ENABLED'});
+  }
   if(!req.body||typeof req.body!=='object'||Array.isArray(req.body)||
     Object.keys(req.body).some((key:string)=>!['financeEntityId','afterDueDate','afterId'].includes(key))){
     return res.status(400).json({error:'INVALID_PARAMETERS'});
