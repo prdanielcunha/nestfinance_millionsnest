@@ -10,6 +10,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { payablesService,type PayableListRow } from '@/src/services/payablesService';
 import { parsePayableDraft,type PayableDraft } from '../../../shared/finance/payableObligation.js';
+import { getPayableDueState,localCivilDay,type PayableDueState } from '../../../shared/finance/payableUrgency.js';
 
 const TEXT:Record<Language,{
   area:string;back:string;title:string;intro:string;createTitle:string;createSubtitle:string;
@@ -22,6 +23,8 @@ const TEXT:Record<Language,{
   reviewAction:string;reviewQuestion:string;reviewExplanation:string;reviewConfirm:string;
   reviewCancel:string;reviewProcessing:string;reviewSuccess:string;reviewFailed:string;
   reviewedUnpaid:string;reviewConflict:string;
+  overdue:string;dueToday:string;dueIn:string;daySingular:string;dayPlural:string;badDueData:string;partialUnpaid:string;
+  settledUnverified:string;cancelled:string;
 }> = {
   PT:{
     area:'Tesouraria',back:'Voltar ao financeiro',title:'Contas a pagar',
@@ -47,6 +50,9 @@ const TEXT:Record<Language,{
     reviewSuccess:'Conta conferida. Continua sem pagamento e sem alteração de saldo.',
     reviewFailed:'Não foi possível conferir. Verifique e tente novamente.',
     reviewedUnpaid:'Conferida · Ainda não paga',reviewConflict:'A conta mudou. A lista foi atualizada; confira novamente.',
+    overdue:'Vencida há',dueToday:'Vence hoje',dueIn:'Vence em',daySingular:'dia',dayPlural:'dias',badDueData:'Verificar dados de valor e vencimento',
+    partialUnpaid:'Parcialmente paga · Valor restante pendente',settledUnverified:'Marcada como quitada · Verificar comprovante',
+    cancelled:'Cancelada',
   },
   EN:{
     area:'Treasury',back:'Back to finance',title:'Bills to pay',
@@ -72,6 +78,9 @@ const TEXT:Record<Language,{
     reviewSuccess:'Reviewed. The bill remains unpaid and balances were not changed.',
     reviewFailed:'Could not review this bill. Please try again.',
     reviewedUnpaid:'Reviewed · Still unpaid',reviewConflict:'This bill changed. List refreshed; please review it again.',
+    overdue:'Overdue by',dueToday:'Due today',dueIn:'Due in',daySingular:'day',dayPlural:'days',badDueData:'Check amount and due-date details',
+    partialUnpaid:'Partially paid · Remaining amount due',settledUnverified:'Marked as settled · Verify proof',
+    cancelled:'Cancelled',
   },
   ES:{
     area:'Tesorería',back:'Volver a finanzas',title:'Cuentas por pagar',
@@ -97,6 +106,9 @@ const TEXT:Record<Language,{
     reviewSuccess:'Factura revisada. Sigue sin pagar y los saldos no cambiaron.',
     reviewFailed:'No fue posible revisar esta factura. Inténtelo de nuevo.',
     reviewedUnpaid:'Revisada · Sin pagar',reviewConflict:'La factura cambió. La lista fue actualizada; revise de nuevo.',
+    overdue:'Vencida hace',dueToday:'Vence hoy',dueIn:'Vence en',daySingular:'día',dayPlural:'días',badDueData:'Verifique importes y vencimiento',
+    partialUnpaid:'Parcialmente pagada · Importe pendiente',settledUnverified:'Marcada como liquidada · Verificar comprobante',
+    cancelled:'Cancelada',
   },
 };
 const locale:Record<Language,string>={PT:'pt-BR',EN:'en-US',ES:'es-ES'};
@@ -236,6 +248,22 @@ function PayablesContent(){
     }
   };
   const money=(value:number)=>new Intl.NumberFormat(locale[language],{style:'currency',currency:'BRL'}).format(value/100);
+  const statusText=(item:PayableListRow)=>{
+    switch(item.status){
+      case 'awaiting_review':return copy.nonPosting;
+      case 'open':return copy.reviewedUnpaid;
+      case 'partially_paid':return copy.partialUnpaid;
+      case 'settled':return copy.settledUnverified;
+      case 'cancelled':return copy.cancelled;
+    }
+  };
+  const urgencyText=(state:PayableDueState)=>{
+    if(state.kind==='overdue')return `${copy.overdue} ${state.days} ${state.days===1?copy.daySingular:copy.dayPlural}`;
+    if(state.kind==='today')return copy.dueToday;
+    if(state.kind==='upcoming')return `${copy.dueIn} ${state.days} ${state.days===1?copy.daySingular:copy.dayPlural}`;
+    if(state.kind==='invalid')return copy.badDueData;
+    return null;
+  };
   const shortDate=(day:string)=>/^\d{4}-\d{2}-\d{2}$/.test(day)?day.split('-').reverse().join('/'):'—';
 
   return (
@@ -326,7 +354,10 @@ function PayablesContent(){
           </p>}
           {!loading&&!listError&&items.length===0?<p className="mt-4 rounded-2xl border border-border-subtle bg-surface-default p-5 text-base text-text-secondary">{copy.empty}</p>:null}
           <div className="mt-4 space-y-3">
-            {items.map(item=><article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
+            {items.map(item=>{
+              const urgency=getPayableDueState({...item,today:localCivilDay(new Date())});
+              const dueText=urgencyText(urgency);
+              return <article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-lg font-semibold text-text-primary">{item.description}</h3>
@@ -338,8 +369,13 @@ function PayablesContent(){
                 <span className="flex items-center gap-2"><CalendarDays aria-hidden="true" className="h-4 w-4"/>{copy.dueLabel} {shortDate(item.dueDate)}</span>
                 <span className="flex items-center gap-2 font-medium text-semantic-warning">
                   <FileClock aria-hidden="true" className="h-4 w-4"/>
-                  {item.status==='open'?copy.reviewedUnpaid:copy.nonPosting}
+                  {statusText(item)}
                 </span>
+                {dueText&&<span role={urgency.kind==='invalid'?'alert':undefined}
+                  className={`rounded-lg px-3 py-2 font-semibold ${urgency.kind==='overdue'||urgency.kind==='invalid'
+                    ?'bg-semantic-warning/10 text-semantic-warning':'bg-surface-secondary text-text-secondary'}`}>
+                  {dueText}
+                </span>}
               </div>
               {canReview && reviewEnabled===true && item.status==='awaiting_review' && (
                 <div className="mt-4 border-t border-border-subtle pt-4">
@@ -369,7 +405,8 @@ function PayablesContent(){
                   )}
                 </div>
               )}
-            </article>)}
+            </article>;
+            })}
           </div>
           {loading?<p aria-live="polite" className="mt-4 text-sm text-text-secondary">{copy.loading}</p>:null}
           {nextCursor&&!loading?<button type="button" onClick={()=>void loadMore()}
