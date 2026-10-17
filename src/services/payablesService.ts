@@ -1,6 +1,6 @@
 import { firebaseAuth } from '@/src/lib/firebase';
 import { FINANCE_GATEWAY_PATH } from '@/src/config/api';
-import type { PayableDraft } from '../../../shared/finance/payableObligation.js';
+import type { PayableDraft } from '../../shared/finance/payableObligation.js';
 export type PayableListRow = PayableDraft & {
   id:string; status:'awaiting_review'|'open'|'partially_paid'|'settled'|'cancelled';
   paidCents:number;remainingCents:number;version:number;postingPerformed:false;
