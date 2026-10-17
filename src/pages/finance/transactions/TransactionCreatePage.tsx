@@ -16,6 +16,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
+import { PAYABLE_DRAFTS_UI_ENABLED } from '@/src/services/payablesService';
 import { PAYMENT_METHODS as ALL_PAYMENT_METHODS } from '@/shared/finance/paymentMethods';
 import {
   getCompatibleAccounts,
@@ -41,6 +42,12 @@ import {
   fundBadge,
   getTransactionOptionGuidance,
 } from './transactionOptionGuidance';
+
+const PAYMENT_STATE_COPY={
+  PT:{question:'Esta despesa já foi paga?',already:'Sim, já paguei',later:'Ainda vou pagar',help:'Não registre como paga uma conta que ainda está pendente. O rascunho não altera saldo.'},
+  EN:{question:'Has this expense already been paid?',already:'Yes, already paid',later:'I will pay later',help:'Do not record an unpaid bill as paid. A draft does not change balances.'},
+  ES:{question:'¿Este gasto ya se pagó?',already:'Sí, ya pagué',later:'Pagaré después',help:'No registre una cuenta pendiente como pagada. El borrador no cambia saldos.'},
+} as const;
 
 type AllocationState = {
   id: string;
@@ -102,6 +109,7 @@ function TransactionCreateContent() {
   const { createDraft, createAndSubmit } = useTransactions();
   const { language } = useLanguage();
   const copy = TRANSACTION_CREATE_COPY[language];
+  const paymentStateCopy=PAYMENT_STATE_COPY[language];
   const optionGuidance = getTransactionOptionGuidance(language);
 
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -1181,6 +1189,23 @@ function TransactionCreateContent() {
                     );
                   })}
                 </div>
+
+                {direction==='expense'&&PAYABLE_DRAFTS_UI_ENABLED&&(
+                  <Surface variant="secondary" radius="lg" className="mt-4 p-4">
+                    <h3 className="text-base font-semibold text-text-primary">{paymentStateCopy.question}</h3>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <span aria-current="true"
+                        className="flex min-h-14 items-center justify-center rounded-xl border-2 border-accent-primary bg-accent-primary/10 px-3 text-center text-sm font-semibold text-accent-primary">
+                        {paymentStateCopy.already}
+                      </span>
+                      <button type="button" onClick={()=>navigate(APP_ROUTES.payableCreate)}
+                        className="nf-interactive min-h-14 rounded-xl border border-border-strong bg-surface-base px-3 text-sm font-semibold text-text-primary hover:bg-surface-elevated">
+                        {paymentStateCopy.later}
+                      </button>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-text-muted">{paymentStateCopy.help}</p>
+                  </Surface>
+                )}
 
                 <Surface variant="elevated" radius="xl" className="mt-4 p-5 sm:p-6">
                   <div className="grid gap-5 sm:grid-cols-[1fr_14rem] sm:items-end">
