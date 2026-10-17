@@ -36,6 +36,12 @@ for(const word of ['Contas a pagar','Bills to pay','Cuentas por pagar','Aguardan
 assert.ok(ui.includes('payablesService.create('));
 assert.ok(ui.includes('payablesService.list('));
 assert.ok(ui.includes('FinanceContextGuard'));
+assert.ok(ui.includes("creationEnabled===true") && ui.includes("creationEnabled===false"),
+  'UI must never show a misleading create button when writes are flag-disabled');
+assert.ok(ui.includes("copy.featureOff"),'provide explicit feature-disabled state');
+assert.ok(readFileSync('server/vercel-handlers/finance/payablesList.ts','utf8')
+  .includes("creationEnabled:process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED==='true'"),
+  'read response must report actual server availability');
 assert.ok(tx.includes('Sim, já paguei') && tx.includes('Ainda vou pagar'));
 assert.ok(hub.includes('route: APP_ROUTES.payables'));
 assert.ok(route.includes('PayablesPage'));

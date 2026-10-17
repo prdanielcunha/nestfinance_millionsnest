@@ -8,6 +8,7 @@ export type PayableListRow = PayableDraft & {
 export type PayableListPage = {
   financeEntityId:string;items:PayableListRow[];hasMore:boolean;nextCursor:string|null;
   postingPerformed:false;
+  creationEnabled:boolean;
 };
 async function call<T>(operation:string,org:string,financeEntityId:string,body:Record<string,unknown>,signal?:AbortSignal):Promise<T>{
   const user=firebaseAuth.currentUser;

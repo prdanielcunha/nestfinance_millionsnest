@@ -44,6 +44,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     const hasMore=snapshot.docs.length>25;
     return res.status(200).json({
       financeEntityId,items,hasMore,
+      creationEnabled:process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED==='true',
       nextCursor:hasMore&&items.length>0?items[items.length-1].id:null,
       postingPerformed:false,
     });
