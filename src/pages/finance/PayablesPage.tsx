@@ -19,6 +19,9 @@ const TEXT:Record<Language,{
   review:string;noMoney:string;loadMore:string;loading:string;retry:string;
   validation:string;failure:string;featureOff:string;nonPosting:string;
   dueLabel:string;privacy:string;currencyHelp:string;listError:string;
+  reviewAction:string;reviewQuestion:string;reviewExplanation:string;reviewConfirm:string;
+  reviewCancel:string;reviewProcessing:string;reviewSuccess:string;reviewFailed:string;
+  reviewedUnpaid:string;reviewConflict:string;
 }> = {
   PT:{
     area:'Tesouraria',back:'Voltar ao financeiro',title:'Contas a pagar',
@@ -38,6 +41,12 @@ const TEXT:Record<Language,{
     featureOff:'O cadastro de contas a pagar ainda não está habilitado neste ambiente. Nenhum valor foi registrado.',
     nonPosting:'Aguardando conferência · Não pago',dueLabel:'Vence em',privacy:'Dados financeiros visíveis somente para sua igreja e equipe autorizada.',
     currencyHelp:'Informe em reais, por exemplo 180,50.',listError:'Não foi possível consultar as contas neste momento.',
+    reviewAction:'Conferir esta cobrança',reviewQuestion:'Você conferiu esta conta?',
+    reviewExplanation:'A conta passará para “Conferida, ainda não paga”. Nenhum valor sairá do caixa ou do banco.',
+    reviewConfirm:'Sim, conferi',reviewCancel:'Voltar',reviewProcessing:'Conferindo...',
+    reviewSuccess:'Conta conferida. Continua sem pagamento e sem alteração de saldo.',
+    reviewFailed:'Não foi possível conferir. Verifique e tente novamente.',
+    reviewedUnpaid:'Conferida · Ainda não paga',reviewConflict:'A conta mudou. A lista foi atualizada; confira novamente.',
   },
   EN:{
     area:'Treasury',back:'Back to finance',title:'Bills to pay',
@@ -57,6 +66,12 @@ const TEXT:Record<Language,{
     featureOff:'Unpaid bill creation is not yet enabled in this environment. Nothing was saved.',
     nonPosting:'Awaiting review · Unpaid',dueLabel:'Due on',privacy:'Finance records are scoped to your church and authorized team.',
     currencyHelp:'Use a comma for cents, e.g. 180,50.',listError:'Could not read unpaid bills right now.',
+    reviewAction:'Review this bill',reviewQuestion:'Have you checked this bill?',
+    reviewExplanation:'It will become “Reviewed, still unpaid”. No money leaves cash or bank accounts.',
+    reviewConfirm:'Yes, reviewed',reviewCancel:'Back',reviewProcessing:'Reviewing...',
+    reviewSuccess:'Reviewed. The bill remains unpaid and balances were not changed.',
+    reviewFailed:'Could not review this bill. Please try again.',
+    reviewedUnpaid:'Reviewed · Still unpaid',reviewConflict:'This bill changed. List refreshed; please review it again.',
   },
   ES:{
     area:'Tesorería',back:'Volver a finanzas',title:'Cuentas por pagar',
@@ -76,6 +91,12 @@ const TEXT:Record<Language,{
     featureOff:'El registro de cuentas por pagar aún no está habilitado aquí. No se guardó nada.',
     nonPosting:'En revisión · Sin pagar',dueLabel:'Vence el',privacy:'Datos financieros solo de su iglesia y equipo autorizado.',
     currencyHelp:'Use coma para centavos, ej.: 180,50.',listError:'No se pudo consultar las cuentas.',
+    reviewAction:'Revisar esta factura',reviewQuestion:'¿Ha verificado esta factura?',
+    reviewExplanation:'Pasará a “Revisada, aún sin pagar”. No se descontará nada de caja ni del banco.',
+    reviewConfirm:'Sí, revisada',reviewCancel:'Volver',reviewProcessing:'Revisando...',
+    reviewSuccess:'Factura revisada. Sigue sin pagar y los saldos no cambiaron.',
+    reviewFailed:'No fue posible revisar esta factura. Inténtelo de nuevo.',
+    reviewedUnpaid:'Revisada · Sin pagar',reviewConflict:'La factura cambió. La lista fue actualizada; revise de nuevo.',
   },
 };
 const locale:Record<Language,string>={PT:'pt-BR',EN:'en-US',ES:'es-ES'};
@@ -96,6 +117,7 @@ function PayablesContent(){
   const {activeFinanceEntityId}=useFinanceEntity();
   const organizationId=accessState.organizationId||accessState.organization?.id||'';
   const canCreate=hasEffectiveCapability(accessState,'finance.create_drafts');
+  const canReview=hasEffectiveCapability(accessState,'finance.review');
   const copy=TEXT[language];
   const [description,setDescription]=useState('');
   const [counterparty,setCounterparty]=useState('');
@@ -106,6 +128,11 @@ function PayablesContent(){
   const [items,setItems]=useState<PayableListRow[]>([]);
   const [nextCursor,setNextCursor]=useState<string|null>(null);
   const [creationEnabled,setCreationEnabled]=useState<boolean|null>(null);
+  const [reviewEnabled,setReviewEnabled]=useState<boolean|null>(null);
+  const [reviewTarget,setReviewTarget]=useState<string|null>(null);
+  const [reviewProcessing,setReviewProcessing]=useState(false);
+  const [reviewMessage,setReviewMessage]=useState<'success'|'failure'|'conflict'|null>(null);
+  const reviewKeys=useRef<Record<string,string>>({});
   const [loading,setLoading]=useState(true);
   const [listError,setListError]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -118,11 +145,13 @@ function PayablesContent(){
   useEffect(()=>{
     let alive=true;
     const abort=new AbortController();
-    setItems([]);setNextCursor(null);setCreationEnabled(null);setListError(false);setLoading(true);setMessage(null);setSaving(false);
+    setItems([]);setNextCursor(null);setCreationEnabled(null);setReviewEnabled(null);
+    setReviewTarget(null);setReviewMessage(null);reviewKeys.current={};setReviewProcessing(false);
+    setListError(false);setLoading(true);setMessage(null);setSaving(false);
     savedFingerprint.current=null;saveLock.current=false;
     if(!activeFinanceEntityId||!organizationId){setLoading(false);return ()=>{alive=false;abort.abort();};}
     void payablesService.list(organizationId,activeFinanceEntityId,undefined,abort.signal)
-      .then(page=>{if(alive){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);setListError(false);}})
+      .then(page=>{if(alive){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);setReviewEnabled(page.reviewEnabled);setListError(false);}})
       .catch(()=>{if(alive&&!abort.signal.aborted)setListError(true);})
       .finally(()=>{if(alive)setLoading(false);});
     return ()=>{alive=false;abort.abort();};
@@ -134,7 +163,7 @@ function PayablesContent(){
     setLoading(true);setListError(false);
     try{
       const page=await payablesService.list(organizationId,activeFinanceEntityId);
-      if(activeScopeRef.current===scope){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);}
+      if(activeScopeRef.current===scope){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);setReviewEnabled(page.reviewEnabled);}
     }catch{if(activeScopeRef.current===scope)setListError(true);}finally{if(activeScopeRef.current===scope)setLoading(false);}
   };
   const loadMore=async()=>{
@@ -178,6 +207,32 @@ function PayablesContent(){
     }finally{
       saveLock.current=false;
       if(activeScopeRef.current===scope)setSaving(false);
+    }
+  };
+  const confirmReview=async (item:PayableListRow)=>{
+    if(!canReview||reviewEnabled!==true||reviewProcessing||reviewTarget!==item.id||
+      !activeFinanceEntityId||!organizationId||item.status!=='awaiting_review')return;
+    const scope=organizationId+'|'+activeFinanceEntityId;
+    const fingerprint=scope+'|'+item.id+'|'+item.version;
+    reviewKeys.current[fingerprint]??=crypto.randomUUID();
+    setReviewProcessing(true);setReviewMessage(null);
+    try{
+      const result=await payablesService.review(
+        organizationId,activeFinanceEntityId,item.id,item.version,reviewKeys.current[fingerprint],
+      );
+      if(result.postingPerformed!==false||result.status!=='open'||result.paidCents!==0)
+        throw Error('PAYABLE_UNEXPECTED_POSTING');
+      delete reviewKeys.current[fingerprint];
+      if(activeScopeRef.current!==scope)return;
+      setReviewTarget(null);setReviewMessage('success');
+      await refresh();
+    }catch(error:any){
+      if(activeScopeRef.current!==scope)return;
+      if(['PAYABLE_VERSION_CONFLICT','PAYABLE_REVIEW_STATE_CONFLICT'].includes(error?.message)){
+        setReviewTarget(null);setReviewMessage('conflict');await refresh();
+      }else setReviewMessage('failure');
+    }finally{
+      if(activeScopeRef.current===scope)setReviewProcessing(false);
     }
   };
   const money=(value:number)=>new Intl.NumberFormat(locale[language],{style:'currency',currency:'BRL'}).format(value/100);
@@ -264,6 +319,11 @@ function PayablesContent(){
             <AlertCircle aria-hidden="true" className="h-5 w-5 text-semantic-warning"/>{copy.listError}
             <button type="button" onClick={()=>void refresh()} className="font-semibold text-accent-primary underline">{copy.retry}</button>
           </div>:null}
+          {reviewMessage && <p role="status" aria-live="polite"
+            className={`mt-4 rounded-xl border p-4 text-sm leading-relaxed ${reviewMessage==='success'?'border-semantic-success/30 text-semantic-success':'border-semantic-warning/30 text-text-primary'}`}>
+            {reviewMessage==='success'?copy.reviewSuccess:
+              reviewMessage==='conflict'?copy.reviewConflict:copy.reviewFailed}
+          </p>}
           {!loading&&!listError&&items.length===0?<p className="mt-4 rounded-2xl border border-border-subtle bg-surface-default p-5 text-base text-text-secondary">{copy.empty}</p>:null}
           <div className="mt-4 space-y-3">
             {items.map(item=><article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
@@ -276,8 +336,39 @@ function PayablesContent(){
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border-subtle pt-4 text-sm text-text-secondary">
                 <span className="flex items-center gap-2"><CalendarDays aria-hidden="true" className="h-4 w-4"/>{copy.dueLabel} {shortDate(item.dueDate)}</span>
-                <span className="flex items-center gap-2 font-medium text-semantic-warning"><FileClock aria-hidden="true" className="h-4 w-4"/>{copy.nonPosting}</span>
+                <span className="flex items-center gap-2 font-medium text-semantic-warning">
+                  <FileClock aria-hidden="true" className="h-4 w-4"/>
+                  {item.status==='open'?copy.reviewedUnpaid:copy.nonPosting}
+                </span>
               </div>
+              {canReview && reviewEnabled===true && item.status==='awaiting_review' && (
+                <div className="mt-4 border-t border-border-subtle pt-4">
+                  {reviewTarget!==item.id ? (
+                    <button type="button" disabled={reviewProcessing}
+                      onClick={()=>{setReviewTarget(item.id);setReviewMessage(null);}}
+                      className="nf-interactive min-h-14 w-full rounded-xl border border-border-strong bg-surface-secondary px-4 text-base font-semibold text-accent-primary disabled:opacity-50">
+                      {copy.reviewAction}
+                    </button>
+                  ) : (
+                    <div className="space-y-3 rounded-xl border border-border-strong bg-surface-secondary p-4">
+                      <p className="text-base font-semibold text-text-primary">{copy.reviewQuestion}</p>
+                      <p className="text-sm leading-relaxed text-text-secondary">{copy.reviewExplanation}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button type="button" disabled={reviewProcessing}
+                          onClick={()=>setReviewTarget(null)}
+                          className="nf-interactive min-h-14 rounded-xl border border-border-strong bg-surface-default px-4 text-base font-semibold text-text-primary disabled:opacity-50">
+                          {copy.reviewCancel}
+                        </button>
+                        <button type="button" disabled={reviewProcessing}
+                          onClick={()=>void confirmReview(item)}
+                          className="nf-interactive min-h-14 rounded-xl bg-accent-primary px-4 text-base font-semibold text-background-base disabled:opacity-50">
+                          {reviewProcessing?copy.reviewProcessing:copy.reviewConfirm}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </article>)}
           </div>
           {loading?<p aria-live="polite" className="mt-4 text-sm text-text-secondary">{copy.loading}</p>:null}

@@ -9,6 +9,7 @@ export type PayableListPage = {
   financeEntityId:string;items:PayableListRow[];hasMore:boolean;nextCursor:string|null;
   postingPerformed:false;
   creationEnabled:boolean;
+  reviewEnabled:boolean;
 };
 async function call<T>(operation:string,org:string,financeEntityId:string,body:Record<string,unknown>,signal?:AbortSignal):Promise<T>{
   const user=firebaseAuth.currentUser;
@@ -30,6 +31,12 @@ export const payablesService={
   list(organizationId:string,financeEntityId:string,afterId?:string,signal?:AbortSignal){
     return call<PayableListPage>('payables-list',organizationId,financeEntityId,
       afterId?{afterId}:{},signal);
+  },
+  review(organizationId:string,financeEntityId:string,payableId:string,expectedVersion:number,idempotencyKey:string){
+    return call<{id:string;status:'open';version:number;paidCents:0;remainingCents:number;postingPerformed:false}>(
+      'payables-review',organizationId,financeEntityId,{
+        payableId,expectedVersion,idempotencyKey,requestId:crypto.randomUUID(),
+      });
   },
   create(organizationId:string,financeEntityId:string,payload:PayableDraft,idempotencyKey:string){
     return call<{id:string;status:'awaiting_review';version:1;postingPerformed:false}>(
