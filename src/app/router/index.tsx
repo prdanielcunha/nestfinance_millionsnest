@@ -42,6 +42,8 @@ const ReportsPage = lazy(() => import('@/src/pages/finance/ReportsPage'));
 const AuditPage = lazy(() => import('@/src/pages/finance/AuditPage'));
 const MorePage = lazy(() => import('@/src/pages/finance/MorePage'));
 const TransactionsListPage = lazy(() => import('@/src/pages/finance/transactions/TransactionsListPage'));
+const PayablesPage = lazy(() => import('@/src/pages/finance/payables/PayablesPage'));
+const PayableCreatePage = lazy(() => import('@/src/pages/finance/payables/PayableCreatePage'));
 const TransactionCreatePage = lazy(() => import('@/src/pages/finance/transactions/TransactionCreatePage'));
 const TransactionDetailOverviewPage = lazy(() => import('@/src/pages/finance/transactions/TransactionDetailOverviewPage'));
 const TransactionAdvancedDetailPage = lazy(() => import('@/src/pages/finance/transactions/TransactionAdvancedDetailPage'));
@@ -96,6 +98,8 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.treasury, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TreasuryHubPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.accountant, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><AccountantWorkspacePage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactions, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.payables, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><PayablesPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.payableCreate, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><PayableCreatePage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.transactionCreate, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.transactionDetail, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionDetailOverviewPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactionDetailLegacy, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionAdvancedDetailPage /></Suspense>, VIEW_FINANCE) },
