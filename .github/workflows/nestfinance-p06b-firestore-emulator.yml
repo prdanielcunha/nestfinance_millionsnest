@@ -82,6 +82,7 @@ on:
       - "server/vercel-handlers/finance/transactionWorkspaceViewsDelete.ts"
       - "shared/finance/transactionWorkspaceView.ts"
       - "scripts/test-audit-fact-projection.ts"
+      - "scripts/test-journal-integrity-e02.ts"
       - "scripts/test-audit-fact-projection-emulator.ts"
       - "server/vercel-handlers/finance/auditFactProjection.ts"
       - "server/vercel-handlers/finance/auditFactProjectionPreview.ts"
@@ -250,6 +251,7 @@ jobs:
           npx tsx scripts/test-transactions-integration.ts
           npx tsx scripts/test-firestore-seam.ts
           npx tsx scripts/test-ledger.ts
+          npx tsx scripts/test-journal-integrity-e02.ts
           npx tsx scripts/test-authorization.ts
           npx tsx scripts/test-count-pilot.ts
           npx tsx scripts/test-count-paper-h3a.ts
