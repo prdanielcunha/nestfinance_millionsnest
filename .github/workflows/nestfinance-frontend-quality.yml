@@ -8,6 +8,9 @@ on:
       - "shared/finance/openingBalanceDeclaration.ts"
       - "shared/finance/conventionRemittance.ts"
       - "shared/finance/payableObligation.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "scripts/test-today-registered-payables-ui.ts"
+      - "scripts/test-today-registered-payables-emulator.ts"
       - "scripts/test-payables-ui-t18-t19.ts"
       - "server/vercel-handlers/finance/payablesCreate.ts"
       - "server/vercel-handlers/finance/payablesList.ts"
@@ -123,6 +126,9 @@ on:
       - "shared/finance/openingBalanceDeclaration.ts"
       - "shared/finance/conventionRemittance.ts"
       - "shared/finance/payableObligation.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "scripts/test-today-registered-payables-ui.ts"
+      - "scripts/test-today-registered-payables-emulator.ts"
       - "scripts/test-payables-ui-t18-t19.ts"
       - "server/vercel-handlers/finance/payablesCreate.ts"
       - "server/vercel-handlers/finance/payablesList.ts"
@@ -252,6 +258,9 @@ jobs:
 
       - name: Verify secure paginated opening history viewer
         run: npx tsx scripts/test-account-opening-history-read.ts
+
+      - name: Verify Today registered unpaid bills versus evidence due candidates
+        run: npx tsx scripts/test-today-registered-payables-ui.ts
 
       - name: Verify T18 T19 unpaid bill contract and three-language guidance
         run: npx tsx scripts/test-payables-ui-t18-t19.ts
