@@ -8,6 +8,7 @@ import { FinanceTreasuryAreaBoundary } from '@/src/app/boundaries/FinanceTreasur
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { PAYABLE_DRAFTS_UI_ENABLED } from '@/src/services/payablesService';
 
 const TEXT = {
   PT: {
@@ -68,7 +69,7 @@ function TreasuryHubContent() {
     { title: copy.incomingCount, body: copy.incomingCountDesc, icon: ClipboardList, route: APP_ROUTES.count },
     { title: copy.documents, body: copy.documentsDesc, icon: FileText, route: APP_ROUTES.inbox },
     { title: copy.transactions, body: copy.transactionsDesc, icon: ClipboardList, route: APP_ROUTES.transactions },
-    { title: copy.payable, body: copy.payableDesc, icon: Receipt, route: `${APP_ROUTES.transactions}?direction=expense` },
+    { title: copy.payable, body: copy.payableDesc, icon: Receipt, route: PAYABLE_DRAFTS_UI_ENABLED ? APP_ROUTES.payables : `${APP_ROUTES.transactions}?direction=expense` },
     { title: copy.balance, body: copy.balanceDesc, icon: Landmark, route: APP_ROUTES.balance },
     { title: copy.month, body: copy.monthDesc, icon: CalendarDays, route: APP_ROUTES.reports },
     ...(canCreate ? [{ title: copy.transfer, body: copy.transferDesc, icon: ArrowRightLeft, route: `${APP_ROUTES.transactionCreate}?direction=transfer` }] : []),
