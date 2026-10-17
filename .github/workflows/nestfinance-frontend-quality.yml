@@ -6,6 +6,8 @@ on:
     paths:
       - "src/**"
       - "shared/finance/openingBalanceDeclaration.ts"
+      - "shared/finance/conventionRemittance.ts"
+      - "scripts/test-convention-remittance-e06.ts"
       - "server/vercel-handlers/finance/accountsCreate.ts"
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
@@ -114,6 +116,8 @@ on:
     paths:
       - "src/**"
       - "shared/finance/openingBalanceDeclaration.ts"
+      - "shared/finance/conventionRemittance.ts"
+      - "scripts/test-convention-remittance-e06.ts"
       - "server/vercel-handlers/finance/accountsCreate.ts"
       - "server/vercel-handlers/finance/accountsList.ts"
       - "scripts/test-account-opening-declaration.ts"
@@ -238,6 +242,9 @@ jobs:
 
       - name: Verify secure paginated opening history viewer
         run: npx tsx scripts/test-account-opening-history-read.ts
+
+      - name: Verify convention repasse calculation by rule version
+        run: npx tsx scripts/test-convention-remittance-e06.ts
 
       - name: Verify append-only account opening correction
         run: npx tsx scripts/test-account-opening-history.ts
