@@ -105,6 +105,7 @@ function PayablesContent(){
   const [notes,setNotes]=useState('');
   const [items,setItems]=useState<PayableListRow[]>([]);
   const [nextCursor,setNextCursor]=useState<string|null>(null);
+  const [creationEnabled,setCreationEnabled]=useState<boolean|null>(null);
   const [loading,setLoading]=useState(true);
   const [listError,setListError]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -117,11 +118,11 @@ function PayablesContent(){
   useEffect(()=>{
     let alive=true;
     const abort=new AbortController();
-    setItems([]);setNextCursor(null);setListError(false);setLoading(true);setMessage(null);setSaving(false);
+    setItems([]);setNextCursor(null);setCreationEnabled(null);setListError(false);setLoading(true);setMessage(null);setSaving(false);
     savedFingerprint.current=null;saveLock.current=false;
     if(!activeFinanceEntityId||!organizationId){setLoading(false);return ()=>{alive=false;abort.abort();};}
     void payablesService.list(organizationId,activeFinanceEntityId,undefined,abort.signal)
-      .then(page=>{if(alive){setItems(page.items);setNextCursor(page.nextCursor);setListError(false);}})
+      .then(page=>{if(alive){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);setListError(false);}})
       .catch(()=>{if(alive&&!abort.signal.aborted)setListError(true);})
       .finally(()=>{if(alive)setLoading(false);});
     return ()=>{alive=false;abort.abort();};
@@ -133,7 +134,7 @@ function PayablesContent(){
     setLoading(true);setListError(false);
     try{
       const page=await payablesService.list(organizationId,activeFinanceEntityId);
-      if(activeScopeRef.current===scope){setItems(page.items);setNextCursor(page.nextCursor);}
+      if(activeScopeRef.current===scope){setItems(page.items);setNextCursor(page.nextCursor);setCreationEnabled(page.creationEnabled);}
     }catch{if(activeScopeRef.current===scope)setListError(true);}finally{if(activeScopeRef.current===scope)setLoading(false);}
   };
   const loadMore=async()=>{
@@ -147,7 +148,7 @@ function PayablesContent(){
   };
   const save=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
-    if(!canCreate||!activeFinanceEntityId||!organizationId||saveLock.current)return;
+    if(!canCreate||creationEnabled!==true||!activeFinanceEntityId||!organizationId||saveLock.current)return;
     setMessage(null);
     let payload:PayableDraft;
     try{
@@ -197,7 +198,12 @@ function PayablesContent(){
             <p className="mt-2 max-w-2xl text-base leading-7 text-text-secondary">{copy.intro}</p>
           </div>
         </header>
-        {canCreate?<section className="nf-paper-surface rounded-3xl border border-border-subtle bg-surface-default p-5 sm:p-7" aria-labelledby="payable-create-title">
+        {canCreate && creationEnabled===false && !listError ? (
+          <section className="rounded-2xl border border-border-subtle bg-surface-secondary p-5" role="status">
+            <p className="text-base leading-relaxed text-text-secondary">{copy.featureOff}</p>
+          </section>
+        ) : null}
+        {canCreate && creationEnabled===true ? <section className="nf-paper-surface rounded-3xl border border-border-subtle bg-surface-default p-5 sm:p-7" aria-labelledby="payable-create-title">
           <div className="mb-5">
             <h2 id="payable-create-title" className="text-xl font-semibold text-text-primary">{copy.createTitle}</h2>
             <p className="mt-2 text-base leading-relaxed text-text-secondary">{copy.createSubtitle}</p>
