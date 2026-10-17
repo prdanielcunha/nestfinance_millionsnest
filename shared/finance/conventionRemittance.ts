@@ -143,6 +143,18 @@ export function previewConventionRemittance(input:{
       blockers.push('CONVENTION_OVERLAPPING_RULES');
     }
   }
+  // A policy must cover the entire reported month, even on days with zero
+  // transactions. Otherwise "complete" would silently certify missing dates.
+  const year=Number(period.slice(0,4)), month=Number(period.slice(5,7));
+  if(year<1900||year>2100)throw Error('CONVENTION_INVALID_INPUT');
+  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+  for(let d=1;d<=lastDay;d++){
+    const date=period+'-'+String(d).padStart(2,'0');
+    const overlapping=rules.filter(r=>r.effectiveFrom<=date&&
+      (r.effectiveThrough===null||r.effectiveThrough>=date)).length;
+    if(overlapping===0)blockers.push('CONVENTION_RULE_PERIOD_GAP');
+    if(overlapping>1)blockers.push('CONVENTION_OVERLAPPING_RULES');
+  }
   const segmentsByRule=new Map<string,ConventionSegment>();
   let excluded=0;
   for(const receipt of receipts) {
