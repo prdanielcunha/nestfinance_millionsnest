@@ -4,6 +4,7 @@ import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/fireba
 import createDrafts from '../server/vercel-handlers/finance/countVerificationsCreateProposedDrafts.js';
 import previewDrafts from '../server/vercel-handlers/finance/countVerificationsProposalPreview.js';
 import receivedIncomeSummary from '../server/vercel-handlers/finance/receivedIncomeSummary.js';
+import legacyCreateDrafts from '../server/vercel-handlers/finance/countSessionsCreateProposedDrafts.js';
 
 /**
  * Count v3 -> finance draft integration with the real Firestore emulator.
@@ -182,7 +183,32 @@ async function run() {
     assert.equal(after.statusCode, 200, JSON.stringify(after.body));
     assert.equal(after.body.preview.alreadyCreated, true);
     assert.deepEqual(after.body.preview.transactionIds, ids);
-    console.log('✅ Count v3 emulator E2E: reviewed evidence, exact mapping, isolation, atomic drafts, no posting, safe replay and conflict');
+    const legacySessionId = 'cnt_' + randomBytes(12).toString('hex');
+    const legacyEntries = [{ type: 'pix', channel: 'pix', method: 'total', totalCents: 5000, denominations: {} }];
+    await entityRef.collection('countSessions').doc(legacySessionId).set({
+      id: legacySessionId, organizationId: org, financeEntityId: entity,
+      status: 'matched', version: 2, serviceDate: '2026-10-16', serviceLabel: 'Synthetic legacy service',
+      comparison: { matched: true }, countA: { entries: legacyEntries, totalCents: 5000 }, countB: { entries: legacyEntries, totalCents: 5000 },
+    });
+    const legacyBody = (receivedDate?: string) => ({ financeEntityId: entity, countSessionId: legacySessionId, expectedVersion: 2,
+      selections: [{ entryType: 'pix', accountId: bank, categoryId: category, ...(receivedDate ? { receivedDate } : {}) }], idempotencyKey: key() });
+    assert.equal((await call(legacyCreateDrafts, legacyBody())).statusCode, 400, 'legacy Pix cannot inherit the service date silently');
+    const legacy = await call(legacyCreateDrafts, legacyBody('2026-10-14'));
+    assert.equal(legacy.statusCode, 200, JSON.stringify(legacy.body));
+    const legacyDoc = await orgRef.collection('financeTransactions').doc(legacy.body.transactionIds[0]).get();
+    assert.equal(legacyDoc.data()?.occurredAt, '2026-10-14T12:00:00.000Z');
+    assert.equal(legacyDoc.data()?.countSource?.serviceDate, '2026-10-16');
+    assert.equal(legacyDoc.data()?.countSource?.receivedDate, '2026-10-14');
+    const legacyReplay = await call(legacyCreateDrafts, legacyBody('2026-10-14'));
+    assert.equal(legacyReplay.statusCode, 200, JSON.stringify(legacyReplay.body));
+    assert.equal(legacyReplay.body.replayed, true);
+    assert.equal((await call(legacyCreateDrafts, legacyBody('2026-10-15'))).statusCode, 409);
+    const legacyReceipt = await call(receivedIncomeSummary, { financeEntityId: entity, startDate: '2026-10-14', endDate: '2026-10-14' });
+    assert.equal(legacyReceipt.statusCode, 200, JSON.stringify(legacyReceipt.body));
+    assert.equal(legacyReceipt.body.pendingCents, 5000);
+    assert.equal((await orgRef.collection('financeTransactions').get()).size, 3);
+    assert.equal((await orgRef.collection('financeJournalEntries').get()).size, 0);
+    console.log('✅ Count legacy/v3 emulator E2E: received dates, source provenance, scoped summaries, no posting, safe replay and conflict');
   } finally {
     admin.auth.verifyIdToken = originalVerify;
     if (previousFlag === undefined) delete process.env.NESTFINANCE_COUNT_V3_ENABLED;

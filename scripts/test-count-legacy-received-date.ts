@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { normalizeSelections } from '../server/vercel-handlers/finance/countSessionsCreateProposedDrafts.js';
+import { buildReceivedIncome } from '../shared/finance/receivedIncome.js';
+const pix={entryType:'pix',accountId:'synthetic-bank',categoryId:'synthetic-income'};
+assert.throws(()=>normalizeSelections([pix]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
+assert.throws(()=>normalizeSelections([{...pix,receivedDate:'2026-02-30'}]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
+assert.throws(()=>normalizeSelections([{...pix,receivedDate:'2026-10-17T12:00:00Z'}]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
+assert.equal(normalizeSelections([{...pix,receivedDate:'2026-10-15'}])[0].receivedDate,'2026-10-15');
+assert.equal(normalizeSelections([{...pix,entryType:'tithe'}])[0].receivedDate,undefined,'cash retains service-day compatibility');
+assert.throws(()=>normalizeSelections([{...pix,entryType:'tithe',receivedDate:'invalid'}]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
+assert.throws(()=>normalizeSelections([{...pix,receivedDate:'2026-10-15'},{...pix,receivedDate:'2026-10-16'}]),/COUNT_PROPOSAL_INVALID_SELECTIONS/,'one sealed aggregate cannot silently be duplicated across dates');
+const out=buildReceivedIncome({startDate:'2026-10-15',endDate:'2026-10-15',timezone:'America/Sao_Paulo',transactions:[{id:'synthetic-date',transactionKind:'income',status:'ready_for_review',amountCents:5000,currency:'BRL',occurredAt:'2026-10-15T12:00:00.000Z',paymentMethod:'pix'}]});
+assert.equal(out.pendingByMethod.pix,5000);assert.equal(out.confirmedCents,0);
+console.log('Legacy Count dates: explicit Pix date, cash fallback, invalid/duplicate protection and pending-income composition passed');

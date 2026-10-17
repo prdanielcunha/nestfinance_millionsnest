@@ -18,10 +18,14 @@ type SelectionState = Record<EntryType, {
   fundId: string;
   editAccount: boolean;
   editCategory: boolean;
+  receivedDate: string;
 }>;
 
 const COPY = {
   PT: {
+    receivedDate: 'Em que dia este valor foi recebido?',
+    receivedHelp: 'Confira a data no comprovante. Se o total inclui Pix de dias diferentes, registre os recebimentos individualmente e evite repeti-los nesta contagem.',
+    alreadyCreated: 'Esta contagem já tem lançamentos preparados. Abra a revisão para corrigir a data ou a classificação; nenhum valor novo foi criado.',
     area: 'Preparar lançamentos',
     step: 'Passo 1 de 1',
     title: 'Confira o que vai para a revisão',
@@ -68,6 +72,9 @@ const COPY = {
     },
   },
   EN: {
+    receivedDate: 'When was this amount received?',
+    receivedHelp: 'Check the payment evidence date. If the total includes Pix from different days, record receipts individually and avoid repeating them in this count.',
+    alreadyCreated: 'Entries already exist for this count. Open review to correct dates or classification; no new amount was created.',
     area: 'Prepare entries',
     step: 'Step 1 of 1',
     title: 'Review what will go to review',
@@ -114,6 +121,9 @@ const COPY = {
     },
   },
   ES: {
+    receivedDate: '¿Qué día se recibió este importe?',
+    receivedHelp: 'Revise la fecha del comprobante. Si el total incluye Pix de días distintos, registre los ingresos individualmente y evite repetirlos en el conteo.',
+    alreadyCreated: 'Este conteo ya tiene movimientos preparados. Abra la revisión para corregir la fecha o clasificación; no se creó ningún importe nuevo.',
     area: 'Preparar movimientos',
     step: 'Paso 1 de 1',
     title: 'Revisa lo que irá a revisión',
@@ -170,10 +180,10 @@ function makeToken(prefix: string) {
 
 function buildInitialSelections(preview: CountProposalPreview): SelectionState {
   const empty: SelectionState = {
-    tithe: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
-    offering: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
-    other: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
-    pix: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true },
+    tithe: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true, receivedDate: '' },
+    offering: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true, receivedDate: '' },
+    other: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true, receivedDate: '' },
+    pix: { accountId: '', categoryId: '', fundId: '', editAccount: true, editCategory: true, receivedDate: '' },
   };
 
   for (const line of preview.lines) {
@@ -183,6 +193,7 @@ function buildInitialSelections(preview: CountProposalPreview): SelectionState {
       fundId: '',
       editAccount: !line.suggestedAccountId,
       editCategory: !line.suggestedCategoryId,
+      receivedDate: line.paymentMethod === 'cash' ? preview.serviceDate : '',
     };
   }
   return empty;
@@ -242,13 +253,13 @@ function CountProposalContent() {
     if (!preview || !selections) return 0;
     return preview.lines.reduce((count, line) => {
       const selection = selections[line.entryType];
-      return count + (selection.accountId ? 0 : 1) + (selection.categoryId ? 0 : 1);
+      return count + (selection.accountId ? 0 : 1) + (selection.categoryId ? 0 : 1) + (selection.receivedDate ? 0 : 1);
     }, 0);
   }, [preview, selections]);
 
   const updateSelection = (
     type: EntryType,
-    field: 'accountId' | 'categoryId' | 'fundId' | 'editAccount' | 'editCategory',
+    field: 'accountId' | 'categoryId' | 'fundId' | 'editAccount' | 'editCategory' | 'receivedDate',
     value: string | boolean,
   ) => {
     setSelections((current) => current ? {
@@ -265,6 +276,7 @@ function CountProposalContent() {
       accountId: selections[line.entryType].accountId,
       categoryId: selections[line.entryType].categoryId,
       fundId: selections[line.entryType].fundId || null,
+      receivedDate: selections[line.entryType].receivedDate,
     }));
     const identity = JSON.stringify({ version: preview.countVersion, payloadSelections });
     if (!attemptRef.current || attemptRef.current.identity !== identity) {
@@ -285,7 +297,9 @@ function CountProposalContent() {
       navigate(APP_ROUTES.financeReview);
     } catch (error: any) {
       setCreateError(
-        error?.code === 'COUNT_VERSION_CONFLICT'
+        error?.code === 'COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS'
+          ? 'already_created'
+          : error?.code === 'COUNT_VERSION_CONFLICT'
           ? 'conflict'
           : String(error?.code || 'error'),
       );
@@ -416,6 +430,13 @@ function CountProposalContent() {
                   </p>
                 </div>
 
+                <label className="mt-5 block text-sm font-semibold text-text-primary">
+                  {copy.receivedDate}
+                  <input type="date" required value={selection.receivedDate}
+                    onChange={event => updateSelection(line.entryType, 'receivedDate', event.target.value)}
+                    className="mt-2 min-h-14 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary" />
+                  <span className="mt-2 block text-sm font-normal text-text-secondary">{copy.receivedHelp}</span>
+                </label>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="font-semibold text-text-primary">{copy.where}</label>
@@ -510,8 +531,10 @@ function CountProposalContent() {
           {createError ? (
             <FlowFeedback
               tone="error"
-              title={createError === 'conflict' ? copy.conflict : copy.createError}
-              action={createError === 'conflict' ? <Button variant="secondary" onClick={() => void load()}>{copy.retry}</Button> : undefined}
+              title={createError === 'already_created' ? copy.alreadyCreated : createError === 'conflict' ? copy.conflict : copy.createError}
+              action={createError === 'already_created'
+                ? <Button variant="secondary" onClick={() => navigate(APP_ROUTES.financeReview)}>{copy.review}</Button>
+                : createError === 'conflict' ? <Button variant="secondary" onClick={() => void load()}>{copy.retry}</Button> : undefined}
             />
           ) : null}
 
