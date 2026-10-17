@@ -46,6 +46,8 @@ const incomplete=run(receipts,[rule],false);
 assert.equal(incomplete.complete,false);
 assert.ok(incomplete.blockers.includes('CONVENTION_SOURCE_COVERAGE_INCOMPLETE'));
 assert.ok(run(receipts,[]).blockers.includes('CONVENTION_RULE_MISSING'));
+assert.ok(run([], [{...rule,effectiveFrom:'2026-11-01'}]).blockers.includes('CONVENTION_RULE_PERIOD_GAP'), 'future policy cannot certify this month');
+assert.ok(run([],[{...rule,effectiveThrough:'2026-10-14'}]).blockers.includes('CONVENTION_RULE_PERIOD_GAP'), 'partial-month policy gap must be visible');
 
 const r1={...rule,effectiveThrough:'2026-10-14'};
 const r2={...rule,revision:2,effectiveFrom:'2026-10-15',percentageBasisPoints:1250};
