@@ -41,6 +41,9 @@ async function run(){
     delete process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED;
     const off=await call(createPayable,{financeEntityId:entity,payload:data,idempotencyKey:key,requestId:'request_0001'});
     assert.equal(off.statusCode,503,'disabled by default');
+    const offList=await call(listPayables,{financeEntityId:entity});
+    assert.equal(offList.statusCode,200);
+    assert.equal(offList.body.creationEnabled,false,'client must not show a form when backend write flag is off');
     process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED='true';
 
     assert.throws(()=>parsePayableDraft({...data,dueDate:'2026-02-30'}));
@@ -75,6 +78,7 @@ async function run(){
     const read=await call(listPayables,{financeEntityId:entity});
     assert.equal(read.statusCode,200,JSON.stringify(read.body));
     assert.equal(read.body.items.length,1);
+    assert.equal(read.body.creationEnabled,true);
     assert.equal(read.body.items[0].id,create.body.id);
     assert.equal(read.body.items[0].remainingCents,17855);
     assert.equal(read.body.postingPerformed,false);
