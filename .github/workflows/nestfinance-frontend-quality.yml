@@ -8,6 +8,8 @@ on:
       - "shared/finance/openingBalanceDeclaration.ts"
       - "shared/finance/conventionRemittance.ts"
       - "shared/finance/payableObligation.ts"
+      - "shared/finance/payableUrgency.ts"
+      - "scripts/test-payables-due-clarity.ts"
       - "shared/finance/todayOperationalSummary.ts"
       - "scripts/test-today-registered-payables-ui.ts"
       - "scripts/test-today-registered-payables-emulator.ts"
@@ -128,6 +130,8 @@ on:
       - "shared/finance/openingBalanceDeclaration.ts"
       - "shared/finance/conventionRemittance.ts"
       - "shared/finance/payableObligation.ts"
+      - "shared/finance/payableUrgency.ts"
+      - "scripts/test-payables-due-clarity.ts"
       - "shared/finance/todayOperationalSummary.ts"
       - "scripts/test-today-registered-payables-ui.ts"
       - "scripts/test-today-registered-payables-emulator.ts"
@@ -268,6 +272,9 @@ jobs:
 
       - name: Verify human payable review access and non-payment guidance
         run: npx tsx scripts/test-payables-review-ui.ts
+
+      - name: Verify unpaid bills due-date and status clarity
+        run: npx tsx scripts/test-payables-due-clarity.ts
 
       - name: Verify T18 T19 unpaid bill contract and three-language guidance
         run: npx tsx scripts/test-payables-ui-t18-t19.ts
