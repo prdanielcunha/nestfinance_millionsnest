@@ -187,7 +187,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
 
   const renderStepIndicator = (s: number, label: string) => (
       <div className="flex flex-col items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${step === s ? 'bg-accent-primary text-white' : step > s ? 'bg-emerald-500' : 'bg-surface-secondary text-text-muted'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${step === s ? 'bg-accent-primary text-background-base' : step > s ? 'bg-emerald-500' : 'bg-surface-secondary text-text-muted'}`}>
               {renderStepIcon(s)}
           </div>
           <span className={`text-xs hidden md:block ${step === s ? 'text-accent-primary font-medium' : step > s ? 'text-emerald-400 font-medium' : 'text-text-muted'}`}>
@@ -272,7 +272,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
            ) : <div />}
 
            {step < 6 && !previewLoading && !previewError && submitStatus !== 'success' && submitStatus !== 'verified' && submitStatus !== 'verifying' && submitStatus !== 'verification_failed' && submitStatus !== 'verification_error' && (
-               <button onClick={handleNext} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+               <button onClick={handleNext} disabled={submitStatus === 'submitting'} className="h-12 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                   Próximo <ChevronRight className="w-4 h-4 ml-2" />
                </button>
            )}
@@ -280,7 +280,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
            {step === 6 && !previewLoading && !previewError && (
                <div className="flex gap-4 ml-auto">
                    {submitStatus === 'verified' || submitStatus === 'success' ? (
-                       <button onClick={onClose} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors">
+                       <button onClick={onClose} className="h-12 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors">
                            Fechar e continuar
                        </button>
                    ) : submitStatus === 'verification_failed' || submitStatus === 'verification_error' ? (
@@ -288,7 +288,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
                            <button onClick={onClose} className="h-12 px-6 rounded-xl border border-border-subtle text-text-primary font-medium hover:bg-surface-secondary transition-colors">
                               Fechar
                            </button>
-                           <button onClick={handleApply} disabled={submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+                           <button onClick={handleApply} disabled={submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                               <Save className="w-4 h-4 mr-2" />
                               Verificar novamente
                            </button>
@@ -299,7 +299,7 @@ export default function FinanceBootstrapWizard({ entity, statusData, onClose }: 
                               Voltar e revisar
                            </button>
                            {canFinalize && (
-                               <button onClick={handleApply} disabled={submitStatus === 'submitting' || submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
+                               <button onClick={handleApply} disabled={submitStatus === 'submitting' || submitStatus === 'verifying'} className="h-12 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors flex items-center disabled:opacity-50">
                                   {submitStatus === 'submitting' ? (
                                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Preparando...</>
                                   ) : submitStatus === 'verifying' ? (
@@ -384,7 +384,7 @@ function SelectableList({ items, selected, toggle }: { items: BootstrapItem[], s
                         onClick={() => toggle(t.templateKey)}
                         className={`p-4 rounded-xl border text-left transition-colors flex items-start gap-4 ${isSelected ? 'border-accent-primary bg-accent-primary/5' : 'border-border-subtle bg-surface-elevated hover:border-border-strong'}`}
                     >
-                        <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-accent-primary bg-accent-primary text-white' : 'border-text-muted bg-surface-base'}`}>
+                        <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-accent-primary bg-accent-primary text-background-base' : 'border-text-muted bg-surface-base'}`}>
                            {isSelected && <Check className="w-3.5 h-3.5" />}
                         </div>
                         <div>
@@ -424,7 +424,7 @@ function StepPaymentMethods({ selected, setSelected }: { selected: Set<string>, 
                             onClick={() => toggle(pm.code)}
                             className={`p-4 rounded-xl border text-left transition-colors flex items-start gap-4 ${isSelected ? 'border-accent-primary bg-accent-primary/5' : 'border-border-subtle bg-surface-elevated hover:border-border-strong'}`}
                         >
-                            <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-accent-primary bg-accent-primary text-white' : 'border-text-muted bg-surface-base'}`}>
+                            <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-accent-primary bg-accent-primary text-background-base' : 'border-text-muted bg-surface-base'}`}>
                                {isSelected && <Check className="w-3.5 h-3.5" />}
                             </div>
                             <div>

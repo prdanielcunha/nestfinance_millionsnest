@@ -1096,6 +1096,30 @@ function TransactionCreateContent() {
 
       <div className="px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-12">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+          {direction === 'expense' ? (
+            <section className="rounded-2xl border border-border-strong bg-surface-default p-5" aria-label={language === 'PT' ? 'Esta despesa já foi paga?' : language === 'EN' ? 'Has this expense been paid?' : '¿Ya se pagó este gasto?'}>
+              <p className="text-lg font-semibold text-text-primary">
+                {language === 'PT' ? 'Esta despesa já foi paga?' : language === 'EN' ? 'Has this expense already been paid?' : '¿Ya se pagó este gasto?'}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+                {language === 'PT'
+                  ? 'Use esta tela somente para dinheiro que já saiu. Se ainda vai pagar, registre como conta a pagar sem alterar o saldo.'
+                  : language === 'EN'
+                    ? 'Use this form only for money already paid. Otherwise, add an unpaid bill without changing the balance.'
+                    : 'Use este formulario solo para dinero que ya salió. De lo contrario, registre una cuenta por pagar sin alterar el saldo.'}
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="flex min-h-14 items-center justify-center rounded-xl bg-accent-primary px-4 py-3 text-center text-base font-semibold text-background-base" aria-current="step">
+                  {language === 'PT' ? 'Sim, já paguei' : language === 'EN' ? 'Yes, already paid' : 'Sí, ya pagué'}
+                </div>
+                <button type="button" onClick={() => navigate(APP_ROUTES.payables)}
+                  className="nf-interactive min-h-14 rounded-xl border border-border-strong bg-surface-default px-4 py-3 text-base font-semibold text-accent-primary">
+                  {language === 'PT' ? 'Ainda vou pagar' : language === 'EN' ? 'I will pay later' : 'Todavía voy a pagar'}
+                </button>
+              </div>
+            </section>
+          ) : null}
+
           {loadingInitial ? (
             <div className="flex animate-pulse flex-col gap-5" aria-busy="true">
               <div className="h-28 rounded-3xl bg-surface-secondary" />
@@ -1210,15 +1234,17 @@ function TransactionCreateContent() {
                         htmlFor="transaction-date"
                         className="text-sm font-medium text-text-primary"
                       >
-                        {copy.date}
+                        {direction === 'income' ? copy.receivedDate : copy.date}
                       </label>
                       <input
                         id="transaction-date"
+                        aria-describedby={direction === 'income' ? 'transaction-received-date-help' : undefined}
                         type="date"
                         value={occurredAt}
                         onChange={(event) => setOccurredAt(event.target.value)}
                         className="mt-2 min-h-12 w-full rounded-xl border border-border-subtle bg-surface-base px-4 text-base text-text-primary outline-none focus:border-accent-primary"
                       />
+                      {direction === 'income' && <p id="transaction-received-date-help" className="mt-2 text-sm leading-relaxed text-text-secondary">{copy.receivedDateHelp}</p>}
                     </div>
                   </div>
                 </Surface>

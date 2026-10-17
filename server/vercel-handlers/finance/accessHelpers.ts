@@ -1,7 +1,8 @@
 import type { firestore } from 'firebase-admin';
+import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
-import { assertCountTeamDraftBoundary, assertCountTeamReadBoundary } from './countTeamOperationPolicy.js';
+import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
@@ -47,7 +48,7 @@ export function resolveHandoffBinding(decodedToken: Record<string, unknown>) {
   };
 }
 
-export async function resolveFinanceRequestContext(req: VercelRequest, requiredCapability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft') {
+export async function resolveFinanceRequestContext(req: VercelRequest, requiredCapability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft' | 'finance.count.view' | 'finance.count.execute') {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     throw { status: 401, error: 'UNAUTHORIZED' };
@@ -92,13 +93,23 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     throw { status: 403, error: 'FORBIDDEN_ORGANIZATION_MISMATCH' };
   }
 
+  // A member who can administer teams but has no explicit finance grants
+  // must not inherit treasury from a broad organizational admin label.
+  if (explicitTeamOnlyGrant(sessionList.permissions)) {
+    throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+  }
+
+  // Enforce Count-only responsibility after canonical Hub session resolution,
+  // even when an ecclesiastical/organizational title carries legacy privileges.
+  assertCountTeamCapabilityBoundary(sessionList, requiredCapability);
+
   // Count and treasury currently share broad Hub finance capabilities.
   // Limit Count-only accounts at the verified server session boundary for both
   // mutation and read operations; the gateway operation is a trusted server marker.
   const gatewayOperation = (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation;
-  if (requiredCapability === 'finance.create_drafts') {
+  if (requiredCapability === 'finance.create_drafts' || requiredCapability === 'finance.count.execute') {
     assertCountTeamDraftBoundary(sessionList, gatewayOperation);
-  } else if (requiredCapability === 'finance.view') {
+  } else if (requiredCapability === 'finance.view' || requiredCapability === 'finance.count.view') {
     assertCountTeamReadBoundary(sessionList, gatewayOperation);
   }
 
@@ -128,6 +139,18 @@ function canonicalPermissions(sessionList: any): string[] {
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList?.isGlobalAccess) return true;
+  if (
+    explicitTeamOnlyGrant(sessionList?.permissions ?? sessionList?.capabilities) &&
+    (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities')
+  ) return false;
+
+  // Bypass no restriction through implicit owner/admin finance grants. The
+  // read/draft operation-specific gateway allowlists still apply separately.
+  if (isExplicitCountOnlySession(sessionList) &&
+      (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities') &&
+      !['finance.view', 'finance.create_drafts', 'finance.count.execute', 'finance.count.view'].includes(requestedCapability)) {
+    return false;
+  }
 
   const organizationRole = String(sessionList?.organizationRole || '').trim().toLowerCase();
   if (
@@ -183,7 +206,12 @@ export function canManageFinanceEntities(sessionList: any): boolean {
   return hasEffectiveCapability(sessionList, 'organization.manage_entities');
 }
 
-export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft'): boolean {
+export function hasFinanceCapability(sessionList: any, requestedCapability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft' | 'finance.count.view' | 'finance.count.execute'): boolean {
+  // Executing Count implicitly allows the Count-specific read model, not
+  // general treasury finance.view. This never grants posting or drafts.
+  if (requestedCapability === 'finance.count.view' &&
+      (hasEffectiveCapability(sessionList, 'finance.count.execute') ||
+        hasEffectiveCapability(sessionList, 'finance.review'))) return true;
   if (hasEffectiveCapability(sessionList, requestedCapability)) return true;
   if (hasEffectiveCapability(sessionList, 'finance.manage')) return true;
   if (requestedCapability === 'finance.return_to_draft' && hasEffectiveCapability(sessionList, 'finance.review')) return true;
@@ -312,7 +340,7 @@ export async function requireFinanceTransactionAccess({
   organizationId: string;
   financeEntityId: string;
   sessionList: any;
-  capability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft';
+  capability: 'finance.view' | 'finance.manage' | 'finance.create_drafts' | 'finance.submit_for_review' | 'finance.review' | 'finance.approve_for_posting' | 'finance.invalidate_approval' | 'finance.return_to_draft' | 'finance.count.view' | 'finance.count.execute';
 }): Promise<FinanceEntityAccessContext> {
   if (!organizationId) throw new Error('Organization ID is required');
   if (!financeEntityId) throw new Error('Finance Entity ID is required');

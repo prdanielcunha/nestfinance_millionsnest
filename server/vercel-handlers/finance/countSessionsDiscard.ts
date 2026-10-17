@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountFirstStageOwner } from './countSessionParticipantPolicy.js';
 import {
   buildIdempotencyKeyHash,
   executeWithIdempotency,
@@ -41,6 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       actorLabel,
       organizationId,
       context,
+      sessionList,
     } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
 
     const keyHash = buildIdempotencyKeyHash(
@@ -74,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
+        assertCountFirstStageOwner(sessionList, session, uid);
         if (Number(session.version) !== expectedVersion) {
           throw new Error('COUNT_VERSION_CONFLICT');
         }

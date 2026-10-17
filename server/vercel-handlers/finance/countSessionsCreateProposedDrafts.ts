@@ -20,15 +20,17 @@ import { getCompatibility, validateAccountMetadata, validateCategoryMetadata, va
 import { buildCountProposalLines } from '../../../shared/finance/countProposal.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
 import { resolveCanonicalCountEntries } from './countProposalHelpers.js';
+import { validReceiptDate } from '../../../shared/finance/receivedIncome.js';
 
 type Selection = {
   entryType: 'tithe' | 'offering' | 'other' | 'pix';
   accountId: string;
   categoryId: string;
   fundId?: string | null;
+  receivedDate?: string;
 };
 
-function normalizeSelections(value: unknown): Selection[] {
+export function normalizeSelections(value: unknown): Selection[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 4) {
     throw new Error('COUNT_PROPOSAL_INVALID_SELECTIONS');
   }
@@ -47,7 +49,12 @@ function normalizeSelections(value: unknown): Selection[] {
     const categoryId = typeof item.categoryId === 'string' ? item.categoryId.trim() : '';
     const fundId = typeof item.fundId === 'string' && item.fundId.trim() ? item.fundId.trim() : null;
     if (!accountId || !categoryId) throw new Error('COUNT_PROPOSAL_MISSING_REQUIRED_FIELD');
-    return { entryType: entryType as Selection['entryType'], accountId, categoryId, fundId };
+    const receivedDate = item.receivedDate;
+    if ((entryType === 'pix' || receivedDate !== undefined) && !validReceiptDate(receivedDate)) {
+      throw new Error('COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED');
+    }
+    return { entryType: entryType as Selection['entryType'], accountId, categoryId, fundId,
+      ...(typeof receivedDate === 'string' ? { receivedDate } : {}) };
   });
 }
 
@@ -92,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionRef = entityRef.collection('countSessions').doc(countSessionId);
 
     const payloadHash = hashPayload({ countSessionId, expectedVersion, selections });
+    const selectionHash = hashPayload([...selections].sort((a, b) => a.entryType.localeCompare(b.entryType)));
     const keyHash = buildIdempotencyKeyHash(
       organizationId,
       financeEntityId,
@@ -117,6 +125,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? session.countProposal.transactionIds.filter((value: unknown) => typeof value === 'string')
           : [];
         if (existingTransactionIds.length > 0) {
+          // Never acknowledge a new date/account/category as saved on a replay.
+          // Historical packets without a mapping hash need explicit review.
+          if (session.countProposal?.selectionHash !== selectionHash) {
+            throw new Error('COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS');
+          }
           return {
             countSessionId,
             version: Number(session.version || expectedVersion),
@@ -160,11 +173,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const transactionIds: string[] = [];
         const captures = sourceCaptureIds(session);
-        const occurredAt = `${String(session.serviceDate || '')}T12:00:00.000Z`;
         const nextSessionVersion = expectedVersion + 1;
 
         for (const line of lines) {
           const selection = selectionByType.get(line.entryType)!;
+          const receivedDate = selection.receivedDate || String(session.serviceDate || '');
+          if (!validReceiptDate(receivedDate)) throw new Error('COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED');
+          const occurredAt = `${receivedDate}T12:00:00.000Z`;
           const accountDoc = accountDocs.get(selection.accountId);
           const categoryDoc = categoryDocs.get(selection.categoryId);
           const fundDoc = selection.fundId ? fundDocs.get(selection.fundId) : null;
@@ -243,6 +258,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             secondCounterLabel: session.countB?.countedByLabel || session.countB?.enteredByLabel || null,
             serviceLabel: String(session.serviceLabel || ''),
             serviceDate: String(session.serviceDate || ''),
+            receivedDate,
           };
 
           const txPayload: any = {
@@ -372,6 +388,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reviewedAt: FieldValue.serverTimestamp(),
           countProposal: {
             status: 'created',
+            selectionHash,
             transactionIds,
             sourceVersion: expectedVersion,
             createdByUid: uid,
@@ -442,6 +459,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = String(error?.message || error?.code || '');
     console.error('Count Proposed Drafts Error:', message.startsWith('COUNT_') || message.startsWith('FINANCE_') ? message : 'UNEXPECTED_ERROR');
     if (message === 'COUNT_SESSION_NOT_FOUND') return res.status(404).json({ error: message });
+    if (message === 'COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS') return res.status(409).json({ error: message });
     if (message === 'COUNT_VERSION_CONFLICT' || message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) {
       return res.status(409).json({ error: message.includes('FINANCE_') ? 'FINANCE_IDEMPOTENCY_CONFLICT' : message });
     }

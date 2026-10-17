@@ -387,6 +387,7 @@ export const countService = {
       expectedVersion: number;
       selections: Array<{
         entryType: 'tithe' | 'offering' | 'other' | 'pix';
+        receivedDate?: string;
         accountId: string;
         categoryId: string;
         fundId?: string | null;

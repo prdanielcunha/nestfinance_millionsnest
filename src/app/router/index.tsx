@@ -13,6 +13,7 @@ import LoginPage from '@/src/pages/auth/LoginPage';
 // Lazy loaded pages to keep initial bundle small
 const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
 const TreasuryHubPage = lazy(() => import('@/src/pages/finance/TreasuryHubPage'));
+const PayablesPage = lazy(() => import('@/src/pages/finance/PayablesPage'));
 const AccountantWorkspacePage = lazy(() => import('@/src/pages/finance/AccountantWorkspacePage'));
 const SetupPage = lazy(() => import('@/src/pages/finance/SetupPage'));
 const FinanceSettingsPage = lazy(() => import('@/src/pages/finance/settings/FinanceSettingsPage'));
@@ -20,9 +21,12 @@ const FinanceAccountsPage = lazy(() => import('@/src/pages/finance/settings/Fina
 const FinanceEntitiesPage = lazy(() => import('@/src/pages/finance/settings/FinanceEntitiesPage'));
 const FinanceFundsPage = lazy(() => import('@/src/pages/finance/settings/FinanceFundsPage'));
 const FinanceCategoriesPage = lazy(() => import('@/src/pages/finance/settings/FinanceCategoriesPage'));
+const CountVerificationPolicyPage = lazy(() => import('@/src/pages/finance/settings/CountVerificationPolicyPage'));
 const CountPage = lazy(() => import('@/src/pages/finance/count/CountHubPage'));
 const CountSessionPage = lazy(() => import('@/src/pages/finance/count/CountSessionPage'));
 const CountJoinPage = lazy(() => import('@/src/pages/finance/count/CountJoinPage'));
+const CountVerificationV3Page = lazy(() => import('@/src/pages/finance/count/CountVerificationV3Page'));
+const CountVerificationDraftsPage = lazy(() => import('@/src/pages/finance/count/CountVerificationDraftsPage'));
 const CountProposalPage = lazy(() => import('@/src/pages/finance/count/CountProposalPage'));
 const CountTrainingPage = lazy(() => import('@/src/pages/finance/count/CountTrainingPage'));
 const CountVoiceQuickPage = lazy(() => import('@/src/pages/finance/count/CountVoiceQuickPage'));
@@ -50,6 +54,7 @@ const TransactionReviewDetailPage = lazy(() => import('@/src/pages/finance/trans
 
 const VIEW_FINANCE = ['finance.view'] as const;
 const CREATE_FINANCE = ['finance.create_drafts'] as const;
+const COUNT_V3_READ = ['finance.count.view', 'finance.count.execute', 'finance.review'] as const;
 const REVIEW_FINANCE = ['finance.review', 'finance.approve_for_posting'] as const;
 const INBOX_FINANCE = ['finance.view', 'finance.create_drafts', 'finance.review'] as const;
 const MANAGE_FINANCE = ['finance.manage', 'organization.manage_entities'] as const;
@@ -90,6 +95,7 @@ const routes: RouteObject[] = [
         children: [
           { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
           { path: APP_ROUTES.treasury, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TreasuryHubPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.payables, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><PayablesPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.accountant, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><AccountantWorkspacePage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactions, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactionCreate, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },
@@ -114,8 +120,12 @@ const routes: RouteObject[] = [
           },
           { path: APP_ROUTES.financeSettingsFunds, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceFundsPage /></Suspense>, MANAGE_FINANCE) },
           { path: APP_ROUTES.financeSettingsCategories, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><FinanceCategoriesPage /></Suspense>, MANAGE_FINANCE) },
+          { path: APP_ROUTES.financeSettingsCountPolicy, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationPolicyPage /></Suspense>, ['finance.manage']) },
           { path: APP_ROUTES.count, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countJoin, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountJoinPage /></Suspense>, CREATE_FINANCE) },
+          { path: APP_ROUTES.countVerificationV3, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, COUNT_V3_READ) },
+          { path: APP_ROUTES.countVerificationV3Session, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationV3Page /></Suspense>, COUNT_V3_READ) },
+          { path: APP_ROUTES.countVerificationV3Drafts, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVerificationDraftsPage /></Suspense>, ['finance.review']) },
           { path: APP_ROUTES.countProposal, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountProposalPage /></Suspense>, CREATE_FINANCE) },
           { path: APP_ROUTES.countTraining, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountTrainingPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.countVoice, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><CountVoiceQuickPage /></Suspense>, CREATE_FINANCE) },

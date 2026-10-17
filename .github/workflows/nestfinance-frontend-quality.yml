@@ -5,6 +5,28 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "shared/finance/openingBalanceDeclaration.ts"
+      - "shared/finance/conventionRemittance.ts"
+      - "shared/finance/payableObligation.ts"
+      - "shared/finance/payableUrgency.ts"
+      - "scripts/test-payables-due-clarity.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "scripts/test-today-registered-payables-ui.ts"
+      - "scripts/test-today-registered-payables-emulator.ts"
+      - "scripts/test-payables-ui-t18-t19.ts"
+      - "server/vercel-handlers/finance/payablesCreate.ts"
+      - "server/vercel-handlers/finance/payablesList.ts"
+      - "server/vercel-handlers/finance/payablesReview.ts"
+      - "scripts/test-payables-review-ui.ts"
+      - "firestore.rules"
+      - "scripts/test-convention-remittance-e06.ts"
+      - "server/vercel-handlers/finance/accountsCreate.ts"
+      - "server/vercel-handlers/finance/accountsList.ts"
+      - "scripts/test-account-opening-declaration.ts"
+      - "scripts/test-account-opening-history.ts"
+      - "scripts/test-account-opening-history-read.ts"
+      - "src/services/accountOpeningHistoryService.ts"
+      - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -105,6 +127,28 @@ on:
       - main
     paths:
       - "src/**"
+      - "shared/finance/openingBalanceDeclaration.ts"
+      - "shared/finance/conventionRemittance.ts"
+      - "shared/finance/payableObligation.ts"
+      - "shared/finance/payableUrgency.ts"
+      - "scripts/test-payables-due-clarity.ts"
+      - "shared/finance/todayOperationalSummary.ts"
+      - "scripts/test-today-registered-payables-ui.ts"
+      - "scripts/test-today-registered-payables-emulator.ts"
+      - "scripts/test-payables-ui-t18-t19.ts"
+      - "server/vercel-handlers/finance/payablesCreate.ts"
+      - "server/vercel-handlers/finance/payablesList.ts"
+      - "server/vercel-handlers/finance/payablesReview.ts"
+      - "scripts/test-payables-review-ui.ts"
+      - "firestore.rules"
+      - "scripts/test-convention-remittance-e06.ts"
+      - "server/vercel-handlers/finance/accountsCreate.ts"
+      - "server/vercel-handlers/finance/accountsList.ts"
+      - "scripts/test-account-opening-declaration.ts"
+      - "scripts/test-account-opening-history.ts"
+      - "scripts/test-account-opening-history-read.ts"
+      - "src/services/accountOpeningHistoryService.ts"
+      - "server/vercel-handlers/finance/accountsUpdate.ts"
       - "shared/finance/count.ts"
       - "shared/finance/countPaper.ts"
       - "shared/finance/countCapture.ts"
@@ -219,6 +263,30 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify secure paginated opening history viewer
+        run: npx tsx scripts/test-account-opening-history-read.ts
+
+      - name: Verify Today registered unpaid bills versus evidence due candidates
+        run: npx tsx scripts/test-today-registered-payables-ui.ts
+
+      - name: Verify human payable review access and non-payment guidance
+        run: npx tsx scripts/test-payables-review-ui.ts
+
+      - name: Verify unpaid bills due-date and status clarity
+        run: npx tsx scripts/test-payables-due-clarity.ts
+
+      - name: Verify T18 T19 unpaid bill contract and three-language guidance
+        run: npx tsx scripts/test-payables-ui-t18-t19.ts
+
+      - name: Verify convention repasse calculation by rule version
+        run: npx tsx scripts/test-convention-remittance-e06.ts
+
+      - name: Verify append-only account opening correction
+        run: npx tsx scripts/test-account-opening-history.ts
+
+      - name: Verify opening balances have dates, source and no posting
+        run: npx tsx scripts/test-account-opening-declaration.ts
 
       - name: Verify native PDF text extractor I2F
         run: npm run test:universal-evidence-pdf-text-extractor-i2f

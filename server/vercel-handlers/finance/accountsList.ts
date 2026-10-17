@@ -92,6 +92,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         accountRole: data.accountRole || data.role,
         liabilityType: data.liabilityType,
         openingBalanceCents: data.openingBalanceCents,
+        // Historical value is not certified without provenance; this declaration is never a posted balance.
+        openingBalanceDeclaration: data.openingBalanceDeclaration ?? null,
+        openingBalanceRevision: Number.isSafeInteger(data.openingBalanceRevision) ? data.openingBalanceRevision : 0,
         normalizedName: data.normalizedName
       });
     }

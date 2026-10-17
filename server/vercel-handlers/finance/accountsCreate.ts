@@ -11,6 +11,7 @@ import {
   generateUniqueKeyId 
 } from '../../../api/_lib/financeIdentity.js';
 import { stageCanonicalAuditCreate } from './auditFactProjection.js';
+import { parseOpeningBalanceDeclaration } from '../../../shared/finance/openingBalanceDeclaration.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -84,13 +85,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { 
       name, type, institutionName, accountLast4, financeEntityId,
-      nature, operationalPurpose, supportedInstruments, availabilityBehavior
+      nature, operationalPurpose, supportedInstruments, availabilityBehavior,
+      openingBalanceDeclaration
     } = req.body;
 
     // Check for extra unknown properties
     const allowedKeys = [
       'name', 'type', 'institutionName', 'accountLast4', 'financeEntityId',
-      'nature', 'operationalPurpose', 'supportedInstruments', 'availabilityBehavior'
+      'nature', 'operationalPurpose', 'supportedInstruments', 'availabilityBehavior',
+      'openingBalanceDeclaration'
     ];
     const extras = Object.keys(req.body).filter(k => !allowedKeys.includes(k));
     if (extras.length > 0) {
@@ -145,6 +148,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       normalizedName = normalizeFinanceName(trimmedName);
     } catch {
       return res.status(400).json({ error: 'INVALID_NAME' });
+    }
+
+    // An explicit opening is a pending declaration, not a financial posting.
+    // Missing opening must NEVER silently become zero.
+    let openingDeclaration;
+    try {
+      openingDeclaration = parseOpeningBalanceDeclaration(openingBalanceDeclaration);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : 'INVALID_OPENING_BALANCE_DECLARATION' });
     }
 
     const logicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('account', normalizedName)}`;
@@ -214,6 +226,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           currency: 'BRL',
           active: true,
           schemaVersion: 1,
+          openingBalanceDeclaration: openingDeclaration,
+          openingBalanceRevision: 1,
           createdAt: FieldValue.serverTimestamp(),
           createdBy: uid,
           updatedAt: FieldValue.serverTimestamp(),
@@ -248,6 +262,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           financeEntityId,
           actorUid: uid,
           action: 'finance.account.created',
+          openingBalanceDeclarationStatus: openingDeclaration.status,
           entityType: 'financeAccount',
           entityId: accountId,
           requestId,
@@ -256,6 +271,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         t.create(accountRef, accountData);
+        // Append-only provenance from the first write, including explicit unknown.
+        t.create(accountRef.collection('openingBalanceHistory').doc(), {
+          organizationId, financeEntityId, accountId,
+          revision: 1, previous: null, current: openingDeclaration,
+          reason: 'initial_account_creation', actorUid: uid,
+          createdAt: FieldValue.serverTimestamp(), schemaVersion: 1,
+        });
         t.create(uniqueKeyRef, uniqueKeyData);
         stageCanonicalAuditCreate(t, firestore, auditRef, auditData);
       });

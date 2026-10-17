@@ -187,7 +187,7 @@ export default function CategoryActionMenu({ category, onEdit, onSuccess, onErro
                 <button
                   disabled={loading}
                   onClick={showConfirmArchive ? handleArchive : handleReactivate}
-                  className="px-4 py-2 text-sm font-medium text-white bg-accent-primary hover:bg-accent-hover rounded-lg transition-colors flex items-center justify-center min-h-[44px] min-w-[100px] disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-background-base bg-accent-primary hover:bg-accent-hover rounded-lg transition-colors flex items-center justify-center min-h-[44px] min-w-[100px] disabled:opacity-50"
                 >
                   {loading ? (
                     <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />

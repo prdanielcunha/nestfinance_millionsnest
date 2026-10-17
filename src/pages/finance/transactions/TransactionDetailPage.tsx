@@ -593,7 +593,7 @@ function TransactionDetailContent() {
                       <div className="flex flex-col sm:flex-row gap-3 w-full">
                          <button
                            onClick={() => navigate(APP_ROUTES.transactionEdit.replace(':transactionId', data.transaction.id))}
-                           className="flex-1 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-white rounded-xl font-medium transition-colors text-sm"
+                           className="flex-1 h-12 flex items-center justify-center bg-accent-primary hover:bg-accent-hover text-background-base rounded-xl font-medium transition-colors text-sm"
                          >
                            Abrir para corrigir
                          </button>

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountSessionParticipant } from './countSessionParticipantPolicy.js';
 import {
   COUNT_CAPTURE_FIELD_KEYS,
   COUNT_CAPTURE_READ_TTL_MS,
@@ -23,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
-    const { db, organizationId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
     const entityRef = db
       .collection('organizations')
       .doc(organizationId)
@@ -42,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       financeEntityId,
       capture,
     });
+    assertCountSessionParticipant(sessionList, resolved.session, uid);
     const { identity, provenance } = resolved;
     const materialHidden = isCountCaptureMaterialHidden(identity.stage, resolved.session.status);
 

@@ -1,0 +1,51 @@
+name: NestFinance received income quality
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/receivedIncome.ts'
+      - 'shared/finance/countV3DraftPlan.ts'
+      - 'server/vercel-handlers/finance/countSessionsCreateProposedDrafts.ts'
+      - 'src/pages/finance/count/CountProposalPage.tsx'
+      - 'src/services/countService.ts'
+      - 'scripts/test-count-legacy-received-date.ts'
+      - 'server/vercel-handlers/finance/receivedIncomeSummary.ts'
+      - 'server/vercel-handlers/finance/countVerificationsCreateProposedDrafts.ts'
+      - 'src/pages/finance/ReceivedIncomePanel.tsx'
+      - 'src/pages/finance/count/CountVerificationDraftsPage.tsx'
+      - 'src/pages/finance/ReportsPage.tsx'
+      - 'scripts/test-received-income.ts'
+      - 'scripts/test-count-v3-drafts-firestore-emulator.ts'
+      - '.github/workflows/nestfinance-received-income-quality.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  receipts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: nestfinance-receipts-emulator
+      GCLOUD_PROJECT: nestfinance-receipts-emulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: node --import tsx scripts/test-received-income.ts
+      - run: node --import tsx scripts/test-count-legacy-received-date.ts
+      - run: node --import tsx scripts/test-count-v3-draft-plan.ts
+      - run: node --import tsx scripts/test-count-v3-transaction-drafts.ts
+      - run: npm run test:finance-role-policy
+      - run: npm run check:api-contracts
+      - run: npm run check:saas-isolation
+      - run: npm run build
+      - run: npm run build:cloudrun
+      - run: npx --yes firebase-tools@15.27.0 emulators:exec --only firestore --project nestfinance-receipts-emulator "node --import tsx scripts/test-count-v3-drafts-firestore-emulator.ts"

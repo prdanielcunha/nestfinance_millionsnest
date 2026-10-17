@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
+import { useNestFinanceTheme } from '@/src/contexts/ThemeContext';
 import {
   chooseDirectEntryOrganization,
   clearDirectEntryIdentity,
@@ -96,6 +97,7 @@ function googleMark() {
 }
 
 export default function LoginPage() {
+  const { theme } = useNestFinanceTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { language } = useLanguage();
@@ -174,7 +176,7 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(0,214,239,.12),transparent_36%),radial-gradient(circle_at_90%_90%,rgba(212,175,122,.08),transparent_30%)]" />
       <section className="relative w-full max-w-[430px]">
         <div className="mb-8 flex justify-center">
-          <NestFinanceLogo layout="horizontal" surface="dark" className="w-[280px] max-w-[72vw] opacity-95" priority />
+          <NestFinanceLogo layout="horizontal" surface={theme} className="w-[280px] max-w-[72vw] opacity-95" priority />
         </div>
 
         <div className="nf-glass rounded-[1.6rem] p-6 sm:p-7">

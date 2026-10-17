@@ -1,11 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { canReadCountSession } from './countSessionParticipantPolicy.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { db, organizationId, financeEntityId } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, uid, organizationId, financeEntityId, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
     const snapshot = await db
       .collection('organizations')
       .doc(organizationId)
@@ -16,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .get();
 
     const items = snapshot.docs
-      .filter((doc: any) => doc.data()?.status !== 'discarded')
+      .filter((doc: any) => doc.data()?.status !== 'discarded' && canReadCountSession(sessionList, doc.data() || {}, uid))
       .map((doc: any) => {
         const data = doc.data() || {};
         const materialHidden = data.status === 'counting_b' || data.status === 'recounting';

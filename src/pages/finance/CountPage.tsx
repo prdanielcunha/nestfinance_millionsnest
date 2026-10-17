@@ -18,6 +18,7 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { countService, type CountSessionListItem } from '@/src/services/countService';
+import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import { countPaperService } from '@/src/services/countPaperService';
 import { countDraftPersistence } from '@/src/services/countDraftPersistence';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
@@ -223,6 +224,26 @@ function CountHomeContent() {
               </p>
             </div>
           </header>
+
+          {COUNT_V3_UI_ENABLED && (hasEffectiveCapability(accessState, 'finance.count.view') || hasEffectiveCapability(accessState, 'finance.count.execute')) ? (
+            <Surface variant="elevated" radius="xl" className="border-accent-primary/20 bg-accent-primary/5 p-5">
+              <p className="text-base font-semibold text-text-primary">
+                {language === 'PT' ? 'Contagem com equipe flexível' : language === 'EN' ? 'Flexible team count' : 'Conteo con equipo flexible'}
+              </p>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
+                {language === 'PT'
+                  ? 'Para equipes de 1 a 20 pessoas, com conferências independentes e modo acompanhado. Nenhuma contagem movimenta o saldo sem revisão financeira.'
+                  : language === 'EN'
+                    ? 'For teams of 1 to 20, with independent verification and assisted counting. No count changes balances without finance review.'
+                    : 'Para equipos de 1 a 20 personas, con verificación independiente y modalidad asistida. Ningún conteo cambia saldos sin revisión financiera.'}
+              </p>
+              <button type="button"
+                onClick={() => navigate(APP_ROUTES.countVerificationV3)}
+                className="nf-interactive mt-4 min-h-11 rounded-xl bg-accent-primary px-5 text-sm font-semibold text-background-base">
+                {language === 'PT' ? 'Usar contagem em equipe' : language === 'EN' ? 'Use team count' : 'Usar conteo en equipo'}
+              </button>
+            </Surface>
+          ) : null}
 
           {canCreate && !loading && !error ? (
             <CountStartJourney

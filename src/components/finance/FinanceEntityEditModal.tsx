@@ -474,7 +474,7 @@ export default function FinanceEntityEditModal({ entity, onClose, onSuccess }: F
             type="submit"
             form="update-form"
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-6 rounded-xl bg-accent-primary text-white font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 h-11 px-6 rounded-xl bg-accent-primary text-background-base font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

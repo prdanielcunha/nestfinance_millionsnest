@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { buildReceivedIncome, receiptDay, validReceiptDate, type ReceiptInput } from '../shared/finance/receivedIncome.js';
+
+const base={startDate:'2026-10-17',endDate:'2026-10-17',timezone:'America/Sao_Paulo'};
+const tx=(id:string,more:Partial<ReceiptInput>={}):ReceiptInput=>({id,transactionKind:'income',status:'posted',amountCents:10000,currency:'BRL',occurredAt:'2026-10-17T12:00:00Z',paymentMethod:'cash',...more});
+const summary=(transactions:ReceiptInput[])=>buildReceivedIncome({...base,transactions});
+const original=[tx('cash'),tx('pix',{amountCents:2500,paymentMethod:'pix'}),tx('card',{amountCents:7500,paymentMethod:'credit_card'}),
+  tx('pending',{amountCents:1700,paymentMethod:'pix',status:'ready_for_review'}),tx('old',{occurredAt:'2026-10-16T12:00:00Z'}),
+  tx('deposit',{transactionKind:'transfer'}),tx('reversed',{status:'reversed'}),tx('expense',{transactionKind:'expense'})];
+const before=JSON.stringify(original);
+const report=summary(original);
+assert.equal(report.confirmedCents,20000);
+assert.equal(report.pendingCents,1700);
+assert.equal(report.confirmedByMethod.cash,10000);
+assert.equal(report.confirmedByMethod.pix,2500);
+assert.equal(report.confirmedByMethod.credit_card,7500);
+assert.equal(report.days.length,1);
+assert.equal(JSON.stringify(original),before,'read model must not mutate source');
+assert.equal(receiptDay('2026-10-18T01:59:59Z',base.timezone),'2026-10-17');
+assert.equal(receiptDay('2026-10-18T03:00:00Z',base.timezone),'2026-10-18');
+assert.equal(receiptDay('2026-10-17',base.timezone),'2026-10-17');
+assert.equal(receiptDay('2026-10-17T12:00:00',base.timezone),null,'timezone-less timestamps cannot depend on the server clock');
+assert.equal(summary([tx('late-photo',{occurredAt:'2026-10-16T12:00:00Z'})]).confirmedCents,0);
+assert.equal(summary([tx('midnight',{occurredAt:'2026-10-18T01:00:00Z'})]).confirmedCents,10000);
+assert.equal(validReceiptDate('2026-02-30'),false);
+assert.equal(validReceiptDate('2028-02-29'),true);
+assert.throws(()=>buildReceivedIncome({...base,endDate:'2026-10-16',transactions:[]}),/INVALID_RECEIPTS_PERIOD/);
+assert.throws(()=>summary([tx('same'),tx('same')]),/RECEIPTS_DUPLICATE_TRANSACTION_ID/);
+assert.throws(()=>buildReceivedIncome({...base,timezone:'No/SuchZone',transactions:[]}),RangeError);
+const source={countSessionId:'synthetic_count',countEntryType:'tithe',countReceiptMethod:'cash'};
+const duplicate=summary([tx('count1',{countSource:source}),tx('count2',{countSource:source})]);
+assert.equal(duplicate.confirmedCents,0,'ambiguous duplicated count entries cannot inflate totals');
+assert.equal(duplicate.excluded.conflictingCountRecords,2);
+assert.equal(duplicate.complete,false);
+const legitimate=summary([tx('tithe',{countSource:source}),tx('offering',{countSource:{...source,countEntryType:'offering'}})]);
+assert.equal(legitimate.confirmedCents,20000,'different purposes from one count remain distinct');
+assert.equal(legitimate.complete,true);
+const bad=summary([tx('foreign',{currency:'USD'}),tx('invalid',{amountCents:1.25}),tx('badDate',{occurredAt:'invalid'})]);
+assert.equal(bad.confirmedCents,0);assert.equal(bad.complete,false);
+assert.equal(bad.excluded.unsupportedCurrency,1);assert.equal(bad.excluded.invalidRecords,2);
+const acrossPeriods=summary([tx('one',{countSource:source}),tx('another',{countSource:source,occurredAt:'2026-10-16T12:00:00Z'})]);
+assert.equal(acrossPeriods.excluded.conflictingCountRecords,1);
+assert.equal(summary([tx('reversedOld',{countSource:source,status:'reversed'}),tx('replacement',{countSource:source})]).confirmedCents,10000);
+assert.equal(summary([tx('sameValue1'),tx('sameValue2')]).confirmedCents,20000,'equal date and value are not enough to deduplicate legitimate gifts');
+assert.equal(summary([]).complete,true);
+assert.equal(summary([]).confirmedCents,0);
+assert.throws(()=>summary([tx('huge',{amountCents:Number.MAX_SAFE_INTEGER}),tx('overflow')]),/RECEIPTS_AMOUNT_OVERFLOW/);
+console.log('Received income: date boundaries, cash/Pix/cards, status separation, duplicates, currencies and integrity passed');

@@ -222,7 +222,8 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          const approvedHubSha = '277e117297a140c0d621286962efbd8552b10567571c5174e9601c3ba6f80ae5';
+          // Hub #401 / verified production run 39040061658; only Journey teamInterests changed.
+          const approvedHubSha = '1730f4714c72a835f4db8d2a084ece2c917d81ac69d5ed32d6d45649c9268c58';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountCaptureStageOperator } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import {
@@ -40,9 +41,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (typeof qrPayload !== 'string' && typeof formId !== 'string')
     ) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const canonical = await resolveCanonicalCountPaperForm({ db, organizationId, financeEntityId, formId, qrPayload });
     assertStageCanCapture(canonical.form.stage, canonical.session, organizationId, financeEntityId);
+    assertCountCaptureStageOperator(sessionList, canonical.session, uid, canonical.form.stage);
 
     const payloadHash = hashPayload({ formId: canonical.form.id, templateVersion: canonical.form.templateVersion, checksum: canonical.form.checksum, originalContentType, originalSize, originalSha256, normalizedContentType, normalizedSize, normalizedSha256 });
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_capture_start', idempotencyKey);
@@ -52,6 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const liveSessionDoc = await transaction.get(canonical.sessionRef);
       if (!liveSessionDoc.exists) throw new Error('COUNT_CAPTURE_FORM_NOT_FOUND');
       assertStageCanCapture(canonical.form.stage, liveSessionDoc.data(), organizationId, financeEntityId);
+      assertCountCaptureStageOperator(sessionList, liveSessionDoc.data() || {}, uid, canonical.form.stage);
 
       const captureId = generateCountCaptureId();
       const paths = buildCountCaptureObjectPaths({ organizationId, financeEntityId, captureId, originalContentType, normalizedContentType });

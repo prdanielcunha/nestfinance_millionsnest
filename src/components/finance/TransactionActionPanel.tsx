@@ -81,7 +81,7 @@ export function TransactionActionPanel({ nextStep }: TransactionActionPanelProps
           <button
             onClick={nextStep.primaryAction.action}
             disabled={nextStep.primaryAction.disabled}
-            className="w-full sm:w-auto px-6 h-12 bg-accent-primary hover:bg-accent-primary-hover text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full sm:w-auto px-6 h-12 bg-accent-primary hover:bg-accent-primary-hover text-background-base rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {nextStep.primaryAction.icon}
             {nextStep.primaryAction.label}

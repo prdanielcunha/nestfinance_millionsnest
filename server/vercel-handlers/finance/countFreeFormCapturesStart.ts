@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { assertCountCaptureStageOperator } from './countSessionParticipantPolicy.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !isValidRequestId(requestId)
     ) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
+    const { db, uid, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
     const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
     const sessionRef = entityRef.collection('countSessions').doc(countSessionId);
     const sessionDoc = await sessionRef.get();
@@ -60,6 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     }
     const stage = deriveOpenCountStage(String(session.status || ''));
+    assertCountCaptureStageOperator(sessionList, session, uid, stage);
 
     const payloadHash = hashPayload({
       countSessionId,
@@ -90,6 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const liveStage = deriveOpenCountStage(String(liveSession.status || ''));
         if (liveStage !== stage) throw new Error('COUNT_CAPTURE_INVALID_STAGE_STATE');
+        assertCountCaptureStageOperator(sessionList, liveSession, uid, liveStage);
 
         const captureId = generateCountCaptureId();
         const paths = buildCountCaptureObjectPaths({

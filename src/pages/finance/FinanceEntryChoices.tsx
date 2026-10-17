@@ -2,6 +2,9 @@ import { ArrowDownLeft, ArrowUpRight, BookOpenCheck, ChevronRight, ClipboardChec
 import { useNavigate } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import type { FinanceEntryProfile } from '@/src/lib/financeEntryProfile';
+import { useAuth } from '@/src/hooks/useAuth';
+import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import type { Language } from '@/src/contexts/LanguageContext';
 
 const COPY = {
@@ -14,7 +17,10 @@ const COPY = {
     moneySub: 'Tesouraria · Entradas, despesas, comprovantes, saldos e fechamento.',
     accountant: 'Espaço do contador',
     accountantSub: 'Contabilidade · Relatórios, auditoria e pacote mensal.',
-    income: 'Registrar entrada', expense: 'Registrar despesa', progress: 'Contagem concluída? Os valores seguem para revisão da tesouraria, sem redigitar.',
+    income: 'Registrar entrada', expense: 'Registrar despesa',
+    progress: 'Contagem concluída? Consulte o resumo conferido antes de registrar no financeiro.',
+    reviewCount: 'Revisar contagens conferidas',
+    reviewCountSub: 'Tesouraria · Consulte valores lacrados, pendências e critérios de revisão, sem movimentar saldo.',
   },
   EN: {
     heading: 'What will you take care of today?',
@@ -25,7 +31,10 @@ const COPY = {
     moneySub: 'Treasury · Income, expenses, receipts, balances and monthly review.',
     accountant: 'Accountant workspace',
     accountantSub: 'Accounting · Reports, audit and monthly package.',
-    income: 'Record income', expense: 'Record expense', progress: 'Completed counts go to treasury review with no duplicate entry.',
+    income: 'Record income', expense: 'Record expense',
+    progress: 'Once verified, review the Count summary before recording it in finance.',
+    reviewCount: 'Review completed counts',
+    reviewCountSub: 'Treasury · Inspect sealed totals, issues and review requirements without changing balances.',
   },
   ES: {
     heading: '¿Qué vas a atender hoy?',
@@ -36,14 +45,23 @@ const COPY = {
     moneySub: 'Tesorería · Ingresos, gastos, comprobantes, saldos y revisión mensual.',
     accountant: 'Espacio del contador',
     accountantSub: 'Contabilidad · Informes, auditoría y paquete mensual.',
-    income: 'Registrar ingreso', expense: 'Registrar gasto', progress: 'El conteo finalizado pasa a revisión de tesorería sin duplicar entradas.',
+    income: 'Registrar ingreso', expense: 'Registrar gasto',
+    progress: 'Cuando el conteo termine, revise el resumen antes de registrarlo en tesorería.',
+    reviewCount: 'Revisar conteos verificados',
+    reviewCountSub: 'Tesorería · Vea importes sellados, pendientes y criterios sin alterar saldos.',
   },
 } as const;
 
 export function FinanceEntryChoices({ language, profile }: { language: Language; profile: FinanceEntryProfile }) {
   const navigate = useNavigate();
   const copy = COPY[language];
-  if (!profile.canCount && !profile.canFinance && !profile.canAccountant) return null;
+  const { accessState } = useAuth();
+  const canUseTeamCount = COUNT_V3_UI_ENABLED &&
+    (hasEffectiveCapability(accessState, 'finance.count.view') ||
+      hasEffectiveCapability(accessState, 'finance.count.execute'));
+  const countTarget = canUseTeamCount ? APP_ROUTES.countVerificationV3 : APP_ROUTES.count;
+  const canReviewCount = COUNT_V3_UI_ENABLED && hasEffectiveCapability(accessState, 'finance.review');
+  if (!profile.canCount && !profile.canFinance && !profile.canAccountant && !canReviewCount) return null;
   return (
     <section className="nf-paper-surface rounded-2xl p-4 sm:p-6" aria-labelledby="finance-entry-title">
       <div>
@@ -52,49 +70,60 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {profile.canCount ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.count)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#d6c7b3] bg-[#fffaf1] p-4 text-left hover:border-[#a27736]">
-            <ClipboardCheck className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(countTarget)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-border-strong bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <ClipboardCheck className="h-9 w-9 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.count}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.countSub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
         {profile.canFinance ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.treasury)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#ccd7d7] bg-[#f1f8f5] p-4 text-left hover:border-[#164a52]">
-            <Wallet className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(APP_ROUTES.treasury)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-border-strong bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <Wallet className="h-9 w-9 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.money}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.moneySub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
+          </button>
+        ) : null}
+        {canReviewCount && !profile.canCount ? (
+          <button type="button" onClick={() => navigate(APP_ROUTES.countVerificationV3)}
+            className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <ClipboardCheck className="h-8 w-8 shrink-0 text-accent-primary" aria-hidden="true"/>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-semibold text-text-primary">{copy.reviewCount}</span>
+              <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.reviewCountSub}</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
         {profile.canAccountant ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.accountant)} className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-white p-4 text-left hover:border-[#a27736] sm:col-span-2">
-            <BookOpenCheck className="h-8 w-8 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(APP_ROUTES.accountant)} className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-surface-default p-4 text-left hover:border-accent-primary sm:col-span-2">
+            <BookOpenCheck className="h-8 w-8 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.accountant}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.accountantSub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
       </div>
       {profile.canFinance ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=income`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#073d47] px-3 text-sm font-semibold text-white">
+          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=income`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl bg-accent-primary px-3 text-sm font-semibold text-background-base">
             <ArrowDownLeft className="h-5 w-5 shrink-0" aria-hidden="true"/>{copy.income}
           </button>
-          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=expense`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[#ccd1cd] px-3 text-sm font-semibold text-[#073d47]">
+          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=expense`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border-strong px-3 text-sm font-semibold text-accent-primary">
             <ArrowUpRight className="h-5 w-5 shrink-0" aria-hidden="true"/>{copy.expense}
           </button>
         </div>
       ) : null}
       {profile.canCount && profile.canFinance ? (
         <p className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-text-secondary">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#21694e]" aria-hidden="true" />{copy.progress}
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-semantic-success" aria-hidden="true" />{copy.progress}
         </p>
       ) : null}
     </section>

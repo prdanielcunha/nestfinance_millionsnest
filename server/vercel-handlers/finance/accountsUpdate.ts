@@ -11,6 +11,7 @@ import {
 } from '../../../api/_lib/financeIdentity.js';
 import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
 import { stageCanonicalAuditCreate } from './auditFactProjection.js';
+import { parseOpeningBalanceDeclaration } from '../../../shared/finance/openingBalanceDeclaration.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -74,8 +75,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { 
       accountId, name, institutionName, accountLast4, financeEntityId,
-      type, nature, configurationStatus, operationalPurpose, supportedInstruments, availabilityBehavior
+      type, nature, configurationStatus, operationalPurpose, supportedInstruments, availabilityBehavior,
+      openingBalanceDeclaration, expectedOpeningBalanceRevision, openingBalanceReason
     } = req.body;
+
+    const wantsOpeningCorrection = Object.prototype.hasOwnProperty.call(req.body, 'openingBalanceDeclaration');
+    let correctedOpening: ReturnType<typeof parseOpeningBalanceDeclaration> | null = null;
+    let correctionReason = '';
+    if (wantsOpeningCorrection) {
+      if (!Number.isSafeInteger(expectedOpeningBalanceRevision) || expectedOpeningBalanceRevision < 0) {
+        return res.status(400).json({ error: 'INVALID_OPENING_BALANCE_REVISION' });
+      }
+      if (typeof openingBalanceReason !== 'string' || openingBalanceReason.trim().length < 10 ||
+          openingBalanceReason.trim().length > 240) {
+        return res.status(400).json({ error: 'INVALID_OPENING_BALANCE_REASON' });
+      }
+      try {
+        correctedOpening = parseOpeningBalanceDeclaration(openingBalanceDeclaration);
+      } catch (error) {
+        return res.status(400).json({ error: error instanceof Error ? error.message : 'INVALID_OPENING_BALANCE_DECLARATION' });
+      }
+      correctionReason = openingBalanceReason.trim();
+    }
 
     if (!financeEntityId || typeof financeEntityId !== 'string') {
       return res.status(400).json({ error: 'FINANCE_ENTITY_REQUIRED' });
@@ -140,6 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const accountsCol = orgRef.collection('financeAccounts');
     const accountRef = accountsCol.doc(accountId);
     const auditRef = orgRef.collection('financeAuditLogs').doc();
+    const openingHistoryRef = accountRef.collection('openingBalanceHistory').doc();
     const requestId = randomBytes(16).toString('hex');
 
     try {
@@ -158,6 +180,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const currentName = accountData.name;
         const currentInstitutionName = accountData.institutionName || null;
         const currentAccountLast4 = accountData.accountLast4 || null;
+        const openingBefore = accountData.openingBalanceDeclaration ?? {status:'not_informed'};
+        const openingRevision = Number.isSafeInteger(accountData.openingBalanceRevision)
+          ? accountData.openingBalanceRevision : 0;
+        if (wantsOpeningCorrection) {
+          if (expectedOpeningBalanceRevision !== openingRevision) {
+            throw new Error('OPENING_BALANCE_VERSION_CONFLICT');
+          }
+          // Previously imported balances are never overwritten through a simple form.
+          if (typeof accountData.openingBalanceCents === 'number' &&
+              accountData.openingBalanceDeclaration === undefined) {
+            throw new Error('OPENING_BALANCE_LEGACY_RECONCILIATION_REQUIRED');
+          }
+          if (openingBefore.status !== 'pending_review' && openingBefore.status !== 'not_informed') {
+            throw new Error('OPENING_BALANCE_LOCKED');
+          }
+        }
+        const isOpeningChanged = wantsOpeningCorrection &&
+          JSON.stringify(openingBefore) !== JSON.stringify(correctedOpening);
 
         const currentLogicalKey = `${financeEntityId}:${buildUniqueKeyLogicName('account', currentNormalizedName)}`;
         const currentUniqueKeyId = generateUniqueKeyId(currentLogicalKey);
@@ -182,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Check if anything actually changed
         if (
           !isNameChanged && !isVisualNameChanged && !isInstitutionNameChanged && !isAccountLast4Changed &&
-          !isTypeChanged && !isNatureChanged && !isConfigStatusChanged && !isPurposeChanged && !isInstrumentsChanged && !isBehaviorChanged
+          !isTypeChanged && !isNatureChanged && !isConfigStatusChanged && !isPurposeChanged && !isInstrumentsChanged && !isBehaviorChanged && !isOpeningChanged
         ) {
           return {
             changed: false,
@@ -195,7 +235,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               institutionName: currentInstitutionName || undefined,
               accountLast4: currentAccountLast4 || undefined,
               currency: accountData.currency,
-              active: accountData.active
+              active: accountData.active,
+              openingBalanceDeclaration: openingBefore,
+              openingBalanceRevision: openingRevision
             }
           };
         }
@@ -322,9 +364,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           accountUpdateData.availabilityBehavior = availabilityBehavior;
         }
 
+        if (isOpeningChanged) {
+          accountUpdateData.openingBalanceDeclaration = correctedOpening;
+          accountUpdateData.openingBalanceRevision = openingRevision + 1;
+          // An append-only correction record is written atomically with the account metadata.
+          // It never mutates openingBalanceCents, journal, balances or aggregates.
+          t.create(openingHistoryRef, {
+            organizationId, financeEntityId, accountId, revision: openingRevision + 1,
+            previous: openingBefore, current: correctedOpening,
+            reason: correctionReason, actorUid: uid,
+            createdAt: FieldValue.serverTimestamp(), schemaVersion: 1,
+          });
+        }
+
         t.update(accountRef, accountUpdateData);
 
         const auditChanges: any = {};
+        if (isOpeningChanged) {
+          auditChanges.openingBalanceDeclaration = {
+            fromStatus: openingBefore.status,
+            toStatus: correctedOpening?.status,
+            fromRevision: openingRevision, toRevision: openingRevision + 1,
+            reason: correctionReason,
+          };
+        }
         if (isNameChanged || isVisualNameChanged) {
           auditChanges.name = { from: currentName, to: trimmedName };
         }
@@ -371,13 +434,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             institutionName: parsedInstitutionName || undefined,
             accountLast4: parsedAccountLast4 || undefined,
             currency: accountData.currency,
-            active: accountData.active
+            active: accountData.active,
+            openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore,
+            openingBalanceRevision: isOpeningChanged ? openingRevision + 1 : openingRevision
           }
         };
       });
 
       return res.status(200).json(result);
     } catch (txError: any) {
+      if ([
+        'OPENING_BALANCE_VERSION_CONFLICT',
+        'OPENING_BALANCE_LEGACY_RECONCILIATION_REQUIRED',
+        'OPENING_BALANCE_LOCKED',
+      ].includes(txError.message)) {
+        return res.status(409).json({ error: txError.message });
+      }
       if (txError.message === 'ACCOUNT_ALREADY_EXISTS') {
         return res.status(409).json({ error: 'ACCOUNT_ALREADY_EXISTS' });
       }
