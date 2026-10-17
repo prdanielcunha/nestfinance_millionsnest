@@ -4,6 +4,7 @@ export const APP_ROUTES = {
   login: '/auth/login',
   finance: '/finance',
   treasury: '/finance/treasury',
+  payables: '/finance/payables',
   financeSetup: '/finance/setup',
   financeSettings: '/finance/settings',
   financeSettingsAccounts: '/finance/settings/accounts',
