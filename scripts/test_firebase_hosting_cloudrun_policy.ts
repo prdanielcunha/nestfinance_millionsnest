@@ -124,7 +124,7 @@ assert.doesNotMatch(
   'Finance production must not publish shared Hub Firestore Rules or indexes',
 );
 assert.match(productionRelease, /NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT/, 'Fail closed on a changed shared Rules fingerprint');
-assert.match(productionRelease, /c8804c9f34197fb60d71936532782622c3f9f5aa7fbd3bd70bd7575753353311/, 'Require the audited canonical Hub fingerprint');
+assert.match(productionRelease, /277e117297a140c0d621286962efbd8552b10567571c5174e9601c3ba6f80ae5/, 'Require the audited canonical Hub fingerprint');
 
 assert.doesNotMatch(
   productionRelease,
