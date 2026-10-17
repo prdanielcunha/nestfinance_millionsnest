@@ -29,6 +29,9 @@ const COPY = {
     due: 'Contas próximas do vencimento',
     dueSuffix: (n: number) => `${n} ${n === 1 ? 'item identificado' : 'itens identificados'} em até 7 dias`,
     dueIncomplete: 'A lista pode ter mais itens; confira todos antes de decidir.',
+    bills: 'Contas a pagar cadastradas',
+    billsSuffix: (n:number) => n===1 ? '1 conta vence nos próximos 7 dias' : `${n} contas vencem nos próximos 7 dias`,
+    billsIncomplete: 'Podem existir mais contas; abra a lista completa.',
     count: 'Contagem em andamento',
     review: 'Movimentações para conferir',
     documents: 'Documentos para conferir',
@@ -49,6 +52,9 @@ const COPY = {
     due: 'Bills approaching due date',
     dueSuffix: (n: number) => `${n} ${n === 1 ? 'identified item' : 'identified items'} within 7 days`,
     dueIncomplete: 'Additional items may exist; check the complete list before deciding.',
+    bills: 'Registered unpaid bills',
+    billsSuffix: (n:number) => n===1 ? '1 bill is due in the next 7 days' : `${n} bills are due in the next 7 days`,
+    billsIncomplete: 'More bills may exist; open the full list.',
     count: 'Count in progress',
     review: 'Transactions to review',
     documents: 'Documents to review',
@@ -69,6 +75,9 @@ const COPY = {
     due: 'Cuentas próximas a vencer',
     dueSuffix: (n: number) => `${n} ${n === 1 ? 'elemento identificado' : 'elementos identificados'} en 7 días`,
     dueIncomplete: 'Puede haber más elementos; revisa la lista completa antes de decidir.',
+    bills: 'Cuentas por pagar registradas',
+    billsSuffix: (n:number) => n===1 ? '1 cuenta vence en los próximos 7 días' : `${n} cuentas vencen en los próximos 7 días`,
+    billsIncomplete: 'Puede haber más cuentas; abre la lista completa.',
     count: 'Conteo en curso',
     review: 'Movimientos por revisar',
     documents: 'Documentos por revisar',
@@ -149,6 +158,18 @@ export function TodayLedgerOverview({
           <div className="flex min-h-16 items-center justify-between gap-4 py-4">
             <span className="text-base text-text-secondary">{copy.documents}</span>
             <strong className="nf-financial-number text-lg text-text-primary">{documentsToReview}</strong>
+          </div>
+        ) : null}
+        {operational?.registeredPayablesDueSoonCount !== undefined ? (
+          <div className="flex min-h-20 items-center justify-between gap-4 py-4">
+            <span className="min-w-0">
+              <span className="block text-base font-semibold text-text-primary">{copy.bills}</span>
+              <span className="mt-1 block text-sm text-text-secondary">
+                {copy.billsSuffix(operational.registeredPayablesDueSoonCount)}
+              </span>
+              {operational.registeredPayablesDueSoonTruncated ?
+                <span className="mt-1 block text-sm text-semantic-warning">{copy.billsIncomplete}</span> : null}
+            </span>
           </div>
         ) : null}
         <div className="flex min-h-20 items-center justify-between gap-4 py-4">
