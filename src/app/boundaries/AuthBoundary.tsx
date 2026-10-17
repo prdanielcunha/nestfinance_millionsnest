@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { APP_ROUTES } from '@/src/app/router/routes';
@@ -17,8 +17,9 @@ function safeCurrentPath(): string {
 
 export function AuthBoundary({ children }: Props) {
   const { authState } = useAuth();
-  const isHandoffRoute = window.location.pathname.startsWith(APP_ROUTES.handoff);
-  const isLoginRoute = window.location.pathname.startsWith(APP_ROUTES.login);
+  const { pathname } = useLocation();
+  const isHandoffRoute = pathname.startsWith(APP_ROUTES.handoff);
+  const isLoginRoute = pathname.startsWith(APP_ROUTES.login);
 
   if (authState === 'initializing') {
     return (
