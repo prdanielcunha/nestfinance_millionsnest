@@ -129,10 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const transactionIds: string[] = [];
         const captures: string[] = [];
-        const occurredAt = `${String(session.serviceDate || '')}T12:00:00.000Z`;
         const nextSessionVersion = expectedVersion + 1;
 
         for (const line of lines) {
+          const occurredAt = `${line.receivedDate}T12:00:00.000Z`;
           const selection = selectionByType.get(line.lineKey)!;
           const accountDoc = accountDocs.get(selection.accountId);
           const categoryDoc = categoryDocs.get(selection.categoryId);
@@ -219,6 +219,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             secondCounterLabel: null,
             serviceLabel: String(session.serviceLabel || ''),
             serviceDate: String(session.serviceDate || ''),
+            receivedDate: line.receivedDate,
           };
 
           const txPayload: any = {

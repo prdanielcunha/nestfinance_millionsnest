@@ -131,6 +131,7 @@ import auditFactProjectionVerify from '../server/vercel-handlers/finance/auditFa
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
+import receivedIncomeSummary from '../server/vercel-handlers/finance/receivedIncomeSummary.js';
 import accountantPackageExport from '../server/vercel-handlers/finance/accountantPackageExport.js';
 import journeyMetricsRecord from '../server/vercel-handlers/finance/journeyMetricsRecord.js';
 import sinceLastVisitSummary from '../server/vercel-handlers/finance/sinceLastVisitSummary.js';
@@ -281,6 +282,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'period-close-readiness': return periodCloseReadiness(req, res);
     case 'period-close-review-confirm': return periodCloseReviewConfirm(req, res);
     case 'reports-intelligence': return reportsIntelligence(req, res);
+    case 'received-income-summary': return receivedIncomeSummary(req, res);
     case 'accountant-package-export': return accountantPackageExport(req, res);
     case 'journey-metrics-record': return journeyMetricsRecord(req, res);
     case 'since-last-visit-summary': return sinceLastVisitSummary(req, res);

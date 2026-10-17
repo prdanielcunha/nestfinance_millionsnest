@@ -145,6 +145,7 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-readiness', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'period-close-review-confirm', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'reports-intelligence', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'received-income-summary', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accountant-package-export', exposure: 'gateway' },
 
   { method: 'POST', gateway: '/api/system-gateway', operation: 'connect-support-draft', exposure: 'gateway' },

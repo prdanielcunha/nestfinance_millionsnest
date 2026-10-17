@@ -34,6 +34,7 @@ import { periodCloseService } from '@/src/services/periodCloseService';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
 import { AccountantWorkspaceOverview } from './AccountantWorkspaceOverview';
 import { MonthReviewOverview } from './MonthReviewOverview';
+import { ReceivedIncomePanel } from './ReceivedIncomePanel';
 import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
 import type {
   ReportMetricComparison,
@@ -652,6 +653,9 @@ function ReportsContent() {
             </label>
           </header>
 
+          {organizationId && activeFinanceEntityId && /^\d{4}-\d{2}$/.test(period) && (
+            <ReceivedIncomePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} language={language} period={period} />
+          )}
           {loading && !data ? (
             <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
               <div className="flex items-center gap-3 text-sm text-text-muted">

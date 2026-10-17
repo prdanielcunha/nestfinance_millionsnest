@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
 import createDrafts from '../server/vercel-handlers/finance/countVerificationsCreateProposedDrafts.js';
 import previewDrafts from '../server/vercel-handlers/finance/countVerificationsProposalPreview.js';
+import receivedIncomeSummary from '../server/vercel-handlers/finance/receivedIncomeSummary.js';
 
 /**
  * Count v3 -> finance draft integration with the real Firestore emulator.
@@ -99,7 +100,7 @@ async function run() {
   const key = () => 'idcountv3draft_' + randomBytes(12).toString('hex');
   const selections = [
     { purpose: 'tithe', receiptMethod: 'cash', accountId: account, categoryId: category },
-    { purpose: 'offering', receiptMethod: 'pix', accountId: bank, categoryId: category },
+    { purpose: 'offering', receiptMethod: 'pix', accountId: bank, categoryId: category, receivedDate: '2026-10-15' },
   ];
   const body = (selected: any[], idempotencyKey: string, financeEntityId = entity) => ({
     financeEntityId, countSessionId: sessionId, expectedVersion: 5,
@@ -138,6 +139,25 @@ async function run() {
     assert.ok(snapshots.every(doc => doc.data()?.status === 'ready_for_review'));
     assert.ok(snapshots.every(doc => doc.data()?.countSource?.countSessionId === sessionId));
     assert.ok(snapshots.every(doc => !doc.data()?.journalEntryId && !doc.data()?.postedAt));
+    const pix = snapshots.find(doc => doc.data()?.paymentMethod === 'pix')?.data();
+    assert.equal(pix?.occurredAt, '2026-10-15T12:00:00.000Z');
+    assert.equal(pix?.countSource?.serviceDate, '2026-10-16');
+    assert.equal(pix?.countSource?.receivedDate, '2026-10-15');
+    const receipt = await call(receivedIncomeSummary, { financeEntityId: entity, startDate: '2026-10-15', endDate: '2026-10-15' });
+    assert.equal(receipt.statusCode, 200, JSON.stringify(receipt.body));
+    assert.equal(receipt.body.pendingCents, 7500);
+    assert.equal(receipt.body.confirmedCents, 0);
+    assert.equal(receipt.body.pendingByMethod.pix, 7500);
+    const serviceDay = await call(receivedIncomeSummary, { financeEntityId: entity, startDate: '2026-10-16', endDate: '2026-10-16' });
+    assert.equal(serviceDay.statusCode, 200, JSON.stringify(serviceDay.body));
+    assert.equal(serviceDay.body.pendingCents, 15000);
+    assert.equal(serviceDay.body.pendingByMethod.cash, 15000);
+    const otherReceipts = await call(receivedIncomeSummary, { financeEntityId: otherEntity, startDate: '2026-10-15', endDate: '2026-10-16' });
+    assert.equal(otherReceipts.statusCode, 200, JSON.stringify(otherReceipts.body));
+    assert.equal(otherReceipts.body.pendingCents, 0);
+    const unauthenticated = new MockRes();
+    await receivedIncomeSummary({ method: 'POST', headers: {}, query: {}, body: { financeEntityId: entity, startDate: '2026-10-15', endDate: '2026-10-16' } } as any, unauthenticated as any);
+    assert.equal(unauthenticated.statusCode, 401);
     assert.equal((await orgRef.collection('financeAllocations').get()).size, 2);
     assert.equal((await orgRef.collection('financeJournalEntries').get()).size, 0);
     assert.equal((await orgRef.collection('financeAggregates').get()).size, 0);
@@ -153,6 +173,8 @@ async function run() {
     ], key()));
     assert.equal(altered.statusCode, 409, JSON.stringify(altered.body));
     assert.equal(altered.body.error, 'COUNT_PROPOSAL_ALREADY_CREATED_WITH_DIFFERENT_SELECTIONS');
+    const changedDate = await call(createDrafts, body([selections[0], { ...selections[1], receivedDate: '2026-10-16' }], key()));
+    assert.equal(changedDate.statusCode, 409, JSON.stringify(changedDate.body));
     assert.equal((await orgRef.collection('financeTransactions').get()).size, 2);
     assert.equal((await orgRef.collection('financeJournalEntries').get()).size, 0);
 

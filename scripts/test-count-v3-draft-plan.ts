@@ -20,7 +20,7 @@ const session={
   treasuryReview:{status:'accepted',sourceVersion:3,reviewedByUid:'reviewer'},
 };
 const selections:CountV3DraftSelection[]=[
-  {purpose:'offering',receiptMethod:'pix',accountId:'bank_1',categoryId:'offerings'},
+  {purpose:'offering',receiptMethod:'pix',accountId:'bank_1',categoryId:'offerings',receivedDate:'2026-10-15'},
   {purpose:'tithe',receiptMethod:'cash',accountId:'cash_1',categoryId:'tithes'},
 ];
 const plan=buildCountV3DraftPlan(session,selections);
@@ -95,7 +95,7 @@ assert.throws(()=>buildCountV3DraftPlan(cardSession,[{
 }]),/COUNT_PROPOSAL_CARD_DETAIL_REQUIRED/);
 const cardPlan=buildCountV3DraftPlan(cardSession,[{
   purpose:'offering',receiptMethod:'card',accountId:'card_receivable',categoryId:'offerings',
-  cardSettlementMethod:'debit_card',
+  cardSettlementMethod:'debit_card',receivedDate:'2026-10-17',
 }]);
 assert.equal(cardPlan.lines[0].receiptMethod,'card','Source still says card');
 assert.equal(cardPlan.lines[0].ledgerPaymentMethod,'debit_card','Ledger needs precise debit instrument');
@@ -104,3 +104,7 @@ assert.throws(()=>buildCountV3DraftPlan(session,[{
 },selections[1]]),/COUNT_PROPOSAL_CARD_DETAIL_INCONSISTENT/);
 
 console.log('✅ Count v3 source-backed draft mapping blocks duplicate, guessed Pix, missing ledger targets and posting');
+assert.equal(plan.lines.find(line=>line.receiptMethod==='pix')?.receivedDate,'2026-10-15');
+assert.equal(plan.lines.find(line=>line.receiptMethod==='cash')?.receivedDate,session.serviceDate);
+assert.throws(()=>buildCountV3DraftPlan(session,[{...selections[0],receivedDate:undefined},selections[1]]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
+assert.throws(()=>buildCountV3DraftPlan(session,[{...selections[0],receivedDate:'2026-02-30'},selections[1]]),/COUNT_PROPOSAL_RECEIVED_DATE_REQUIRED/);
