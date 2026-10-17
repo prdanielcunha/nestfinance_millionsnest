@@ -28,3 +28,9 @@ Count v3 requires explicit `receivedDate` for digital totals when preparing trea
 - Typecheck, SPA/API builds, API contracts, isolation/role gates and roadmap cycles must pass on the submitted SHA.
 
 Rollback: normal code revert; no data migration required.
+
+## Follow-up: currently enabled legacy Count
+
+The original Count-to-proposals flow also requires explicit Pix received dates, with service-day cash fallback. Its screen explains this in PT/EN/ES, and date/account/category replay changes return a conflict instead of falsely acknowledging a correction. New proposal packets persist a normalized selection hash. Existing packets without that proof remain viewable but cannot be recreated by an ambiguous replay; corrections go through transaction review.
+
+`test-count-legacy-received-date.ts` checks date validation and cash compatibility. The Java 21 receipt CI also exercises the legacy handler against Firestore, checks the selected date and original service provenance, verifies identical replay and changed-date conflict, and checks summary composition without posting.
