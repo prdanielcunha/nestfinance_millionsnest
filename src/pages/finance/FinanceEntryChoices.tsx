@@ -70,23 +70,23 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {profile.canCount ? (
-          <button type="button" onClick={() => navigate(countTarget)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#d6c7b3] bg-[#fffaf1] p-4 text-left hover:border-[#a27736]">
-            <ClipboardCheck className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(countTarget)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-border-strong bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <ClipboardCheck className="h-9 w-9 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.count}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.countSub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
         {profile.canFinance ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.treasury)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-[#ccd7d7] bg-[#f1f8f5] p-4 text-left hover:border-[#164a52]">
-            <Wallet className="h-9 w-9 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(APP_ROUTES.treasury)} className="nf-interactive flex min-h-28 items-center gap-4 rounded-xl border border-border-strong bg-surface-secondary p-4 text-left hover:border-accent-primary">
+            <Wallet className="h-9 w-9 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.money}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.moneySub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
         {canReviewCount && !profile.canCount ? (
@@ -101,29 +101,29 @@ export function FinanceEntryChoices({ language, profile }: { language: Language;
           </button>
         ) : null}
         {profile.canAccountant ? (
-          <button type="button" onClick={() => navigate(APP_ROUTES.accountant)} className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-white p-4 text-left hover:border-[#a27736] sm:col-span-2">
-            <BookOpenCheck className="h-8 w-8 shrink-0 text-[#164a52]" aria-hidden="true"/>
+          <button type="button" onClick={() => navigate(APP_ROUTES.accountant)} className="nf-interactive flex min-h-24 items-center gap-4 rounded-xl border border-border-subtle bg-surface-default p-4 text-left hover:border-accent-primary sm:col-span-2">
+            <BookOpenCheck className="h-8 w-8 shrink-0 text-accent-primary" aria-hidden="true"/>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-semibold text-text-primary">{copy.accountant}</span>
               <span className="mt-1 block text-sm leading-snug text-text-secondary">{copy.accountantSub}</span>
             </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[#164a52]" aria-hidden="true"/>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true"/>
           </button>
         ) : null}
       </div>
       {profile.canFinance ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=income`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#073d47] px-3 text-sm font-semibold text-white">
+          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=income`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl bg-accent-primary px-3 text-sm font-semibold text-background-base">
             <ArrowDownLeft className="h-5 w-5 shrink-0" aria-hidden="true"/>{copy.income}
           </button>
-          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=expense`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[#ccd1cd] px-3 text-sm font-semibold text-[#073d47]">
+          <button type="button" onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=expense`)} className="nf-interactive flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border-strong px-3 text-sm font-semibold text-accent-primary">
             <ArrowUpRight className="h-5 w-5 shrink-0" aria-hidden="true"/>{copy.expense}
           </button>
         </div>
       ) : null}
       {profile.canCount && profile.canFinance ? (
         <p className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-text-secondary">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#21694e]" aria-hidden="true" />{copy.progress}
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-semantic-success" aria-hidden="true" />{copy.progress}
         </p>
       ) : null}
     </section>
