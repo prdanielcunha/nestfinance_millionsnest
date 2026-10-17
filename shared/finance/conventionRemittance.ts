@@ -130,6 +130,19 @@ export function previewConventionRemittance(input:{
   }
   const blockers:string[]=[];
   if(!completeSourceCoverage)blockers.push('CONVENTION_SOURCE_COVERAGE_INCOMPLETE');
+  if(rules.length===0)blockers.push('CONVENTION_RULE_MISSING');
+  // Reject overlapping effective policies even if this particular month has
+  // no receipts. Two concurrent percentages must never be chosen arbitrarily.
+  for(let i=0;i<rules.length;i++)for(let j=i+1;j<rules.length;j++){
+    const a=rules[i],b=rules[j];
+    if(a.ruleId===b.ruleId&&a.revision===b.revision){
+      throw Error('CONVENTION_DUPLICATE_RULE_REVISION');
+    }
+    if(a.effectiveFrom<=(b.effectiveThrough??'9999-12-31') &&
+       b.effectiveFrom<=(a.effectiveThrough??'9999-12-31')){
+      blockers.push('CONVENTION_OVERLAPPING_RULES');
+    }
+  }
   const segmentsByRule=new Map<string,ConventionSegment>();
   let excluded=0;
   for(const receipt of receipts) {
