@@ -111,6 +111,8 @@ function PayablesContent(){
   const [message,setMessage]=useState<'success'|'validation'|'failure'|'featureOff'|null>(null);
   const savedFingerprint=useRef<{material:string;key:string}|null>(null);
   const saveLock=useRef(false);
+  const activeScopeRef=useRef('');
+  activeScopeRef.current=organizationId+'|'+activeFinanceEntityId;
 
   useEffect(()=>{
     let alive=true;
@@ -127,19 +129,21 @@ function PayablesContent(){
 
   const refresh=async()=>{
     if(!activeFinanceEntityId||!organizationId)return;
+    const scope=organizationId+'|'+activeFinanceEntityId;
     setLoading(true);setListError(false);
     try{
       const page=await payablesService.list(organizationId,activeFinanceEntityId);
-      setItems(page.items);setNextCursor(page.nextCursor);
-    }catch{setListError(true);}finally{setLoading(false);}
+      if(activeScopeRef.current===scope){setItems(page.items);setNextCursor(page.nextCursor);}
+    }catch{if(activeScopeRef.current===scope)setListError(true);}finally{if(activeScopeRef.current===scope)setLoading(false);}
   };
   const loadMore=async()=>{
     if(!activeFinanceEntityId||!organizationId||!nextCursor)return;
+    const scope=organizationId+'|'+activeFinanceEntityId;
     setLoading(true);
     try{
       const page=await payablesService.list(organizationId,activeFinanceEntityId,nextCursor);
-      setItems(previous=>[...previous,...page.items]);setNextCursor(page.nextCursor);setListError(false);
-    }catch{setListError(true);}finally{setLoading(false);}
+      if(activeScopeRef.current===scope){setItems(previous=>[...previous,...page.items]);setNextCursor(page.nextCursor);setListError(false);}
+    }catch{if(activeScopeRef.current===scope)setListError(true);}finally{if(activeScopeRef.current===scope)setLoading(false);}
   };
   const save=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
@@ -158,17 +162,22 @@ function PayablesContent(){
     const material=JSON.stringify({organizationId,activeFinanceEntityId,payload});
     if(savedFingerprint.current?.material!==material)
       savedFingerprint.current={material,key:crypto.randomUUID()};
+    const scope=organizationId+'|'+activeFinanceEntityId;
     saveLock.current=true;setSaving(true);
     try{
       const result=await payablesService.create(organizationId,activeFinanceEntityId,payload,savedFingerprint.current.key);
       if(result.postingPerformed!==false)throw Error('PAYABLE_UNEXPECTED_POSTING');
+      if(activeScopeRef.current!==scope)return;
       savedFingerprint.current=null;
       setDescription('');setCounterparty('');setAmountText('');setDueDate('');setNotes('');setDocumentReference('');
       setMessage('success');
       await refresh();
     }catch(error:any){
-      setMessage(error?.message==='PAYABLES_CREATION_NOT_ENABLED'?'featureOff':'failure');
-    }finally{saveLock.current=false;setSaving(false);}
+      if(activeScopeRef.current===scope)setMessage(error?.message==='PAYABLES_CREATION_NOT_ENABLED'?'featureOff':'failure');
+    }finally{
+      saveLock.current=false;
+      if(activeScopeRef.current===scope)setSaving(false);
+    }
   };
   const money=(value:number)=>new Intl.NumberFormat(locale[language],{style:'currency',currency:'BRL'}).format(value/100);
   const shortDate=(day:string)=>/^\d{4}-\d{2}-\d{2}$/.test(day)?day.split('-').reverse().join('/'):'—';
