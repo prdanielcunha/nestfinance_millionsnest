@@ -516,7 +516,7 @@ async function runEmulatorTests() {
           financeEntityId: entId,
           transactionId: txId,
           expectedVersion: currentVersion,
-          payload: { description: 'P1 Vence' },
+          payload: { description: 'P1 Vence', correctionReason: 'Correção sintética concorrente pelo primeiro operador' },
           idempotencyKey: randomKey(),
           requestId: randomRequestId()
         }
@@ -526,7 +526,7 @@ async function runEmulatorTests() {
           financeEntityId: entId,
           transactionId: txId,
           expectedVersion: currentVersion,
-          payload: { description: 'P2 Vence' },
+          payload: { description: 'P2 Vence', correctionReason: 'Correção sintética concorrente pelo segundo operador' },
           idempotencyKey: randomKey(),
           requestId: randomRequestId()
         }
@@ -535,7 +535,7 @@ async function runEmulatorTests() {
 
     const concurrentResults = [p1, p2];
     const succeeded = concurrentResults.filter((result) => result.statusCode === 200);
-    const conflicts = concurrentResults.filter((result) => result.statusCode === 400 && result.body?.error === 'FINANCE_VERSION_CONFLICT');
+    const conflicts = concurrentResults.filter((result) => result.statusCode === 409 && result.body?.error === 'FINANCE_VERSION_CONFLICT');
     verify(succeeded.length === 1, `exatamente um update vence (length=${succeeded.length})`);
     verify(conflicts.length === 1, 'concorrente perde com FINANCE_VERSION_CONFLICT');
     const txFacts = await firestore.collection('intelligenceFacts').where('entityId', '==', txId).get();

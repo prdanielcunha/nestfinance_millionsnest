@@ -259,7 +259,7 @@ function TransactionDetailContent() {
           data.transaction.id,
           currentVersion,
           data.transaction.approvalSourceHash || "",
-          returnReason,
+          ({ missing_attachment: 'attachment_needs_change', invalid_amount: 'amount_needs_change', invalid_category: 'classification_needs_change', invalid_account: 'account_needs_change', need_correction: 'other' } as Record<string, string>)[returnReason] || returnReason,
           returnComment,
           idempotencyKeyRef.current,
           reqId,

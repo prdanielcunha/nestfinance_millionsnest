@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { transactionNeedsCorrectionReason } from '../../../shared/finance/transactionCorrection.js';
 import { resolveFinanceRequestContext, hasFinanceCapability } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -227,6 +228,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ? 'manual'
             : 'unknown';
 
+    const correctionsSnapshot = await txDoc.ref.collection('corrections').orderBy('changedAt', 'desc').limit(21).get();
+    const corrections = correctionsSnapshot.docs.slice(0, 20).map(doc => {
+      const item = doc.data();
+      return { id: doc.id, actorLabel: item.actorLabel, reason: item.reason,
+        changedAt: item.changedAt?.toDate?.().toISOString() || null,
+        versionBefore: item.versionBefore, versionAfter: item.versionAfter,
+        before: item.before, after: item.after };
+    });
+
     const eventsSnapshot = await db
       .collection('organizations')
       .doc(organizationId)
@@ -338,6 +348,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         invalidatedBy: txData.invalidatedBy || null,
         invalidatedAt: txData.invalidatedAt || null,
         invalidatedReason: txData.invalidatedReason || null,
+        correctionReasonRequired: transactionNeedsCorrectionReason(txData),
         invalidatedComment: txData.invalidatedComment || null
       },
       allocations: resolvedAllocations.map(a => ({
@@ -352,6 +363,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sequence: a.sequence
       })),
       events,
+      corrections,
+      correctionsTruncated: correctionsSnapshot.size > 20,
       reviewReadiness,
       accountingEffect,
       accountingEffectState,
