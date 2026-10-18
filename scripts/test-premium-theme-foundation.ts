@@ -5,6 +5,9 @@ const css = readFileSync('src/index.css', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
 const ctx = readFileSync('src/contexts/ThemeContext.tsx', 'utf8');
 const shell = readFileSync('src/app/layouts/ShellLayout.tsx', 'utf8');
+const button = readFileSync('src/components/foundation/Button.tsx', 'utf8');
+assert.ok(button.includes('hover:bg-text-primary/90') && !button.includes('hover:bg-white'),
+  'Primary action hover must preserve foreground/background contrast in both themes');
 
 // WCAG relative luminance: verify the real token pairs, including primary
 // controls whose foreground must change when the accent becomes bright cyan.
@@ -18,6 +21,11 @@ function luminance(hex: string): number {
 function contrast(a: string, b: string): number {
   const values = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (values[0] + 0.05) / (values[1] + 0.05);
+}
+function overlay(a: string, b: string, opacity: number): string {
+  const channels = (hex: string) => hex.match(/[a-f\d]{2}/gi)!.map(value => parseInt(value, 16));
+  const foreground = channels(a); const background = channels(b);
+  return '#' + foreground.map((value, i) => Math.round(value * opacity + background[i] * (1 - opacity)).toString(16).padStart(2, '0')).join('');
 }
 for (const selector of [':root', ":root[data-theme='dark']"]) {
   const block = css.slice(css.indexOf(`${selector} {`)).split('}')[0];
@@ -34,6 +42,11 @@ for (const selector of [':root', ":root[data-theme='dark']"]) {
   }
   assert.ok(contrast(token('background-base'), token('accent-primary')) >= 4.5,
     `Primary control text must remain readable in ${selector}`);
+  assert.ok(contrast(token('background-base'), token('text-primary')) >= 4.5);
+  for (const surface of ['background-base', 'surface-default', 'surface-secondary', 'surface-elevated']) {
+    assert.ok(contrast(token('background-base'), overlay(token('text-primary'), token(surface), 0.9)) >= 4.5,
+      `Primary action hover must remain readable in ${selector}/${surface}`);
+  }
 }
 
 // Approved default identity and user-controlled night appearance.

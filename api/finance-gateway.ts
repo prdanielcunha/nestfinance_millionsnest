@@ -81,6 +81,7 @@ import countSessionsJoinSecondCount from '../server/vercel-handlers/finance/coun
 import countSessionsRefreshSecondInvite from '../server/vercel-handlers/finance/countSessionsRefreshSecondInvite.js';
 import countSessionsSubmitSecondCount from '../server/vercel-handlers/finance/countSessionsSubmitSecondCount.js';
 import countSessionsStartRecount from '../server/vercel-handlers/finance/countSessionsStartRecount.js';
+import countSessionsCorrect from '../server/vercel-handlers/finance/countSessionsCorrect.js';
 import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countSessionsSubmitRecount.js';
 import countSessionsProposalPreview from '../server/vercel-handlers/finance/countSessionsProposalPreview.js';
 import countSessionsCreateProposedDrafts from '../server/vercel-handlers/finance/countSessionsCreateProposedDrafts.js';
@@ -231,6 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'count-sessions-refresh-second-invite': return countSessionsRefreshSecondInvite(req, res);
     case 'count-sessions-submit-second-count': return countSessionsSubmitSecondCount(req, res);
     case 'count-sessions-start-recount': return countSessionsStartRecount(req, res);
+    case 'count-sessions-correct': return countSessionsCorrect(req, res);
     case 'count-sessions-submit-recount': return countSessionsSubmitRecount(req, res);
     case 'count-sessions-proposal-preview': return countSessionsProposalPreview(req, res);
     case 'count-sessions-create-proposed-drafts': return countSessionsCreateProposedDrafts(req, res);

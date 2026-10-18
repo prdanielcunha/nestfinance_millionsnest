@@ -102,6 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           matchesB,
           compareToA,
           compareToB,
+          reason: session.activeRecount.reason || null,
+          beforeTotals: { countA: session.countA.totalCents, countB: session.countB.totalCents },
         };
 
         transaction.update(sessionRef, {
@@ -140,6 +142,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             attemptNumber,
             matched,
             resolvedBy,
+            reason: session.activeRecount.reason || null,
+            before: { countA: session.countA, countB: session.countB },
+            after: { entries: normalizedEntries, totalCents },
           },
           createdAt: FieldValue.serverTimestamp(),
         });

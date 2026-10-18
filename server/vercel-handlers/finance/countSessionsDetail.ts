@@ -38,6 +38,7 @@ function serializeComparison(value: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
@@ -72,6 +73,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       version: data.version,
       policySnapshot: data.policySnapshot || {},
       materialHidden,
+      // No previous amounts may be disclosed during a blind independent stage.
+      corrections: materialHidden ? [] : (Array.isArray(data.corrections) ? data.corrections.map((item: any) => ({
+        id: item.id, target: item.target, reason: item.reason, actorLabel: item.actorLabel,
+        changedAt: toIso(item.changedAt), versionBefore: item.versionBefore, versionAfter: item.versionAfter,
+        before: serializeCount(item.before), after: serializeCount(item.after),
+      })) : []),
       recountAttemptCount: Array.isArray(data.recountAttempts) ? data.recountAttempts.length : 0,
       activeRecountAttemptNumber: data.status === 'recounting' ? Number(data.activeRecount?.attemptNumber || 0) : null,
       firstCounterLabel: data.countA?.countedByLabel || data.countA?.enteredByLabel || null,
@@ -127,6 +134,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             sealedAt: toIso(attempt.sealedAt),
             matchesA: attempt.matchesA === true,
             matchesB: attempt.matchesB === true,
+            reason: attempt.reason || null,
+            beforeTotals: attempt.beforeTotals || null,
           }))
         : [];
     }

@@ -66,7 +66,10 @@ verify('second count starts only from counting_a', startSecond.includes("session
 verify('second count requires first-count evidence', startSecond.includes('COUNT_FIRST_COUNT_REQUIRED'));
 verify('second count comparison runs server-side', submitSecond.includes('compareCountEntries(session.countA.entries, normalizedEntries)'));
 verify('recount starts only from divergent state', startRecount.includes("session.status !== 'divergent'") && startRecount.includes("status: 'recounting'"));
-verify('recount preserves previous attempts rather than overwriting A/B', submitRecount.includes('recountAttempts: [...previousAttempts, sealedAttempt]') && !submitRecount.includes('countA:') && !submitRecount.includes('countB:'));
+// Original values legitimately appear in the private before/after audit. Check
+// the actual session update, not unrelated audit material elsewhere in the file.
+const recountSessionUpdate = submitRecount.match(/transaction\.update\(sessionRef, \{([\s\S]*?)\n        \}\);/)?.[1];
+verify('recount preserves previous attempts rather than overwriting A/B', Boolean(recountSessionUpdate) && recountSessionUpdate.includes('recountAttempts: [...previousAttempts, sealedAttempt]') && !recountSessionUpdate.includes('countA:') && !recountSessionUpdate.includes('countB:'));
 verify('recount resolves only by matching preserved A or B', submitRecount.includes('matchesA || matchesB') && submitRecount.includes("'recount_matches_a'") && submitRecount.includes("'recount_matches_b'"));
 verify('blind workspace receives no Count A/B material values', !/session\.countA|session\.countB|session\.comparison/.test(h2Panels.split('export function CountResultPanel')[0]));
 

@@ -12,6 +12,7 @@ import countSessionsSubmitRecount from '../server/vercel-handlers/finance/countS
 import { buildFinanceSignalId } from '../server/vercel-handlers/finance/signalProjection.js';
 
 class MockRes {
+  setHeader(_name: string, _value: string) { return this; }
   statusCode = 200;
   body: any = null;
   status(code: number) {
@@ -287,6 +288,7 @@ async function run() {
 
     const recountStartKey = randomKey();
     const recountStartBody = {
+      reason: 'Recontagem para verificar a diferença encontrada',
       financeEntityId: entityA,
       countSessionId: sessionId,
       expectedVersion: 5,
