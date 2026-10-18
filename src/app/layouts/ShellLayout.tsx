@@ -47,6 +47,12 @@ export const CANONICAL_NAVIGATION: NavigationItem[] = [
   { id: 'settings', labelKey: 'nav_config', icon: Settings, route: APP_ROUTES.financeSettings, order: 9, requiredAnyCapabilities: ['finance.manage', 'organization.manage_entities'] },
 ];
 
+const DESKTOP_COPY = {
+  PT: { preferences: 'Conta e preferências', workspace: 'Espaço de trabalho' },
+  EN: { preferences: 'Account and preferences', workspace: 'Workspace' },
+  ES: { preferences: 'Cuenta y preferencias', workspace: 'Espacio de trabajo' },
+};
+
 const SHELL_COPY: Record<Language, {
   profile: string;
   language: string;
@@ -319,6 +325,9 @@ function ShellLayoutInner() {
   const navigate = useNavigate();
   const copy = SHELL_COPY[language];
 
+  const desktopCopy = DESKTOP_COPY[language];
+  const currentNavigation = [...CANONICAL_NAVIGATION].sort((a, b) => b.route.length - a.route.length)
+    .find(item => location.pathname === item.route || (item.id !== 'finance' && location.pathname.startsWith(item.route + '/')));
   const orgName = accessState.organization?.name || t('shell_waiting');
   const profileName = accessState.profile?.displayName || copy.profile;
   const profilePhoto = accessState.profile?.photoURL;
@@ -570,14 +579,13 @@ function ShellLayoutInner() {
   return (
     <div className="nf-app-shell flex min-h-screen bg-background-base text-text-primary">
       <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
-      <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
-        <div className="flex min-h-20 items-center justify-between gap-2 border-b border-border-subtle px-4">
-          <NestFinanceLogo layout="horizontal" surface={theme} compact className="h-7 min-w-0 max-w-[144px]" />
-          <ThemeToggle />
+      <aside className="nf-desktop-sidebar fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
+        <div className="nf-sidebar-brand">
+          <NestFinanceLogo layout="horizontal" surface={theme} compact width={180} className="h-auto w-[180px]" priority />
         </div>
 
-        <div className="flex-1 space-y-1 overflow-y-auto p-4">
-          <div className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-surface-secondary px-3 py-3">
+        <div className="nf-sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
+          <div className="nf-sidebar-context mb-4 overflow-hidden rounded-xl border border-border-subtle bg-surface-secondary px-3 py-3">
             <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-muted">{t('shell_organization')}</p>
             <p className="truncate text-sm font-medium" title={orgName}>{orgName}</p>
             {activeFinanceEntityName ? (
@@ -601,17 +609,7 @@ function ShellLayoutInner() {
             ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setCommandPaletteOpen(true)}
-            className="nf-interactive mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl border border-border-subtle bg-background-base px-3 text-left text-sm font-medium text-text-secondary hover:border-border-strong hover:text-text-primary"
-          >
-            <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{copy.commandOpen}</span>
-            <kbd className="rounded-md border border-border-subtle bg-surface-secondary px-1.5 py-0.5 text-xs font-semibold text-text-muted">
-              ⌘K
-            </kbd>
-          </button>
+
 
           <nav className="space-y-1" aria-label={t('shell_principal')}>
             <div className="mb-2">
@@ -658,7 +656,8 @@ function ShellLayoutInner() {
           </nav>
         </div>
 
-        <div className="border-t border-border-subtle bg-surface-default/50 p-4">
+        <details className="nf-sidebar-account border-t border-border-subtle p-4">
+          <summary className="nf-interactive cursor-pointer list-none rounded-xl focus-visible:outline-accent-primary" aria-label={desktopCopy.preferences}>
           <div className="flex items-center gap-3 overflow-hidden">
             {profilePhoto ? (
               <img
@@ -680,7 +679,9 @@ function ShellLayoutInner() {
             </div>
           </div>
 
-          <div className="mt-4 border-t border-border-subtle pt-3">
+            <span className="mt-2 flex items-center justify-between text-xs text-text-muted">{desktopCopy.preferences}<ChevronsUpDown className="h-3.5 w-3.5" aria-hidden="true" /></span>
+          </summary>
+          <div className="nf-account-options border-t border-border-subtle px-1 pt-3">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
             <ThemeSwitcher language={language} />
             <ConnectSupportButton accessState={accessState} language={language} />
@@ -703,10 +704,30 @@ function ShellLayoutInner() {
               </button>
             </div>
           </div>
-        </div>
+        </details>
       </aside>
 
       <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
+        <header className="nf-desktop-topbar hidden md:flex">
+          <div className="min-w-0">
+            <p className="nf-section-eyebrow">{desktopCopy.workspace}</p>
+            <div className="mt-1 flex min-w-0 items-center gap-2 text-sm"><span className="truncate text-text-secondary">{orgName}</span><span className="text-text-muted" aria-hidden="true">/</span><span className="shrink-0 font-semibold text-text-primary">{currentNavigation ? t(currentNavigation.labelKey) : 'NestFinance'}</span></div>
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCommandPaletteOpen(true)}
+            className="nf-desktop-search nf-interactive flex min-h-11 w-full items-center gap-3 rounded-xl border border-border-subtle bg-background-base px-3 text-left text-sm font-medium text-text-secondary hover:border-border-strong hover:text-text-primary"
+          >
+            <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{copy.commandOpen}</span>
+            <kbd className="rounded-md border border-border-subtle bg-surface-secondary px-1.5 py-0.5 text-xs font-semibold text-text-muted">
+              ⌘K
+            </kbd>
+          </button>
+            <ThemeToggle />
+          </div>
+        </header>
         <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl md:hidden">
           <NestFinanceLogo layout="symbol" className="h-8 w-8 shrink-0" priority />
           <button
@@ -728,7 +749,7 @@ function ShellLayoutInner() {
           <ThemeToggle />
         </header>
 
-        <div className="nf-operational mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="nf-operational nf-workspace-content mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>
