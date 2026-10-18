@@ -1,3 +1,5 @@
+import { countEntryTypesForSession } from '@/shared/finance/countCollectionScope';
+import { CountCollectionNotice } from './CountCollectionNotice';
 import { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -294,6 +296,7 @@ export function CountBlindWorkspace({
       <FinanceEntityContextBar areaName={copy.sessionTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+          <CountCollectionNotice cashOnly={session.collectionScope === 'cash_only'} />
           <header className="flex items-start gap-3">
             <Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.count)}>
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
@@ -367,7 +370,7 @@ export function CountBlindWorkspace({
                 <h2 className="text-xl font-semibold text-text-primary">{copy.blindChooseTitle}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.blindChooseBody}</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {COUNT_ENTRY_TYPES.map((type) => {
+                  {countEntryTypesForSession(session).map((type) => {
                     const existing = entriesByType.get(type);
                     return (
                       <button key={type} type="button" onClick={() => openEntry(type)} disabled={!canEdit} className="group rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary disabled:opacity-60">
@@ -447,7 +450,7 @@ export function CountBlindWorkspace({
                 <h2 className="text-xl font-semibold text-text-primary">{isRecount ? copy.reviewRecountTitle : copy.reviewSecondTitle}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.reviewBlindBody}</p>
                 <div className="mt-5 divide-y divide-border-subtle rounded-2xl border border-border-subtle bg-surface-secondary/25">
-                  {COUNT_ENTRY_TYPES.map((type) => {
+                  {countEntryTypesForSession(session).map((type) => {
                     const entry = entriesByType.get(type);
                     return <div key={type} className="flex min-h-16 items-center justify-between gap-4 p-4"><div><p className="font-medium text-text-primary">{copy.entryLabels[type]}</p><button type="button" onClick={() => openEntry(type)} className="mt-1 text-xs font-semibold text-accent-primary">{entry ? copy.editEntry : copy.countNow}</button></div><p className="text-base font-semibold tabular-nums text-text-primary">{formatReviewMoney(entry?.totalCents || 0, language, 'BRL')}</p></div>;
                   })}
@@ -525,6 +528,7 @@ export function CountResultPanel({
       <FinanceEntityContextBar areaName={copy.sessionTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+          <CountCollectionNotice cashOnly={session.collectionScope === 'cash_only'} />
           <header className="flex items-start gap-3"><Button variant="ghost" className="!min-h-12 !w-12 !px-0" aria-label={copy.back} onClick={() => navigate(APP_ROUTES.count)}><ArrowLeft className="h-5 w-5" aria-hidden="true" /></Button><div className="min-w-0 pt-1"><h1 className="truncate text-2xl font-semibold tracking-tight text-text-primary">{session.serviceLabel}</h1><p className="mt-1 text-sm text-text-muted">{formatReviewDate(`${session.serviceDate}T12:00:00.000Z`, language)}</p></div></header>
 
           <Surface variant="elevated" radius="xl" className={`p-5 sm:p-6 ${matched ? 'border-semantic-success/20' : 'border-semantic-warning/20'}`}>

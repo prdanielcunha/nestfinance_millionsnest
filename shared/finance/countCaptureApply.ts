@@ -59,6 +59,7 @@ function reviewedDenominationDraft(
 export function buildCountCaptureApplyPlan(input: {
   reviewedFields: unknown;
   reviewedDenominations?: unknown;
+  collectionScope?: string | null;
 }): CountCaptureApplyPlan {
   const fields = requireReviewedTotals(input.reviewedFields);
   const fieldValue = (key: 'tithe' | 'offering' | 'other_income' | 'pix') =>
@@ -88,6 +89,12 @@ export function buildCountCaptureApplyPlan(input: {
     }
   }
 
-  drafts.push({ type: 'pix', method: 'total', totalCents: fieldValue('pix') });
+  if (input.collectionScope === 'cash_only') {
+    // The review contract includes a digital placeholder even on a cash-only sheet.
+    // Only an explicitly reviewed zero can be omitted; positive Pix needs separate review.
+    if (fieldValue('pix') !== 0) throw new Error('COUNT_CASH_ONLY_DIGITAL_SEPARATE');
+  } else {
+    drafts.push({ type: 'pix', method: 'total', totalCents: fieldValue('pix') });
+  }
   return { entries: normalizeCountEntries(drafts), sources };
 }

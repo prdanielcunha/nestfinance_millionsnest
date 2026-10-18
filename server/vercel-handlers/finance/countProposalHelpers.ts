@@ -1,3 +1,4 @@
+import { assertCountCollectionScope } from '../../../shared/finance/countCollectionScope.js';
 import type { CountEntryType, NormalizedCountEntry } from '../../../shared/finance/count.js';
 import { buildCountProposalLines, defaultCountWorkflowState, isCountWorkflowState } from '../../../shared/finance/countProposal.js';
 
@@ -104,6 +105,7 @@ export function buildCountProposalPreview(input: {
   funds: CountProposalFundOption[];
 }) {
   const entries = resolveCanonicalCountEntries(input.session);
+  assertCountCollectionScope(input.session, entries);
   const lines = buildCountProposalLines(entries);
   const incomeCategories = input.categories.filter((category) => category.kind === 'income');
 

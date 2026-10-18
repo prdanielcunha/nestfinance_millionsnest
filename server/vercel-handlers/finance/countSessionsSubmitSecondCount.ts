@@ -1,3 +1,4 @@
+import { assertCountCollectionScope } from '../../../shared/finance/countCollectionScope.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
@@ -65,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (session.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
           throw new Error('COUNT_SESSION_NOT_FOUND');
         }
+        assertCountCollectionScope(session, normalizedEntries);
         if (session.status !== 'counting_b') throw new Error('COUNT_INVALID_STATE');
         if (Number(session.version) !== expectedVersion) throw new Error('COUNT_VERSION_CONFLICT');
         if (!Array.isArray(session.countA?.entries) || session.countA.entries.length === 0) {

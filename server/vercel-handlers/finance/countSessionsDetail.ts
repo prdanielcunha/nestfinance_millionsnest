@@ -68,6 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const materialHidden = data.status === 'counting_b' || data.status === 'recounting';
     const session: any = {
       id: snapshot.id,
+      collectionScope: data.collectionScope === 'cash_only' ? 'cash_only' : 'legacy_mixed',
       serviceLabel: data.serviceLabel,
       serviceDate: data.serviceDate,
       status: data.status,

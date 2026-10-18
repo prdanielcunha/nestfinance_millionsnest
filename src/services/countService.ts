@@ -46,6 +46,7 @@ export type CountSessionListItem = {
 };
 
 export type CountSessionDetail = {
+  collectionScope?: 'cash_only' | 'legacy_mixed';
   id: string;
   serviceLabel: string;
   serviceDate: string;
@@ -211,7 +212,7 @@ export const countService = {
     return post<{ sessionId: string; version: number; status: 'counting_a'; requestId?: string }>(
       organizationId,
       'count-sessions-create',
-      { financeEntityId, ...input },
+      { financeEntityId, ...input, collectionScope: 'cash_only' },
     );
   },
 
