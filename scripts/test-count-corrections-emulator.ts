@@ -20,10 +20,11 @@ async function run() {
   const org = `org_correction_${suffix}`; const entity = `entity_${suffix}`; const foreign = `foreign_${suffix}`;
   const uidA = `synthetic_a_${suffix}`; const uidB = `synthetic_b_${suffix}`;
   const uidEditor = `synthetic_editor_${suffix}`;
+  const uidLaterEditor = `synthetic_later_editor_${suffix}`;
   const uidUnprivileged = `synthetic_no_grant_${suffix}`;
   const orgRef = db.collection('organizations').doc(org);
   await orgRef.set({ name: 'Synthetic correction organization', status: 'active' });
-  for (const uid of [uidA, uidB, uidEditor]) await db.collection('users').doc(uid).set({ systemRole: 'ceo', displayName: 'Synthetic reviewer' });
+  for (const uid of [uidA, uidB, uidEditor, uidLaterEditor]) await db.collection('users').doc(uid).set({ systemRole: 'ceo', displayName: 'Synthetic reviewer' });
   await db.collection('users').doc(uidUnprivileged).set({ status: 'active' });
   for (const id of [entity, foreign]) await orgRef.collection('financeEntities').doc(id).set({ active: true, name: 'Synthetic entity' });
   const id = 'cnt_' + randomBytes(12).toString('hex');
@@ -66,21 +67,32 @@ async function run() {
     assert.equal((await call(correct, { ...body, idempotencyKey: token('idem') })).statusCode, 409);
     assert.equal((await call(correct, { ...body, financeEntityId: foreign, idempotencyKey: token('idem') })).statusCode, 404);
     assert.equal((await call(correct, { ...body, expectedVersion: 2, target: 'countB', idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED', 'One editor cannot correct both counts');
+    // Rotate the current editor on A. The first editor must still never edit B.
+    actor = uidLaterEditor;
+    const rotated = await call(correct, { ...body, expectedVersion: 2,
+      entries: [{ type: 'tithe', method: 'total', totalCents: 31000 }], idempotencyKey: token('idem') });
+    assert.equal(rotated.statusCode, 200, JSON.stringify(rotated.body));
+    actor = uidEditor;
+    const crossing = await call(correct, { ...body, expectedVersion: 3, target: 'countB',
+      entries: [{ type: 'tithe', method: 'total', totalCents: 31000 }], idempotencyKey: token('idem') });
+    assert.equal(crossing.body.error, 'COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
+    const eligibility = await call(detail, { financeEntityId: entity, countSessionId: id });
+    assert.equal(eligibility.body.session.correctionEligibility.countB, false);
     actor = uidB;
-    assert.equal((await call(correct, { ...body, expectedVersion: 2, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
+    assert.equal((await call(correct, { ...body, expectedVersion: 3, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
     // Reusing a client correlation must not collide with an earlier immutable fact.
-    const second = await call(correct, { ...body, expectedVersion: 2, target: 'countB', idempotencyKey: token('idem') });
+    const second = await call(correct, { ...body, expectedVersion: 3, target: 'countB', entries: [{ type: 'tithe', method: 'total', totalCents: 31000 }], idempotencyKey: token('idem') });
     assert.equal(second.statusCode, 200, JSON.stringify(second.body)); assert.equal(second.body.status, 'matched');
     const visible = await call(detail, { financeEntityId: entity, countSessionId: id });
-    assert.equal(visible.body.session.corrections.length, 2); assert.equal(typeof visible.body.session.corrections[0].changedAt, 'string');
+    assert.equal(visible.body.session.corrections.length, 3); assert.equal(typeof visible.body.session.corrections[0].changedAt, 'string');
     assert.equal(visible.headers['Cache-Control'], 'private, no-store');
     await ref.update({ status: 'recounting' });
     const blind = await call(detail, { financeEntityId: entity, countSessionId: id });
     assert.deepEqual(blind.body.session.corrections, []); assert.equal(blind.body.session.countA, null);
-    assert.equal((await call(correct, { ...body, expectedVersion: 3, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_INVALID_STATE');
+    assert.equal((await call(correct, { ...body, expectedVersion: 4, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_INVALID_STATE');
     await ref.update({ status: 'matched', countProposal: { transactionIds: ['synthetic_linked_transaction'] } });
-    assert.equal((await call(correct, { ...body, expectedVersion: 3, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_LINKED_ADJUSTMENT_REQUIRED');
-    assert.equal((await ref.get()).data()!.corrections.length, 2, 'Rejected corrections leave all evidence unchanged');
+    assert.equal((await call(correct, { ...body, expectedVersion: 4, idempotencyKey: token('idem') })).body.error, 'COUNT_CORRECTION_LINKED_ADJUSTMENT_REQUIRED');
+    assert.equal((await ref.get()).data()!.corrections.length, 3, 'Rejected corrections leave all evidence unchanged');
     assert.equal((await orgRef.collection('financeTransactions').get()).size, 0);
     assert.equal((await orgRef.collection('financeJournalEntries').get()).size, 0);
     assert.equal((await orgRef.collection('financeAggregates').get()).size, 0);

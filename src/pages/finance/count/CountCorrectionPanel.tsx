@@ -40,7 +40,7 @@ export function CountCorrectionPanel({ session, organizationId, financeEntityId,
   key?: string; session: CountSessionDetail; organizationId: string; financeEntityId: string; onReload: () => void | Promise<void>;
 }) {
   const { language } = useLanguage();
-  const { accessState, user } = useAuth();
+  const { accessState } = useAuth();
   const w = COPY[language];
   const c = COUNT_COPY[language];
   const canCorrect = hasEffectiveCapability(accessState, 'finance.manage');
@@ -55,8 +55,7 @@ export function CountCorrectionPanel({ session, organizationId, financeEntityId,
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const linked = Boolean(session.countProposal) || ['reviewed', 'deposited', 'reconciled', 'closed'].includes(session.workflowState || '');
-  const other = session[target === 'countA' ? 'countB' : 'countA'];
-  const independent = Boolean(other && ![other.countedByUid, other.enteredByUid].includes(user?.uid));
+  const independent = session.correctionEligibility?.[target] === true;
   const zeroReady = drafts.every(entry => entry.totalCents !== 0 ||
     !(session[target]?.entries.find(item => item.type === entry.type)?.totalCents) || zeroConfirmed.includes(entry.type));
   const select = (value: 'countA' | 'countB') => {

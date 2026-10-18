@@ -69,6 +69,7 @@ export type CountSessionDetail = {
   recountAttempts: CountRecountAttempt[];
   recountAttemptCount: number;
   activeRecountAttemptNumber?: number | null;
+  correctionEligibility?: { countA: boolean; countB: boolean } | null;
   corrections?: Array<{
     id: string; target: 'countA' | 'countB'; reason: string; actorLabel: string;
     changedAt: string | null; versionBefore: number; versionAfter: number;
