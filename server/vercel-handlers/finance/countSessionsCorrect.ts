@@ -41,6 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         enteredByUid: uid, enteredByLabel: actorLabel, correctedByUid: uid,
         countedByUid: session[target].countedByUid || session[target].enteredByUid,
         countedByLabel: session[target].countedByLabel || session[target].enteredByLabel || null,
+        sourceCaptureId: session[target].sourceCaptureId || null,
         source: 'manual_correction', sealedAt: changedAt, savedAt: changedAt };
       const correction = { id: auditId, target, reason: normalizedReason, actorUid: uid, actorLabel, changedAt,
         versionBefore: expectedVersion, versionAfter: version,
@@ -63,7 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }, 'create');
       const sourceRefs = [{ kind: 'record' as const, ref: ref.path, version }, { kind: 'audit' as const, ref: auditRef.path }];
       const factId = stageFinanceFact(t, db, { organizationId, eventType: 'COUNT_UPDATED', entityType: 'count_session',
-        entityId: countSessionId, actorUserId: uid, correlationId: requestId,
+        // A request/correlation can encompass several corrections. The scoped
+        // idempotency identity, not a client correlation string, owns this fact.
+        entityId: countSessionId, actorUserId: uid, correlationId: keyHash,
         payload: { financeEntityId, version, status: prepared.status, stage: 'sealed_corrected', financialMutation: false }, sourceRefs });
       const signal = { organizationId, financeEntityId, signalType: 'COUNT_DIVERGENCE_REVIEW_REQUIRED' as const,
         entityType: 'count_session', entityId: countSessionId, sourceFactId: factId, sourceRefs };
