@@ -7,6 +7,14 @@
     <meta name="theme-color" content="#0A0F14" />
     <meta name="description" content="Controle financeiro com clareza, organização e confiança para igrejas e organizações." />
     
+    <script>
+      try {
+        const appearance = localStorage.getItem('nestfinance_theme') === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = appearance;
+        document.documentElement.style.colorScheme = appearance;
+        document.querySelector('meta[name="theme-color"]').content = appearance === 'dark' ? '#081216' : '#f6f4ef';
+      } catch (_) {}
+    </script>
     <title>NestFinance</title>
 
     <link rel="icon" type="image/svg+xml" href="/brand/nestfinance/nest-flow-signature/v1/icons/favicon.svg" />

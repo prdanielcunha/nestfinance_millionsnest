@@ -74,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       form: {
+        collectionScope: sessionDoc.data()?.collectionScope === 'cash_only' ? 'cash_only' : 'legacy_mixed',
         formId,
         countSessionId: data.countSessionId,
         serviceLabel: String(data.serviceLabel || ''),

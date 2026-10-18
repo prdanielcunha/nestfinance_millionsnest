@@ -15,6 +15,7 @@ export type CountPaperIdentity = {
 };
 
 export type CountPaperFormDetail = CountPaperIdentity & {
+  collectionScope?: 'cash_only' | 'legacy_mixed';
   countSessionId: string;
   serviceLabel: string;
   serviceDate: string;

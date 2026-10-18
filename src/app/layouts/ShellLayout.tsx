@@ -1,3 +1,4 @@
+import { ThemeToggle } from '@/src/components/foundation/ThemeToggle';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { NestFinanceLogo } from '@/src/components/brand/NestFinanceLogo';
 import { useNestFinanceTheme } from '@/src/contexts/ThemeContext';
@@ -567,11 +568,12 @@ function ShellLayoutInner() {
   const primaryFabActions = orderedFabActions.slice(0, 4);
 
   return (
-    <div className="flex min-h-screen bg-background-base text-text-primary">
+    <div className="nf-app-shell flex min-h-screen bg-background-base text-text-primary">
       <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
       <aside className="fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
-        <div className="flex h-16 items-center border-b border-border-subtle px-6">
-          <NestFinanceLogo layout="horizontal" surface={theme} compact className="h-7 w-auto" />
+        <div className="flex min-h-20 items-center justify-between gap-2 border-b border-border-subtle px-4">
+          <NestFinanceLogo layout="horizontal" surface={theme} compact className="h-7 min-w-0 max-w-[144px]" />
+          <ThemeToggle />
         </div>
 
         <div className="flex-1 space-y-1 overflow-y-auto p-4">
@@ -723,6 +725,7 @@ function ShellLayoutInner() {
             </span>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
           </button>
+          <ThemeToggle />
         </header>
 
         <div className="nf-operational mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8">

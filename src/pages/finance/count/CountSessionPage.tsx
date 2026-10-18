@@ -1,3 +1,5 @@
+import { countEntryTypesForSession } from '@/shared/finance/countCollectionScope';
+import { CountCollectionNotice } from './CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -774,6 +776,7 @@ function CountSessionContent() {
       <FinanceEntityContextBar areaName={copy.sessionTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+          <CountCollectionNotice cashOnly={session.collectionScope === 'cash_only'} />
           <header className="flex items-start gap-3">
             <Button
               variant="ghost"
@@ -879,7 +882,7 @@ function CountSessionContent() {
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.chooseBody}</p>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {COUNT_ENTRY_TYPES.map((type) => {
+                  {countEntryTypesForSession(session).map((type) => {
                     const existing = entriesByType.get(type);
                     return (
                       <button
@@ -1069,7 +1072,7 @@ function CountSessionContent() {
                 </div>
 
                 <div className="mt-5 divide-y divide-border-subtle rounded-2xl border border-border-subtle bg-surface-secondary/25">
-                  {COUNT_ENTRY_TYPES.map((type) => {
+                  {countEntryTypesForSession(session).map((type) => {
                     const entry = entriesByType.get(type);
                     return (
                       <div key={type} className="flex min-h-16 items-center justify-between gap-4 p-4">

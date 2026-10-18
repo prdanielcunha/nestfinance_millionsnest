@@ -8,6 +8,7 @@ on:
       - 'src/services/countService.ts'
       - 'api/finance-gateway.ts'
       - 'scripts/test-count-corrections*.ts'
+      - 'scripts/test-cash-first*.ts'
       - '.github/workflows/nestfinance-count-corrections-quality.yml'
 jobs:
   audited-corrections:
@@ -28,10 +29,11 @@ jobs:
       - run: npm run build
       - run: npm run build:cloudrun
       - run: node --import tsx scripts/test-count-corrections.ts
+      - run: node --import tsx scripts/test-cash-first.ts
       - run: node --import tsx scripts/test-premium-theme-foundation.ts
       - run: node --import tsx scripts/test-count-team-server-boundary.ts
       - name: Audited corrections in isolated Firestore
         env:
           FIREBASE_PROJECT_ID: demo-nestfinance-count-corrections
           GCLOUD_PROJECT: demo-nestfinance-count-corrections
-        run: npx --yes firebase-tools@15.27.0 emulators:exec --only firestore --project demo-nestfinance-count-corrections "node --import tsx scripts/test-count-corrections-emulator.ts"
+        run: npx --yes firebase-tools@15.27.0 emulators:exec --only firestore --project demo-nestfinance-count-corrections "node --import tsx scripts/test-count-corrections-emulator.ts && node --import tsx scripts/test-cash-first-emulator.ts"

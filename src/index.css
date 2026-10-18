@@ -51,7 +51,7 @@
   --nf-radius-lg: 1.125rem;
   --nf-radius-xl: 1.5rem;
 
-  --nf-shadow-elevated: 0 8px 28px rgba(23, 36, 44, 0.07);
+  --nf-shadow-elevated: 0 2px 4px rgba(23, 36, 44, 0.02), 0 16px 40px rgba(23, 36, 44, 0.055);
   --nf-shadow-floating: 0 18px 50px rgba(23, 36, 44, 0.14);
 
   --nf-motion-fast: 150ms;
@@ -69,23 +69,23 @@
 
 /* Explicit persisted preference, not the OS media query. */
 :root[data-theme='dark'] {
-  --nf-background-base: #06090e;
-  --nf-background-deep: #0a0f14;
-  --nf-surface-default: #0e1621;
-  --nf-surface-secondary: #101925;
-  --nf-surface-elevated: #142130;
-  --nf-glass-surface: rgba(14, 22, 33, 0.76);
-  --nf-glass-surface-strong: rgba(14, 22, 33, 0.9);
-  --nf-border-subtle: rgba(255, 255, 255, 0.08);
-  --nf-border-strong: rgba(255, 255, 255, 0.14);
+  --nf-background-base: #081216;
+  --nf-background-deep: #050d10;
+  --nf-surface-default: #102127;
+  --nf-surface-secondary: #12262d;
+  --nf-surface-elevated: #183039;
+  --nf-glass-surface: rgba(16, 33, 39, 0.86);
+  --nf-glass-surface-strong: rgba(16, 33, 39, 0.96);
+  --nf-border-subtle: #29434b;
+  --nf-border-strong: #44616a;
 
-  --nf-text-primary: #f6f5f2;
-  --nf-text-secondary: #aab6c3;
-  --nf-text-muted: #7a8ca0;
+  --nf-text-primary: #f3f8f6;
+  --nf-text-secondary: #b8cdd0;
+  --nf-text-muted: #9bb5bb;
 
   --nf-brand-gold: #d4af7a;
-  --nf-accent-primary: #00d6ef;
-  --nf-accent-primary-soft: rgba(0, 214, 239, 0.12);
+  --nf-accent-primary: #79d9ca;
+  --nf-accent-primary-soft: rgba(121, 217, 202, 0.10);
   --nf-semantic-success: #32d59a;
   --nf-semantic-warning: #f5b942;
   --nf-semantic-danger: #ff667a;
@@ -95,7 +95,7 @@
   --nf-radius-lg: 1.125rem;
   --nf-radius-xl: 1.5rem;
 
-  --nf-shadow-elevated: 0 18px 50px rgba(0, 0, 0, 0.32), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --nf-shadow-elevated: 0 4px 8px rgba(0, 0, 0, 0.16), 0 20px 60px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(210, 241, 233, 0.04) inset;
   --nf-shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
 
   --nf-motion-fast: 150ms;
@@ -106,7 +106,7 @@
 
   --nf-touch-min: 2.75rem;
   --nf-touch-comfortable: 3rem;
-  --nf-focus-ring: 0 0 0 3px rgba(0, 214, 239, 0.24);
+  --nf-focus-ring: 0 0 0 3px rgba(121, 217, 202, 0.32);
 
   color-scheme: dark;
 }
@@ -309,11 +309,11 @@ button,
 }
 
 :root[data-theme='dark'] .nf-spec-paper {
-    --nf-background-base: #06090e;
-    --nf-surface-default: #0e1621;
-    --nf-surface-secondary: #101925;
-    --nf-surface-elevated: #142130;
-    --nf-text-primary: #f6f5f2;
+    --nf-background-base: #081216;
+    --nf-surface-default: #102127;
+    --nf-surface-secondary: #12262d;
+    --nf-surface-elevated: #183039;
+    --nf-text-primary: #f3f8f6;
     --nf-text-secondary: #b9c5d0;
     --nf-text-muted: #9baab8;
     --nf-accent-primary: #45d9e8;
@@ -349,3 +349,16 @@ button,
 }
 .nf-primary-action:hover { background: #125661; }
 .nf-primary-action:focus-visible { outline: 3px solid var(--nf-accent-primary); outline-offset: 3px; }
+
+/* Shared visual rhythm: warm paper by day, deep petrol at night. */
+.nf-app-shell { background-image: radial-gradient(ellipse at 90% 0%, var(--nf-accent-primary-soft), transparent 42%); }
+.nf-collection-note { border-left: 3px solid var(--nf-accent-primary); }
+.nf-theme-toggle { box-shadow: 0 1px 0 var(--nf-border-subtle); }
+.nf-login-stage { background: var(--nf-background-base); }
+.nf-login-stage::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 15% 15%, var(--nf-accent-primary-soft), transparent 55%); }
+.nf-login-card { box-shadow: var(--nf-shadow-floating); background: var(--nf-surface-default); }
+.nf-login-editorial { border-left: 3px solid var(--nf-brand-gold); }
+:root[data-theme='dark'] .nf-login-card { border-top-color: var(--nf-border-strong); }
+:root[data-theme='dark'] input, :root[data-theme='dark'] textarea, :root[data-theme='dark'] select { accent-color: var(--nf-accent-primary); }
+@media print { .nf-theme-toggle { display: none !important; } }

@@ -24,6 +24,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#081216' : '#f6f4ef');
     try {
       window.localStorage.setItem(STORAGE_KEY, theme);
     } catch {

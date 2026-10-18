@@ -11,11 +11,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { financeEntityId, serviceLabel, serviceDate, idempotencyKey, requestId } = req.body || {};
+    const { financeEntityId, serviceLabel, serviceDate, idempotencyKey, requestId, collectionScope } = req.body || {};
     if (!financeEntityId || typeof financeEntityId !== 'string' || !isValidIdempotencyKey(idempotencyKey) || !isValidRequestId(requestId)) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
 
+    if (collectionScope !== undefined && collectionScope !== 'cash_only') return res.status(400).json({ error: 'COUNT_INVALID_COLLECTION_SCOPE' });
+    const scope = collectionScope === 'cash_only' ? 'cash_only' : 'legacy_mixed';
     const normalizedLabel = validateCountServiceLabel(serviceLabel);
     const normalizedDate = validateCountServiceDate(serviceDate);
     const { db, uid, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
@@ -27,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .collection('countSessions');
 
     const payloadForHash = {
+      collectionScope: scope,
       serviceLabel: normalizedLabel,
       serviceDate: normalizedDate,
       policySnapshot: { doubleCountRequired: true, requireIndependentCounter: true, policyVersion: 2, source: 'safe_default_v2' },
@@ -50,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           financeEntityId,
           serviceLabel: normalizedLabel,
           serviceDate: normalizedDate,
+          collectionScope: scope,
           status: 'counting_a',
           policySnapshot: {
             doubleCountRequired: true,
