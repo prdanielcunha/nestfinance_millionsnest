@@ -33,6 +33,7 @@ import {
 } from '@/shared/finance/count';
 import { formatReviewDate, formatReviewMoney } from '../transactions/transactionReviewModel';
 import { COUNT_COPY } from './countCopy';
+import { CountCorrectionPanel } from './CountCorrectionPanel';
 
 type BlindStep = 'choose' | 'count' | 'review';
 
@@ -48,6 +49,7 @@ type ResultProps = BlindProps;
 
 const RESULT_COPY = {
   PT: {
+    recountReason: 'Motivo da recontagem (obrigatório, 10 a 500 caracteres)',
     responsible: 'Responsável pela segunda contagem',
     verifiedCounter: 'Segundo conferente verificado',
     waitingTreasury: 'Contagem conferida. A tesouraria poderá preparar os lançamentos ligados a este culto e suas evidências, sem redigitar valores.',
@@ -73,6 +75,7 @@ const RESULT_COPY = {
     workflowLabels: { counted: 'Contado', reviewed: 'Em conferência', deposited: 'Depositado', reconciled: 'Conferido com o banco', closed: 'Fechado' },
   },
   EN: {
+    recountReason: 'Reason for recount (required, 10–500 characters)',
     responsible: 'Second-count owner',
     verifiedCounter: 'Verified second counter',
     waitingTreasury: 'Count verified. Treasury can prepare entries linked to the service and its evidence without retyping amounts.',
@@ -98,6 +101,7 @@ const RESULT_COPY = {
     workflowLabels: { counted: 'Counted', reviewed: 'In review', deposited: 'Deposited', reconciled: 'Checked with bank', closed: 'Closed' },
   },
   ES: {
+    recountReason: 'Motivo del reconteo (obligatorio, 10–500 caracteres)',
     responsible: 'Responsable del segundo conteo',
     verifiedCounter: 'Segundo verificador confirmado',
     waitingTreasury: 'Conteo revisado. Tesorería puede preparar movimientos vinculados al culto y evidencias sin volver a introducir los valores.',
@@ -474,6 +478,7 @@ export function CountResultPanel({
   const copy = COUNT_COPY[language];
   const resultCopy = RESULT_COPY[language];
   const [starting, setStarting] = useState(false);
+  const [recountReason, setRecountReason] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState(false);
   const [supportCode, setSupportCode] = useState<string | null>(null);
@@ -487,8 +492,8 @@ export function CountResultPanel({
     : resultCopy.divergentSentence(formatReviewMoney(totalDifference, language, 'BRL'));
 
   const startRecount = async () => {
-    if (!canEdit || starting || session.status !== 'divergent') return;
-    const identity = `${session.id}|${session.version}|recount-start`;
+    if (!canEdit || starting || session.status !== 'divergent' || recountReason.trim().length < 10) return;
+    const identity = `${organizationId}|${financeEntityId}|${session.id}|${session.version}|recount-start|${recountReason.trim()}`;
     if (!attemptRef.current || attemptRef.current.identity !== identity) {
       attemptRef.current = { identity, key: makeToken('idcount_recount_start') };
     }
@@ -498,6 +503,7 @@ export function CountResultPanel({
     setSupportCode(requestId);
     try {
       await countService.startRecount(organizationId, financeEntityId, {
+        reason: recountReason.trim(),
         countSessionId: session.id,
         expectedVersion: session.version,
         idempotencyKey: attemptRef.current.key,
@@ -638,6 +644,13 @@ export function CountResultPanel({
                           <p className="mt-1 nf-helper-text text-text-muted">
                             {resultCopy.countedBy}: {attempt.countedByLabel || attempt.enteredByLabel || '—'} · {resultCopy.registeredAt}: {formatAuditTimestamp(attempt.sealedAt, language)}
                           </p>
+                          {attempt.reason ? <p className="mt-2 whitespace-pre-wrap text-sm text-text-primary">{attempt.reason}</p> : null}
+                          <p className="mt-2 text-sm tabular-nums text-text-primary">
+                            {copy.grandTotal}: {formatReviewMoney(attempt.totalCents, language, 'BRL')}
+                          </p>
+                          {attempt.beforeTotals ? <p className="mt-1 text-sm tabular-nums text-text-muted">
+                            {copy.countA}: {formatReviewMoney(attempt.beforeTotals.countA, language, 'BRL')} · {copy.countB}: {formatReviewMoney(attempt.beforeTotals.countB, language, 'BRL')}
+                          </p> : null}
                         </div>
                       ))}
                     </div>
@@ -646,6 +659,9 @@ export function CountResultPanel({
               </div>
             </Surface>
           ) : null}
+
+          <CountCorrectionPanel key={`${organizationId}:${financeEntityId}:${session.id}:${session.version}`}
+            session={session} organizationId={organizationId} financeEntityId={financeEntityId} onReload={onReload} />
 
           {error ? <Surface variant="secondary" radius="lg" role="alert" className="border-semantic-danger/20 bg-semantic-danger/10 p-4"><p className="text-sm text-text-primary">{copy.safeError}</p>{supportCode ? <p className="mt-2 break-all font-mono text-xs text-text-muted">{copy.supportCode}: {supportCode}</p> : null}</Surface> : null}
 
@@ -682,7 +698,11 @@ export function CountResultPanel({
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Button size="lg" fullWidth onClick={() => void startRecount()} disabled={starting || !canEdit}>
+              <label className="block text-sm font-semibold text-text-primary sm:col-span-2">{resultCopy.recountReason}
+                <textarea value={recountReason} onChange={event => setRecountReason(event.target.value)} minLength={10} maxLength={500} disabled={starting}
+                  className="mt-2 min-h-24 w-full rounded-xl border border-border-subtle bg-surface-base p-3 text-base font-normal text-text-primary" />
+              </label>
+              <Button size="lg" fullWidth onClick={() => void startRecount()} disabled={starting || !canEdit || recountReason.trim().length < 10}>
                 {starting ? copy.startingRecount : resultCopy.recount}
               </Button>
               <Button variant="secondary" size="lg" fullWidth onClick={() => setShowHelp(true)}>
