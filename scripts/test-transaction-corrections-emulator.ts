@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getFirebaseAdmin, resetFirebaseAdminForTests } from '../api/_lib/firebaseAdmin.js';
+import { hashPayload } from '../server/vercel-handlers/finance/idempotencyHelper.js';
 import update from '../server/vercel-handlers/finance/transactionsUpdateDraft.js';
 import detail from '../server/vercel-handlers/finance/transactionsDetail.js';
 if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') ||
@@ -63,6 +64,8 @@ async function run() {
     assert.equal(change.reason, command.payload.correctionReason); assert.ok(change.changedAt.toMillis() > Date.now() - 60000);
     const audit = (await ref.collection('financeAuditLogs').doc(change.id).get()).data()!;
     assert.equal(audit.metadata.before.transaction.amountCents, 10000); assert.equal(audit.metadata.after.transaction.amountCents, 12000);
+    assert.equal(audit.beforeHash, hashPayload(audit.metadata.before));
+    assert.equal(audit.afterHash, hashPayload(audit.metadata.after));
     assert.equal(audit.resourceId, txId); assert.equal((await tx.get()).data()!.version, 3);
     const visible = await call(detail, { financeEntityId: entity, transactionId: txId });
     assert.equal(visible.statusCode, 200, JSON.stringify(visible.body));
@@ -104,6 +107,9 @@ async function run() {
     const dimensionHistory = (await allocationTx.collection('corrections').get()).docs[0].data();
     assert.equal(dimensionHistory.before.allocations[0].fund, 'Synthetic fund');
     assert.equal(dimensionHistory.after.allocations[0].fund, null);
+    const dimensionAudit = (await ref.collection('financeAuditLogs').doc(dimensionHistory.id).get()).data()!;
+    assert.deepEqual(dimensionAudit.metadata.after.allocations[0], clearedAllocation);
+    assert.equal(dimensionAudit.afterHash, hashPayload(dimensionAudit.metadata.after));
     await tx.set(original);
     const foreignAllocation = await call(update, { ...command, idempotencyKey: key(),
       payload: { correctionReason: command.payload.correctionReason, allocations: [{ id: allocationId, categoryId, amountCents: 10000 }] } });

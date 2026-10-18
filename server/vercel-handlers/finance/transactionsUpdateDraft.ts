@@ -415,6 +415,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       newRecord.updatedAt = Timestamp.now();
 
       const sanitizedRecord = sanitizeFirestoreObject(newRecord);
+      const changedAt = newRecord.updatedAt as Timestamp;
 
       // Replace the complete validated record so cleared optional fields really disappear.
       t.set(txRef, sanitizedRecord);
@@ -431,13 +432,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [aId, data] of allocRefsToSet) {
         t.set(context.repository.getAllocationsRef().doc(aId), sanitizeFirestoreObject({
            ...data,
-           updatedAt: FieldValue.serverTimestamp()
+           updatedAt: changedAt
         }));
       }
 
       const auditId = generateAuditId();
-      const changedAt = newRecord.updatedAt as Timestamp;
-      const finalAllocations = Array.isArray(payload.allocations) ? Array.from(allocRefsToSet.values()) : existingAllocs;
+      const finalAllocations = Array.isArray(payload.allocations)
+        ? Array.from(allocRefsToSet.values()).map(allocation => sanitizeFirestoreObject({ ...allocation, updatedAt: changedAt }))
+        : existingAllocs;
       const correction = {
         id: auditId, transactionId, organizationId, financeEntityId,
         actorUid: uid, actorLabel, changedAt, reason: correctionReason,
@@ -460,11 +462,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         requestId,
         idempotencyKey,
         beforeHash: hashPayload({ transaction: txData, allocations: existingAllocs }),
-        afterHash: hashPayload({ transaction: newRecord, allocations: finalAllocations }),
+        afterHash: hashPayload({ transaction: sanitizedRecord, allocations: finalAllocations }),
         metadata: {
           reason: correctionReason, versionBefore: txData.version, versionAfter: newRecord.version,
           before: { transaction: txData, allocations: existingAllocs },
-          after: { transaction: newRecord, allocations: finalAllocations },
+          after: { transaction: sanitizedRecord, allocations: finalAllocations },
         },
         createdAt: changedAt
       }), 'create');
