@@ -5,6 +5,9 @@ on:
       - 'shared/finance/ledger/**'
       - 'shared/finance/receivedIncome.ts'
       - 'scripts/test-posting-execution.ts'
+      - 'scripts/fixtures/postingExecutionFixture.ts'
+      - 'scripts/test-ledger-posting-firestore-emulator.ts'
+      - 'server/vercel-handlers/finance/ledgerExecutionStore.ts'
       - '.github/workflows/nestfinance-ledger-execution-quality.yml'
   workflow_dispatch:
 permissions:
@@ -20,8 +23,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - run: npm run lint
       - run: node --import tsx scripts/test-posting-execution.ts
       - run: node --import tsx scripts/test-posting-plan.ts
       - run: node --import tsx scripts/test-posting-plan-entity-isolation.ts
       - run: node --import tsx scripts/test-journal-integrity-e02.ts
+      - name: Atomic ledger execution against isolated Firestore
+        env:
+          FIREBASE_PROJECT_ID: demo-nestfinance-ledger-execution
+        run: >-
+          npx firebase-tools@15.27.0 emulators:exec --only firestore
+          --project demo-nestfinance-ledger-execution
+          "node --import tsx scripts/test-ledger-posting-firestore-emulator.ts"
