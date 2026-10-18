@@ -3,6 +3,7 @@
 The enabled legacy Count result screen now offers finance managers an explicit correction form and a before/after history. This is not the hidden Count v3 feature.
 
 - Mandatory trimmed reason, 10–500 characters, enforced server-side.
+- Changing a positive category to zero (including removing it through the API) requires an explicit category-level zero confirmation, enforced both in the screen and server-side. A blank/deleted amount alone is not consent to record zero.
 - Canonical `finance.manage`, organization/entity isolation, expected version and actor-bound idempotency.
 - One count is corrected at a time. The correcting actor must differ from the other preserved counter; comparisons are recalculated, not manually marked approved.
 - Every correction preserves the entire original count, complete replacement, reason, verified actor, server-owned timestamp and version transition. The canonical audit uses create-only writes in the same transaction as the correction; cross-app facts exclude private amounts and reasons.

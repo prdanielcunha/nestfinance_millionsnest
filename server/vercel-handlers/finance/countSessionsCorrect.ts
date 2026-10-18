@@ -4,7 +4,7 @@ import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, executeWithIdempotency, hashPayload } from './idempotencyHelper.js';
 import { generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
-import { normalizeCorrectionReason, prepareCountCorrection } from '../../../shared/finance/countCorrection.js';
+import { normalizeCorrectionReason, normalizeCorrectionZeroConfirmations, prepareCountCorrection } from '../../../shared/finance/countCorrection.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageFinanceFact } from './factStream.js';
 import { stageFinanceSignalRefresh, stageFinanceSignalResolve } from './signalProjection.js';
@@ -14,17 +14,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   try {
     const { financeEntityId, countSessionId, expectedVersion, target, entries, reason,
-      idempotencyKey, requestId } = req.body || {};
-    if (typeof financeEntityId !== 'string' || !financeEntityId || !isValidCountSessionId(countSessionId) ||
+      idempotencyKey, requestId, confirmedZeroEntryTypes: rawZeroConfirmations } = req.body || {};
+    if (typeof financeEntityId !== 'string' || !financeEntityId || financeEntityId.length > 128 || financeEntityId.includes('/') || !isValidCountSessionId(countSessionId) ||
       !Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !['countA', 'countB'].includes(target) ||
       !isValidIdempotencyKey(idempotencyKey) || !isValidRequestId(requestId)) {
       return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     }
     const normalizedReason = normalizeCorrectionReason(reason);
+    const confirmedZeroEntryTypes = normalizeCorrectionZeroConfirmations(rawZeroConfirmations);
     const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.manage');
     const ref = db.collection('organizations').doc(organizationId).collection('financeEntities')
       .doc(financeEntityId).collection('countSessions').doc(countSessionId);
-    const payloadHash = hashPayload({ countSessionId, expectedVersion, target, entries, reason: normalizedReason });
+    const payloadHash = hashPayload({ countSessionId, expectedVersion, target, entries, reason: normalizedReason, confirmedZeroEntryTypes });
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'count_correct', idempotencyKey);
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async t => {
       const doc = await t.get(ref);
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!doc.exists || session?.organizationId !== organizationId || session.financeEntityId !== financeEntityId) {
         throw new Error('COUNT_SESSION_NOT_FOUND');
       }
-      const prepared = prepareCountCorrection(session, { expectedVersion, target, entries, actorUid: uid });
+      const prepared = prepareCountCorrection(session, { expectedVersion, target, entries, actorUid: uid, confirmedZeroEntryTypes });
       const changedAt = Timestamp.now(); // Server-owned; client timestamps/actors are never accepted.
       const auditId = generateAuditId();
       const version = expectedVersion + 1;
@@ -44,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sourceCaptureId: session[target].sourceCaptureId || null,
         source: 'manual_correction', sealedAt: changedAt, savedAt: changedAt };
       const correction = { id: auditId, target, reason: normalizedReason, actorUid: uid, actorLabel, changedAt,
+        confirmedZeroEntryTypes: prepared.confirmedZeroEntryTypes,
         versionBefore: expectedVersion, versionAfter: version,
         before: session[target], after, statusBefore: session.status, statusAfter: prepared.status };
       t.update(ref, {

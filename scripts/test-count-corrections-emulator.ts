@@ -46,6 +46,8 @@ async function run() {
     actorUid: 'forged_client_actor', changedAt: '1990-01-01', requestId: token('req'), idempotencyKey: token('idem') };
   try {
     assert.equal((await call(correct, { ...body, reason: '' })).statusCode, 400);
+    const zero = await call(correct, { ...body, entries: [{ type: 'tithe', method: 'total', totalCents: 0 }], idempotencyKey: token('idem') });
+    assert.equal(zero.body.error, 'COUNT_CORRECTION_ZERO_CONFIRMATION_REQUIRED');
     actor = uidUnprivileged; assert.equal((await call(correct, body)).statusCode, 403); actor = uidEditor;
     const [first, retry] = await Promise.all([call(correct, body), call(correct, { ...body, requestId: token('req') })]);
     assert.equal(first.statusCode, 200, JSON.stringify(first.body)); assert.deepEqual(first.body.correctionId, retry.body.correctionId);

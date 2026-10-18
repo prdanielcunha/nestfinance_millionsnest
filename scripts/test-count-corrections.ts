@@ -24,6 +24,10 @@ assert.throws(() => prepareCountCorrection({ ...session, countB: { ...session.co
   { ...command, actorUid: 'synthetic_editor' }), /INDEPENDENT_COUNTER_REQUIRED/, 'A third-party editor cannot correct both counts to fabricate a match');
 assert.throws(() => prepareCountCorrection(session, { ...command, entries }), /NO_CHANGE/);
 assert.throws(() => prepareCountCorrection(session, { ...command, entries: [] }), /EMPTY_CORRECTION/);
+const zeroEntries = [{ type: 'tithe', method: 'total', totalCents: 0 }];
+assert.throws(() => prepareCountCorrection(session, { ...command, entries: zeroEntries }), /ZERO_CONFIRMATION_REQUIRED/);
+assert.equal(prepareCountCorrection(session, { ...command, entries: zeroEntries, confirmedZeroEntryTypes: ['tithe'] }).totalCents, 0);
+assert.throws(() => prepareCountCorrection(session, { ...command, confirmedZeroEntryTypes: ['invalid'] }), /INVALID_ZERO_CONFIRMATIONS/);
 assert.throws(() => prepareCountCorrection(session, { ...command, entries: [{ type: 'tithe', method: 'total', totalCents: -1 }] }), /COUNT_INVALID_TOTAL/);
 const handler = readFileSync('server/vercel-handlers/finance/countSessionsCorrect.ts', 'utf8');
 assert.ok(handler.includes("resolveFinanceRequestContext(req, 'finance.manage')"));

@@ -184,6 +184,7 @@ export const countService = {
   async correct(organizationId: string, financeEntityId: string, input: {
     countSessionId: string; expectedVersion: number; target: 'countA' | 'countB';
     entries: CountEntryDraft[]; reason: string; idempotencyKey: string; requestId: string;
+    confirmedZeroEntryTypes?: string[];
   }) {
     return post<{ countSessionId: string; version: number; status: 'matched' | 'divergent'; correctionId: string }>(
       organizationId, 'count-sessions-correct', { financeEntityId, ...input });
