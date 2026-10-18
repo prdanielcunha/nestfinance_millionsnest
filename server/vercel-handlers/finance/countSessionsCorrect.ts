@@ -75,7 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message === 'COUNT_VERSION_CONFLICT' || message === 'COUNT_CORRECTION_LINKED_ADJUSTMENT_REQUIRED' ? 409 : 400).json({ error: message });
     if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
     if (error?.status === 401 || error?.status === 403) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
-    if (message === 'FORBIDDEN_FINANCE_ACCESS') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (message === 'FORBIDDEN_FINANCE_ACCESS' || message === 'Session not granted') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (message === 'FINANCE_ENTITY_NOT_FOUND' || message === 'FINANCE_ENTITY_NOT_ACTIVE') return res.status(404).json({ error: 'COUNT_SESSION_NOT_FOUND' });
     if (['auth/id-token-revoked', 'auth/id-token-expired', 'auth/invalid-id-token'].includes(error?.code)) return res.status(401).json({ error: 'UNAUTHORIZED' });
     console.error('Count correction failed', error?.code || 'INTERNAL_SERVER_ERROR');
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
