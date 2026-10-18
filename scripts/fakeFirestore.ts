@@ -36,6 +36,10 @@ class FakeCollection {
     return query;
   }
 
+  orderBy(field: string, direction: 'asc' | 'desc' = 'asc') {
+    return new FakeQuery(this.db, this.path, []).orderBy(field, direction);
+  }
+
   async get() {
     return new FakeQuery(this.db, this.path, []).get();
   }
@@ -97,8 +101,10 @@ class FakeQuery {
     return this;
   }
 
-  orderBy() { return this; }
-  limit() { return this; }
+  private ordering: { field: string; direction: 'asc' | 'desc' } | null = null;
+  private maxResults = Infinity;
+  orderBy(field: string, direction: 'asc' | 'desc' = 'asc') { this.ordering = { field, direction }; return this; }
+  limit(count: number) { this.maxResults = count; return this; }
   startAfter() { return this; }
 
   async get() {
@@ -136,7 +142,19 @@ class FakeQuery {
         }
       }
     }
+    if (this.ordering) {
+      const { field, direction } = this.ordering;
+      results.sort((a, b) => {
+        const rawA = a.data()[field]; const rawB = b.data()[field];
+        const valueA = rawA?.toMillis?.() ?? rawA;
+        const valueB = rawB?.toMillis?.() ?? rawB;
+        const delta = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+        return direction === 'desc' ? -delta : delta;
+      });
+    }
+    results.splice(this.maxResults);
     return { 
+      size: results.length,
       docs: results, 
       empty: results.length === 0,
       forEach(cb: (doc: any) => void) {

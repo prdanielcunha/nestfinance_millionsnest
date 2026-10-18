@@ -31,6 +31,9 @@ import AccountRepairCard from "@/src/components/finance/AccountRepairCard";
 import ContextHelp from "@/src/components/finance/ContextHelp";
 import { TransactionEvidenceUpload } from "@/src/components/finance/TransactionEvidenceUpload";
 
+import { TransactionCorrectionReasonField, CORRECTION_COPY } from './TransactionCorrectionHistory';
+import { useLanguage } from '@/src/contexts/LanguageContext';
+
 export default function TransactionEditPage() {
   const { accessState } = useAuth();
 
@@ -86,6 +89,9 @@ function TransactionEditContent() {
   const [categories, setCategories] = useState<any[]>([]);
   const [funds, setFunds] = useState<any[]>([]);
 
+  const { language } = useLanguage();
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionReasonRequired, setCorrectionReasonRequired] = useState(false);
   const [txExpectedVersion, setTxExpectedVersion] = useState<number | null>(
     null,
   );
@@ -211,6 +217,8 @@ function TransactionEditContent() {
         return;
       }
 
+      setCorrectionReason('');
+      setCorrectionReasonRequired(txData.correctionReasonRequired === true);
       setTxExpectedVersion(txData.version);
 
       const accsData = await accountsRes.json().catch(() => ({}));
@@ -448,6 +456,9 @@ function TransactionEditContent() {
   const targetDiff = totalCents - allocatedCents;
 
   const buildPayloadOrError = (skipErrors = false) => {
+    if ((correctionReasonRequired || correctionReason.length > 0) && correctionReason.trim().length < 10) {
+      setSaveError(CORRECTION_COPY[language].hint); return null;
+    }
     // Basic validation
     if (!accountId) {
       if (!skipErrors) setSaveError("Selecione uma conta");
@@ -552,6 +563,7 @@ function TransactionEditContent() {
     }
 
     return {
+      correctionReason: correctionReason.trim() || undefined,
       direction,
       amountCents: totalCents,
       occurredAt: new Date(occurredAt + "T12:00:00Z").toISOString(),
@@ -559,10 +571,10 @@ function TransactionEditContent() {
       destinationAccountId:
         direction === "transfer" ? destinationAccountId : undefined,
       paymentMethod: paymentMethod || undefined,
-      description: description || undefined,
-      counterparty: counterparty || undefined,
+      description,
+      counterparty,
       evidenceIds: evidenceIds.length > 0 ? evidenceIds : [],
-      evidenceJustification: evidenceJustification || undefined,
+      evidenceJustification,
       sourceContext: "manual",
       allocations:
         direction === "transfer" || direction === "liability_settlement"
@@ -1812,6 +1824,7 @@ function TransactionEditContent() {
                       </>
                     ) : null}
 
+                    <TransactionCorrectionReasonField value={correctionReason} onChange={setCorrectionReason} required={correctionReasonRequired} disabled={saving || submitting} />
                     <button
                       onClick={handleSaveDraft}
                       disabled={saving || conflictError}
