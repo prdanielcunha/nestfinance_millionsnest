@@ -13,6 +13,19 @@ export function normalizeCorrectionZeroConfirmations(value: unknown) {
   return [...value].sort();
 }
 
+/** Editing a sealed side is participation even after a later editor replaces it. */
+export function hasCountCorrectionIndependence(session: any, target: 'countA' | 'countB', actorUid: string): boolean {
+  const otherTarget = target === 'countA' ? 'countB' : 'countA';
+  const other = session[otherTarget];
+  if (!actorUid || !(other?.countedByUid || other?.enteredByUid)) return false;
+  const participated = (record: any) => Boolean(record &&
+    [record.countedByUid, record.enteredByUid, record.correctedByUid].includes(actorUid));
+  if (participated(other)) return false;
+  return !(Array.isArray(session.corrections) && session.corrections.some((correction: any) =>
+    correction.target === otherTarget &&
+    (correction.actorUid === actorUid || participated(correction.before) || participated(correction.after))));
+}
+
 /** No financial side effects: a proposed/posted source requires a linked adjustment,
  * never an overwrite of the evidence that authorized the existing entry. */
 export function prepareCountCorrection(session: any, input: {
@@ -28,9 +41,7 @@ export function prepareCountCorrection(session: any, input: {
     throw new Error('COUNT_CORRECTION_REQUIRES_BOTH_COUNTS');
   }
   if ((session.corrections?.length || 0) >= 50) throw new Error('COUNT_CORRECTION_LIMIT_REACHED');
-  const other = session[input.target === 'countA' ? 'countB' : 'countA'];
-  const otherUid = other.countedByUid || other.enteredByUid;
-  if (!input.actorUid || !otherUid || [other.countedByUid, other.enteredByUid, other.correctedByUid].includes(input.actorUid)) {
+  if (!hasCountCorrectionIndependence(session, input.target, input.actorUid)) {
     throw new Error('COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
   }
   const entries = normalizeCountEntries(input.entries as any);

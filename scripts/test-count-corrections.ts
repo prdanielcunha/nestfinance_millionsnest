@@ -38,3 +38,19 @@ assert.ok(!handler.includes('getTransactionsRef()') && !handler.includes('getAgg
 const serializer = readFileSync('server/vercel-handlers/finance/countSessionsDetail.ts', 'utf8');
 assert.ok(serializer.includes('corrections: materialHidden ? []'));
 console.log('✅ Audited Count corrections: mandatory reason, original preservation, independent verification, finalized-source boundary and blind history');
+
+// Replacing an editor must not erase participation in an independent side.
+for (const target of ['countA', 'countB'] as const) {
+  const otherTarget = target === 'countA' ? 'countB' : 'countA';
+  const priorEditor = 'synthetic_prior_editor';
+  const history = [
+    { target: otherTarget, actorUid: priorEditor, before: session[otherTarget], after: { enteredByUid: priorEditor } },
+    { target: otherTarget, actorUid: 'synthetic_later_editor', before: { enteredByUid: priorEditor }, after: { enteredByUid: 'synthetic_later_editor' } },
+  ];
+  const rotated = { ...session, [otherTarget]: { ...session[otherTarget], enteredByUid: 'synthetic_later_editor' }, corrections: history };
+  assert.throws(() => prepareCountCorrection(rotated, { ...command, target, actorUid: priorEditor }), /INDEPENDENT_COUNTER_REQUIRED/);
+  // Original physical operators also remain participants when later material omits them.
+  assert.throws(() => prepareCountCorrection({ ...rotated, corrections: [{ target: otherTarget,
+    before: { countedByUid: priorEditor }, after: {} }] }, { ...command, target, actorUid: priorEditor }), /INDEPENDENT_COUNTER_REQUIRED/);
+  assert.equal(prepareCountCorrection(rotated, { ...command, target, actorUid: 'synthetic_independent_editor' }).status, 'divergent');
+}

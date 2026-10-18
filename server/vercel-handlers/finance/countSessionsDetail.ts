@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { assertCountSessionParticipant } from './countSessionParticipantPolicy.js';
+import { hasCountCorrectionIndependence } from '../../../shared/finance/countCorrection.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
 
 function toIso(value: any) {
@@ -73,6 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       version: data.version,
       policySnapshot: data.policySnapshot || {},
       materialHidden,
+      correctionEligibility: materialHidden ? null : {
+        countA: hasCountCorrectionIndependence(data, 'countA', uid),
+        countB: hasCountCorrectionIndependence(data, 'countB', uid),
+      },
       // No previous amounts may be disclosed during a blind independent stage.
       corrections: materialHidden ? [] : (Array.isArray(data.corrections) ? data.corrections.map((item: any) => ({
         id: item.id, target: item.target, reason: item.reason, actorLabel: item.actorLabel,
