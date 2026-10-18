@@ -26,6 +26,8 @@ export type CountRecountAttempt = CountRecord & {
   attemptNumber: number;
   matchesA: boolean;
   matchesB: boolean;
+  reason?: string | null;
+  beforeTotals?: { countA: number; countB: number } | null;
 };
 
 export type CountSessionListItem = {
@@ -67,6 +69,11 @@ export type CountSessionDetail = {
   recountAttempts: CountRecountAttempt[];
   recountAttemptCount: number;
   activeRecountAttemptNumber?: number | null;
+  corrections?: Array<{
+    id: string; target: 'countA' | 'countB'; reason: string; actorLabel: string;
+    changedAt: string | null; versionBefore: number; versionAfter: number;
+    before: CountRecord; after: CountRecord;
+  }>;
   firstCounterLabel?: string | null;
   currentUserIsFirstCounter?: boolean;
   secondCountStartedByLabel?: string | null;
@@ -140,6 +147,7 @@ const COUNT_MUTATION_OPERATIONS = new Set([
   'count-sessions-join-second-count',
   'count-sessions-submit-second-count',
   'count-sessions-start-recount',
+  'count-sessions-correct',
   'count-sessions-create-proposed-drafts',
   'count-sessions-submit-recount',
 ]);
@@ -173,6 +181,13 @@ async function post<T>(
 }
 
 export const countService = {
+  async correct(organizationId: string, financeEntityId: string, input: {
+    countSessionId: string; expectedVersion: number; target: 'countA' | 'countB';
+    entries: CountEntryDraft[]; reason: string; idempotencyKey: string; requestId: string;
+  }) {
+    return post<{ countSessionId: string; version: number; status: 'matched' | 'divergent'; correctionId: string }>(
+      organizationId, 'count-sessions-correct', { financeEntityId, ...input });
+  },
   async list(organizationId: string, financeEntityId: string) {
     return post<{ items: CountSessionListItem[]; requestId?: string }>(
       organizationId,
@@ -353,6 +368,7 @@ export const countService = {
     financeEntityId: string,
     input: {
       countSessionId: string;
+      reason: string;
       expectedVersion: number;
       idempotencyKey: string;
       requestId: string;

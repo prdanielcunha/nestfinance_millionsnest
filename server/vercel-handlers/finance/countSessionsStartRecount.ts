@@ -7,12 +7,14 @@ import { stageFinanceFact } from './factStream.js';
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { isValidCountSessionId } from '../../../shared/finance/count.js';
+import { normalizeCorrectionReason } from '../../../shared/finance/countCorrection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { financeEntityId, countSessionId, expectedVersion, idempotencyKey, requestId } = req.body || {};
+    const { financeEntityId, countSessionId, expectedVersion, idempotencyKey, requestId, reason } = req.body || {};
+    const normalizedReason = normalizeCorrectionReason(reason);
     if (
       !financeEntityId ||
       typeof financeEntityId !== 'string' ||
@@ -34,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .collection('countSessions')
       .doc(countSessionId);
 
-    const payloadHash = hashPayload({ countSessionId, expectedVersion, action: 'start_recount' });
+    const payloadHash = hashPayload({ countSessionId, expectedVersion, action: 'start_recount', reason: normalizedReason });
     const keyHash = buildIdempotencyKeyHash(
       organizationId,
       financeEntityId,
@@ -72,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           activeRecount: {
             attemptNumber,
             startedByUid: uid,
+            reason: normalizedReason,
             startedAt: FieldValue.serverTimestamp(),
           },
           updatedByUid: uid,
@@ -98,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'recounting',
             attemptNumber,
             blindMaterial: true,
+            reasonCapturedPrivately: true,
           },
           createdAt: FieldValue.serverTimestamp(),
         });
