@@ -43,6 +43,14 @@ export function NestFinanceLogo({
     }
   }
 
+  // The canonical compact artwork contains print-safe margins. Crop only its
+  // viewport for navigation so the existing mark has a readable on-screen size.
+  if (compact && layout === 'horizontal') return (
+    <svg role="img" aria-label={alt} viewBox="90 65 1080 280" width={width} className={`block ${className}`}>
+      <image href={src} width="1600" height="430" />
+    </svg>
+  );
+
   return (
     <img
       src={src}

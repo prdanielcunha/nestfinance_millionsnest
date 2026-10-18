@@ -246,12 +246,9 @@ button,
   font-size: 1rem;
 }
 
-.nf-operational :where(button, input, select, textarea) {
-  font-size: 1rem;
-}
-
-.nf-operational :where(p, label) {
-  font-size: max(1rem, 1em);
+@media (max-width: 767px) {
+  .nf-operational :where(button, input, select, textarea) { font-size: 1rem; }
+  .nf-operational :where(p, label):not(.nf-financial-number) { font-size: max(1rem, 1em); }
 }
 
 .nf-helper-text {
@@ -362,3 +359,55 @@ button,
 :root[data-theme='dark'] .nf-login-card { border-top-color: var(--nf-border-strong); }
 :root[data-theme='dark'] input, :root[data-theme='dark'] textarea, :root[data-theme='dark'] select { accent-color: var(--nf-accent-primary); }
 @media print { .nf-theme-toggle { display: none !important; } }
+
+
+/* Desktop finance workspace: deliberate density, readable money, quiet surfaces. */
+.nf-section-eyebrow { font-size: .6875rem; line-height: 1.5; font-weight: 650; letter-spacing: .13em; text-transform: uppercase; color: var(--nf-text-muted); }
+.nf-sidebar-brand { display: flex; min-height: 88px; align-items: center; padding: 16px 24px; }
+.nf-sidebar-scroll { scrollbar-width: thin; scrollbar-color: var(--nf-border-strong) transparent; }
+.nf-sidebar-context { background: var(--nf-background-base); }
+.nf-desktop-sidebar nav a[aria-current='page'] { position: relative; background: var(--nf-accent-primary-soft); color: var(--nf-accent-primary); }
+.nf-desktop-sidebar nav a[aria-current='page']::before { content: ''; position: absolute; left: -16px; width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: var(--nf-accent-primary); }
+.nf-sidebar-account { flex-shrink: 0; }
+.nf-sidebar-account summary::-webkit-details-marker { display: none; }
+.nf-sidebar-account[open] { max-height: 60dvh; overflow-y: auto; }
+.nf-sidebar-account[open] .nf-account-options { margin-top: 16px; }
+.nf-desktop-topbar { min-height: 88px; align-items: center; gap: 24px; padding: 16px clamp(24px, 3vw, 48px); border-bottom: 1px solid var(--nf-border-subtle); background: var(--nf-background-base); }
+.nf-desktop-search { width: 218px; min-height: 40px; margin: 0; font-size: .8125rem; background: var(--nf-surface-default); }
+.nf-today-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.nf-entity-label { display: inline-flex; max-width: 100%; align-items: center; gap: 8px; border: 1px solid var(--nf-border-subtle); border-radius: 999px; padding: 8px 12px; font-size: .8125rem; color: var(--nf-text-secondary); overflow-wrap: anywhere; background: var(--nf-surface-default); }
+.nf-entity-label > span { height: 6px; width: 6px; flex-shrink: 0; border-radius: 50%; background: var(--nf-brand-gold); }
+.nf-today-primary-grid, .nf-today-secondary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.nf-balance-panel, .nf-next-action-panel, .nf-today-agenda, .nf-today-work-queue { min-width: 0; border: 1px solid var(--nf-border-subtle); border-radius: 20px; background: var(--nf-surface-default); }
+.nf-balance-panel { position: relative; padding: 28px; overflow: hidden; box-shadow: var(--nf-shadow-elevated); }
+.nf-balance-panel::before { content: ''; position: absolute; top: 0; left: 28px; right: 28px; height: 2px; background: linear-gradient(90deg, var(--nf-brand-gold), transparent 80%); }
+.nf-balance-state { padding: 5px 9px; border: 1px solid var(--nf-border-subtle); border-radius: 6px; font-size: .6875rem; line-height: 1.5; color: var(--nf-text-secondary); }
+.nf-operational .nf-balance-value { margin-top: 26px; font-size: clamp(2rem, 3.5vw, 3.5rem); line-height: 1.15; letter-spacing: -.055em; font-weight: 600; overflow-wrap: anywhere; }
+.nf-operational .nf-balance-unavailable { font-size: clamp(1.5rem, 2.5vw, 2rem); letter-spacing: -.035em; }
+.nf-balance-explanation { margin-top: 8px; }
+.nf-daily-movements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; border-top: 1px solid var(--nf-border-subtle); padding-top: 22px; }
+.nf-daily-movements > div + div { border-left: 1px solid var(--nf-border-subtle); padding-left: 20px; }
+.nf-next-action-panel { display: flex; flex-direction: column; align-items: flex-start; padding: 28px; background: var(--nf-surface-secondary); }
+.nf-next-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 24px; width: 100%; }
+.nf-desktop-primary { display: inline-flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--nf-background-base); background: var(--nf-text-primary); }
+.nf-desktop-primary:hover { opacity: .9; }
+.nf-today-secondary-grid { margin-top: 20px; }
+.nf-today-agenda, .nf-today-work-queue { padding: 24px 28px; }
+.nf-agenda-row { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-top: 1px solid var(--nf-border-subtle); }
+.nf-work-queue-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; color: var(--nf-text-secondary); font-size: .875rem; border-top: 1px solid var(--nf-border-subtle); }
+.nf-work-queue-row strong { font-size: 1.125rem; font-weight: 600; color: var(--nf-text-primary); }
+.nf-count-shortcut { display: flex; width: 100%; align-items: center; gap: 12px; margin-top: 12px; padding-top: 18px; border-top: 1px solid var(--nf-border-subtle); text-align: left; }
+.nf-today-source { margin: 16px 0 0; font-size: .75rem; line-height: 1.6; color: var(--nf-text-muted); }
+.nf-professional-details { background: transparent; }
+@media (min-width: 1024px) {
+  .nf-today-primary-grid, .nf-today-secondary-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .nf-workspace-content { padding: 32px clamp(24px, 3vw, 48px) 40px; max-width: 1480px; }
+}
+@media (max-width: 767px) {
+  .nf-balance-panel, .nf-next-action-panel, .nf-today-agenda, .nf-today-work-queue { padding: 22px; border-radius: 18px; }
+  .nf-today-heading { gap: 12px; margin-bottom: 22px; }
+  .nf-daily-movements { grid-template-columns: minmax(0, 1fr); }
+  .nf-daily-movements > div + div { border-left: 0; padding-left: 0; }
+  .nf-next-action-buttons { flex-direction: column; }
+  .nf-next-action-buttons > button { width: 100%; min-height: 52px; }
+}
