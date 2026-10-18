@@ -1,0 +1,27 @@
+name: NestFinance ledger execution domain quality
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/ledger/**'
+      - 'shared/finance/receivedIncome.ts'
+      - 'scripts/test-posting-execution.ts'
+      - '.github/workflows/nestfinance-ledger-execution-quality.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  execution-domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: node --import tsx scripts/test-posting-execution.ts
+      - run: node --import tsx scripts/test-posting-plan.ts
+      - run: node --import tsx scripts/test-posting-plan-entity-isolation.ts
+      - run: node --import tsx scripts/test-journal-integrity-e02.ts

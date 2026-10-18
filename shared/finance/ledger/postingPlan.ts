@@ -161,6 +161,7 @@ export type PostingPlanInput = {
     approvedVersion: number;
     approvalSourceHash: string;
     status: string; // the actual status of the approval document if any
+    approvalAlgorithmVersion?: 1 | 2;
   };
   allocations: FinanceAllocation[];
   mappings: PostingMappingSnapshot;
