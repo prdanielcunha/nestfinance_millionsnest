@@ -20,6 +20,8 @@ for (const [patch, code] of [
   [{ countB: null }, 'COUNT_CORRECTION_REQUIRES_BOTH_COUNTS'],
 ] as const) assert.throws(() => prepareCountCorrection({ ...session, ...patch }, command), new RegExp(code));
 assert.throws(() => prepareCountCorrection(session, { ...command, actorUid: 'synthetic_b' }), /INDEPENDENT_COUNTER_REQUIRED/);
+assert.throws(() => prepareCountCorrection({ ...session, countB: { ...session.countB, enteredByUid: 'synthetic_editor' } },
+  { ...command, actorUid: 'synthetic_editor' }), /INDEPENDENT_COUNTER_REQUIRED/, 'A third-party editor cannot correct both counts to fabricate a match');
 assert.throws(() => prepareCountCorrection(session, { ...command, entries }), /NO_CHANGE/);
 assert.throws(() => prepareCountCorrection(session, { ...command, entries: [] }), /EMPTY_CORRECTION/);
 assert.throws(() => prepareCountCorrection(session, { ...command, entries: [{ type: 'tithe', method: 'total', totalCents: -1 }] }), /COUNT_INVALID_TOTAL/);

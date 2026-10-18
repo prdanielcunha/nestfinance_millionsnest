@@ -37,7 +37,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const auditId = generateAuditId();
       const version = expectedVersion + 1;
       const after = { entries: prepared.entries, totalCents: prepared.totalCents,
-        enteredByUid: uid, enteredByLabel: actorLabel, countedByUid: uid, countedByLabel: actorLabel,
+        // Preserve the physical counter's identity; the correction has its own editor.
+        enteredByUid: uid, enteredByLabel: actorLabel, correctedByUid: uid,
+        countedByUid: session[target].countedByUid || session[target].enteredByUid,
+        countedByLabel: session[target].countedByLabel || session[target].enteredByLabel || null,
         source: 'manual_correction', sealedAt: changedAt, savedAt: changedAt };
       const correction = { id: auditId, target, reason: normalizedReason, actorUid: uid, actorLabel, changedAt,
         versionBefore: expectedVersion, versionAfter: version,

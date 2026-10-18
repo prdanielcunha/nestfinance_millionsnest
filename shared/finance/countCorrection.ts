@@ -22,7 +22,7 @@ export function prepareCountCorrection(session: any, input: {
   if ((session.corrections?.length || 0) >= 50) throw new Error('COUNT_CORRECTION_LIMIT_REACHED');
   const other = session[input.target === 'countA' ? 'countB' : 'countA'];
   const otherUid = other.countedByUid || other.enteredByUid;
-  if (!input.actorUid || !otherUid || otherUid === input.actorUid) {
+  if (!input.actorUid || !otherUid || [other.countedByUid, other.enteredByUid, other.correctedByUid].includes(input.actorUid)) {
     throw new Error('COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
   }
   const entries = normalizeCountEntries(input.entries as any);

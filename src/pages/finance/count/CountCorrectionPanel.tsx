@@ -52,7 +52,7 @@ export function CountCorrectionPanel({ session, organizationId, financeEntityId,
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const linked = Boolean(session.countProposal) || ['reviewed', 'deposited', 'reconciled', 'closed'].includes(session.workflowState || '');
   const other = session[target === 'countA' ? 'countB' : 'countA'];
-  const independent = Boolean(other && (other.countedByUid || other.enteredByUid) !== user?.uid);
+  const independent = Boolean(other && ![other.countedByUid, other.enteredByUid].includes(user?.uid));
   const select = (value: 'countA' | 'countB') => {
     setTarget(value);
     setDrafts((session[value]?.entries || []).map(entry => ({ ...entry })));
