@@ -1,3 +1,4 @@
+import { ThemeToggle } from '@/src/components/foundation/ThemeToggle';
 import { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, Loader2, LogIn, ShieldCheck } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -172,14 +173,21 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative grid min-h-[100dvh] place-items-center overflow-hidden bg-background-base px-5 py-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(0,214,239,.12),transparent_36%),radial-gradient(circle_at_90%_90%,rgba(212,175,122,.08),transparent_30%)]" />
-      <section className="relative w-full max-w-[430px]">
+    <main className="nf-login-stage relative grid min-h-[100dvh] place-items-center overflow-hidden bg-background-base px-5 py-8 sm:px-8">
+      <div className="absolute right-5 top-5 z-10"><ThemeToggle /></div>
+
+      <section className="relative grid w-full max-w-5xl items-center gap-10 py-12 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
+        <div className="nf-login-editorial hidden py-4 pl-8 lg:block">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-primary">NestFinance</p>
+          <h2 className="mt-6 max-w-lg text-5xl font-semibold leading-[1.08] tracking-[-0.045em] text-text-primary">{language === 'PT' ? 'Clareza para cuidar do que importa.' : language === 'EN' ? 'Clarity for what matters.' : 'Claridad para cuidar lo que importa.'}</h2>
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-text-secondary">{language === 'PT' ? 'Do dinheiro contado no culto às entradas de cada dia. Organização, cuidado e uma história que pode ser conferida.' : language === 'EN' ? 'From cash counted at services to everyday income. Organization, care, and a history you can verify.' : 'Desde el efectivo del culto hasta los ingresos de cada día. Organización, cuidado e historia verificable.'}</p>
+        </div>
+        <div className="mx-auto w-full max-w-[440px]">
         <div className="mb-8 flex justify-center">
           <NestFinanceLogo layout="horizontal" surface={theme} className="w-[280px] max-w-[72vw] opacity-95" priority />
         </div>
 
-        <div className="nf-glass rounded-[1.6rem] p-6 sm:p-7">
+        <div className="nf-login-card rounded-[1.6rem] border border-border-subtle p-6 sm:p-8">
           {view === 'loading' ? (
             <div className="py-10 text-center" aria-live="polite">
               <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" />
@@ -279,6 +287,7 @@ export default function LoginPage() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </section>
     </main>

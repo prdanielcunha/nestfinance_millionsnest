@@ -1,3 +1,4 @@
+import { COLLECTION_COPY } from './CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, EyeOff, Files, Focus, ShieldX } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -118,7 +119,7 @@ function CountCaptureReviewContent() {
   const [error, setError] = useState(false);
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [applyMessage, setApplyMessage] = useState<'conflict' | 'mismatch' | 'error' | null>(null);
+  const [applyMessage, setApplyMessage] = useState<'conflict' | 'mismatch' | 'error' | 'digital' | null>(null);
   const epochRef = useRef(0);
   const saveAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const applyAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -209,7 +210,8 @@ function CountCaptureReviewContent() {
       navigate(APP_ROUTES.countSession.replace(':sessionId', result.countSessionId));
     } catch (error: any) {
       const code = String(error?.code || error?.message || '');
-      if (code === 'COUNT_CAPTURE_DENOMINATION_TOTAL_MISMATCH') setApplyMessage('mismatch');
+      if (code === 'COUNT_CASH_ONLY_DIGITAL_SEPARATE') setApplyMessage('digital');
+      else if (code === 'COUNT_CAPTURE_DENOMINATION_TOTAL_MISMATCH') setApplyMessage('mismatch');
       else if (
         code === 'COUNT_CAPTURE_APPLY_FIRST_COUNT_ALREADY_EXISTS' ||
         code === 'COUNT_CAPTURE_APPLY_SECOND_COUNT_ALREADY_EXISTS' ||
@@ -265,7 +267,7 @@ function CountCaptureReviewContent() {
                   ? humanCopy.applyMismatch
                   : applyMessage === 'conflict'
                     ? humanCopy.applyConflict
-                    : humanCopy.applyError}
+                    : applyMessage === 'digital' ? COLLECTION_COPY[language].body : humanCopy.applyError}
               </p>
             ) : null}
             {capture.appliedToCount ? (

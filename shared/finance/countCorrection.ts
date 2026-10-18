@@ -1,3 +1,4 @@
+import { assertCountCollectionScope } from './countCollectionScope.js';
 import { compareCountEntries, calculateCountEntriesTotalCents, normalizeCountEntries, isCountEntryType } from './count.js';
 
 export function normalizeCorrectionReason(value: unknown): string {
@@ -45,6 +46,7 @@ export function prepareCountCorrection(session: any, input: {
     throw new Error('COUNT_CORRECTION_INDEPENDENT_COUNTER_REQUIRED');
   }
   const entries = normalizeCountEntries(input.entries as any);
+  assertCountCollectionScope(session, entries);
   if (!entries.length) throw new Error('COUNT_EMPTY_CORRECTION');
   const before = normalizeCountEntries(session[input.target].entries);
   const confirmedZeroEntryTypes = normalizeCorrectionZeroConfirmations(input.confirmedZeroEntryTypes);

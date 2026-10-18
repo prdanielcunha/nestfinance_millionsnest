@@ -1,3 +1,4 @@
+import { assertCountCollectionScope } from '../../../shared/finance/countCollectionScope.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash, randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
@@ -81,6 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         if (hasActiveCountCaptureExtractionLease(session)) throw new Error('COUNT_CAPTURE_EXTRACTION_IN_PROGRESS');
 
+        assertCountCollectionScope(session, session.countA.entries);
         const nextVersion = expectedVersion + 1;
         const joinCode = generateSecondCountCode();
         const codeHash = hashSecondCountCode(joinCode);

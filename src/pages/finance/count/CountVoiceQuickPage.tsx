@@ -1,3 +1,5 @@
+import { countEntryTypesForSession } from '@/shared/finance/countCollectionScope';
+import { COLLECTION_COPY, CountCollectionNotice } from './CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
@@ -219,10 +221,20 @@ function CountVoiceQuickContent() {
     }
   }, [loading, storageKey, values]);
 
+  const entryTypes = countEntryTypesForSession(session || {});
+  const digitalDraft = session?.collectionScope === 'cash_only' && values.pix > 0;
   const total = useMemo(
-    () => (Object.values(values) as number[]).reduce((sum, value) => sum + value, 0),
-    [values],
+    () => entryTypes.reduce((sum, type) => sum + values[type], 0),
+    [values, entryTypes],
   );
+  const separateDigitalDraft = () => {
+    if (!storageKey) return;
+    try {
+      // Keep recoverable evidence before the user explicitly removes digital material.
+      localStorage.setItem(storageKey + ':digital-recovery', JSON.stringify({ amountCents: values.pix, sessionId }));
+      setValues(current => ({ ...current, pix: 0 }));
+    } catch { setSaveError(true); }
+  };
 
   const Recognition = getRecognitionConstructor();
 
@@ -254,11 +266,11 @@ function CountVoiceQuickContent() {
   };
 
   const save = async () => {
-    if (!canEdit || !session || !activeFinanceEntityId || !sessionId || saving) return;
+    if (!canEdit || !session || !activeFinanceEntityId || !sessionId || saving || digitalDraft) return;
     setSaving(true);
     setSaveError(false);
     setConflict(false);
-    const entries: CountEntryDraft[] = (Object.keys(values) as CountEntryType[]).map((type) => ({
+    const entries: CountEntryDraft[] = entryTypes.map((type) => ({
       type,
       method: 'total',
       totalCents: values[type],
@@ -300,6 +312,14 @@ function CountVoiceQuickContent() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-24">
+      <CountCollectionNotice cashOnly={session.collectionScope === 'cash_only'} />
+      {digitalDraft ? <FlowFeedback tone="warning" title={COLLECTION_COPY[language].digitalTitle}>
+        <p>{COLLECTION_COPY[language].digital}</p>
+        <p className="mt-2 font-semibold">Pix: {formatReviewMoney(values.pix, language, 'BRL')}</p>
+        <Button className="mt-3" variant="secondary" onClick={separateDigitalDraft}>
+          {language === 'PT' ? 'Guardar Pix separado e continuar com dinheiro' : language === 'EN' ? 'Keep Pix separately and continue with cash' : 'Guardar Pix separado y continuar con efectivo'}
+        </Button>
+      </FlowFeedback> : null}
       <FlowStepHeader
         currentStep={1}
         totalSteps={1}
@@ -335,7 +355,7 @@ function CountVoiceQuickContent() {
 
       <Surface variant="elevated" radius="xl" className="p-5 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-2">
-          {(Object.keys(values) as CountEntryType[]).map((field) => (
+          {entryTypes.map((field) => (
             <div key={field}>
               <label className="block">
                 <span className="font-semibold text-text-primary">{copy.categories[field]}</span>
@@ -384,7 +404,7 @@ function CountVoiceQuickContent() {
           <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(APP_ROUTES.countSession.replace(':sessionId', sessionId || ''))}>
             {copy.back}
           </Button>
-          <Button size="lg" fullWidth onClick={() => void save()} disabled={!canEdit || saving}>
+          <Button size="lg" fullWidth onClick={() => void save()} disabled={!canEdit || saving || digitalDraft}>
             {saving ? copy.saving : copy.save}
           </Button>
         </div>

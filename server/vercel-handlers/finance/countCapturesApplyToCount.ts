@@ -1,3 +1,4 @@
+import { assertCountCollectionScope } from '../../../shared/finance/countCollectionScope.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext } from './accessHelpers.js';
@@ -63,6 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const applyPlan = buildCountCaptureApplyPlan({
+      collectionScope: resolved.session.collectionScope,
       reviewedFields: capture.review?.fields,
       reviewedDenominations: provenance === 'free_form_note' ? undefined : capture.denominationReview?.fields,
     });
@@ -120,11 +122,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const livePlan = buildCountCaptureApplyPlan({
+          collectionScope: session.collectionScope,
           reviewedFields: liveCapture.review?.fields,
           reviewedDenominations: provenance === 'free_form_note' ? undefined : liveCapture.denominationReview?.fields,
         });
         if (hashPayload(livePlan) !== hashPayload(applyPlan)) throw new Error('COUNT_CAPTURE_VERSION_CONFLICT');
 
+        assertCountCollectionScope(session, applyPlan.entries);
         const currentSessionVersion = Number(session.version);
         if (!Number.isInteger(currentSessionVersion) || currentSessionVersion < 1) throw new Error('COUNT_VERSION_CONFLICT');
         const nextSessionVersion = currentSessionVersion + 1;

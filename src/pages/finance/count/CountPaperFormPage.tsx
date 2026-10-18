@@ -207,7 +207,7 @@ function CountPaperFormContent() {
 
         <section className="count-paper-section mt-4">
           <div className="grid grid-cols-4 border border-black text-center text-sm font-bold">
-            {[copy.tithes, copy.offerings, copy.otherIncome, copy.pix].map((label) => (
+            {(form.collectionScope === 'cash_only' ? [copy.tithes, copy.offerings, copy.otherIncome] : [copy.tithes, copy.offerings, copy.otherIncome, copy.pix]).map((label) => (
               <div key={label} className="border-r border-black p-2 last:border-r-0">
                 <p>{label}</p>
                 <div className="mt-3 h-8 border-b border-black" />
@@ -239,7 +239,7 @@ function CountPaperFormContent() {
           <div className="border-r border-black p-2 font-bold">{copy.finalTotals}</div>
           <div className="border-r border-black p-2"><span className="text-[10px]">{copy.tithes}</span><div className="mt-3 border-b border-black" /></div>
           <div className="border-r border-black p-2"><span className="text-[10px]">{copy.offerings}</span><div className="mt-3 border-b border-black" /></div>
-          <div className="p-2"><span className="text-[10px]">{copy.otherIncome} + {copy.pix}</span><div className="mt-3 border-b border-black" /></div>
+          <div className="p-2"><span className="text-[10px]">{copy.otherIncome}{form.collectionScope !== 'cash_only' ? ` + ${copy.pix}` : ''}</span><div className="mt-3 border-b border-black" /></div>
         </section>
 
         <section className="count-paper-section mt-4 grid gap-4 sm:grid-cols-2">

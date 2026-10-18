@@ -1,3 +1,4 @@
+import { COLLECTION_COPY } from '../count/CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Plus, ShieldX, Split, Trash2 } from 'lucide-react';
@@ -1119,6 +1120,12 @@ function TransactionCreateContent() {
               </div>
             </section>
           ) : null}
+
+          {direction === 'income' ? <section className="nf-collection-note rounded-2xl border border-border-subtle bg-surface-default p-5">
+            <h2 className="text-lg font-semibold text-text-primary">{COLLECTION_COPY[language].digitalTitle}</h2>
+            <p className="mt-2 text-base leading-relaxed text-text-secondary">{COLLECTION_COPY[language].digital}</p>
+            {['credit_card', 'debit_card'].includes(paymentMethod) ? <p className="mt-3 border-t border-border-subtle pt-3 text-sm leading-relaxed text-text-secondary">{COLLECTION_COPY[language].card}</p> : null}
+          </section> : null}
 
           {loadingInitial ? (
             <div className="flex animate-pulse flex-col gap-5" aria-busy="true">
