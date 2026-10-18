@@ -502,7 +502,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (error.code === 'NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
     if (error.code === 'FORBIDDEN') return res.status(403).json({ error: 'FORBIDDEN' });
-    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') return res.status(404).json({ error: 'NOT_FOUND' });
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS' || error.message === 'Session not granted') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
     if (error.code === 'auth/id-token-revoked' || error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
