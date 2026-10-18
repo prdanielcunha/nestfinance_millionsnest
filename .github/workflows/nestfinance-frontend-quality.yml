@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "scripts/test-desktop-finance-presentation.tsx"
       - "shared/finance/openingBalanceDeclaration.ts"
       - "shared/finance/conventionRemittance.ts"
       - "shared/finance/payableObligation.ts"
@@ -260,6 +261,8 @@ jobs:
 
       - name: TypeScript lint and typecheck
         run: npm run lint
+      - name: Desktop finance presentation states
+        run: node --import tsx scripts/test-desktop-finance-presentation.tsx
 
       - name: Production build
         run: npm run build

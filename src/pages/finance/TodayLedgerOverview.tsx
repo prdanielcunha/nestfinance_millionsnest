@@ -1,3 +1,4 @@
+import { ArrowDownLeft, ArrowUpRight, ArrowRight, CalendarDays, ChevronRight, ClipboardCheck, RefreshCw } from 'lucide-react';
 import type { Language } from '@/src/contexts/LanguageContext';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 
@@ -15,6 +16,9 @@ type Props = {
   onRegister: () => void;
   canRegister: boolean;
   onCount: () => void;
+  canCount?: boolean;
+  priorityState?: 'ready' | 'loading' | 'error';
+  onRetry?: () => void;
 };
 
 const COPY = {
@@ -105,6 +109,9 @@ export function TodayLedgerOverview({
   onRegister,
   canRegister,
   onCount,
+  canCount = false,
+  priorityState = 'ready',
+  onRetry,
 }: Props) {
   const copy = COPY[language];
   const balanceKnown = operational?.balance.state === 'available';
@@ -114,86 +121,96 @@ export function TodayLedgerOverview({
       )
     : operational ? copy.unavailable : '—';
   const dueCount = operational?.dueSoonCount ?? null;
+  const labels = {
+    PT: { income: 'Entradas registradas hoje', expense: 'Saídas registradas hoje', movementHint: 'Movimentos do dia · podem incluir rascunhos', pending: 'Fila de conferência', available: 'Base verificada', needsBase: 'Base ainda incompleta', waiting: 'Aguardando dados', loading: 'Atualizando suas prioridades', failed: 'Não foi possível confirmar as prioridades', failedBody: 'Tente atualizar. Enquanto os dados não carregarem, não podemos afirmar que está tudo em dia.', retry: 'Atualizar resumo', countHint: 'Notas e moedas do culto', priority: 'Sua próxima ação', period: 'PRÓXIMOS 7 DIAS' },
+    EN: { income: 'Income recorded today', expense: 'Expenses recorded today', movementHint: 'Daily movements · may include drafts', pending: 'Review queue', available: 'Verified basis', needsBase: 'Incomplete basis', waiting: 'Waiting for data', loading: 'Refreshing your priorities', failed: 'Priorities could not be confirmed', failedBody: 'Try refreshing. Until the data loads, we cannot confirm that everything is up to date.', retry: 'Refresh summary', countHint: 'Service banknotes and coins', priority: 'Your next action', period: 'NEXT 7 DAYS' },
+    ES: { income: 'Ingresos registrados hoy', expense: 'Gastos registrados hoy', movementHint: 'Movimientos del día · pueden incluir borradores', pending: 'Cola de revisión', available: 'Base verificada', needsBase: 'Base incompleta', waiting: 'Esperando datos', loading: 'Actualizando tus prioridades', failed: 'No fue posible confirmar las prioridades', failedBody: 'Intenta actualizar. Hasta cargar los datos, no podemos confirmar que todo esté al día.', retry: 'Actualizar resumen', countHint: 'Billetes y monedas del culto', priority: 'Tu próxima acción', period: 'PRÓXIMOS 7 DÍAS' },
+  }[language];
+  const money = (cents: number) => new Intl.NumberFormat(LOCALE[language], { style: 'currency', currency: 'BRL' }).format(cents / 100);
+
 
   return (
-    <section aria-labelledby="nf-ledger-today-title" className="nf-spec-paper overflow-hidden rounded-[1.75rem] border border-border-strong bg-surface-default">
-      <div className="px-5 pt-7 pb-5 sm:px-8 sm:pt-8">
-        <p className="text-sm font-semibold tracking-wide text-text-secondary">{copy.eyebrow}</p>
-        <h1 id="nf-ledger-today-title" className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-tight text-text-primary sm:text-[2rem]">
-          {copy.title}
-        </h1>
-        <p className="mt-2 break-words text-base text-text-secondary">{entityName || '—'}</p>
-      </div>
-      <div className="mx-5 border-y border-border-subtle py-6 sm:mx-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.09em] text-text-secondary">{copy.balance}</p>
-        <p className="nf-financial-number mt-2 break-words text-[2.25rem] font-semibold leading-[1.15] tracking-tight text-text-primary sm:text-[2.75rem]" aria-live="polite">
-          {balanceText}
-        </p>
-        <details className="group mt-3">
-          <summary className="min-h-11 w-fit cursor-pointer rounded-lg py-2 text-sm font-medium text-accent-primary underline-offset-4 hover:underline focus-visible:underline">
-            {copy.whyBalance}
-          </summary>
-          <p className="max-w-prose pb-2 text-sm leading-6 text-text-secondary">
-            {balanceKnown ? copy.balanceKnown : copy.balanceUnknown}
-          </p>
-        </details>
-      </div>
-      <div className="mx-5 divide-y divide-border-subtle sm:mx-8">
-        {countInProgress ? (
-          <button type="button" onClick={onCount} className="nf-interactive flex min-h-20 w-full items-center justify-between gap-4 py-4 text-left focus-visible:rounded-xl">
-            <span className="min-w-0">
-              <span className="block text-base font-semibold text-text-primary">{copy.count}</span>
-              <span className="mt-1 block break-words text-sm text-text-secondary">{countInProgress.serviceLabel}</span>
-            </span>
-            <span className="shrink-0 text-sm font-semibold text-accent-primary">{copy.countAction} →</span>
-          </button>
-        ) : null}
-        {transactionsToReview > 0 ? (
-          <div className="flex min-h-16 items-center justify-between gap-4 py-4">
-            <span className="text-base text-text-secondary">{copy.review}</span>
-            <strong className="nf-financial-number text-lg text-text-primary">{transactionsToReview}</strong>
+    <section aria-labelledby="nf-ledger-today-title" className="nf-today-overview">
+      <header className="nf-today-heading">
+        <div>
+          <p className="nf-section-eyebrow">{copy.eyebrow}</p>
+          <h1 id="nf-ledger-today-title" className="mt-2 text-[1.75rem] font-semibold leading-tight tracking-tight text-text-primary lg:text-[2.25rem]">{copy.title}</h1>
+        </div>
+        <span className="nf-entity-label"><span aria-hidden="true" />{entityName || '—'}</span>
+      </header>
+
+      <div className="nf-today-primary-grid">
+        <div className="nf-balance-panel">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="nf-section-eyebrow">{copy.balance}</p>
+            <span className="nf-balance-state">{balanceKnown ? labels.available : operational ? labels.needsBase : labels.waiting}</span>
           </div>
-        ) : null}
-        {documentsToReview > 0 ? (
-          <div className="flex min-h-16 items-center justify-between gap-4 py-4">
-            <span className="text-base text-text-secondary">{copy.documents}</span>
-            <strong className="nf-financial-number text-lg text-text-primary">{documentsToReview}</strong>
+          <p className={`nf-financial-number nf-balance-value ${balanceKnown ? '' : 'nf-balance-unavailable'}`} aria-live="polite">{balanceText}</p>
+          <details className="nf-balance-explanation group">
+            <summary className="min-h-11 w-fit cursor-pointer rounded-lg py-2 text-sm font-medium text-accent-primary underline-offset-4 hover:underline focus-visible:underline">{copy.whyBalance}</summary>
+            <p className="max-w-prose pb-3 text-sm leading-6 text-text-secondary">{balanceKnown ? copy.balanceKnown : copy.balanceUnknown}</p>
+          </details>
+          <div className="nf-daily-movements">
+            <div>
+              <span className="flex items-center gap-2 text-sm text-text-secondary"><ArrowDownLeft className="h-4 w-4 text-semantic-success" aria-hidden="true" />{labels.income}</span>
+              <strong className="nf-financial-number mt-2 block text-2xl font-semibold tracking-tight text-text-primary">{operational ? money(operational.incomeCents) : '—'}</strong>
+            </div>
+            <div>
+              <span className="flex items-center gap-2 text-sm text-text-secondary"><ArrowUpRight className="h-4 w-4 text-text-muted" aria-hidden="true" />{labels.expense}</span>
+              <strong className="nf-financial-number mt-2 block text-2xl font-semibold tracking-tight text-text-primary">{operational ? money(operational.expenseCents) : '—'}</strong>
+            </div>
           </div>
-        ) : null}
-        {operational?.registeredPayablesDueSoonCount !== undefined ? (
-          <div className="flex min-h-20 items-center justify-between gap-4 py-4">
-            <span className="min-w-0">
-              <span className="block text-base font-semibold text-text-primary">{copy.bills}</span>
-              <span className="mt-1 block text-sm text-text-secondary">
-                {copy.billsSuffix(operational.registeredPayablesDueSoonCount)}
-              </span>
-              {operational.registeredPayablesDueSoonTruncated ?
-                <span className="mt-1 block text-sm text-semantic-warning">{copy.billsIncomplete}</span> : null}
-            </span>
+          <p className="mt-4 text-xs text-text-muted">{labels.movementHint}</p>
+        </div>
+
+        <div className="nf-next-action-panel" aria-busy={priorityState === 'loading'}>
+          <p className="nf-section-eyebrow">{labels.priority}</p>
+          <h2 className="mt-5 text-[1.4rem] font-semibold leading-snug tracking-tight text-text-primary">
+            {priorityState === 'error' ? labels.failed : priorityState === 'loading' ? labels.loading : nextTitle}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-text-secondary">{priorityState === 'error' ? labels.failedBody : priorityState === 'loading' ? labels.waiting : nextDescription}</p>
+          <div className="nf-next-action-buttons">
+            {priorityState === 'ready' ? <button type="button" onClick={onNext} className="nf-desktop-primary nf-interactive min-h-12 rounded-xl px-5 py-3 text-sm font-semibold">
+              {nextAction}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button> : onRetry ? <button type="button" onClick={onRetry} disabled={priorityState === 'loading'} className="nf-desktop-primary nf-interactive min-h-12 rounded-xl px-5 py-3 text-sm font-semibold disabled:opacity-60">
+              {labels.retry}<RefreshCw className={`h-4 w-4 ${priorityState === 'loading' ? 'animate-spin' : ''}`} aria-hidden="true" />
+            </button> : null}
+            {canRegister ? <button type="button" onClick={onRegister} className="nf-interactive min-h-12 rounded-xl border border-border-strong bg-surface-default px-5 py-3 text-sm font-semibold text-text-primary hover:bg-surface-elevated">{copy.register}</button> : null}
           </div>
-        ) : null}
-        <div className="flex min-h-20 items-center justify-between gap-4 py-4">
-          <span className="min-w-0">
-            <span className="block text-base font-semibold text-text-primary">{copy.due}</span>
-            <span className="mt-1 block text-sm text-text-secondary">{dueCount === null ? copy.availability : copy.dueSuffix(dueCount)}</span>
-            {operational?.dueSoonTruncated ? <span className="mt-1 block text-sm text-semantic-warning">{copy.dueIncomplete}</span> : null}
-          </span>
         </div>
       </div>
-      <div className="border-t border-border-subtle bg-surface-secondary/60 px-5 py-6 sm:px-8 sm:py-7">
-        <p className="text-xs font-bold uppercase tracking-[0.13em] text-text-secondary">{copy.next}</p>
-        <h2 className="mt-2 text-xl font-semibold leading-snug text-text-primary">{nextTitle}</h2>
-        <p className="mt-1 text-base leading-relaxed text-text-secondary">{nextDescription}</p>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={onNext} className="nf-interactive min-h-14 flex-1 rounded-xl bg-accent-primary px-5 py-3 text-base font-semibold text-background-base hover:opacity-90">
-            {nextAction}
-          </button>
-          {canRegister ? <button type="button" onClick={onRegister} className="nf-interactive min-h-14 flex-1 rounded-xl border border-border-strong bg-surface-default px-5 py-3 text-base font-semibold text-text-primary hover:bg-surface-elevated">
-            {copy.register}
+
+      <div className="nf-today-secondary-grid">
+        <section className="nf-today-agenda" aria-label={copy.due}>
+          <header className="mb-5 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-text-primary">{copy.due}</h2>
+            <span className="nf-section-eyebrow">{labels.period}</span>
+          </header>
+          {operational?.registeredPayablesDueSoonCount !== undefined ? <div className="nf-agenda-row">
+            <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
+            <div><p className="text-sm font-medium text-text-primary">{copy.bills}</p><p className="mt-1 text-sm text-text-secondary">{copy.billsSuffix(operational.registeredPayablesDueSoonCount)}</p>
+              {operational.registeredPayablesDueSoonTruncated ? <p className="mt-1 text-sm text-semantic-warning">{copy.billsIncomplete}</p> : null}
+            </div>
+          </div> : null}
+          <div className="nf-agenda-row">
+            <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
+            <div><p className="text-sm text-text-secondary">{dueCount === null ? copy.availability : copy.dueSuffix(dueCount)}</p>
+              {operational?.dueSoonTruncated ? <p className="mt-1 text-sm text-semantic-warning">{copy.dueIncomplete}</p> : null}
+            </div>
+          </div>
+        </section>
+        <section className="nf-today-work-queue" aria-label={labels.pending}>
+          <h2 className="mb-4 text-base font-semibold text-text-primary">{labels.pending}</h2>
+          <div className="nf-work-queue-row"><span>{copy.review}</span><strong className="nf-financial-number">{priorityState === 'ready' ? transactionsToReview : '—'}</strong></div>
+          <div className="nf-work-queue-row"><span>{copy.documents}</span><strong className="nf-financial-number">{priorityState === 'ready' ? documentsToReview : '—'}</strong></div>
+          {canCount ? <button type="button" onClick={onCount} className="nf-count-shortcut nf-interactive">
+            <ClipboardCheck className="h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-text-primary">{countInProgress ? copy.count : copy.countAction}</span><span className="mt-1 block break-words text-sm text-text-secondary">{countInProgress?.serviceLabel || labels.countHint}</span></span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
           </button> : null}
-        </div>
-        <p className="mt-4 text-sm leading-relaxed text-text-muted">{copy.source}</p>
+        </section>
       </div>
+      <p className="nf-today-source">{copy.source}</p>
     </section>
   );
 }

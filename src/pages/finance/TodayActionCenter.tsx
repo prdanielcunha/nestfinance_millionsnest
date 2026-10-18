@@ -1064,8 +1064,11 @@ export function TodayActionCenter() {
         onRegister={() => navigate(APP_ROUTES.universalCapture)}
         canRegister={canCreate}
         onCount={() => navigate(countActionRoute)}
+        canCount={canCount}
+        priorityState={prioritiesFailed ? 'error' : prioritiesLoading ? 'loading' : 'ready'}
+        onRetry={() => void Promise.all([loadSummary(), loadCounts(), loadInbox(), loadSignals(), loadRecent()])}
       />
-      <details className="rounded-2xl border border-border-subtle bg-surface-default/60 px-4 py-3 sm:px-6" defaultOpen={experienceMode === 'review' || experienceMode === 'ecosystem'}>
+      <details className="nf-professional-details rounded-2xl border border-border-subtle bg-surface-default/60 px-4 py-3 sm:px-6" defaultOpen={experienceMode === 'review' || experienceMode === 'ecosystem'}>
         <summary className="nf-interactive min-h-12 cursor-pointer rounded-xl px-2 py-3 text-base font-semibold text-text-primary focus-visible:outline-accent-primary">
           {language === 'EN' ? 'More financial details and professional tools' : language === 'ES' ? 'Más detalles financieros y herramientas profesionales' : 'Ver detalhes financeiros e ferramentas profissionais'}
         </summary>
