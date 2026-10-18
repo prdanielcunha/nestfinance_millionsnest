@@ -1,8 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { FieldValue } from 'firebase-admin/firestore';
-import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
-import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceTransactionAccess } from './accessHelpers.js';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { buildIdempotencyKeyHash, hashPayload, executeWithIdempotency } from './idempotencyHelper.js';
 import { generateAllocationId, generateAuditId, isValidIdempotencyKey, isValidRequestId } from '../../../shared/finance/ledger/ids.js';
 import { validateAllocation, FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
@@ -13,17 +11,7 @@ import { assertTransactionEvidenceReferences } from './transactionEvidenceValida
 import { stageCanonicalAuditRecord } from './auditFactProjection.js';
 import { stageTransactionSearchIndex } from './transactionSearchIndex.js';
 
-async function getActorDisplayName(db: any, uid: string): Promise<string> {
-  try {
-    const uDoc = await db.collection('user_profiles').doc(uid).get();
-    if (uDoc.exists) {
-      return uDoc.data()?.name || uDoc.data()?.displayName || 'Usuário da equipe';
-    }
-  } catch (e) {
-    // ignore
-  }
-  return 'Usuário da equipe';
-}
+import { assertTransactionEditable, normalizeTransactionCorrectionReason, transactionNeedsCorrectionReason, transactionCorrectionSnapshot } from '../../../shared/finance/transactionCorrection.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -37,34 +25,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!financeEntityId || typeof financeEntityId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!transactionId || typeof transactionId !== 'string') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
-    if (typeof expectedVersion !== 'number' || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!payload || typeof payload !== 'object') return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidIdempotencyKey(idempotencyKey)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
     if (!isValidRequestId(requestId)) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'UNAUTHORIZED' });
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const db = admin.firestore;
-    const decodedToken = await admin.auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
-    const organizationId = req.headers['x-organization-id'] as string;
-
-    if (!organizationId) return res.status(400).json({ error: 'MISSING_ORGANIZATION_ID' });
-
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
-    
-    const context = await requireFinanceTransactionAccess({
-      db, uid, organizationId, financeEntityId, sessionList,
-      capability: 'finance.create_drafts'
-    });
+    const { db, uid, actorLabel, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.create_drafts');
 
     const keyHash = buildIdempotencyKeyHash(organizationId, financeEntityId, uid, 'update_draft', idempotencyKey);
-    const payloadHash = hashPayload(payload);
+    const payloadHash = hashPayload({ transactionId, expectedVersion, payload });
 
-    const actorDisplayName = await getActorDisplayName(db, uid);
+    const actorDisplayName = actorLabel;
 
     const result = await executeWithIdempotency(db, context.repository.getIdempotencyRef(), keyHash, payloadHash, async (t) => {
       const txRef = context.repository.getTransactionsRef().doc(transactionId);
@@ -73,6 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const txData = txDoc.data() as LedgerTransaction;
       if (txData.financeEntityId !== financeEntityId) throw { code: 'FORBIDDEN', message: 'Cross-entity reference' };
+      assertTransactionEditable(txData);
+      const correctionReason = normalizeTransactionCorrectionReason(payload.correctionReason, transactionNeedsCorrectionReason(txData));
       if (payload.evidenceIds !== undefined) {
         const entityRef = db.collection('organizations').doc(organizationId).collection('financeEntities').doc(financeEntityId);
         await assertTransactionEvidenceReferences({
@@ -316,6 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         for (let i = 0; i < payload.allocations.length; i++) {
           const a = payload.allocations[i];
+          if (a.id && !existingAllocs.some(existing => existing.id === a.id)) throw { code: 'FINANCE_ALLOCATION_MISMATCH' };
           const aId = a.id || generateAllocationId();
           allocationIds.push(aId);
 
@@ -422,7 +396,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newStateVal = removeDynamic(newRecord);
       
       const oldAllocsState = existingAllocs.map(removeDynamic).sort((a,b) => a.id.localeCompare(b.id));
-      const newAllocsState = Array.from(allocRefsToSet.values()).map(removeDynamic).sort((a,b) => a.id.localeCompare(b.id));
+      const newAllocsState = (Array.isArray(payload.allocations) ? Array.from(allocRefsToSet.values()) : existingAllocs).map(removeDynamic).sort((a,b) => a.id.localeCompare(b.id));
 
       const isNoOpTransaction = hashPayload(oldState) === hashPayload(newStateVal);
       const isNoOpAllocs = hashPayload(oldAllocsState) === hashPayload(newAllocsState) && allocRefsToDelete.size === 0;
@@ -438,11 +412,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       newRecord.version = txData.version + 1;
       newRecord.contentVersion = (txData.contentVersion || txData.version) + 1;
-      newRecord.updatedAt = FieldValue.serverTimestamp();
+      newRecord.updatedAt = Timestamp.now();
 
       const sanitizedRecord = sanitizeFirestoreObject(newRecord);
+      const changedAt = newRecord.updatedAt as Timestamp;
 
-      t.update(txRef, sanitizedRecord);
+      // Replace the complete validated record so cleared optional fields really disappear.
+      t.set(txRef, sanitizedRecord);
       stageTransactionSearchIndex(t, db, {
         organizationId,
         financeEntityId,
@@ -456,11 +432,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const [aId, data] of allocRefsToSet) {
         t.set(context.repository.getAllocationsRef().doc(aId), sanitizeFirestoreObject({
            ...data,
-           updatedAt: FieldValue.serverTimestamp()
-        }), { merge: true });
+           updatedAt: changedAt
+        }));
       }
 
       const auditId = generateAuditId();
+      const finalAllocations = Array.isArray(payload.allocations)
+        ? Array.from(allocRefsToSet.values()).map(allocation => sanitizeFirestoreObject({ ...allocation, updatedAt: changedAt }))
+        : existingAllocs;
+      const correction = {
+        id: auditId, transactionId, organizationId, financeEntityId,
+        actorUid: uid, actorLabel, changedAt, reason: correctionReason,
+        versionBefore: txData.version, versionAfter: newRecord.version,
+        before: transactionCorrectionSnapshot(txData, existingAllocs),
+        after: transactionCorrectionSnapshot(newRecord, finalAllocations),
+      };
+      t.create(txRef.collection('corrections').doc(auditId), correction);
       let action = 'transaction.updated';
       let eventType = 'draft_updated';
 
@@ -470,12 +457,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         financeEntityId,
         actor: uid,
         resource: 'transaction',
+        resourceId: transactionId,
         action,
         requestId,
         idempotencyKey,
-        afterHash: payloadHash,
-        createdAt: FieldValue.serverTimestamp()
-      }));
+        beforeHash: hashPayload({ transaction: txData, allocations: existingAllocs }),
+        afterHash: hashPayload({ transaction: sanitizedRecord, allocations: finalAllocations }),
+        metadata: {
+          reason: correctionReason, versionBefore: txData.version, versionAfter: newRecord.version,
+          before: { transaction: txData, allocations: existingAllocs },
+          after: { transaction: sanitizedRecord, allocations: finalAllocations },
+        },
+        createdAt: changedAt
+      }), 'create');
 
       // Internal Event
       const eventId = idempotencyKey ? `evt_${idempotencyKey}` : generateAuditId();
@@ -499,7 +493,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(result);
 
   } catch (error: any) {
-    console.error('Update Transaction Error:', error);
+    console.error('Update Transaction Error:', error?.code || 'INTERNAL_SERVER_ERROR');
+    if (error.status === 401 || error.status === 403) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
+    if (error.code === 'FINANCE_VERSION_CONFLICT' || error.message?.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: error.code || 'FINANCE_IDEMPOTENCY_CONFLICT' });
     if (error.code && error.code.startsWith('FINANCE_')) {
       return res.status(400).json({ error: error.code, details: error.message });
     }
@@ -508,10 +504,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (error.code === 'NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
     if (error.code === 'FORBIDDEN') return res.status(403).json({ error: 'FORBIDDEN' });
-    if (error.message === 'FORBIDDEN_FINANCE_ACCESS') {
+    if (error.message === 'FINANCE_ENTITY_NOT_FOUND' || error.message === 'FINANCE_ENTITY_NOT_ACTIVE') return res.status(404).json({ error: 'NOT_FOUND' });
+    if (error.message === 'FORBIDDEN_FINANCE_ACCESS' || error.message === 'Session not granted') {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
+    if (error.code === 'auth/id-token-revoked' || error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
     return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });

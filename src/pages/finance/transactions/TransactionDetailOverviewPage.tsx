@@ -26,6 +26,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { validateSubmissionReadiness } from '@/shared/finance/smartLogic';
 import { formatReviewDate, formatReviewMoney } from './transactionReviewModel';
+import { TransactionCorrectionHistory } from './TransactionCorrectionHistory';
 import { TRANSACTION_DETAIL_OVERVIEW_COPY } from './transactionDetailOverviewCopy';
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -542,6 +543,7 @@ function TransactionDetailOverviewContent() {
                   )}
                 </div>
               </Surface>
+              <TransactionCorrectionHistory items={data.corrections || []} truncated={data.correctionsTruncated} />
             </div>
 
             <aside className="lg:sticky lg:top-4">

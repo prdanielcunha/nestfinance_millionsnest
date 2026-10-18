@@ -42,6 +42,7 @@ import {
   formatTransactionInputAmount,
   type TransactionCreateDirection,
 } from './transactionCreateModel';
+import { TransactionCorrectionReasonField, CORRECTION_COPY } from './TransactionCorrectionHistory';
 import { TRANSACTION_EDIT_COPY } from './transactionEditCopy';
 import {
   describeAccount,
@@ -185,6 +186,8 @@ function TransactionEditGuidedContent() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [funds, setFunds] = useState<any[]>([]);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionReasonRequired, setCorrectionReasonRequired] = useState(false);
   const [expectedVersion, setExpectedVersion] = useState<number | null>(null);
 
   const [direction, setDirection] = useState<TransactionCreateDirection>('expense');
@@ -422,6 +425,8 @@ function TransactionEditGuidedContent() {
       setAccounts(activeAccounts);
       setFunds(activeFunds);
       setCategories(activeCategories);
+      setCorrectionReason('');
+      setCorrectionReasonRequired(transaction.correctionReasonRequired === true);
       setExpectedVersion(Number(transaction.version));
       setDirection(transaction.direction as TransactionCreateDirection);
       setSettlementType(transaction.settlementType || '');
@@ -689,6 +694,7 @@ function TransactionEditGuidedContent() {
       return null;
     };
 
+    if ((correctionReasonRequired || correctionReason.length > 0) && (correctionReason.trim().length < 10 || correctionReason.trim().length > 500)) return fail(CORRECTION_COPY[language].hint);
     if (!accountId) return fail(copy.errorSelectAccount);
     if (isIncompleteAccount(selectedAccount)) return fail(copy.errorIncompleteAccount);
 
@@ -741,6 +747,7 @@ function TransactionEditGuidedContent() {
     }
 
     return {
+      correctionReason: correctionReason.trim() || undefined,
       direction,
       amountCents: totalCents,
       occurredAt: new Date(`${occurredAt}T12:00:00Z`).toISOString(),
@@ -748,10 +755,10 @@ function TransactionEditGuidedContent() {
       destinationAccountId:
         direction === 'transfer' ? destinationAccountId : undefined,
       paymentMethod: direction === 'transfer' ? undefined : paymentMethod || undefined,
-      description: description || undefined,
-      counterparty: counterparty || undefined,
+      description,
+      counterparty,
       evidenceIds,
-      evidenceJustification: evidenceJustification || undefined,
+      evidenceJustification,
       sourceContext: 'manual',
       allocations:
         direction === 'transfer' || direction === 'liability_settlement'
@@ -769,6 +776,8 @@ function TransactionEditGuidedContent() {
     // This is intentionally derived from every material edit dimension.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
+      correctionReason,
+      correctionReasonRequired,
       direction,
       amountRaw,
       occurredAt,
@@ -804,7 +813,7 @@ function TransactionEditGuidedContent() {
     }
 
     const fingerprint = buildTransactionCreateMaterialFingerprint(payload);
-    const identity = `${activeFinanceEntityId}|${transactionId}|${expectedVersion}|${fingerprint}`;
+    const identity = `${organizationId}|${activeFinanceEntityId}|${transactionId}|${expectedVersion}|${fingerprint}|${payload.correctionReason || ""}`;
     if (!draftAttemptRef.current || draftAttemptRef.current.identity !== identity) {
       draftAttemptRef.current = { identity, key: makeToken('idup_draft') };
     }
@@ -1618,6 +1627,7 @@ function TransactionEditGuidedContent() {
                 </div>
               ) : null}
 
+              <TransactionCorrectionReasonField value={correctionReason} onChange={setCorrectionReason} required={correctionReasonRequired} disabled={saving || submitting} />
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button
                   variant="secondary"

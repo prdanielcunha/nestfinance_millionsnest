@@ -1,0 +1,36 @@
+name: NestFinance Audited Transaction Corrections
+on:
+  pull_request:
+    paths:
+      - 'shared/finance/transactionCorrection.ts'
+      - 'server/vercel-handlers/finance/transactions*.ts'
+      - 'src/pages/finance/transactions/**'
+      - 'api/finance-gateway.ts'
+      - 'scripts/test-transaction-corrections*.ts'
+      - '.github/workflows/nestfinance-transaction-corrections-quality.yml'
+jobs:
+  audited-corrections:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run check:api-contracts
+      - run: npm run build
+      - run: npm run build:cloudrun
+      - run: node --import tsx scripts/test-transaction-corrections.ts
+      - run: node --import tsx scripts/test-premium-theme-foundation.ts
+      - run: node --import tsx scripts/test-count-team-server-boundary.ts
+      - name: Audited corrections in isolated Firestore
+        env:
+          FIREBASE_PROJECT_ID: demo-nestfinance-transaction-corrections
+          GCLOUD_PROJECT: demo-nestfinance-transaction-corrections
+        run: npx --yes firebase-tools@15.27.0 emulators:exec --only firestore --project demo-nestfinance-transaction-corrections "node --import tsx scripts/test-transaction-corrections-emulator.ts"
