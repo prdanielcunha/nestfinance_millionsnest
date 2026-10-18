@@ -124,7 +124,23 @@ assert.doesNotMatch(
   'Finance production must not publish shared Hub Firestore Rules or indexes',
 );
 assert.match(productionRelease, /NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT/, 'Fail closed on a changed shared Rules fingerprint');
-assert.match(productionRelease, /1730f4714c72a835f4db8d2a084ece2c917d81ac69d5ed32d6d45649c9268c58/, 'Require the audited canonical Hub fingerprint');
+assert.match(productionRelease, /03107a9367c9bb268ba39e13ad88a92092d1bd9bb6fcd59f0c7c680f1fe2f149/, 'Require the audited canonical Hub fingerprint');
+
+// Full and scoped releases must preserve installed runtime configuration and IAM.
+assert.doesNotMatch(productionRelease, /--set-env-vars|gcloud run deploy|add-iam-policy-binding|--allow-unauthenticated|--no-allow-unauthenticated/);
+const preservingStep = productionRelease.slice(
+  productionRelease.indexOf('      - name: Deploy Cloud Run revision preserving existing configuration'),
+  productionRelease.indexOf('      - name: Verify exact image digest and route traffic'),
+);
+assert.ok(preservingStep.includes('gcloud run services update'));
+assert.doesNotMatch(preservingStep, /\n        if:/, 'Configuration preservation applies to every release');
+assert.ok(preservingStep.includes('--update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"'));
+for (const proof of ['FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED', 'FINANCE_IAM_CHANGED', 'FINANCE_PIN_TAG_MAPPING_CHANGED']) {
+  assert.ok(preservingStep.includes(proof), `Missing runtime preservation proof: ${proof}`);
+}
+assert.ok(productionRelease.indexOf('FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED') <
+  productionRelease.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
+  'Verify configuration and IAM before traffic cutover');
 
 assert.doesNotMatch(
   productionRelease,

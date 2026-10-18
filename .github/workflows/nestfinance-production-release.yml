@@ -222,8 +222,8 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          // Hub #401 / verified production run 39040061658; only Journey teamInterests changed.
-          const approvedHubSha = '1730f4714c72a835f4db8d2a084ece2c917d81ac69d5ed32d6d45649c9268c58';
+          // Hub #404 / verified publication run 39069954671; Journey releaseFlags only.
+          const approvedHubSha = '03107a9367c9bb268ba39e13ad88a92092d1bd9bb6fcd59f0c7c680f1fe2f149';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);
@@ -236,8 +236,7 @@ jobs:
       - name: Push Cloud Run image
         run: docker push "$IMAGE"
 
-      - name: Publish scoped API image preserving existing configuration
-        if: env.CONNECT_SUMMARY_API_ONLY == 'true' || env.CONNECT_SOURCE_RECOVERY_ONLY == 'true'
+      - name: Deploy Cloud Run revision preserving existing configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -263,8 +262,7 @@ jobs:
           test "$AFTER_TAG_TARGETS" = "$PREVIOUS_FINANCE_TAG_TARGETS" || { echo FINANCE_PIN_TAG_MAPPING_CHANGED; exit 1; }
           echo FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED
 
-      - name: Verify exact scoped API digest and route traffic
-        if: env.CONNECT_SUMMARY_API_ONLY == 'true' || env.CONNECT_SOURCE_RECOVERY_ONLY == 'true'
+      - name: Verify exact image digest and route traffic
         shell: bash
         run: |
           set -euo pipefail
@@ -272,42 +270,6 @@ jobs:
           node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('/tmp/finance-revision.json'));if(r.metadata.name!==process.env.EXPECTED_FINANCE_REVISION||!r.status.imageDigest?.endsWith(process.env.EXPECTED_FINANCE_IMAGE_DIGEST)||!r.status.conditions?.some(x=>x.type==='Ready'&&x.status==='True'))process.exit(1)"
           gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --to-revisions="$EXPECTED_FINANCE_REVISION=100" --quiet
           echo "FINANCE_CONNECT_EXACT_IMAGE_RELEASE_SHA=$GITHUB_SHA"
-
-      - name: Deploy Cloud Run revision
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true' && env.CONNECT_SOURCE_RECOVERY_ONLY != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${PREVIOUS_FINANCE_REVISION:-}"
-          REVISION="${SERVICE}-nf${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}"
-          DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" --format='value(image_summary.digest)')"
-          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-          gcloud run deploy "$SERVICE" \
-            --project "$PROJECT_ID" --region "$REGION" --image "$IMAGE" \
-            --revision-suffix "nf${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" \
-            --no-traffic \
-            --service-account "mn-nestfinance-runtime@millionsnest.iam.gserviceaccount.com" \
-            --port 8080 --cpu 1 --memory 512Mi --min-instances 0 \
-            --max-instances 3 --concurrency 80 --timeout 60 \
-            --no-allow-unauthenticated \
-            --set-env-vars "FIREBASE_PROJECT_ID=millionsnest,FIREBASE_STORAGE_BUCKET=millionsnest.firebasestorage.app,NODE_ENV=production,NESTFINANCE_SESSION_RESOLVE_ENABLED=true,NESTFINANCE_HANDOFF_REDEEM_ENABLED=true,NESTFINANCE_RELEASE_SHA=$GITHUB_SHA" --quiet
-          gcloud run revisions describe "$REVISION" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-revision-exact.json
-          EXPECTED_REVISION="$REVISION" EXPECTED_DIGEST="$DIGEST" node - <<'NODE'
-          const fs = require('fs');
-          const rev = JSON.parse(fs.readFileSync('/tmp/finance-revision-exact.json','utf8'));
-          if(rev.metadata?.name!==process.env.EXPECTED_REVISION ||
-             !rev.status?.conditions?.some(c => c.type==='Ready'&&c.status==='True') ||
-             !String(rev.status?.imageDigest||'').endsWith(process.env.EXPECTED_DIGEST))process.exit(1);
-          console.log('NESTFINANCE_EXACT_PINNED_IMAGE_REVISION_READY');
-          NODE
-          # No live traffic mutation happens until the pinned image/revision is READY.
-          gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --to-revisions="$REVISION=100" --quiet
-          echo "NESTFINANCE_EXACT_RELEASE_CUTOVER=$REVISION"
-
-      - name: Allow Firebase Hosting invocation
-        if: env.CONNECT_SUMMARY_API_ONLY != 'true' && env.CONNECT_SOURCE_RECOVERY_ONLY != 'true'
-        run: |
-          gcloud run services add-iam-policy-binding "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --member="allUsers"             --role="roles/run.invoker"             --quiet
 
       - name: Verify exact live SHA after traffic convergence (no stale-200 approval)
         shell: bash
