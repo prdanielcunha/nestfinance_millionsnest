@@ -6,6 +6,13 @@ Leia este arquivo, `AGENTS.md`, `README.md`, `docs/ARCHITECTURE_CURRENT.md` e
 os contratos específicos antes de alterar código. Revalide os SHAs remotos:
 outros trabalhos do ecossistema podem continuar em paralelo.
 
+Última atualização operacional: o diagnóstico confirmou os dois índices
+ausentes; Hub PR423/424 foram mescladas. A certificação dos índices está no run
+`39322937938` (job `118301429225`), ainda exigindo prova READY/COUNT/SUM antes
+de marcar o resumo resolvido. A tentativa segura de login foi interrompida;
+não reiniciar pedidos de credenciais automaticamente. A verificação visual
+autenticada depende de sessão disponível e não está certificada por este documento.
+
 ## Objetivo e autorização do usuário
 
 Finalizar o aplicativo para os cultos e a tesouraria, publicar em produção e
@@ -69,14 +76,22 @@ e espelhos legados são gravados pelo servidor; a proteção de perfil raiz não
 pode ser anulada por wildcard recursivo. Evidência de mudanças de acesso não
 pode ser adulterada pelo SDK do navegador.
 
-Fonte exata publicada/certificada:
-`f8e53e531169fb658fce646fb7abd241a286af2e343b3a446a8d33f1a17709a9`.
+Fonte da correção de autoridade originalmente certificada:
+`f8e53e531169fb658fce646fb7abd241a286af2e343b3a446a8d33f1a17709a9`,
 Hub commit `b3fe22ba47604422229577c3ed961598e969fd8b`, Rules run `39239780589`,
 job `118017502144`, sucesso e comparação do source publicado. Gates incluíram
 114 operações de adulteração negadas, 575 operações financeiras diretas negadas
 e 445 verificações Connect contra a fonte realmente publicada, além dos outros apps.
 Banco existente `(default)`: STANDARD, FIRESTORE_NATIVE, região nam5, confirmado
 por preflight somente leitura `39237708583` / `118010723436`.
+
+Outra sessão publicou o cadastro central (Hub PR425, production
+`218cb84c271a49f7ba3569438b843ae3068aad2b`). A fonte atual certificada é
+`cdf3bffa148811de97600fd646ea4fd2331b08c9b7da594d03c680f542c5bf05`,
+Rules run `39322376345` / job `118299409689`, sucesso, com 575/114/445 checks
+financeiros/autoridade/Connect. Revisão independente confirmou preservação das
+proteções financeiras e de acesso. Finance atualiza somente o fingerprint exato
+e seu teste; não desfazer esse cadastro ou copiar sua árvore inteira para Hub main.
 
 Finance mantém esse hash exato como pré-condição de release; nunca aceitar
 qualquer hash vivo automaticamente. Não publicar Rules próprias do Finance,
@@ -90,7 +105,7 @@ A revisão autenticada no navegador revelou erro de leitura das prioridades/
 resumo, embora a consulta de movimentações abra. Não marcar o aplicativo inteiro
 como concluído enquanto isso não for resolvido e revalidado em produção.
 
-Hipótese em investigação: índices compostos necessários a SUM(amountCents),
+Diagnóstico comprovado: índices compostos necessários a SUM(amountCents),
 com filtro `financeEntityId` e faixa `listQueryKeys.direction` ou
 `listQueryKeys.directionStatus`. O Emulator não exige todos os índices de produção.
 
@@ -120,14 +135,29 @@ Diagnóstico já versionado no Hub:
   detalhes. Heads candidatos: `56b1fb4ee71812e25810de013fb85be7af4533ff` e
   `3fe13c7593327de202276d74b34df3bd44f82977`. Revalidar estado/CI antes de mesclar.
 
-Próxima ação concreta: concluir CI/revisão das PR421/422, mesclar, ler o novo
-resultado do diagnóstico em produção. Exigir `FAILED_PRECONDITION` com
-`requiresIndex:true` antes de concluir falta de índice. Se for acesso negado,
-não ampliar IAM automaticamente. Se índices forem comprovadamente ausentes,
-versionar só os mínimos no Hub e usar criação aditiva/idempotente que preserve
-os índices dos demais aplicativos. Reutilizar o padrão
-`scripts/ensure_nestjourney_indexes.mjs`; não fazer deploy destrutivo do manifesto.
-Revisão independente + testes + prova READY + repetição das consultas obrigatórios.
+As PR421/422 foram mescladas: production `add5b846a4099676ab269e96bd57eb0f8e651a80`,
+main `74ec18484c5031054020a4926f5380f133697ba2`. O novo diagnóstico real,
+run `39290816826` / job `118190672386`, mostrou COUNT HTTP200 e ambas as SUM
+com HTTP400, FAILED_PRECONDITION, requiresIndex:true. Isso comprova os índices
+ausentes sem consultar dados de uma igreja real.
+
+Correção Hub PR423/424 revisada e mesclada: production
+`c5ca59a5028843233fbe927d1b9dedb3364c6d5b`, main
+`d9dbcf727c2a80dbd1019b83adb92ef64f6790af`. Cada branch preserva seus próprios
+índices anteriores e adiciona somente dois: financeEntityId + direction +
+amountCents e financeEntityId + directionStatus + amountCents (os campos direction
+ficam dentro de listQueryKeys), todos ascendentes, collection financeTransactions.
+O publisher canônico é `scripts/ensure_nestfinance_summary_indexes.mjs`, com
+workflow `nestfinance-summary-indexes.yml`; cria só índices ausentes e aguarda
+READY, sem deletar índices/documentos nem alterar IAM/billing. A investigação
+isolada agora é manual; a certificação automática faz o probe após READY.
+
+Próxima ação concreta: concluir a certificação run `39322937938`, provar os dois
+índices READY e as três consultas HTTP200; acompanhar também Rules run
+`39322937778`, que deve manter o mesmo hash certificado cdf3bffa…c5bf05. Depois
+revalidar Hoje em sessão autenticada disponível e promover o checkpoint/fingerprint
+do Finance para production, verificando a versão efetivamente servida. Se surgir
+acesso negado, não ampliar IAM; preservar dados e registrar o bloqueador real.
 
 ## Certificação ainda necessária e continuidade
 
