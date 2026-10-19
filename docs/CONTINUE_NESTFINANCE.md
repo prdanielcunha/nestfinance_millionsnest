@@ -14,6 +14,15 @@ ser revalidado com uma sessão autenticada. A tentativa segura de login foi inte
 não reiniciar pedidos de credenciais automaticamente. A verificação visual
 autenticada depende de sessão disponível e não está certificada por este documento.
 
+Incidente intermediário de publicação: a promoção documental PR338 sincronizou
+main `4a3ef7e2df5cec138ee2c0f6b606e8dc1012c60c` e production
+`ba95e433ef60c6ff38b8b08749f71bc54b990b75` (árvore f8136fab…), mas seu release
+`39325536472` parou no guard de Rules antes de publicar a imagem: outra sessão
+publicou Hub PR428. O runtime certificado anterior `88d1c8d40ec7` foi preservado.
+A atualização focada seguinte fixa o novo hash certificado 5372febb…55f8cd,
+sem aceitar hashes arbitrários. Revalidar o último release/endpoint e heads;
+uma promoção de branch não comprova por si só que o novo SHA foi servido.
+
 ## Objetivo e autorização do usuário
 
 Finalizar o aplicativo para os cultos e a tesouraria, publicar em produção e
@@ -93,12 +102,22 @@ Banco existente `(default)`: STANDARD, FIRESTORE_NATIVE, região nam5, confirmad
 por preflight somente leitura `39237708583` / `118010723436`.
 
 Outra sessão publicou o cadastro central (Hub PR425, production
-`218cb84c271a49f7ba3569438b843ae3068aad2b`). A fonte atual certificada é
+`218cb84c271a49f7ba3569438b843ae3068aad2b`). Sua fonte então certificada era
 `cdf3bffa148811de97600fd646ea4fd2331b08c9b7da594d03c680f542c5bf05`,
 Rules run `39322376345` / job `118299409689`, sucesso, com 575/114/445 checks
 financeiros/autoridade/Connect. Revisão independente confirmou preservação das
 proteções financeiras e de acesso. Finance atualiza somente o fingerprint exato
 e seu teste; não desfazer esse cadastro ou copiar sua árvore inteira para Hub main.
+
+A fonte atual certificada é Hub PR428, commit
+`5fb11db71f57550e9c32617a5da13ecf2bcfd45a`, SHA256
+`5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd`.
+Rules run `39324830021`, job `118307818773`, PASSOU e comparou o source vivo:
+114 operações de adulteração e 575 gravações financeiras negadas, 445 checks
+Connect repetidos contra a publicação real. A única mudança desde cdf3bffa foi
+negar criação direta de pessoas no Journey; proteções Finance/root/members/audit
+não mudaram. Production Hub `1efb6939e7ed5525d9eed7378811df6928a3c752` conserva
+essa mesma fonte. A revisão independente aprovou o diff e o fingerprint exatos.
 
 Finance mantém esse hash exato como pré-condição de release; nunca aceitar
 qualquer hash vivo automaticamente. Não publicar Rules próprias do Finance,
