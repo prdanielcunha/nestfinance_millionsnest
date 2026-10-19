@@ -64,7 +64,7 @@ async function run(){
     const memberRef=root.collection('members').doc(member);
     const accountId='acc_'+randomBytes(16).toString('hex');
     await root.collection('financeAccounts').doc(accountId).set({organizationId:org,financeEntityId:entity,
-      name:'Synthetic cash',type:'cash',nature:'asset',active:true,openingBalanceCents:987654321,
+      name:'Synthetic cash',normalizedName:'synthetic cash',currency:'BRL',type:'cash',nature:'asset',active:true,openingBalanceCents:987654321,
       openingBalanceDeclaration:{status:'pending_review',amountCents:987654321}});
     const grant=async(permissions:string[],role='member',scopes:any={financeEntityIds:[entity]})=>memberRef.set({
       role,status:'active',appAccess:{nestFinance:{enabled:true,roles:['finance_team'],permissions,scopes}}});
