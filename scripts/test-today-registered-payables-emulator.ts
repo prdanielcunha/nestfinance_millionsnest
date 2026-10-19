@@ -93,6 +93,10 @@ async function run(){
     assert.equal((await call()).body.operational.balance.amountCents,987654321);
     await db.collection('users').doc(member).update({ecosystemSessionVersion:2});
     assert.equal((await accountCall(accountsList,{financeEntityId:entity})).statusCode,401,'old bound tokens must not read opening amounts');
+    await grant(['finance.view','finance.accounts.manage','finance.balance.view']);
+    process.env.NESTFINANCE_ACCOUNTS_WRITE_ENABLED='true';
+    assert.equal((await accountCall(accountsUpdate,{financeEntityId:entity,accountId,name:'Synthetic cash'})).statusCode,401,
+      'old bound tokens must not read opening amounts through an update');
     await db.collection('users').doc(member).update({ecosystemSessionVersion:1});
     await grant(['finance.view','finance.accounts.manage']);
     process.env.NESTFINANCE_ACCOUNTS_WRITE_ENABLED='true';
