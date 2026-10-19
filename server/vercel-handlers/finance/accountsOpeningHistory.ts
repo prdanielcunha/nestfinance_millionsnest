@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isValidAccountId } from '../../../api/_lib/financeIdentity.js';
-import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 
 /**
  * Server-mediated opening provenance: one entity and account per request,
  * all finance history private. Neither the caller nor the browser can query
- * Firestore history directly. Only finance.review is allowed to inspect it.
+ * Firestore history directly. Reading it requires both review and balance access.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
@@ -31,7 +31,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({error:'INVALID_PARAMETERS'});
   }
   try {
-    const {context} = await resolveFinanceRequestContext(req, 'finance.review');
+    const {context, sessionList} = await resolveFinanceRequestContext(req, 'finance.review');
+    if (!hasEffectiveCapability(sessionList, 'finance.balance.view')) {
+      return res.status(403).json({error:'FORBIDDEN'});
+    }
     const accountRef = context.repository.getAccountsRef().doc(accountId);
     const accountSnap = await accountRef.get();
     if (!accountSnap.exists) return res.status(404).json({error:'ACCOUNT_NOT_FOUND'});

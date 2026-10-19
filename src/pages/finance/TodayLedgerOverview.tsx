@@ -15,6 +15,7 @@ type Props = {
   onNext: () => void;
   onRegister: () => void;
   canRegister: boolean;
+  canViewBalance?: boolean;
   onCount: () => void;
   canCount?: boolean;
   priorityState?: 'ready' | 'loading' | 'error';
@@ -26,6 +27,8 @@ const COPY = {
     eyebrow: 'Sua igreja, com clareza',
     title: 'Hoje na tesouraria',
     balance: 'Saldo registrado',
+    restricted: 'Saldo restrito',
+    restrictedHint: 'Somente pessoas autorizadas podem ver o saldo. Você pode continuar nas tarefas liberadas para você.',
     unavailable: 'Ainda não comprovável',
     whyBalance: 'Como este saldo é calculado?',
     balanceKnown: 'Este valor usa os saldos iniciais disponíveis e somente os lançamentos já efetivados. Não inclui propostas, rascunhos nem aprovações pendentes.',
@@ -49,6 +52,8 @@ const COPY = {
     eyebrow: 'Your church, clearly',
     title: 'Today in finance',
     balance: 'Recorded balance',
+    restricted: 'Restricted balance',
+    restrictedHint: 'Only authorized people can view the balance. You can continue with the tasks available to you.',
     unavailable: 'Not yet verifiable',
     whyBalance: 'How is this balance calculated?',
     balanceKnown: 'This amount uses available opening balances and posted transactions only. Proposals, drafts and pending approvals are excluded.',
@@ -72,6 +77,8 @@ const COPY = {
     eyebrow: 'Tu iglesia, con claridad',
     title: 'Hoy en tesorería',
     balance: 'Saldo registrado',
+    restricted: 'Saldo restringido',
+    restrictedHint: 'Solo las personas autorizadas pueden ver el saldo. Puedes continuar con las tareas habilitadas para ti.',
     unavailable: 'Aún no comprobable',
     whyBalance: '¿Cómo se calcula este saldo?',
     balanceKnown: 'Este importe usa saldos iniciales disponibles y solo movimientos contabilizados. Excluye propuestas, borradores y aprobaciones pendientes.',
@@ -108,13 +115,15 @@ export function TodayLedgerOverview({
   onNext,
   onRegister,
   canRegister,
+  canViewBalance = false,
   onCount,
   canCount = false,
   priorityState = 'ready',
   onRetry,
 }: Props) {
   const copy = COPY[language];
-  const balanceKnown = operational?.balance.state === 'available';
+  const balanceAllowed = canViewBalance && operational?.balance.state !== 'restricted';
+  const balanceKnown = balanceAllowed && operational?.balance.state === 'available';
   const balanceText = balanceKnown
     ? new Intl.NumberFormat(LOCALE[language], { style: 'currency', currency: 'BRL' }).format(
         operational.balance.amountCents / 100,
@@ -141,6 +150,7 @@ export function TodayLedgerOverview({
 
       <div className="nf-today-primary-grid">
         <div className="nf-balance-panel">
+          {balanceAllowed ? <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="nf-section-eyebrow">{copy.balance}</p>
             <span className="nf-balance-state">{balanceKnown ? labels.available : operational ? labels.needsBase : labels.waiting}</span>
@@ -150,6 +160,10 @@ export function TodayLedgerOverview({
             <summary className="min-h-11 w-fit cursor-pointer rounded-lg py-2 text-sm font-medium text-accent-primary underline-offset-4 hover:underline focus-visible:underline">{copy.whyBalance}</summary>
             <p className="max-w-prose pb-3 text-sm leading-6 text-text-secondary">{balanceKnown ? copy.balanceKnown : copy.balanceUnknown}</p>
           </details>
+          </> : <div className="py-2">
+            <p className="nf-section-eyebrow">{copy.restricted}</p>
+            <p className="mt-3 max-w-prose text-sm leading-6 text-text-secondary">{copy.restrictedHint}</p>
+          </div>}
           <div className="nf-daily-movements">
             <div>
               <span className="flex items-center gap-2 text-sm text-text-secondary"><ArrowDownLeft className="h-4 w-4 text-semantic-success" aria-hidden="true" />{labels.income}</span>

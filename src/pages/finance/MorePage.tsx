@@ -14,6 +14,7 @@ import { CANONICAL_NAVIGATION } from '@/src/app/layouts/ShellLayout';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { returnToMillionsNest, signOutNestFinanceAndReturnToHub } from '@/src/services/ecosystemExitService';
 import { Surface } from '@/src/components/foundation';
+import { FinanceAccessSummary } from '@/src/components/finance/FinanceAccessSummary';
 
 const ACCOUNT_COPY: Record<Language, { title: string; hub: string; signOut: string }> = {
   PT: { title: 'Conta', hub: 'Voltar ao MillionsNest', signOut: 'Sair do NestFinance' },
@@ -78,6 +79,7 @@ export default function MorePage() {
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{t('more_title')}</h1>
         <p className="mt-2 max-w-2xl text-base leading-relaxed text-text-secondary">{t('more_desc')}</p>
       </header>
+      <FinanceAccessSummary />
 
       {canManageFinanceEntities(accessState) ? (
         <section aria-labelledby="more-organization-title">

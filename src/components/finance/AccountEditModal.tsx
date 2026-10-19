@@ -55,7 +55,9 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
   const { language } = useLanguage();
   const { accessState } = useAuth();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
-  const canViewOpeningHistory = hasEffectiveCapability(accessState,'finance.review');
+  const canViewBalance = hasEffectiveCapability(accessState,'finance.balance.view');
+  const canViewOpeningHistory = hasEffectiveCapability(accessState,'finance.review') &&
+    hasEffectiveCapability(accessState,'finance.balance.view');
   const w = OPENING_EDIT_COPY[language];
   const hw = HISTORY_COPY[language];
   const [name, setName] = useState(account.name);
@@ -162,7 +164,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
         accountLast4: accountLast4.trim() === '' ? null : accountLast4.trim(),
         financeEntityId: activeFinanceEntityId,
       };
-      if (editingOpening) {
+      if (editingOpening && canViewBalance) {
         if (openingReason.trim().length < 10 || openingReason.trim().length > 240) {
           throw new Error(w.invalid);
         }
@@ -325,7 +327,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               
             </div>
             
-            <fieldset className="space-y-3 rounded-xl border border-border-default p-4">
+            {canViewBalance ? <fieldset className="space-y-3 rounded-xl border border-border-default p-4">
               <legend className="px-1 text-base font-semibold text-text-primary">{w.title}</legend>
               <p className="text-sm leading-relaxed text-text-secondary">{w.description}</p>
               {typeof account.openingBalanceCents==='number' && !account.openingBalanceDeclaration ? (
@@ -427,7 +429,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                     className="min-h-12 w-full rounded-xl border border-border-default px-4 text-sm font-semibold text-text-primary disabled:opacity-50">{hw.more}</button>
                 </div>}
               </section>}
-            </fieldset>
+            </fieldset> : null}
 
             {/* Save Area Buffer */}
             <div className="h-4" />

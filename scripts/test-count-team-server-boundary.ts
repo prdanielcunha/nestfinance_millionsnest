@@ -82,11 +82,29 @@ for (const person of [churchTreasurerCountOnly, teamAdministratorCountOnly]) {
 }
 assert.equal(isExplicitCountOnlySession(churchSecretaryFinance), false);
 assert.equal(isExplicitCountOnlySession(mixedResponsibilities), false);
-const unknownGrant = {
+const balanceVisibilityOnly = {
   ...churchTreasurerCountOnly,
   permissions: [...churchTreasurerCountOnly.permissions, 'finance.balance.view'],
 };
-assert.equal(isExplicitCountOnlySession(unknownGrant), false, 'Extra grant disables Count-only marker until the fine-grained contract is certified');
+assert.equal(isExplicitCountOnlySession(balanceVisibilityOnly), true, 'Balance visibility must never elevate shared Count draft permissions');
+assert.throws(() => assertCountTeamDraftBoundary(balanceVisibilityOnly, 'transactions-create-draft'),
+  (error: unknown) => (error as {status:number}).status === 403);
+assert.throws(() => assertCountTeamReadBoundary(balanceVisibilityOnly, 'transactions-summary'),
+  (error: unknown) => (error as {status:number}).status === 403);
+for (const organizationRole of ['member','admin']) {
+  const counterWithBalance = {...balanceVisibilityOnly, organizationRole};
+  for (const capability of ['finance.review','finance.accounts.manage','finance.manage'])
+    assert.equal(hasEffectiveCapability(counterWithBalance,capability),false,'visibility must not restore treasury authority');
+  assert.doesNotThrow(() => assertCountTeamDraftBoundary(counterWithBalance,'count-sessions-create'));
+  assert.throws(() => assertCountTeamDraftBoundary(counterWithBalance,'transactions-create-draft'),
+    (error:unknown)=>(error as {status:number}).status===403);
+  for (const operation of ['accounts-list','transactions-summary','transactions-list'])
+    assert.throws(() => assertCountTeamReadBoundary(counterWithBalance,operation),
+      (error:unknown)=>(error as {status:number}).status===403);
+}
+const unknownGrant = { ...churchTreasurerCountOnly,
+  permissions: [...churchTreasurerCountOnly.permissions, 'finance.future_unknown'], };
+assert.equal(isExplicitCountOnlySession(unknownGrant), false, 'Unknown extra capabilities must not be silently discarded');
 assert.equal(isExplicitCountOnlySession({
   ...churchTreasurerCountOnly,
   permissions: ['finance.count.view'],
@@ -123,6 +141,12 @@ assert.equal(isExplicitCountOnlySession(teamOnlyAdministrator), false,
 for (const permission of ['finance.view', 'finance.create_drafts', 'finance.review', 'finance.manage', 'organization.manage_entities']) {
   assert.equal(hasEffectiveCapability(teamOnlyAdministrator, permission), false,
     'Team-only administrator must never inherit treasury authority');
+}
+for(const organizationRole of ['member','admin']){
+  const teamWithBalance={...teamOnlyAdministrator,organizationRole,
+    permissions:['organization.manage_team','finance.balance.view']};
+  for(const permission of ['finance.view','finance.create_drafts','finance.review','finance.manage','finance.balance.view'])
+    assert.equal(hasEffectiveCapability(teamWithBalance,permission),false,'team administration plus visibility cannot unlock financial mutations');
 }
 
 const readableCountResources = [

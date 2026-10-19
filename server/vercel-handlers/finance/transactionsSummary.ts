@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { AggregateField } from 'firebase-admin/firestore';
-import { resolveFinanceRequestContext } from './accessHelpers.js';
+import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
 import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { getAccountNature } from '../../../shared/finance/smartLogic.js';
 import {
@@ -77,6 +77,7 @@ function plusDays(dateOnly: string, days: number) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   }
@@ -99,7 +100,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_LOCAL_DAY' });
     }
 
-    const { db, organizationId, context } = await resolveFinanceRequestContext(req, 'finance.view');
+    const { db, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
+    const canViewBalance = hasEffectiveCapability(sessionList, 'finance.balance.view');
 
     const draftQuery = statusQuery(context.repository, financeEntityId, 'draft');
     const readyQuery = statusQuery(context.repository, financeEntityId, 'ready_for_review');
@@ -158,16 +160,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sumAmount(todayIncomeReversed),
       sumAmount(todayExpenseAll),
       sumAmount(todayExpenseReversed),
-      sumAmount(postedIncome),
-      sumAmount(postedExpense),
-      sumAmount(postedLiabilitySettlement),
-      countQuery(postedAdjustments),
-      context.repository.getAccountsQuery().limit(1001).get(),
+      canViewBalance ? sumAmount(postedIncome) : 0,
+      canViewBalance ? sumAmount(postedExpense) : 0,
+      canViewBalance ? sumAmount(postedLiabilitySettlement) : 0,
+      canViewBalance ? countQuery(postedAdjustments) : 0,
+      canViewBalance ? context.repository.getAccountsQuery().limit(1001).get() : null,
       dueQuery.get(),
       registeredDueQuery.get(),
     ]);
 
-    if (accountSnapshot.size > 1000) {
+    if (accountSnapshot && accountSnapshot.size > 1000) {
       return res.status(409).json({ error: 'CATALOG_LIMIT_EXCEEDED' });
     }
 
@@ -185,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const simpleDrafts = Math.max(0, draftTotal - returnedCorrections);
     const totalOpen = draftTotal + readyForReview + approvedForPosting;
 
-    const activeAssetAccounts = accountSnapshot.docs.flatMap((doc: any) => {
+    const activeAssetAccounts = (accountSnapshot?.docs ?? []).flatMap((doc: any) => {
       const data = doc.data() || {};
       context.repository.assertEntityIsolation(data);
       if (data.active === false) return [];
@@ -230,13 +232,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dueSoonTruncated,
       registeredPayablesDueSoonCount,
       registeredPayablesDueSoonTruncated,
-      balance: buildTodayOperationalBalance({
+      balance: canViewBalance ? buildTodayOperationalBalance({
         activeAssetAccounts,
         postedIncomeCents,
         postedExpenseCents,
         postedLiabilitySettlementCents,
         postedAdjustmentCount,
-      }),
+      }) : { state: 'restricted', amountCents: null, reason: 'permission_required' },
       source: {
         deterministic: true,
         aiUsedForTotals: false,
