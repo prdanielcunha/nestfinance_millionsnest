@@ -22,6 +22,9 @@ export function explicitCountOnlyGrant(capabilities: unknown): boolean | null {
   return grants.every((grant) =>
     grant === 'finance.view' ||
     grant === 'finance.create_drafts' ||
+    // A visibility grant must not turn shared Count draft permissions into
+    // authority to create treasury transactions. Count's read boundary remains.
+    grant === 'finance.balance.view' ||
     grant === 'organization.manage_team' ||
     grant.startsWith('finance.count.')
   );
@@ -41,6 +44,6 @@ export function explicitTeamOnlyGrant(capabilities: unknown): boolean {
     !grants.some((grant) =>
       grant === '*' ||
       grant === 'organization.manage_entities' ||
-      grant.startsWith('finance.')
+      (grant.startsWith('finance.') && grant !== 'finance.balance.view')
     );
 }

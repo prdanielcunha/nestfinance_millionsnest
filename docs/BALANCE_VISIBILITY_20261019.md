@@ -4,6 +4,10 @@ The Today balance requires the canonical `finance.balance.view` capability.
 As with other finance capabilities, canonical full administrators, global access,
 `*` and `finance.manage` include it. Count-only and team-only restrictions remain
 stronger than organizational role labels. A church title alone is not a grant.
+Adding a balance visibility grant alone to a Count-only membership does not
+remove its operation allowlist or enable treasury drafts. Count-only remains
+inside its dedicated workspace; this slice does not add a treasury balance
+panel to that workspace.
 
 `finance.view`, recording drafts, and reviewing transactions do not by themselves
 grant balance visibility. Unauthorized summary responses return a restricted

@@ -121,9 +121,14 @@ async function run(){
     }
     await grant(['finance.view','finance.balance.view'],'member',{financeEntityIds:['synthetic_other_entity']});
     assert.equal((await call()).statusCode,403,'balance grant must not bypass entity scope');
-    for(const permissions of [['finance.view','finance.create_drafts','finance.count.execute'],['organization.manage_team']]){
+    for(const permissions of [['finance.view','finance.create_drafts','finance.count.execute'],
+      ['finance.view','finance.create_drafts','finance.count.execute','finance.balance.view'],['organization.manage_team'],
+      ['organization.manage_team','finance.balance.view']]){
       await grant(permissions,'admin');
       assert.equal((await call()).statusCode,403,'count-only and team-only administration never inherit treasury');
+      assert.equal((await accountCall(accountsList,{financeEntityId:entity})).statusCode,403,'visibility cannot unlock opening catalogs for Count/team-only');
+      assert.equal((await accountCall(accountsUpdate,{financeEntityId:entity,accountId,name:'Synthetic renamed cash'})).statusCode,403,
+        'visibility cannot unlock account mutations for Count/team-only');
     }
     actor=uid;
 
