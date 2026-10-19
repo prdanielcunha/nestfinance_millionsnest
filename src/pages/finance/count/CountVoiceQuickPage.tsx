@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { countEntryTypesForSession } from '@/shared/finance/countCollectionScope';
 import { COLLECTION_COPY, CountCollectionNotice } from './CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -143,7 +144,7 @@ function CountVoiceQuickContent() {
   const { activeFinanceEntityId } = useFinanceEntity();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const userId = user?.uid || '';
-  const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canEdit = canExecuteCount(accessState);
 
   const [session, setSession] = useState<CountSessionDetail | null>(null);
   const [values, setValues] = useState<Values>(ZERO_VALUES);

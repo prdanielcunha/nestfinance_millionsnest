@@ -9,11 +9,17 @@
  * legacy Count and treasury APIs. They are not treasury authority for members
  * whose Hub grants explicitly identify Count-only responsibility.
  */
+import { isIndividualFinanceAccess } from './individualAccess.js';
+
 export function explicitCountOnlyGrant(capabilities: unknown): boolean | null {
   // Malformed canonical grants must never be silently discarded: doing so
   // could turn a mixed/unknown responsibility set into an apparent Count-only set.
   if (!Array.isArray(capabilities) || capabilities.some(value => typeof value !== 'string')) return null;
   const grants: string[] = capabilities;
+  if (isIndividualFinanceAccess(grants)) {
+    return (grants.includes('finance.count.execute') || grants.includes('finance.count.view')) &&
+      !grants.some(grant => ['*', 'finance.manage', 'finance.treasury.view'].includes(grant));
+  }
 
   if (!grants.includes('finance.count.execute') && !grants.includes('finance.count.view')) {
     return null; // No explicit marker: preserve the conservative legacy bridge.

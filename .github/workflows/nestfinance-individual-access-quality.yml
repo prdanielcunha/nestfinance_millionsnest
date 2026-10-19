@@ -1,0 +1,26 @@
+name: NestFinance Individual Access Quality
+on:
+  pull_request:
+  push:
+    branches: [main, production]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canonical-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: node --import tsx scripts/test-count-team-server-boundary.ts
+      - run: FIREBASE_PROJECT_ID=demo-nestfinance-access npx firebase-tools@15.27.0 emulators:exec --only firestore --project demo-nestfinance-access "node --import tsx scripts/test-individual-finance-access-emulator.ts"

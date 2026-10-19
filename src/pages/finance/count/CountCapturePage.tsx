@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ArrowLeft, Camera, FileImage, RotateCcw, RotateCw, ShieldCheck, ShieldX, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -36,7 +37,7 @@ export default function CountCapturePage() {
   const { language } = useLanguage();
   const copy = COUNT_CAPTURE_COPY[language];
   if (accessState.status === 'initializing' || accessState.status === 'authenticated_unresolved') return null;
-  if (!hasEffectiveCapability(accessState, 'finance.view') || !hasEffectiveCapability(accessState, 'finance.create_drafts')) {
+  if (!hasEffectiveCapability(accessState, 'finance.view') || !canExecuteCount(accessState)) {
     return <main className="flex flex-1 flex-col items-center justify-center bg-surface-base p-8 text-center"><ShieldX className="h-10 w-10 text-semantic-danger" aria-hidden="true" /><p className="mt-4 max-w-sm text-sm text-text-muted">{copy.accessDenied}</p></main>;
   }
   return <FinanceContextGuard><CountCaptureContent /></FinanceContextGuard>;

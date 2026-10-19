@@ -200,7 +200,8 @@ async function run() {
   assert.ok(countPage.includes('lg:'));
   assert.ok(countSession.includes('sm:'));
   assert.ok(countSession.includes('lg:'));
-  assert.ok(shell.includes('md:'));
+  assert.ok(shell.includes('lg:pl-64'), 'Desktop sidebar starts only when there is room for the workspace');
+  assert.ok(shell.includes('safe-area-inset-bottom,0px)+5rem'), 'Compact content reserves navigation and device inset');
 
   console.log('✅ Roadmap Cycle 02 accessibility and simplicity gate passed');
 }

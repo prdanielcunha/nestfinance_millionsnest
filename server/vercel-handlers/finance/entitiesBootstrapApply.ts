@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
-import { requireFinanceEntityAccess } from './accessHelpers.js';
+import { resolveFinanceRequestContext } from './accessHelpers.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { stageCanonicalAuditCreate, stageCanonicalAuditRecord } from './auditFactProjection.js';
 
@@ -58,13 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD' });
     }
 
-    const access = await requireFinanceEntityAccess({
-      db: firestore,
-      uid,
-      organizationId,
-      financeEntityId,
-      sessionGranted: true
-    });
+    const { context: access } = await resolveFinanceRequestContext(req, 'finance.manage');
 
     const { randomUUID, createHash } = await import('crypto');
     const { BOOTSTRAP_TEMPLATES } = await import('../../../shared/finance/bootstrapTemplates.js');
@@ -519,6 +513,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
   } catch (error: any) {
+    if ([400, 401, 403].includes(error?.status)) return res.status(error.status).json({ error: error.error || 'FORBIDDEN' });
+    if (error?.message === 'FORBIDDEN_FINANCE_ACCESS') return res.status(403).json({ error: 'FORBIDDEN' });
     if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }

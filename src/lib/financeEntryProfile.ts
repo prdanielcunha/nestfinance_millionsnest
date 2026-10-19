@@ -1,5 +1,6 @@
 import type { EcosystemAccessState } from '../types/access';
 import { hasEffectiveCapability } from './permissions';
+import { isIndividualFinanceAccess } from '../../shared/finance/individualAccess.js';
 import { explicitCountOnlyGrant, explicitTeamOnlyGrant, hasExplicitCountResponsibility } from '../../shared/finance/countResponsibility.js';
 
 export type FinanceEntryProfile = {
@@ -22,6 +23,13 @@ export function getFinanceEntryProfile(access: EcosystemAccessState | null): Fin
   const empty = { canCount: false, canFinance: false, canAccountant: false, countOnly: false,
     financeOnly: false, accountantOnly: false, roleBasis: 'capability_fallback' as const };
   if (!access) return empty;
+  if (!access.isGlobalAccess && isIndividualFinanceAccess(access.capabilities)) {
+    const canCount = hasEffectiveCapability(access, 'finance.count.execute') || hasEffectiveCapability(access, 'finance.count.view');
+    const canFinance = hasEffectiveCapability(access, 'finance.treasury.view');
+    const canAccountant = hasEffectiveCapability(access, 'finance.accountant.view_exports');
+    return { canCount, canFinance, canAccountant, countOnly: canCount && !canFinance && !canAccountant,
+      financeOnly: canFinance && !canCount && !canAccountant, accountantOnly: canAccountant && !canFinance && !canCount, roleBasis: 'explicit' };
+  }
   const countGrant = explicitCountOnlyGrant(access.capabilities);
   const teamOnly = explicitTeamOnlyGrant(access.capabilities);
   const explicitCount = hasExplicitCountResponsibility(access.capabilities);

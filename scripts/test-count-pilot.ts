@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { COUNT_COPY } from '../src/pages/finance/count/countCopy';
+import { canExecuteCount } from '../src/lib/permissions';
 import {
   COUNT_DENOMINATIONS_CENTS,
   COUNT_ENTRY_TYPES,
@@ -43,9 +44,12 @@ console.log('Running Count 2.0 H1/H2 product checks...');
 
 verify('Count home is no longer placeholder', !home.includes('FinancePlaceholderPage'));
 verify('Count home keeps finance.view gate', home.includes("'finance.view'"));
-verify('Count create keeps finance.create_drafts gate', home.includes("'finance.create_drafts'"));
+verify('Count create uses dedicated execution gate', home.includes('canExecuteCount(accessState)'));
 verify('Count session keeps finance.view gate', session.includes("'finance.view'"));
-verify('Count session edit keeps finance.create_drafts gate', session.includes("'finance.create_drafts'"));
+verify('Count session edit uses dedicated execution gate', session.includes('canExecuteCount(accessState)'));
+verify('Dedicated Count permission permits individual execution', canExecuteCount({ organizationRole: 'member', capabilities: ['finance.access.individual_v1', 'finance.count.execute'] } as any));
+verify('Individual registration does not imply Count execution even for admin', !canExecuteCount({ organizationRole: 'admin', capabilities: ['finance.access.individual_v1', 'finance.create_drafts'] } as any));
+verify('Existing draft-based Count permission remains compatible', canExecuteCount({ organizationRole: 'member', capabilities: ['finance.create_drafts'] } as any));
 verify('Count has dedicated session route', routes.includes("countSession: '/finance/count/:sessionId'"));
 verify('router lazy-loads Count session page', router.includes('CountSessionPage') && router.includes('APP_ROUTES.countSession'));
 verify('Count H1 uses four certified gateway operations', ['count-sessions-list', 'count-sessions-create', 'count-sessions-detail', 'count-sessions-save-first-count'].every((operation) => service.includes(operation) && gateway.includes(`case '${operation}'`)));

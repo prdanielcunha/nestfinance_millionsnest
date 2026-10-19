@@ -1,4 +1,11 @@
 import { EcosystemAccessState } from "../types/access";
+import { individualFinanceCapability } from '../../shared/finance/individualAccess.js';
+import { isIndividualFinanceAccess } from '../../shared/finance/individualAccess.js';
+
+export function canExecuteCount(accessState: EcosystemAccessState | null): boolean {
+  return hasEffectiveCapability(accessState, 'finance.count.execute') ||
+    (!isIndividualFinanceAccess(accessState?.capabilities) && hasEffectiveCapability(accessState, 'finance.create_drafts'));
+}
 import { explicitCountOnlyGrant, explicitTeamOnlyGrant } from '../../shared/finance/countResponsibility.js';
 
 export function canManageFinanceEntities(accessState: EcosystemAccessState): boolean {
@@ -8,6 +15,8 @@ export function canManageFinanceEntities(accessState: EcosystemAccessState): boo
 export function hasEffectiveCapability(accessState: EcosystemAccessState | null, capability: string): boolean {
   if (!accessState) return false;
   if (accessState.isGlobalAccess) return true;
+  const individual = individualFinanceCapability(accessState.capabilities, capability);
+  if (individual !== undefined) return individual;
 
   if (
     explicitTeamOnlyGrant(accessState.capabilities) &&

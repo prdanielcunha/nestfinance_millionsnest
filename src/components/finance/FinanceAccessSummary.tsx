@@ -3,13 +3,16 @@ import { useLanguage } from '@/src/contexts/LanguageContext';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { Surface } from '@/src/components/foundation';
 import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
+import { returnToMillionsNest } from '@/src/services/ecosystemExitService';
 
 const COPY = {
   PT: {
     title: 'Seus acessos', allowed: 'Permitido', restricted: 'Não permitido',
     help: 'Cada acesso libera uma tarefa. Registrar entradas e despesas não libera o saldo. Quem administra todo o financeiro também pode ver o saldo.',
-    manage: 'Os acessos de cada pessoa são definidos no MillionsNest pela pessoa responsável pela equipe.',
+    manage: 'No MillionsNest, abra a organização, escolha Membros e Convites e depois Permissões do NestFinance na pessoa desejada.',
+    open: 'Abrir MillionsNest',
     items: [
+      ['finance.count.execute', 'Contar dízimos e ofertas', 'Registrar e conferir o dinheiro recebido no culto.'],
       ['finance.balance.view', 'Ver saldo', 'Ver quanto a igreja tem registrado, quando houver dados suficientes para calcular.'],
       ['finance.create_drafts', 'Registrar entradas e despesas', 'Informar valores e comprovantes para conferência.'],
       ['finance.review', 'Conferir lançamentos', 'Conferir informações e pedir correções.'],
@@ -20,8 +23,10 @@ const COPY = {
   EN: {
     title: 'Your access', allowed: 'Allowed', restricted: 'Not allowed',
     help: 'Each permission enables a task. Recording income and expenses does not enable balance access. People who manage all finances can also view the balance.',
-    manage: 'Each person’s access is set in MillionsNest by the person responsible for the team.',
+    manage: 'In MillionsNest, open the organization, choose Members and Invitations, then NestFinance permissions for the person.',
+    open: 'Open MillionsNest',
     items: [
+      ['finance.count.execute', 'Count tithes and offerings', 'Record and check money received at the service.'],
       ['finance.balance.view', 'View balance', 'View the church’s recorded balance when enough verified data is available.'],
       ['finance.create_drafts', 'Record income and expenses', 'Enter amounts and receipts for review.'],
       ['finance.review', 'Check entries', 'Check information and request corrections.'],
@@ -32,8 +37,10 @@ const COPY = {
   ES: {
     title: 'Tus accesos', allowed: 'Permitido', restricted: 'No permitido',
     help: 'Cada permiso habilita una tarea. Registrar ingresos y gastos no habilita el saldo. Quien administra todas las finanzas también puede ver el saldo.',
-    manage: 'Los accesos de cada persona se definen en MillionsNest por la persona responsable del equipo.',
+    manage: 'En MillionsNest, abre la organización, elige Miembros e Invitaciones y luego Permisos de NestFinance en la persona.',
+    open: 'Abrir MillionsNest',
     items: [
+      ['finance.count.execute', 'Contar diezmos y ofrendas', 'Registrar y revisar el dinero recibido en el culto.'],
       ['finance.balance.view', 'Ver saldo', 'Ver el saldo registrado de la iglesia cuando haya datos suficientes para calcularlo.'],
       ['finance.create_drafts', 'Registrar ingresos y gastos', 'Informar importes y comprobantes para revisión.'],
       ['finance.review', 'Revisar movimientos', 'Revisar información y solicitar correcciones.'],
@@ -61,6 +68,7 @@ export function FinanceAccessSummary() {
         </li>)}
       </ul>
       <p className="mt-4 text-sm leading-6 text-text-secondary">{copy.manage}</p>
+      <button type="button" onClick={() => returnToMillionsNest()} className="nf-interactive mt-3 min-h-12 rounded-xl border border-border-strong px-4 py-3 text-sm font-semibold text-text-primary">{copy.open}</button>
     </Surface>
   </section>;
 }

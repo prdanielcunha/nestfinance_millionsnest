@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, FileText, ShieldX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +57,7 @@ function CountPaperFormsContent() {
   const copy = COUNT_PAPER_COPY[language];
   const countCopy = COUNT_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
-  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canCreate = canExecuteCount(accessState);
   const [items, setItems] = useState<CountSessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

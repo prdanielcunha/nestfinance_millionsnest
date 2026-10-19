@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ArrowLeft, Camera, FileImage, RotateCcw, RotateCw, ShieldCheck, ShieldX, Upload } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -98,7 +99,7 @@ export default function CountFreeFormCapturePage() {
   const { language } = useLanguage();
   const copy = COPY[language];
   if (accessState.status === 'initializing' || accessState.status === 'authenticated_unresolved') return null;
-  if (!hasEffectiveCapability(accessState, 'finance.create_drafts')) {
+  if (!canExecuteCount(accessState)) {
     return <main className="flex flex-1 items-center justify-center p-8 text-center"><div><ShieldX className="mx-auto h-10 w-10 text-semantic-danger" /><p className="mt-4 text-sm text-text-muted">{copy.accessDenied}</p></div></main>;
   }
   return <FinanceContextGuard><Content /></FinanceContextGuard>;

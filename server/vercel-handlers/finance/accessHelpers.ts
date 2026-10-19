@@ -1,8 +1,9 @@
 import type { firestore } from 'firebase-admin';
+import { individualFinanceCapability, isIndividualFinanceAccess } from '../../../shared/finance/individualAccess.js';
 import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
 
 import { canManageFinanceBootstrap } from './bootstrapAvailabilityHelper.js';
-import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
+import { assertCountTeamCapabilityBoundary, assertCountTeamDraftBoundary, assertCountTeamReadBoundary, isExplicitCountOnlySession, isAllowedCountTeamDraftOperation, isAllowedCountTeamReadOperation } from './countTeamOperationPolicy.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { VercelRequest } from '@vercel/node';
@@ -107,6 +108,19 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
   // Limit Count-only accounts at the verified server session boundary for both
   // mutation and read operations; the gateway operation is a trusted server marker.
   const gatewayOperation = (req as VercelRequest & { __nestFinanceResolvedGatewayOperation?: string }).__nestFinanceResolvedGatewayOperation;
+  let effectiveRequiredCapability = requiredCapability;
+  if (!sessionList.isGlobalAccess && isIndividualFinanceAccess(sessionList.permissions)) {
+    if (requiredCapability === 'finance.create_drafts' && isAllowedCountTeamDraftOperation(gatewayOperation)) {
+      if (!hasEffectiveCapability(sessionList, 'finance.count.execute')) {
+        throw { status: 403, error: 'FORBIDDEN_COUNT_EXECUTION_REQUIRED' };
+      }
+      effectiveRequiredCapability = 'finance.count.execute';
+    }
+    if (requiredCapability === 'finance.view' && !hasEffectiveCapability(sessionList, 'finance.treasury.view') &&
+        !(isAllowedCountTeamReadOperation(gatewayOperation) && hasFinanceCapability(sessionList, 'finance.count.view'))) {
+      throw { status: 403, error: 'FORBIDDEN_TREASURY_ROLE_REQUIRED' };
+    }
+  }
   if (requiredCapability === 'finance.create_drafts' || requiredCapability === 'finance.count.execute') {
     assertCountTeamDraftBoundary(sessionList, gatewayOperation);
   } else if (requiredCapability === 'finance.view' || requiredCapability === 'finance.count.view') {
@@ -124,7 +138,7 @@ export async function resolveFinanceRequestContext(req: VercelRequest, requiredC
     organizationId,
     financeEntityId,
     sessionList,
-    capability: requiredCapability
+    capability: effectiveRequiredCapability
   });
 
   return { admin, db, uid, actorLabel, organizationId, financeEntityId, sessionList, context };
@@ -139,6 +153,8 @@ function canonicalPermissions(sessionList: any): string[] {
 
 export function hasEffectiveCapability(sessionList: any, requestedCapability: string): boolean {
   if (sessionList?.isGlobalAccess) return true;
+  const individual = individualFinanceCapability(canonicalPermissions(sessionList), requestedCapability);
+  if (individual !== undefined) return individual;
   if (
     explicitTeamOnlyGrant(sessionList?.permissions ?? sessionList?.capabilities) &&
     (requestedCapability.startsWith('finance.') || requestedCapability === 'organization.manage_entities')
@@ -266,7 +282,7 @@ export async function requireFinanceEntityAccess({
     throw new Error('FINANCE_ENTITY_NOT_ACTIVE');
   }
 
-  const access = await canManageFinanceBootstrap(uid, organizationId, financeEntityId);
+  const access = await canManageFinanceBootstrap(uid, organizationId, financeEntityId, 'finance.treasury.view');
   if (!access.canApply) {
     throw new Error('FORBIDDEN_FINANCE_ACCESS');
   }

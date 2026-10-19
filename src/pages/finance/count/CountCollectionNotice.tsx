@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import { APP_ROUTES } from '@/src/app/router/routes';
 
 export const COLLECTION_COPY = {
@@ -16,8 +17,7 @@ export function CountCollectionNotice({ cashOnly }: { cashOnly: boolean }) {
   return <section className="nf-collection-note rounded-2xl border border-border-subtle bg-surface-default p-4 sm:p-5">
     <h2 className="text-base font-semibold text-text-primary">{copy.title}</h2>
     <p className="mt-2 max-w-3xl text-base leading-relaxed text-text-secondary">{copy.body}</p>
-    {hasEffectiveCapability(accessState, 'finance.create_drafts') &&
-      hasEffectiveCapability(accessState, 'finance.review') ?
+    {hasEffectiveCapability(accessState, 'finance.create_drafts') && getFinanceEntryProfile(accessState).canFinance ?
       <button type="button" className="mt-3 min-h-12 rounded-xl px-3 text-left text-base font-semibold text-accent-primary hover:bg-surface-secondary focus-visible:outline-accent-primary"
         onClick={() => navigate(`${APP_ROUTES.transactionCreate}?direction=income`)}>{copy.action}</button> : null}
   </section>;
