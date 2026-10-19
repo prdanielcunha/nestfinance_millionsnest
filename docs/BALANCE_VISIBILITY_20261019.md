@@ -17,9 +17,9 @@ access. Both Today presentations hide the balance and calculation details when
 the client or server denies it; permission is not a cosmetic eye toggle.
 
 More shows current access in plain PT/EN/ES language. This panel is read-only.
-An individual member permission editor remains a Hub responsibility and is not
-implemented by this slice. No membership grants, financial records, shared Rules,
-IAM, posting flags or production data are changed by the release.
+The subsequent individual-access release adds the editor to canonical Hub team
+management; see `INDIVIDUAL_MEMBER_ACCESS_20261019.md`. This release does not
+automatically change existing grants, financial records, IAM or posting flags.
 
 Verification: SSR checks restricted HTML in all three languages, including a
 stale authorized snapshot. The existing Today Firestore emulator integration
