@@ -222,9 +222,9 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          // Hub production 7dcbcbe / verified publication run 39175718830.
-          // Only NestJourney birthdays changed; Finance gateway-owned storage is unchanged.
-          const approvedHubSha = '3e13dbc593090f830c95d88749efe787dcf22699cc027bbc0736a857b5c66ee1';
+          // Hub production b3fe22b / canonical authority publication run 39239780589.
+          // Membership and root identity authority are server-protected; gateway storage remains closed.
+          const approvedHubSha = 'f8e53e531169fb658fce646fb7abd241a286af2e343b3a446a8d33f1a17709a9';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);
