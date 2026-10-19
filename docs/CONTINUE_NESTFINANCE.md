@@ -6,10 +6,11 @@ Leia este arquivo, `AGENTS.md`, `README.md`, `docs/ARCHITECTURE_CURRENT.md` e
 os contratos específicos antes de alterar código. Revalide os SHAs remotos:
 outros trabalhos do ecossistema podem continuar em paralelo.
 
-Última atualização operacional: o diagnóstico confirmou os dois índices
-ausentes; Hub PR423/424 foram mescladas. A certificação dos índices está no run
-`39322937938` (job `118301429225`), ainda exigindo prova READY/COUNT/SUM antes
-de marcar o resumo resolvido. A tentativa segura de login foi interrompida;
+Última atualização operacional: os dois índices ausentes foram corrigidos pelo
+Hub PR423/424. A certificação `39322937938`, tentativa 2, job `118305810952`,
+PASSOU: ambos READY e COUNT/SUM/SUM HTTP200, sem dados reais de uma igreja.
+A causa técnica comprovada foi corrigida; o resumo na interface ainda precisa
+ser revalidado com uma sessão autenticada. A tentativa segura de login foi interrompida;
 não reiniciar pedidos de credenciais automaticamente. A verificação visual
 autenticada depende de sessão disponível e não está certificada por este documento.
 
@@ -39,12 +40,18 @@ NestFinance: `prdanielcunha/nestfinance_millionsnest`.
 Domínio: `https://nestfinance.millionsnest.com`.
 Runtime: Firebase Hosting + Cloud Run `nestfinance-api`, projeto `millionsnest`.
 
-- Main certificado: `b087849cdb882202c4b143476a8cc6fc485fb502`.
-- Production certificado: `1d3daf321474b67504c08444c85120e83f59148f`.
-- Ambos tinham árvore `85aa3519c11a0808dd4fe5b2563030660ef43012` antes deste
-  checkpoint documental. PR330/331 publicaram permissões individuais e ajustes
-  responsivos; PR332/333 atualizaram o fingerprint certificado das Rules.
-- Release final confirmado: Actions `39240755003`, job `118020701816`, sucesso.
+- Base certificada antes da última atualização documental deste arquivo:
+  main `ff442637099f1a3092a68d390eb5007163e4b5d3`, production
+  `88d1c8d40ec7b8cda8ec71c4a8c778cae44f4cf1`, mesma árvore
+  `81dee8ed1709ed97354baf68a6e234bf1f8ee80e`. Revalidar os heads remotos;
+  a promoção do checkpoint final pode avançar os SHAs sem mudar código runtime.
+- PR330/331 publicaram permissões individuais e ajustes responsivos;
+  PR332/333 atualizaram o primeiro fingerprint certificado das Rules.
+  PR334/335 e promoção PR336 guardaram a continuidade e o novo fingerprint
+  certificado do Hub, preservando o cadastro central de outra sessão.
+- Promoção PR336: 22 checks frescos aprovados; release Actions `39324214529`,
+  job `118305733779`, SUCESSO. Cloud Run, Hosting e domínio oficial confirmaram
+  o SHA servido `88d1c8d40ec7`; smoke sem autenticação continuou negado.
 - Endpoint público de versão: `/api/system/release`.
 - Smoke sem autenticação: POST
   `/api/finance-gateway?operation=transactions-summary`, JSON com
@@ -99,7 +106,7 @@ relaxar RBAC, trocar IAM/billing ou restaurar Rules vulneráveis.
 Após salvar permissões individuais reais, rollback deve manter o servidor
 compatível com o marcador; versão antiga pode devolver herança ampla indevida.
 
-## Bloqueador ativo: resumo Hoje não carrega
+## Resumo Hoje: índices corrigidos; validação autenticada pendente
 
 A revisão autenticada no navegador revelou erro de leitura das prioridades/
 resumo, embora a consulta de movimentações abra. Não marcar o aplicativo inteiro
@@ -152,15 +159,30 @@ workflow `nestfinance-summary-indexes.yml`; cria só índices ausentes e aguarda
 READY, sem deletar índices/documentos nem alterar IAM/billing. A investigação
 isolada agora é manual; a certificação automática faz o probe após READY.
 
-Próxima ação concreta: concluir a certificação run `39322937938`, provar os dois
-índices READY e as três consultas HTTP200; acompanhar também Rules run
-`39322937778`, que deve manter o mesmo hash certificado cdf3bffa…c5bf05. Depois
-revalidar Hoje em sessão autenticada disponível e promover o checkpoint/fingerprint
-do Finance para production, verificando a versão efetivamente servida. Se surgir
-acesso negado, não ampliar IAM; preservar dados e registrar o bloqueador real.
+Certificação concluída: run `39322937938`, tentativa 2, job `118305810952`,
+sucesso. Os dois índices estavam READY e `status_count`, `direction_sum` e
+`direction_status_sum` retornaram HTTP200, code OK, requiresIndex:false.
+A tentativa 1 já havia criado ambos, mas a última SUM ainda retornou falta de
+índice imediatamente após READY; uma única repetição confirmou a propagação.
+Não apagar índices nem reexecutar a criação para "corrigir" esse histórico.
+Rules run `39322937778`, job `118301347265`, também PASSOU, incluindo comparação
+do source realmente publicado: mesmo hash certificado cdf3bffa…c5bf05.
+
+Próxima validação de produto: reabrir Hoje em sessão autenticada disponível,
+sem repetir automaticamente pedidos de login; confirmar resumo/prioridades e
+eventuais falhas de Count/Inbox separadamente. Se surgir acesso negado, não
+ampliar IAM ou grants de membros reais; registrar o bloqueador real.
 
 ## Certificação ainda necessária e continuidade
 
+- A conclusão desta correção técnica NÃO conclui os módulos contábeis restantes.
+  A matriz canônica ainda exige contas a pagar/obrigações e liquidações (T18/T19),
+  repasse parametrizado com vigência (T26), fechamento/reabertura formal (T27)
+  e escrituração/relatórios contábeis completos (T29/T30). Retomar cada entrega
+  pelo contrato E01–E08, com PR pequena, testes de integridade/concorrência,
+  revisão independente e homologação; não liberar flags para simular conclusão.
+  Os registros recebidos e as propostas existentes não devem ser anunciados
+  como lançamentos contábeis efetivados ou como um balanço oficial certificado.
 - Reabrir Hoje autenticado, conferir resumo e estados reais; não gravar dados
   financeiros para fazer um teste passar. Conferir Count, registro digital e
   acesso restrito em testes sintéticos/emulador, nunca concedendo acesso real.
