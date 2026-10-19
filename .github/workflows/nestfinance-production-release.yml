@@ -222,9 +222,9 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          // Hub production 218cb84 / verified canonical publication run 39322376345.
-          // Central People/Journey additions preserve Finance, membership and root authority protections.
-          const approvedHubSha = 'cdf3bffa148811de97600fd646ea4fd2331b08c9b7da594d03c680f542c5bf05';
+          // Hub production 5fb11db (PR428) / verified canonical publication run 39324830021.
+          // Gateway-only people creation narrows access; Finance/root/membership/audit protections are unchanged.
+          const approvedHubSha = '5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);
