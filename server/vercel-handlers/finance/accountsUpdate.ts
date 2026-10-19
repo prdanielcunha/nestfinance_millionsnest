@@ -9,7 +9,7 @@ import {
   generateUniqueKeyId,
   isValidAccountId
 } from '../../../api/_lib/financeIdentity.js';
-import { hasEffectiveCapability, requireScopedFinanceAccount } from './accessHelpers.js';
+import { hasEffectiveCapability, requireScopedFinanceAccount, resolveHandoffBinding } from './accessHelpers.js';
 import { stageCanonicalAuditCreate } from './auditFactProjection.js';
 import { parseOpeningBalanceDeclaration } from '../../../shared/finance/openingBalanceDeclaration.js';
 
@@ -53,18 +53,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const uid = decodedToken.uid;
     const organizationId = decodedToken.mn_organization_id;
+    const binding = resolveHandoffBinding(decodedToken as Record<string, unknown>);
 
     if (!organizationId || typeof organizationId !== 'string') {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
     }
 
-    const sessionList = await resolveEcosystemSession(uid, organizationId);
+    if (req.headers['x-organization-id'] && req.headers['x-organization-id'] !== organizationId) {
+      return res.status(403).json({ error: 'FORBIDDEN_ORGANIZATION_MISMATCH' });
+    }
+    const sessionList = await resolveEcosystemSession(uid, organizationId, binding.bound ? {
+      requireSessionVersion: true, expectedSessionVersion: binding.sessionVersion,
+    } : {});
     if (!sessionList.granted) {
-      return res.status(403).json({ error: 'FORBIDDEN' });
+      return res.status(sessionList.denialReason === 'SESSION_VERSION_MISMATCH' ? 401 : 403).json({ error: 'UNAUTHORIZED' });
     }
 
     // Must be global access or have finance.accounts.manage
     const hasManageAccess = hasEffectiveCapability(sessionList, 'finance.accounts.manage');
+    const canViewBalance = hasEffectiveCapability(sessionList, 'finance.balance.view');
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
@@ -80,6 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } = req.body;
 
     const wantsOpeningCorrection = Object.prototype.hasOwnProperty.call(req.body, 'openingBalanceDeclaration');
+    if (wantsOpeningCorrection && !canViewBalance) {
+      return res.status(403).json({ error: 'FORBIDDEN' });
+    }
     let correctedOpening: ReturnType<typeof parseOpeningBalanceDeclaration> | null = null;
     let correctionReason = '';
     if (wantsOpeningCorrection) {
@@ -236,7 +246,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               accountLast4: currentAccountLast4 || undefined,
               currency: accountData.currency,
               active: accountData.active,
-              openingBalanceDeclaration: openingBefore,
+              ...(canViewBalance ? { openingBalanceDeclaration: openingBefore } : {}),
               openingBalanceRevision: openingRevision
             }
           };
@@ -435,7 +445,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             accountLast4: parsedAccountLast4 || undefined,
             currency: accountData.currency,
             active: accountData.active,
-            openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore,
+            ...(canViewBalance ? { openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore } : {}),
             openingBalanceRevision: isOpeningChanged ? openingRevision + 1 : openingRevision
           }
         };
@@ -471,7 +481,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
   } catch (error: any) {
-    if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired') {
+    if (error?.status === 401 || error?.status === 403) {
+      return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
+    }
+    if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
     console.error('Update account error:', error);

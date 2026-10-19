@@ -483,6 +483,7 @@ export function TodayActionCenter() {
   const experienceMode = getFinanceExperienceMode(accessState);
   const interfaceRole = getFinanceInterfaceRole(accessState);
   const canViewFinance = hasEffectiveCapability(accessState, 'finance.view');
+  const canViewBalance = hasEffectiveCapability(accessState, 'finance.balance.view');
   const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
   const canReviewTransactions = hasEffectiveCapability(accessState, 'finance.review');
   const canApproveTransactions = hasEffectiveCapability(accessState, 'finance.approve_for_posting');
@@ -1063,6 +1064,7 @@ export function TodayActionCenter() {
         onNext={() => navigate(priorityPresentation.route)}
         onRegister={() => navigate(APP_ROUTES.universalCapture)}
         canRegister={canCreate}
+        canViewBalance={canViewBalance}
         onCount={() => navigate(countActionRoute)}
         canCount={canCount}
         priorityState={prioritiesFailed ? 'error' : prioritiesLoading ? 'loading' : 'ready'}
@@ -1244,7 +1246,7 @@ export function TodayActionCenter() {
               <p className="mt-2 text-sm leading-relaxed text-semantic-warning">{copy.dueTruncated}</p>
             ) : null}
           </div>
-          <div className="border-t border-border-subtle p-4 lg:border-t-0">
+          {canViewBalance && operational?.balance.state !== 'restricted' ? <div className="border-t border-border-subtle p-4 lg:border-t-0">
             <div className="nf-financial-number text-xl font-semibold tracking-tight text-text-primary">
               {operational?.balance.state === 'available'
                 ? formatMoney(operational.balance.amountCents, language)
@@ -1256,7 +1258,7 @@ export function TodayActionCenter() {
             {operational?.balance.state === 'unavailable' ? (
               <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.balanceHint}</p>
             ) : null}
-          </div>
+          </div> : null}
         </Surface>
       </section>
 

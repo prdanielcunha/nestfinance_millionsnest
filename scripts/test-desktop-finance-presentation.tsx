@@ -8,8 +8,15 @@ const operational: TodayOperationalSnapshot = { localDate: '2026-10-18', incomeC
   registeredPayablesDueSoonCount: 1, balance: { state: 'available', amountCents: 456700, reason: null },
   source: { deterministic: true, aiUsedForTotals: false, dueDatesMayComeFromReviewedOrProposedDocumentAnalysis: true, balanceUsesPostedTransactionsOnly: true } };
 const props = { language: 'PT' as const, entityName: 'Synthetic church <script>', operational, countInProgress: null, transactionsToReview: 3, documentsToReview: 2,
-  nextTitle: 'Synthetic healthy result', nextDescription: 'Synthetic next step', nextAction: 'Synthetic action', onNext() {}, onRegister() {}, canRegister: true, onCount() {}, canCount: true, onRetry() {} };
+  nextTitle: 'Synthetic healthy result', nextDescription: 'Synthetic next step', nextAction: 'Synthetic action', onNext() {}, onRegister() {}, canRegister: true, canViewBalance: true, onCount() {}, canCount: true, onRetry() {} };
 const before = JSON.stringify(operational);
+for (const language of ['PT', 'EN', 'ES'] as const) {
+  for (const extra of [{ canViewBalance: false }, { operational: { ...operational, balance: { state: 'restricted', amountCents: null, reason: 'permission_required' } as const } }]) {
+    const restricted = renderToStaticMarkup(<TodayLedgerOverview {...props} language={language} {...extra} />);
+    assert.ok(!restricted.includes('4.567') && !restricted.includes('4,567'), 'A balance must never exist in restricted HTML, including hidden details');
+    assert.ok(restricted.includes('1.234') || restricted.includes('1,234') || restricted.includes('1234,00'), 'Recording/viewing daily movements remains independent from balance visibility');
+  }
+}
 const ready = renderToStaticMarkup(<TodayLedgerOverview {...props} />);
 assert.ok(ready.includes('4.567,00') && ready.includes('1.234,00') && ready.includes('87,00'));
 assert.ok(ready.includes('podem incluir rascunhos'), 'Daily operational movements cannot be presented as posted cash');

@@ -1,5 +1,6 @@
 export type TodayOperationalBalance =
   | { state: 'available'; amountCents: number; reason: null }
+  | { state: 'restricted'; amountCents: null; reason: 'permission_required' }
   | { state: 'unavailable'; amountCents: null; reason: 'no_asset_accounts' | 'opening_balance_incomplete' | 'unsupported_adjustments' };
 
 export type TodayOperationalSnapshot = {
