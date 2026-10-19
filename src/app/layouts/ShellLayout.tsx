@@ -486,7 +486,7 @@ function ShellLayoutInner() {
 
   const navigationProfile = buildFinanceNavigation(experienceMode, {
     canView: canViewFinance,
-    canCreate,
+    canCreate: canCreate || canCount,
     canReview,
     canManage,
   });
@@ -579,7 +579,7 @@ function ShellLayoutInner() {
   return (
     <div className="nf-app-shell flex min-h-screen bg-background-base text-text-primary">
       <a href="#nestfinance-main-content" className="nf-skip-link">{copy.skipToContent}</a>
-      <aside className="nf-desktop-sidebar fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default md:flex">
+      <aside className="nf-desktop-sidebar fixed z-10 hidden h-full w-64 flex-col border-r border-border-subtle bg-surface-default lg:flex">
         <div className="nf-sidebar-brand">
           <NestFinanceLogo layout="horizontal" surface={theme} compact width={180} className="h-auto w-[180px]" priority />
         </div>
@@ -707,8 +707,8 @@ function ShellLayoutInner() {
         </details>
       </aside>
 
-      <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-16 md:pl-64 md:pb-0">
-        <header className="nf-desktop-topbar hidden md:flex">
+      <main id="nestfinance-main-content" tabIndex={-1} className="flex min-h-screen flex-1 flex-col pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] lg:pl-64 lg:pb-0">
+        <header className="nf-desktop-topbar hidden lg:flex">
           <div className="min-w-0">
             <p className="nf-section-eyebrow">{desktopCopy.workspace}</p>
             <div className="mt-1 flex min-w-0 items-center gap-2 text-sm"><span className="truncate text-text-secondary">{orgName}</span><span className="text-text-muted" aria-hidden="true">/</span><span className="shrink-0 font-semibold text-text-primary">{currentNavigation ? t(currentNavigation.labelKey) : 'NestFinance'}</span></div>
@@ -728,7 +728,7 @@ function ShellLayoutInner() {
             <ThemeToggle />
           </div>
         </header>
-        <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl md:hidden">
+        <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl lg:hidden">
           <NestFinanceLogo layout="symbol" className="h-8 w-8 shrink-0" priority />
           <button
             type="button"
@@ -758,7 +758,7 @@ function ShellLayoutInner() {
         !location.pathname.includes('/finance/transactions/new') &&
         !location.pathname.includes('/finance/transactions/edit') &&
         !location.pathname.match(/\/finance\/transactions\/[a-zA-Z0-9_-]+\/edit/) ? (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 z-30 flex flex-col items-end gap-3 md:bottom-8 md:right-8">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0)+4.5rem)] right-4 z-30 flex flex-col items-end gap-3 lg:bottom-8 lg:right-8">
           {fabOpen ? (
             <>
               <div
@@ -775,7 +775,7 @@ function ShellLayoutInner() {
                 role="dialog"
                 aria-modal="true"
                 aria-label={copy.actionsTitle}
-                className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0)+7.75rem)] z-50 max-h-[min(70vh,34rem)] overflow-y-auto rounded-3xl border border-border-subtle bg-surface-elevated p-4 shadow-[var(--nf-shadow-floating)] md:static md:w-[23rem] md:rounded-2xl"
+                className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0)+7.75rem)] z-50 max-h-[min(70vh,34rem)] overflow-y-auto rounded-3xl border border-border-subtle bg-surface-elevated p-4 shadow-[var(--nf-shadow-floating)] lg:static lg:w-[23rem] lg:rounded-2xl"
               >
                 <div className="mb-3 px-1">
                   <p className="text-base font-semibold text-text-primary">{copy.actionsTitle}</p>
@@ -837,7 +837,7 @@ function ShellLayoutInner() {
         </div>
       ) : null}
 
-      <nav className="fixed bottom-0 z-20 flex h-[calc(env(safe-area-inset-bottom,0)+3.5rem)] w-full items-center justify-around border-t border-border-subtle bg-surface-elevated/95 px-2 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-xl md:hidden" aria-label={t('shell_principal')}>
+      <nav className="fixed bottom-0 z-20 flex h-[calc(env(safe-area-inset-bottom,0)+3.5rem)] w-full items-center justify-around border-t border-border-subtle bg-surface-elevated/95 px-2 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-xl lg:hidden" aria-label={t('shell_principal')}>
         {primaryNavigation.map((item) => (
           <NavLink
             key={item.id}
@@ -869,7 +869,7 @@ function ShellLayoutInner() {
 
       {mobileContextOpen ? (
         <div
-          className="fixed inset-0 z-[85] flex items-end bg-background-base/70 p-3 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[85] flex items-end bg-background-base/70 p-3 backdrop-blur-sm lg:hidden"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setMobileContextOpen(false);
           }}
@@ -878,7 +878,7 @@ function ShellLayoutInner() {
             role="dialog"
             aria-modal="true"
             aria-label={copy.contextTitle}
-            className="w-full rounded-3xl border border-border-subtle bg-surface-elevated p-5 pb-[calc(env(safe-area-inset-bottom,0)+1.25rem)] shadow-[var(--nf-shadow-floating)]"
+            className="max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto rounded-3xl border border-border-subtle bg-surface-elevated p-5 pb-[calc(env(safe-area-inset-bottom,0)+1.25rem)] shadow-[var(--nf-shadow-floating)]"
           >
             <div className="mb-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-primary">{copy.contextTitle}</p>

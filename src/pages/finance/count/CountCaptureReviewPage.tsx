@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { COLLECTION_COPY } from './CountCollectionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, EyeOff, Files, Focus, ShieldX } from 'lucide-react';
@@ -110,7 +111,7 @@ function CountCaptureReviewContent() {
   const copy = COUNT_CAPTURE_COPY[language];
   const humanCopy = HUMAN_COPY[language];
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
-  const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canEdit = canExecuteCount(accessState);
   const [capture, setCapture] = useState<CountCaptureDetail | null>(null);
   const [inspectKey, setInspectKey] = useState<CountCaptureFieldKey | null>(null);
   const [rows, setRows] = useState<Record<CountCaptureFieldKey, RowState>>(blankRows);

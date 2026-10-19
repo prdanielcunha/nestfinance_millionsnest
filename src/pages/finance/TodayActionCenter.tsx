@@ -29,6 +29,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useFinanceEntity } from '@/src/contexts/FinanceEntityContext';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { getFinanceEntryProfile } from '@/src/lib/financeEntryProfile';
 import { getFinanceExperienceMode, getFinanceInterfaceRole, type FinanceExperienceMode } from '@/src/lib/financeExperience';
 import {
   transactionsService,
@@ -496,7 +497,7 @@ export function TodayActionCenter() {
   const canManageFinance =
     hasEffectiveCapability(accessState, 'finance.manage') ||
     hasEffectiveCapability(accessState, 'organization.manage_entities');
-  const canCount = canCreate;
+  const canCount = getFinanceEntryProfile(accessState).canCount;
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [operational, setOperational] = useState<TodayOperationalSnapshot | null>(null);

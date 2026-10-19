@@ -1,5 +1,6 @@
 import type { EcosystemAccessState } from '../types/access';
 import { hasEffectiveCapability } from './permissions';
+import { isIndividualFinanceAccess } from '../../shared/finance/individualAccess.js';
 
 export type FinanceExperienceMode =
   | 'ecosystem'
@@ -21,8 +22,7 @@ export function getFinanceExperienceMode(accessState: EcosystemAccessState | nul
 
   const organizationRole = String(accessState.organizationRole || '').toLowerCase();
   if (
-    organizationRole === 'owner' ||
-    organizationRole === 'admin' ||
+    (!isIndividualFinanceAccess(accessState.capabilities) && (organizationRole === 'owner' || organizationRole === 'admin')) ||
     hasEffectiveCapability(accessState, 'finance.manage') ||
     hasEffectiveCapability(accessState, 'organization.manage_entities')
   ) {
@@ -37,6 +37,7 @@ export function getFinanceExperienceMode(accessState: EcosystemAccessState | nul
   }
 
   if (
+    hasEffectiveCapability(accessState, 'finance.count.execute') ||
     hasEffectiveCapability(accessState, 'finance.create_drafts') ||
     hasEffectiveCapability(accessState, 'finance.submit_for_review')
   ) {
@@ -68,7 +69,7 @@ export function getFinanceInterfaceRole(
 
   if (
     accessState.isGlobalAccess ||
-    hasHint('owner', 'admin', 'administrator', 'administrador') ||
+    (!isIndividualFinanceAccess(accessState.capabilities) && hasHint('owner', 'admin', 'administrator', 'administrador')) ||
     hasEffectiveCapability(accessState, 'finance.manage') ||
     hasEffectiveCapability(accessState, 'organization.manage_entities')
   ) {

@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { APP_ROUTES } from '@/src/app/router/routes';
@@ -91,7 +92,7 @@ function CountJoinContent() {
   const { accessState } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
-  const canEdit = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canEdit = canExecuteCount(accessState);
   const [code, setCode] = useState(() => normalizeCode(searchParams.get('code') || ''));
   const [joining, setJoining] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
