@@ -15,7 +15,7 @@ Compared with the previous approved source, the sole Rules change is the
 tenant-local NestJourney `personBirthdays` path. Finance gateway-only exclusions,
 membership rules and global authority helpers are unchanged. The new birthday
 path requires entitlement, active membership/app access, unit-scoped sharing,
-validated immutable identity and an atomic audit record on writes.
+validated immutable identity and an atomic audit record on creates and updates.
 
 Finance updates only the immutable expected fingerprint and its policy test.
 The exact-match fail-closed check remains mandatory. This is not a shared Rules
