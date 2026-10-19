@@ -1,3 +1,4 @@
+import { canExecuteCount } from '@/src/lib/permissions';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -74,7 +75,7 @@ function CountHomeContent() {
   const { activeFinanceEntityId, activeFinanceEntityName } = useFinanceEntity();
   const { language } = useLanguage();
   const copy = COUNT_COPY[language];
-  const canCreate = hasEffectiveCapability(accessState, 'finance.create_drafts');
+  const canCreate = canExecuteCount(accessState);
   const organizationId = accessState.organizationId || accessState.organization?.id || '';
   const userId = user?.uid || '';
 

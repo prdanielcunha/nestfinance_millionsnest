@@ -63,7 +63,7 @@ export default function MorePage() {
   const experienceMode = getFinanceExperienceMode(accessState);
   const navigation = buildFinanceNavigation(experienceMode, {
     canView: hasEffectiveCapability(accessState, 'finance.view'),
-    canCreate: hasEffectiveCapability(accessState, 'finance.create_drafts'),
+    canCreate: hasEffectiveCapability(accessState, 'finance.create_drafts') || hasEffectiveCapability(accessState, 'finance.count.execute'),
     canReview: hasAnyEffectiveCapability(accessState, ['finance.review', 'finance.approve_for_posting']),
     canManage: hasAnyEffectiveCapability(accessState, ['finance.manage', 'organization.manage_entities']),
   });

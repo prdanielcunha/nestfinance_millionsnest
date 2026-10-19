@@ -1,6 +1,7 @@
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
 import { isExplicitCountOnlySession } from './countTeamOperationPolicy.js';
 import { explicitTeamOnlyGrant } from '../../../shared/finance/countResponsibility.js';
+import { individualFinanceCapability } from '../../../shared/finance/individualAccess.js';
 
 export type AvailabilityReason = 'emergency_disabled' | 'available';
 
@@ -41,7 +42,7 @@ function hasEntityScope(session: any, financeEntityId: string): boolean {
   return true;
 }
 
-export async function canManageFinanceBootstrap(uid: string, organizationId: string, financeEntityId: string) {
+export async function canManageFinanceBootstrap(uid: string, organizationId: string, financeEntityId: string, requiredCapability: 'finance.manage' | 'finance.treasury.view' = 'finance.manage') {
   // Authorization is resolved once from the canonical Hub-compatible session contract.
   // Legacy membership documents are intentionally not read here.
   const session = await resolveEcosystemSession(uid, organizationId);
@@ -66,6 +67,10 @@ export async function canManageFinanceBootstrap(uid: string, organizationId: str
   }
 
   const permissions = sessionPermissions(session);
+  const individual = individualFinanceCapability(permissions, requiredCapability);
+  if (individual !== undefined) {
+    return { canApply: individual, reason: individual ? undefined : 'INSUFFICIENT_FINANCE_PERMISSION', accessSource: 'organization_membership' };
+  }
   const roles = Array.isArray(session.roles) ? session.roles : [];
   const organizationRole = session.organizationRole;
 

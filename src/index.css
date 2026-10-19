@@ -246,7 +246,7 @@ button,
   font-size: 1rem;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .nf-operational :where(button, input, select, textarea) { font-size: 1rem; }
   .nf-operational :where(p, label):not(.nf-financial-number) { font-size: max(1rem, 1em); }
 }
