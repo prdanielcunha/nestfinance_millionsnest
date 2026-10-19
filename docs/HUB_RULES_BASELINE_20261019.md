@@ -1,12 +1,23 @@
 # Canonical Hub Rules baseline
 
 The current certified canonical source is Hub production commit
-`218cb84c271a49f7ba3569438b843ae3068aad2b` (PR425).
+`5fb11db71f57550e9c32617a5da13ecf2bcfd45a` (PR428).
 Its exact source SHA256 is
-`cdf3bffa148811de97600fd646ea4fd2331b08c9b7da594d03c680f542c5bf05`.
-Canonical publication run `39322376345`, job `118299409689`, succeeded and
+`5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd`.
+Canonical publication run `39324830021`, job `118307818773`, succeeded and
 compared the actual published Rules with this exact versioned source. Its
 published-source gate also repeated 445 Connect boundary checks successfully.
+
+Relative to the previous certified Central People source (PR425, SHA256
+`cdf3bffa148811de97600fd646ea4fd2331b08c9b7da594d03c680f542c5bf05`),
+the only Rules change is a narrower Journey people-create denial: all current
+and future organizations must use the canonical gateway. Finance, root profile,
+membership and access audit guards are byte-unchanged. Later production commit
+`1efb6939e7ed5525d9eed7378811df6928a3c752` has the same Rules blob/source hash.
+Both the focused diff and the actual published hash were independently verified.
+Finance release `39325536472` correctly stopped before image push/deployment
+when this concurrent Hub publication changed the live source. Never bypass that
+guard or roll back unrelated canonical Hub changes to make a release pass.
 
 Compared with the prior certified authority source
 `f8e53e531169fb658fce646fb7abd241a286af2e343b3a446a8d33f1a17709a9`,
