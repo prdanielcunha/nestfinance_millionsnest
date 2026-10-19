@@ -65,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Must be global access or have finance.accounts.manage
     const hasManageAccess = hasEffectiveCapability(sessionList, 'finance.accounts.manage');
+    const canViewBalance = hasEffectiveCapability(sessionList, 'finance.balance.view');
     if (!hasManageAccess) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
@@ -80,6 +81,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } = req.body;
 
     const wantsOpeningCorrection = Object.prototype.hasOwnProperty.call(req.body, 'openingBalanceDeclaration');
+    if (wantsOpeningCorrection && !canViewBalance) {
+      return res.status(403).json({ error: 'FORBIDDEN' });
+    }
     let correctedOpening: ReturnType<typeof parseOpeningBalanceDeclaration> | null = null;
     let correctionReason = '';
     if (wantsOpeningCorrection) {
@@ -236,7 +240,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               accountLast4: currentAccountLast4 || undefined,
               currency: accountData.currency,
               active: accountData.active,
-              openingBalanceDeclaration: openingBefore,
+              ...(canViewBalance ? { openingBalanceDeclaration: openingBefore } : {}),
               openingBalanceRevision: openingRevision
             }
           };
@@ -435,7 +439,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             accountLast4: parsedAccountLast4 || undefined,
             currency: accountData.currency,
             active: accountData.active,
-            openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore,
+            ...(canViewBalance ? { openingBalanceDeclaration: isOpeningChanged ? correctedOpening : openingBefore } : {}),
             openingBalanceRevision: isOpeningChanged ? openingRevision + 1 : openingRevision
           }
         };

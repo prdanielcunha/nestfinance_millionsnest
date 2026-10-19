@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirebaseAdmin } from '../../../api/_lib/firebaseAdmin.js';
 import { resolveEcosystemSession } from '../../../api/_lib/ecosystemSessionResolver.js';
-import { requireFinanceEntityAccess } from './accessHelpers.js';
+import { hasEffectiveCapability, requireFinanceEntityAccess, resolveHandoffBinding } from './accessHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -38,9 +38,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const uid = decodedToken.uid;
     const organizationId = decodedToken.mn_organization_id;
+    const binding = resolveHandoffBinding(decodedToken as Record<string, unknown>);
 
     if (!organizationId || typeof organizationId !== 'string') {
       return res.status(403).json({ error: 'FORBIDDEN_MISSING_ORG' });
+    }
+    if (req.headers['x-organization-id'] && req.headers['x-organization-id'] !== organizationId) {
+      return res.status(403).json({ error: 'FORBIDDEN_ORGANIZATION_MISMATCH' });
+    }
+    const sessionList = await resolveEcosystemSession(uid, organizationId, binding.bound ? {
+      requireSessionVersion: true, expectedSessionVersion: binding.sessionVersion,
+    } : {});
+    if (!sessionList.granted) {
+      return res.status(sessionList.denialReason === 'SESSION_VERSION_MISMATCH' ? 401 : 403).json({ error: 'UNAUTHORIZED' });
     }
 
     const { financeEntityId } = req.body || {};
@@ -55,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       financeEntityId,
       sessionGranted: true
     });
+    const canViewBalance = sessionList.granted && hasEffectiveCapability(sessionList, 'finance.balance.view');
 
     const accountsSnapshot = await access.repository.getAccountsQuery().limit(1001).get();
 
@@ -91,9 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         paymentInstruments: data.paymentInstruments,
         accountRole: data.accountRole || data.role,
         liabilityType: data.liabilityType,
-        openingBalanceCents: data.openingBalanceCents,
+        openingBalanceCents: canViewBalance ? data.openingBalanceCents : undefined,
         // Historical value is not certified without provenance; this declaration is never a posted balance.
-        openingBalanceDeclaration: data.openingBalanceDeclaration ?? null,
+        ...(canViewBalance ? { openingBalanceDeclaration: data.openingBalanceDeclaration ?? null } : {}),
         openingBalanceRevision: Number.isSafeInteger(data.openingBalanceRevision) ? data.openingBalanceRevision : 0,
         normalizedName: data.normalizedName
       });
@@ -102,6 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ accounts });
 
   } catch (error: any) {
+    if (error?.status === 401 || error?.status === 403) {
+      return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
+    }
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
