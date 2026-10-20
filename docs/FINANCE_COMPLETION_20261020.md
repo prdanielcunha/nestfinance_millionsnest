@@ -85,3 +85,21 @@ O menu e a busca incluem Contas a pagar conforme as capabilities existentes.
 O primeiro período, os valores iniciais verificados e a regra de repasse exigem
 decisão humana, não valores inventados para passar homologação. Uso em aparelho
 físico segue distinto da navegação autenticada no navegador da nuvem.
+
+## Primeiros passos dentro do aplicativo
+
+`/finance/start` oferece uma orientação retomável em PT/EN/ES: apresentação,
+contas da igreja, primeiro mês, valores iniciais, repasses opcionais e próximas
+ações. Um lembrete aparece em Hoje para o responsável autorizado enquanto a
+preparação canônica estiver incompleta; Configurações mantém o acesso à jornada.
+Contadores de ofertas não precisam preencher configurações de tesouraria.
+
+O usuário informa seus próprios dados no app. O mês e a base de datas aparecem
+em perguntas separadas, com revisão antes de confirmação; juros e descontos
+ficam em ajuda opcional. Cada conta pode abrir diretamente o formulário de valor
+inicial, data e origem, preservando edição versionada e auditoria existentes.
+Ao voltar, a jornada lê novamente o estado salvo no servidor. Nenhuma data,
+quantia, fonte de conferência ou regra de repasse é confirmada automaticamente.
+Dados não informados continuam desconhecidos. É possível sair e continuar
+depois; a interface explica quais tarefas já podem ser usadas e quais dependem
+da preparação. Parâmetros de navegação não concedem autorização financeira.
