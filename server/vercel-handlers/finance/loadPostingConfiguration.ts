@@ -1,12 +1,18 @@
 import { firestore } from 'firebase-admin';
 import { createHash } from 'crypto';
+import { loadCertifiedLedgerConfiguration } from './certifiedLedgerConfiguration.js';
+import { ledgerConfigurationKey } from '../../../shared/finance/ledger/certifiedConfiguration.js';
 
 export async function loadPostingConfiguration(
   db: firestore.Firestore,
   organizationId: string,
   financeEntityId: string,
-  transaction: any
+  transaction: any,
+  firestoreTransaction?: firestore.Transaction
 ) {
+  const configRef = db.collection('organizations').doc(organizationId).collection('financeSettings').doc(ledgerConfigurationKey(financeEntityId));
+  const config = firestoreTransaction ? await firestoreTransaction.get(configRef) : await configRef.get();
+  if (config.exists) return loadCertifiedLedgerConfiguration(db,organizationId,financeEntityId,firestoreTransaction);
   const accountsSnap = await db.collection('organizations').doc(organizationId)
     .collection('financeAccounts').where('financeEntityId', '==', financeEntityId).get();
   const categoriesSnap = await db.collection('organizations').doc(organizationId)
