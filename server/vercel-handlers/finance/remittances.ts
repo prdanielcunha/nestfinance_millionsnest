@@ -1,3 +1,4 @@
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import type { VercelRequest,VercelResponse } from '@vercel/node';
 import { assertBookScope } from '../../../shared/finance/ledger/certifiedPosting.js';
 import { ledgerId } from '../../../shared/finance/ledger/certifiedConfiguration.js';
@@ -25,7 +26,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     if(b.action==='options'){
       const [policy,categories]=await Promise.all([org.collection('financeSettings').doc(remittancePolicyKey(financeEntityId)).get(),context.repository.getCategoriesQuery().limit(201).get()]);
       if(policy.exists)assertBookScope(policy.data(),organizationId,financeEntityId);if(categories.size>200)throw Error('REMITTANCE_CATEGORY_LIMIT');
-      return res.status(200).json({revision:policy.data()?.revision??0,policies:policy.data()?.policies||[],categories:categories.docs.flatMap(d=>{assertBookScope(d.data(),organizationId,financeEntityId);return d.data().active===true&&['income','expense'].includes(d.data().kind)?[{id:d.id,name:d.data().name,kind:d.data().kind}]:[];}),canConfigure:hasEffectiveCapability(a.sessionList,'finance.manage'),canAssess:hasEffectiveCapability(a.sessionList,'finance.create_drafts')&&process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED==='true'});
+      return res.status(200).json({revision:policy.data()?.revision??0,policies:policy.data()?.policies||[],categories:categories.docs.flatMap(d=>{assertFinanceCatalogScope(d,organizationId,financeEntityId,'financeCategories');return d.data().active===true&&['income','expense'].includes(d.data().kind)?[{id:d.id,name:d.data().name,kind:d.data().kind}]:[];}),canConfigure:hasEffectiveCapability(a.sessionList,'finance.manage'),canAssess:hasEffectiveCapability(a.sessionList,'finance.create_drafts')&&process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED==='true'});
     }
     if(b.action==='preview'){
       const p=await db.runTransaction(t=>loadRemittancePreview(t,c,b.period),{readOnly:true});

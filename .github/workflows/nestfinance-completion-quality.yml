@@ -11,6 +11,9 @@ on:
       - 'src/services/financeCompletionService.ts'
       - 'scripts/test-finance-completion-emulator.ts'
       - 'scripts/test-remittance-policy.ts'
+      - 'scripts/test-finance-live-unblock.ts'
+      - 'scripts/finance-payables-release-config.mjs'
+      - '.github/workflows/nestfinance-production-release.yml'
       - '.github/workflows/nestfinance-completion-quality.yml'
 jobs:
   finance-completion:
@@ -33,6 +36,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: node --import tsx scripts/test-remittance-policy.ts
+      - run: node --import tsx scripts/test-finance-live-unblock.ts
       - run: npm run check:api-contracts
       - run: npm run check:saas-isolation
       - run: npm run build

@@ -6,6 +6,7 @@ export type FinanceNavigationId =
   | 'count'
   | 'inbox'
   | 'review'
+  | 'payables'
   | 'balance'
   | 'reports'
   | 'audit'
@@ -26,15 +27,15 @@ export type FinanceNavigationProfile = {
 const PROFILE_ORDER: Record<FinanceExperienceMode, FinanceNavigationProfile> = {
   ecosystem: {
     primary: ['finance', 'count', 'inbox', 'review'],
-    more: ['transactions', 'balance', 'reports', 'audit', 'settings'],
+    more: ['transactions', 'payables', 'balance', 'reports', 'audit', 'settings'],
   },
   organization_admin: {
     primary: ['finance', 'count', 'inbox', 'review'],
-    more: ['transactions', 'balance', 'reports', 'audit', 'settings'],
+    more: ['transactions', 'payables', 'balance', 'reports', 'audit', 'settings'],
   },
   review: {
     primary: ['finance', 'review', 'inbox', 'transactions'],
-    more: ['balance', 'reports', 'audit'],
+    more: ['payables', 'balance', 'reports', 'audit'],
   },
   operation: {
     primary: ['finance', 'transactions', 'inbox', 'count'],
@@ -42,7 +43,7 @@ const PROFILE_ORDER: Record<FinanceExperienceMode, FinanceNavigationProfile> = {
   },
   read_only: {
     primary: ['finance', 'transactions', 'balance', 'reports'],
-    more: ['audit'],
+    more: ['payables', 'audit'],
   },
 };
 

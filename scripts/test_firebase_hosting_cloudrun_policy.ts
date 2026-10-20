@@ -126,7 +126,7 @@ assert.doesNotMatch(
 assert.match(productionRelease, /NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT/, 'Fail closed on a changed shared Rules fingerprint');
 assert.match(productionRelease, /5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd/, 'Require the audited canonical Hub authority fingerprint');
 
-// Full and scoped releases must preserve installed runtime configuration and IAM.
+// Preserve runtime and IAM except the two explicitly reviewed payable switches.
 assert.doesNotMatch(productionRelease, /--set-env-vars|gcloud run deploy|add-iam-policy-binding|--allow-unauthenticated|--no-allow-unauthenticated/);
 const preservingStep = productionRelease.slice(
   productionRelease.indexOf('      - name: Deploy Cloud Run revision preserving existing configuration'),
@@ -134,11 +134,16 @@ const preservingStep = productionRelease.slice(
 );
 assert.ok(preservingStep.includes('gcloud run services update'));
 assert.doesNotMatch(preservingStep, /\n        if:/, 'Configuration preservation applies to every release');
-assert.ok(preservingStep.includes('--update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA"'));
-for (const proof of ['FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED', 'FINANCE_IAM_CHANGED', 'FINANCE_PIN_TAG_MAPPING_CHANGED']) {
+assert.deepEqual(preservingStep.match(/--update-env-vars "([^"]+)"/)?.[1].split(','), [
+  'NESTFINANCE_RELEASE_SHA=$GITHUB_SHA',
+  'NESTFINANCE_PAYABLES_WRITE_ENABLED=true',
+  'NESTFINANCE_PAYABLES_REVIEW_ENABLED=true',
+], 'No unrelated runtime switch may change with the reviewed payable rollout');
+assert.ok(productionRelease.includes('node scripts/finance-payables-release-config.mjs /tmp/finance-config-before.json'));
+for (const proof of ['FINANCE_REVIEWED_PAYABLE_FLAGS_ONLY_AND_IAM_UNCHANGED', 'FINANCE_IAM_CHANGED', 'FINANCE_PIN_TAG_MAPPING_CHANGED']) {
   assert.ok(preservingStep.includes(proof), `Missing runtime preservation proof: ${proof}`);
 }
-assert.ok(productionRelease.indexOf('FINANCE_RUNTIME_CONFIGURATION_AND_IAM_UNCHANGED') <
+assert.ok(productionRelease.indexOf('FINANCE_REVIEWED_PAYABLE_FLAGS_ONLY_AND_IAM_UNCHANGED') <
   productionRelease.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
   'Verify configuration and IAM before traffic cutover');
 

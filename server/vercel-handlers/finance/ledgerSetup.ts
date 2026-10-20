@@ -1,3 +1,4 @@
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import type { VercelRequest,VercelResponse } from '@vercel/node';
 import { FieldValue } from 'firebase-admin/firestore';
 import { resolveFinanceRequestContext,hasEffectiveCapability } from './accessHelpers.js';
@@ -29,10 +30,10 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
       if(snap.exists)assertBookScope(snap.data(),organizationId,financeEntityId);
       const accounts=await context.repository.getAccountsQuery().limit(201).get();if(accounts.size>200)ledgerFailure('LEDGER_CONFIGURATION_LIMIT');
       const rows=[];
-      for(const doc of accounts.docs){const a=doc.data();assertBookScope(a,organizationId,financeEntityId);if(a.active!==true||!['asset','liability'].includes(a.nature))continue;
+      for(const doc of accounts.docs){const a=doc.data();assertFinanceCatalogScope(doc,organizationId,financeEntityId,'financeAccounts');if(a.active!==true||!['asset','liability'].includes(a.nature))continue;
         rows.push({id:doc.id,name:a.name,revision:a.openingBalanceRevision??0,declaration:a.openingBalanceDeclaration??{status:'not_informed'},certified:typeof a.certifiedOpeningReceiptId==='string'});}
       const categories=await context.repository.getCategoriesQuery().limit(201).get();if(categories.size>200)ledgerFailure('LEDGER_CONFIGURATION_LIMIT');
-      const categoryOptions=categories.docs.flatMap(doc=>{const c=doc.data();assertBookScope(c,organizationId,financeEntityId);return c.active===true&&['income','expense'].includes(c.kind)?[{id:doc.id,name:c.name,kind:c.kind}]:[];});
+      const categoryOptions=categories.docs.flatMap(doc=>{const c=doc.data();assertFinanceCatalogScope(doc,organizationId,financeEntityId,'financeCategories');return c.active===true&&['income','expense'].includes(c.kind)?[{id:doc.id,name:c.name,kind:c.kind}]:[];});
       const policy=await org.collection('financeSettings').doc(payablePolicyKey(financeEntityId)).get();if(policy.exists)assertBookScope(policy.data(),organizationId,financeEntityId);
       return res.status(200).json({configured:snap.exists,firstPeriod:snap.data()?.configuration?.firstPeriod??null,dateBasis:snap.data()?.configuration?.dateBasis??null,feesCategoryId:policy.data()?.policy?.feesCategoryId??'',discountCategoryId:policy.data()?.policy?.discountCategoryId??'',accounts:rows,categories:categoryOptions});
     }

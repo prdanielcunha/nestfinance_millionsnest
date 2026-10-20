@@ -1,6 +1,7 @@
 import type { Transaction } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { assessRemittance,parseRemittancePolicy,type RemittancePolicy } from '../../../shared/finance/remittancePolicy.js';
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import { assertBookScope,bookId } from '../../../shared/finance/ledger/certifiedPosting.js';
 import { ledgerFailure } from '../../../shared/finance/ledger/certifiedConfiguration.js';
 import { receiptDay } from '../../../shared/finance/receivedIncome.js';
@@ -56,7 +57,7 @@ export async function stageRemittancePolicy(t:Transaction,c:LedgerCommandContext
   if((old?.policies?.length??0)>=100)failure('REMITTANCE_POLICY_LIMIT');
   if(old?.policies?.some((p:RemittancePolicy)=>p.effectivePeriod>policy.effectivePeriod))failure('REMITTANCE_BACKDATED_POLICY');
   for(const [id,kind] of [...policy.incomeCategoryIds.map(id=>[id,'income']),[policy.expenseCategoryId,'expense']]){
-    const cat=await t.get(org.collection('financeCategories').doc(id));if(!cat.exists||cat.data()?.active!==true||cat.data()?.kind!==kind)failure('REMITTANCE_CATEGORY_INVALID');assertBookScope(cat.data(),c.organizationId,c.financeEntityId);
+    const cat=await t.get(org.collection('financeCategories').doc(id));if(!cat.exists||cat.data()?.active!==true||cat.data()?.kind!==kind)failure('REMITTANCE_CATEGORY_INVALID');assertFinanceCatalogScope(cat,c.organizationId,c.financeEntityId,'financeCategories');
   }
   const history={organizationId:c.organizationId,financeEntityId:c.financeEntityId,policy,reason:reason.trim(),actorUid:c.uid,actorLabel:c.actorLabel&&c.actorLabel!==c.uid?c.actorLabel:'',changedAt:FieldValue.serverTimestamp()};
   t.create(ref.collection('history').doc(String(policy.revision)),history);
