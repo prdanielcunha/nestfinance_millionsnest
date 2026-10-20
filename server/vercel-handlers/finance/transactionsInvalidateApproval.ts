@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const approvalDoc = await t.get(txRef.collection('approvals').doc('latest'));
       const approval = approvalDoc.exists ? approvalDoc.data() : undefined;
 
-      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData, t);
 
       let sealStatus = 'verified';
       if (!txData.approvedBy || !txData.approvalSourceHash || !approval || !approval.approvedPlanHash) {

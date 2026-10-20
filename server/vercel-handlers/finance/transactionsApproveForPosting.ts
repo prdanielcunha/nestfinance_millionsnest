@@ -88,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_SEGREGATION_OF_DUTIES_VIOLATION', message: 'Creator cannot approve their own transaction based on entity policy' };
       }
 
-      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+      const { mappings, policy, referenceFingerprintHash, countSourceProofHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData, t);
       const plan = buildPostingPlan({
         transaction: txData,
         allocations,
@@ -127,6 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         materialSnapshot,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
+        countSourceProofHash,
         approvalAlgorithmVersion: 2,
         postingPlanVersion: 1,
         comment: comment || null
@@ -149,7 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvedPlanHash,
         approvedReferenceFingerprintHash,
         approvalAlgorithmVersion: 2,
-        approvalComment: comment || null
+        approvalComment: comment || null,
+        countSourceProofHash
       }));
 
       const auditId = generateAuditId();

@@ -1,12 +1,37 @@
 import { firestore } from 'firebase-admin';
 import { createHash } from 'crypto';
+import { readPostingCatalog } from './ledgerExecutionStore.js';
+import { executionReferences } from '../../../shared/finance/ledger/postingExecution.js';
+import { validateLedgerCountSource } from './ledgerCountSource.js';
 
 export async function loadPostingConfiguration(
   db: firestore.Firestore,
   organizationId: string,
   financeEntityId: string,
-  transaction: any
+  transaction: any,
+  readTransaction?: firestore.Transaction
 ) {
+  const org = db.collection('organizations').doc(organizationId);
+  const configurationRef = org.collection('financeLedgerExecution').doc(financeEntityId);
+  const configuration = readTransaction ? await readTransaction.get(configurationRef) : await configurationRef.get();
+  if (configuration.exists) {
+    const data = configuration.data();
+    if (data?.organizationId !== organizationId || data.financeEntityId !== financeEntityId || data.state !== 'ready' || data.schemaVersion !== 1) {
+      throw Object.assign(new Error('FINANCE_LEDGER_CONFIGURATION_INVALID'), { code: 'FINANCE_LEDGER_CONFIGURATION_INVALID' });
+    }
+    const query = org.collection('financeAllocations').where('financeEntityId', '==', financeEntityId).where('transactionId', '==', transaction.id).limit(101);
+    const snapshot = readTransaction ? await readTransaction.get(query) : await query.get();
+    if (snapshot.size > 100) throw Object.assign(new Error('FINANCE_EXECUTION_ALLOCATION_LIMIT'), { code: 'FINANCE_EXECUTION_ALLOCATION_LIMIT' });
+    const allocations = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as any;
+    const catalog = await readPostingCatalog(readTransaction || db, db, organizationId, financeEntityId, transaction, allocations);
+    const settingsRef = org.collection('financeSettings').doc('config');
+    const settings = transaction.countSource || transaction.sourceContext === 'count_session'
+      ? (readTransaction ? await readTransaction.get(settingsRef) : await settingsRef.get()).data() : null;
+    if (settings?.organizationId && settings.organizationId !== organizationId) throw Object.assign(new Error('FINANCE_CROSS_ENTITY_REFERENCE'), { code: 'FINANCE_CROSS_ENTITY_REFERENCE' });
+    const countSourceProofHash = await validateLedgerCountSource({ reader: readTransaction || { get: ref => ref.get() },
+      db, organizationId, financeEntityId, transaction, timezone: settings?.timezone || 'America/Sao_Paulo' });
+    return { ...executionReferences(transaction, allocations, catalog), countSourceProofHash };
+  }
   const accountsSnap = await db.collection('organizations').doc(organizationId)
     .collection('financeAccounts').where('financeEntityId', '==', financeEntityId).get();
   const categoriesSnap = await db.collection('organizations').doc(organizationId)
@@ -104,5 +129,5 @@ export async function loadPostingConfiguration(
   const hashContent = JSON.stringify({ mappings, policy });
   const referenceFingerprintHash = createHash('sha256').update(hashContent).digest('hex');
 
-  return { mappings, policy, referenceFingerprintHash };
+  return { mappings, policy, referenceFingerprintHash, countSourceProofHash: null as string | null };
 }
