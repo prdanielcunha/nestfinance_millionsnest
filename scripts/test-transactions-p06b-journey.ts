@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp, GeoPoint } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '../api/_lib/firebaseAdmin.js';
 import { FakeFirestore } from './fakeFirestore.js';
+import { bookId } from '../shared/finance/ledger/certifiedPosting.js';
 import { sanitizeFirestoreObject } from '../server/vercel-handlers/finance/sanitizeFirestoreObject.js';
 import transactionsDetail from '../server/vercel-handlers/finance/transactionsDetail.js';
 import transactionsCreateDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
@@ -349,10 +350,14 @@ async function runP06BConsolidatedTests() {
 
     let journalFound = false;
     let balanceFound = false;
+    const fencePath = `organizations/${orgId}/financeSettings/ledger_state_${bookId(finEntityId)}`;
     for (const key of Object.keys(db.data)) {
       if (key.includes('journal') || key.includes('Journal')) journalFound = true;
-      if (key.includes('ledger') || key.includes('balance') || key.includes('Balance')) balanceFound = true;
+      if (key !== fencePath && (key.includes('ledger') || key.includes('balance') || key.includes('Balance'))) balanceFound = true;
     }
+    const fence = (await orgRef.collection('financeSettings').doc('ledger_state_' + bookId(finEntityId)).get()).data();
+    assertTest(fence?.revision === 0 && fence?.entryCount === 0 && fence?.closedThrough === null && fence?.sourceRevision > 0,
+      'barreira de fechamento coordena fontes sem efetivar lançamento ou alterar saldo');
     assertTest(!journalFound, 'zero Journal events gerados');
     assertTest(!balanceFound, 'zero Posting ou alteração de saldos real ocorrendo');
     assertTest(db instanceof FakeFirestore, 'zero writes de teste em produção');

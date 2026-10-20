@@ -111,6 +111,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const message = String(error?.message || '');
     if (['COUNT_REVIEW_ALREADY_ACCEPTED', 'COUNT_REVIEW_PURPOSE_CLASSIFICATION_REQUIRED',
       'COUNT_REVIEW_NOT_READY', 'COUNT_REVIEW_STATUS_MISMATCH', 'COUNT_REVIEW_TOTAL_MISMATCH'].includes(message)) {

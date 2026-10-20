@@ -77,6 +77,9 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
     });
     return res.status(200).json(outcome);
   }catch(error:any){
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const code=String(error?.code||error?.error||error?.message||'');
     if(error?.status===401||code.startsWith('auth/'))return res.status(401).json({error:'UNAUTHORIZED'});
     if(error?.status===403||code.includes('FORBIDDEN')||code.includes('COUNT_TEAM'))return res.status(403).json({error:'FORBIDDEN'});

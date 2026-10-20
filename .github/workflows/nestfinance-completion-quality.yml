@@ -1,0 +1,42 @@
+name: NestFinance Remittance and Formal Close Quality
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'api/_lib/firebaseAdmin.ts'
+      - 'api/finance-gateway.ts'
+      - 'server/vercel-handlers/finance/**'
+      - 'shared/finance/**'
+      - 'src/components/finance/**'
+      - 'src/services/financeCompletionService.ts'
+      - 'scripts/test-finance-completion-emulator.ts'
+      - 'scripts/test-remittance-policy.ts'
+      - '.github/workflows/nestfinance-completion-quality.yml'
+jobs:
+  finance-completion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: demo-finance-completion
+      GCLOUD_PROJECT: demo-finance-completion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: node --import tsx scripts/test-remittance-policy.ts
+      - run: npm run check:api-contracts
+      - run: npm run check:saas-isolation
+      - run: npm run build
+      - run: npm run build:cloudrun
+      - run: npm install firebase-tools@15.27.0 --no-save --no-package-lock
+      - name: Atomic close fence, remittances, snapshots and payable regressions
+        run: npx firebase-tools emulators:exec --only firestore --project demo-finance-completion "node --import tsx scripts/test-finance-completion-emulator.ts && node --import tsx scripts/test-certified-book-emulator.ts && node --import tsx scripts/test-payable-settlement-emulator.ts"

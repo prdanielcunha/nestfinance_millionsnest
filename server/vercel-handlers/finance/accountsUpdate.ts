@@ -40,6 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     admin = getFirebaseAdmin();
   } catch (err: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (err?.code === 'LEDGER_PERIOD_CLOSED' || String(err?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: err.code });
+
     if (err.message === 'MISSING_FIREBASE_CREDENTIALS') {
       return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
     }
@@ -481,6 +484,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     if (error?.status === 401 || error?.status === 403) {
       return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     }

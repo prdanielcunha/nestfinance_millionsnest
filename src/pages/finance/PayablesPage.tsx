@@ -9,6 +9,8 @@ import { useLanguage,type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { payablesService,type PayableListRow } from '@/src/services/payablesService';
+import { LedgerPreparation } from '@/src/components/finance/LedgerPreparation';
+import { RemittancesPanel } from '@/src/components/finance/RemittancesPanel';
 import { PayablePaymentPanel } from '@/src/components/finance/PayablePaymentPanel';
 import { parsePayableDraft,type PayableDraft } from '../../../shared/finance/payableObligation.js';
 import { getPayableDueState,localCivilDay,type PayableDueState } from '../../../shared/finance/payableUrgency.js';
@@ -420,7 +422,9 @@ function PayablesContent(){
           </button>:null}
           <p className="mt-5 text-sm leading-relaxed text-text-muted">{copy.privacy}</p>
         </section>
-      </main>
+        {organizationId&&activeFinanceEntityId&&hasEffectiveCapability(accessState,'finance.manage')&&hasEffectiveCapability(accessState,'finance.balance.view')?<div id="ledger-preparation" className="px-3 pb-5 sm:px-6" key={`setup:${organizationId}:${activeFinanceEntityId}`}><LedgerPreparation organizationId={organizationId} financeEntityId={activeFinanceEntityId} onReady={()=>void refresh()}/></div>:null}
+        {organizationId&&activeFinanceEntityId&&hasEffectiveCapability(accessState,'finance.balance.view')?<div className="px-3 pb-6 sm:px-6" key={`${organizationId}:${activeFinanceEntityId}`}><RemittancesPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} language={language} onChanged={refresh}/></div>:null}
+    </main>
     </div>
   );
 }
