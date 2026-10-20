@@ -16,7 +16,7 @@ export type CertifiedBookEntry = JournalEntry & {
   plan: PostingPlan;
   accountsSnapshot: CertifiedLedgerConfiguration['accounts'];
   integrityHash: string;
-  sourceKind: 'transaction' | 'opening';
+  sourceKind: 'transaction' | 'opening' | 'payable_recognition' | 'payable_payment';
   countSourceProofHash?: string;
 };
 
@@ -110,7 +110,7 @@ export function certifyApprovedPosting(args: {
 /** Invert the immutable original, even if the current chart has changed. */
 export function certifyReversal(original: CertifiedBookEntry, args: {actor:string;postedAt:string;effectiveDate:string;reason:string}) {
   assertBookEntry(original,original.organizationId,original.financeEntityId);
-  if (original.sourceKind !== 'transaction' || original.reversalOfEntryId || !ledgerId(args.actor) || typeof args.reason !== 'string' || args.reason.trim().length < 10 || args.reason.length > 1000) ledgerFailure('LEDGER_REVERSAL_INVALID');
+  if (!['transaction','payable_recognition','payable_payment'].includes(original.sourceKind) || original.reversalOfEntryId || !ledgerId(args.actor) || typeof args.reason !== 'string' || args.reason.trim().length < 10 || args.reason.length > 1000) ledgerFailure('LEDGER_REVERSAL_INVALID');
   const effectiveDate = ledgerDate(args.effectiveDate,'UTC');
   if (effectiveDate < original.effectiveDate) ledgerFailure('LEDGER_REVERSAL_DATE_INVALID');
   const id = 'je_' + bookId(original.id,'reversal');

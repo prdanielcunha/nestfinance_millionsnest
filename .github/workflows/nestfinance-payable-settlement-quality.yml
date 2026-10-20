@@ -1,0 +1,48 @@
+name: NestFinance Payable Settlement Quality
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'api/finance-gateway.ts'
+      - 'shared/finance/payableSettlement.ts'
+      - 'shared/finance/ledger/certifiedPosting.ts'
+      - 'server/vercel-handlers/finance/payable*.ts'
+      - 'server/vercel-handlers/finance/ledgerSetup*.ts'
+      - 'server/vercel-handlers/finance/certified*.ts'
+      - 'server/vercel-handlers/finance/transactionsSummary.ts'
+      - 'src/components/finance/*Payment*'
+      - 'src/components/finance/LedgerPreparation.tsx'
+      - 'src/pages/finance/PayablesPage.tsx'
+      - 'src/services/payablesService.ts'
+      - 'scripts/test-payable-settlement*.ts'
+      - '.github/workflows/nestfinance-payable-settlement-quality.yml'
+jobs:
+  payable-settlement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      FIREBASE_PROJECT_ID: demo-payable-settlement-emulator
+      GCLOUD_PROJECT: demo-payable-settlement-emulator
+      HUB_CANONICAL_RULES_FILE: ${{ runner.temp }}/nestfinance-certified-hub.rules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: node --import tsx scripts/test-payable-settlement.ts
+      - run: npm run check:api-contracts
+      - run: npm run build
+      - run: npm run build:cloudrun
+      - run: npm install firebase-tools@15.27.0 --no-save --no-package-lock
+      - name: Download exact certified gateway-only Hub Rules (no deployment)
+        run: curl --fail --silent --show-error --location https://raw.githubusercontent.com/prdanielcunha/millionsnest/5fb11db71f57550e9c32617a5da13ecf2bcfd45a/firestore.rules --output "$HUB_CANONICAL_RULES_FILE"
+      - name: New payable HTTP, atomic persistence and permission journey
+        run: npx firebase-tools emulators:exec --only firestore --project demo-payable-settlement-emulator "node --import tsx scripts/test-payable-settlement-emulator.ts && node --import tsx scripts/test-payable-settlement-rules.ts"

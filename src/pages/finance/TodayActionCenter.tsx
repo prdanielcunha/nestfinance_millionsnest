@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { payableCorrectionCopy } from '@/src/components/finance/payablePaymentCopy';
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -1237,6 +1238,7 @@ export function TodayActionCenter() {
               {operational ? formatMoney(operational.expenseCents, language) : '—'}
             </div>
             <div className="mt-1 text-sm font-medium text-text-muted">{copy.todayExpenseMetric}</div>
+            {(operational?.payableCorrectionInCents??0)>0?<p className="mt-2 text-sm leading-relaxed text-text-secondary">{payableCorrectionCopy[language]}: {formatMoney(operational!.payableCorrectionInCents!,language)}</p>:null}
           </div>
           <div className="border-t border-border-subtle p-4 sm:border-r lg:border-t-0">
             <div className="nf-financial-number text-2xl font-semibold tracking-tight text-text-primary">

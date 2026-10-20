@@ -7,6 +7,8 @@ export type TodayOperationalSnapshot = {
   localDate: string;
   incomeCents: number;
   expenseCents: number;
+  payablePaymentOutCents?:number;
+  payableCorrectionInCents?:number;
   dueSoonCount: number;
   dueSoonTruncated: boolean;
   /** Verified registered unpaid obligations, separate from documentary suggestions to avoid double counting. */
