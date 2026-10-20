@@ -26,6 +26,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { validateSubmissionReadiness } from '@/shared/finance/smartLogic';
 import { formatReviewDate, formatReviewMoney } from './transactionReviewModel';
+import { CertifiedTransactionActions } from '@/src/components/finance/CertifiedTransactionActions';
 import { TransactionCorrectionHistory } from './TransactionCorrectionHistory';
 import { TRANSACTION_DETAIL_OVERVIEW_COPY } from './transactionDetailOverviewCopy';
 
@@ -624,6 +625,9 @@ function TransactionDetailOverviewContent() {
                   </Button>
                 </div>
               </Surface>
+              <div key={`${accessState.organizationId}:${activeFinanceEntityId}:${transaction.id}:${transaction.version}`}>
+                <CertifiedTransactionActions organizationId={accessState.organizationId||''} financeEntityId={activeFinanceEntityId||''} transaction={transaction} language={language} canPost={hasEffectiveCapability(accessState,'finance.post_transactions')} canReverse={hasEffectiveCapability(accessState,'finance.manage')} onRecorded={()=>loadData()} />
+              </div>
             </aside>
           </div>
         </div>

@@ -178,6 +178,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       requestId,
     });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const message = String(error?.message || '');
     console.error('Count Free Form Capture Start Error:', message.startsWith('COUNT_') ? message : 'UNEXPECTED_ERROR');
     if (message === 'COUNT_SESSION_NOT_FOUND') return res.status(404).json({ error: message });

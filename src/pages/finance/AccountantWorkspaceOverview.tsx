@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, LockKeyhole, FileText, ListChecks, Landmark, FileArchive } from 'lucide-react';
+import { ChevronRight, FileText, ListChecks, Landmark, FileArchive } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import type { Language } from '@/src/contexts/LanguageContext';
 import type { PeriodCloseReadinessResponse } from '../../../shared/finance/periodCloseReadiness.js';
@@ -22,7 +22,7 @@ const COPY = {
     package: 'Preparar pacote mensal',
     packageBody: 'Baixe CSVs e índices autorizados para enviar ao contador.',
     accounting: 'Diário, razão e balancete',
-    accountingBody: 'A escrituração definitiva ainda não está certificada. Não há atalho que transforme a revisão em fechamento contábil.',
+    accountingBody: 'Consulte os livros dos lançamentos contabilizados. A preparação financeira e a conferência dos saldos iniciais são necessárias.',
     notOfficial: 'Esta é uma visão operacional. Ela não declara fechamento, contabilização oficial nem conformidade fiscal.',
     trail: 'Rastreie cada valor',
     trailBody: 'Relatório → movimentação → documentos e histórico disponível.',
@@ -46,7 +46,7 @@ const COPY = {
     package: 'Prepare monthly package',
     packageBody: 'Download authorized CSVs and indexes for your accountant.',
     accounting: 'Journal, general ledger and trial balance',
-    accountingBody: 'Official accounting posting is not certified yet. Operational review cannot be passed off as an official close.',
+    accountingBody: 'Consult the books of posted entries. Financial preparation and verified opening balances are required.',
     notOfficial: 'This is an operational view, not an official close, accounting certification or tax-compliance statement.',
     trail: 'Trace each amount',
     trailBody: 'Report → transaction → available evidence and history.',
@@ -70,7 +70,7 @@ const COPY = {
     package: 'Preparar paquete mensual',
     packageBody: 'Descarga archivos CSV e índices autorizados para el contador.',
     accounting: 'Diario, libro mayor y balance de comprobación',
-    accountingBody: 'La contabilización oficial todavía no está certificada. Una revisión no equivale a un cierre contable.',
+    accountingBody: 'Consulte los libros de asientos contabilizados. Se requieren preparación financiera y saldos iniciales verificados.',
     notOfficial: 'Esta es una vista operativa, no un cierre oficial, certificación contable ni garantía de cumplimiento fiscal.',
     trail: 'Rastrea cada importe',
     trailBody: 'Informe → movimiento → evidencias e historial disponibles.',
@@ -86,7 +86,7 @@ type Props = {
   canReview: boolean;
 };
 
-export function AccountantWorkspaceOverview({ language, period, readiness, canReview }: Props) {
+export function AccountantWorkspaceOverview({ language, period, readiness, canReview, canReadBooks = false }: Props & { canReadBooks?: boolean }) {
   const copy = COPY[language];
   const navigate = useNavigate();
   const issues = readiness.readiness.blockerCount;
@@ -95,10 +95,15 @@ export function AccountantWorkspaceOverview({ language, period, readiness, canRe
     { id: 'review', title: copy.review, body: canReview ? copy.reviewBody : copy.reviewUnavailable, icon: ListChecks, route: APP_ROUTES.review, available: canReview },
     { id: 'bank', title: copy.bank, body: copy.bankBody, icon: Landmark, route: APP_ROUTES.balance, available: true },
     { id: 'package', title: copy.package, body: copy.packageBody, icon: FileArchive, route: '', available: true },
+    { id: 'accounting', title: copy.accounting, body: copy.accountingBody, icon: FileText, route: '', available: canReadBooks },
   ];
 
   const openRow = (row: typeof rows[number]) => {
     if (!row.available) return;
+    if (row.id === 'accounting') {
+      document.getElementById('certified-book')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (row.id === 'package') {
       document.getElementById('accountant-package')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
@@ -137,14 +142,6 @@ export function AccountantWorkspaceOverview({ language, period, readiness, canRe
             </button>
           );
         })}
-        <div className="flex min-h-[5.25rem] items-start gap-4 py-4">
-          <LockKeyhole className="mt-1 h-5 w-5 shrink-0 text-text-secondary" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-text-primary">{copy.accounting}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-text-secondary">{copy.accountingBody}</p>
-          </div>
-          <span className="shrink-0 text-sm text-text-muted">{copy.notAvailable}</span>
-        </div>
       </div>
       <footer className="bg-surface-secondary/60 px-5 py-5 sm:px-8">
         <h3 className="font-semibold text-text-primary">{copy.trail}</h3>

@@ -181,6 +181,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     cleanup = null;
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     if (cleanup) await cleanupFailedReservation(cleanup);
     const message = String(error?.message || '');
     console.error('Count Capture Denomination Extraction Error:', message.startsWith('COUNT_') || message.startsWith('FINANCE_') ? message : 'UNEXPECTED_ERROR');

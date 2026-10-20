@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '../api/_lib/firebaseAdmin.js';
+import setup from '../server/vercel-handlers/finance/ledgerSetup.js';
+import createAndSubmit from '../server/vercel-handlers/finance/transactionsCreateAndSubmit.js';
+import createDraft from '../server/vercel-handlers/finance/transactionsCreateDraft.js';
+import approve from '../server/vercel-handlers/finance/transactionsApproveForPosting.js';
+import bookCommand from '../server/vercel-handlers/finance/certifiedBookCommand.js';
+import remittances from '../server/vercel-handlers/finance/remittances.js';
+import close from '../server/vercel-handlers/finance/formalPeriodClose.js';
+import payableReview from '../server/vercel-handlers/finance/payablesReview.js';
+import payableAccounting from '../server/vercel-handlers/finance/payablesAccounting.js';
+import countCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
+import { bookId } from '../shared/finance/ledger/certifiedPosting.js';
+import { ledgerPeriodRef } from '../server/vercel-handlers/finance/certifiedLedgerStore.js';
+import { ledgerDate } from '../shared/finance/ledger/certifiedConfiguration.js';
+if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')||!process.env.FIREBASE_PROJECT_ID?.startsWith('demo-'))throw Error('Only an isolated loopback demo Emulator is allowed');
+const {firestore:db,auth}=getFirebaseAdmin(),suffix=randomBytes(6).toString('hex');
+const org='synthetic_completion_'+suffix,entity='synthetic_church_'+suffix,ceo='synthetic_ceo_'+suffix,viewer='synthetic_viewer_'+suffix,counter='synthetic_counter_'+suffix;
+const orgRef=db.collection('organizations').doc(org),entityRef=orgRef.collection('financeEntities').doc(entity);
+const today=ledgerDate(new Date(),'America/Sao_Paulo'),currentMonth=today.slice(0,7),monthDate=new Date(currentMonth+'-01T12:00:00Z');monthDate.setUTCMonth(monthDate.getUTCMonth()-2);
+const first=monthDate.toISOString().slice(0,7),day=first+'-15';monthDate.setUTCMonth(monthDate.getUTCMonth()+1);const second=monthDate.toISOString().slice(0,7);
+let actor=ceo,sequence=0;const verify=auth.verifyIdToken,oldWrite=process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED,oldReview=process.env.NESTFINANCE_PAYABLES_REVIEW_ENABLED;
+class Response {statusCode=200;body:any;setHeader(){return this;}status(n:number){this.statusCode=n;return this;}json(b:any){this.body=b;return this;}}
+async function call(handler:any,body:any,operation:string,authenticated=true,headerOrg=org){const r=new Response();await handler({method:'POST',query:{},body:{financeEntityId:entity,...body},headers:{'content-type':'application/json','x-organization-id':headerOrg,...(authenticated?{authorization:'Bearer synthetic-completion-token'}:{})},__nestFinanceResolvedGatewayOperation:operation},r);return r;}
+function mutation(body:any){return {...body,idempotencyKey:'synthetic_'+randomBytes(12).toString('hex'),requestId:'synthetic_request_'+(++sequence)};}
+function ok(r:Response,status=200){assert.equal(r.statusCode,status,JSON.stringify(r.body));return r.body;}
+const payload=(amount:number,category='tithe',date=day)=>({transactionKind:'income',amountCents:amount,occurredAt:date+'T12:00:00.000Z',accountId:'cash',paymentMethod:'cash',sourceContext:'manual',description:'Synthetic receipt',counterparty:'Synthetic contributor',evidenceIds:[],evidenceJustification:'Synthetic test only without a real receipt',allocations:[{categoryId:category,amountCents:amount,sequence:1}]});
+async function posted(amount:number,category='tithe',date=day){
+ const created=ok(await call(createAndSubmit,mutation({payload:payload(amount,category,date)}),'transactions-create-and-submit'));
+ ok(await call(approve,{transactionId:created.transactionId,expectedVersion:1,approvalIdempotencyKey:'synthetic_approval_'+randomBytes(12).toString('hex'),requestId:'synthetic_approval_request'},'transactions-approve-for-posting'));
+ const request=mutation({action:'post',transactionId:created.transactionId,expectedVersion:2}),result=ok(await call(bookCommand,request,'certified-book-command'));
+ assert.equal(result.status,'posted');assert.deepEqual(ok(await call(bookCommand,{...request,requestId:'synthetic_post_retry'},'certified-book-command')),result);
+ return {id:created.transactionId,result};
+}
+async function main(){
+ process.env.NESTFINANCE_PAYABLES_WRITE_ENABLED='true';process.env.NESTFINANCE_PAYABLES_REVIEW_ENABLED='true';
+ await orgRef.set({status:'active',enabledApps:['nestfinance'],entitlements:{nestfinance:{active:true}}});await entityRef.set({organizationId:org,active:true,name:'Synthetic church'});
+ await db.collection('users').doc(ceo).set({systemRole:'ceo',ecosystemSessionVersion:1});
+ for(const uid of [viewer,counter]){await db.collection('users').doc(uid).set({ecosystemSessionVersion:1});await orgRef.collection('members').doc(uid).set({enabled:true,role:'owner',appAccess:{nestFinance:{enabled:true,roles:[],permissions:uid===counter?['finance.access.individual_v1','finance.view','finance.create_drafts','finance.count.view','finance.count.execute']:['finance.access.individual_v1','finance.view','finance.treasury.view','finance.balance.view','finance.accountant.view_exports'],scopes:{financeEntityIds:[entity]}}}});}
+ auth.verifyIdToken=async()=>({uid:actor,name:'Synthetic reviewer',mn_app_id:'nestfinance',mn_handoff_version:1,mn_organization_id:org,mn_session_version:1}) as any;
+ await orgRef.collection('financeAccounts').doc('cash').set({organizationId:org,financeEntityId:entity,name:'Synthetic cash',type:'cash',nature:'asset',active:true,configurationStatus:'complete',openingBalanceRevision:1,openingBalanceDeclaration:{status:'pending_review',amountCents:50000,asOf:first+'-01',source:'prior_records',sourceNote:'Synthetic opening only'}});
+ for(const [id,kind] of [['tithe','income'],['offering','income'],['remittance','expense']] as const)await orgRef.collection('financeCategories').doc(id).set({organizationId:org,financeEntityId:entity,name:'Synthetic '+id,kind,active:true,configurationStatus:'complete'});
+ const input={firstPeriod:first,dateBasis:'occurred_at',language:'PT'},proposal=ok(await call(setup,{action:'propose',input},'ledger-setup'));
+ ok(await call(setup,mutation({action:'configure',input,proposalHash:proposal.proposalHash}),'ledger-setup'));ok(await call(setup,mutation({action:'opening',accountId:'cash',expectedOpeningRevision:1,reason:'Verified synthetic starting cash'}),'ledger-setup'));
+ const firstIncome=await posted(10000);await posted(3000,'offering');
+ const journalBefore=(await orgRef.collection('financeJournalEntries').get()).size;
+ actor=viewer;assert.equal((await call(bookCommand,mutation({action:'post',transactionId:firstIncome.id,expectedVersion:3}),'certified-book-command')).statusCode,403,'viewer/owner label never grants posting');
+ assert.equal((await call(remittances,mutation({action:'configure',input:{},expectedRevision:0,reason:'Synthetic invalid permission attempt'}),'remittances')).statusCode,403);
+ actor=counter;assert.equal((await call(remittances,{action:'options'},'remittances')).statusCode,403);assert.equal((await call(close,{action:'status',period:first},'formal-period-close')).statusCode,403);actor=ceo;
+ assert.equal((await call(bookCommand,mutation({action:'post',transactionId:firstIncome.id,expectedVersion:3}),'certified-book-command',false)).statusCode,401);
+ assert.equal((await call(close,{action:'status',period:first},'formal-period-close',true,'synthetic_other_org')).statusCode,403);
+ const policy={effectivePeriod:first,recipient:'Synthetic convention',percentageBasisPoints:1000,incomeCategoryIds:['tithe'],expenseCategoryId:'remittance',dueDay:10};
+ const policyRequest=mutation({action:'configure',input:policy,expectedRevision:0,reason:'Synthetic church explicitly approved its convention policy'});
+ ok(await call(remittances,policyRequest,'remittances'));assert.deepEqual(ok(await call(remittances,{...policyRequest,requestId:'synthetic_policy_retry'},'remittances')).policy,{...policy,revision:1});
+ let preview=ok(await call(remittances,{action:'preview',period:first},'remittances'));assert.equal(preview.assessment.baseCents,10000);assert.equal(preview.assessment.amountCents,1000);
+ const assessRequest=mutation({action:'assess',period:first,fingerprint:preview.fingerprint,language:'PT',reason:''});const assessment=ok(await call(remittances,assessRequest,'remittances'));
+ assert.equal((await orgRef.collection('financeJournalEntries').get()).size,journalBefore,'assessing a remittance does not post or pay');
+ assert.deepEqual(ok(await call(remittances,{...assessRequest,requestId:'synthetic_assessment_retry'},'remittances')),assessment);
+ ok(await call(remittances,mutation({...assessRequest}),'remittances'));
+ await posted(5000);assert.equal((await call(remittances,mutation({...assessRequest}),'remittances')).statusCode,409,'old preview cannot create another obligation');
+ preview=ok(await call(remittances,{action:'preview',period:first},'remittances'));assert.equal(preview.assessment.amountCents,1500);
+ assert.equal((await call(remittances,mutation({action:'replace',period:first,fingerprint:preview.fingerprint,language:'PT',reason:'short'}),'remittances')).statusCode,409);
+ const replacement=ok(await call(remittances,mutation({action:'replace',period:first,fingerprint:preview.fingerprint,language:'PT',reason:'Corrected synthetic assessment after a new receipt'}),'remittances'));
+ const bills=entityRef.collection('financePayables');assert.equal((await bills.doc(assessment.payableId).get()).data()!.status,'cancelled');
+ assert.equal((await bills.get()).size,2);assert.equal((await bills.doc(replacement.payableId).get()).data()!.status,'awaiting_review');
+ ok(await call(payableReview,mutation({payableId:replacement.payableId,expectedVersion:1}),'payables-review'));
+ ok(await call(payableAccounting,mutation({action:'recognize',payableId:replacement.payableId,expectedVersion:2,classification:{categoryId:'remittance',recognitionDate:day}}),'payables-accounting'));
+ const paymentInput={accountId:'cash',principalCents:500,feesCents:0,discountCents:0,paidOn:today,reference:'Synthetic partial payment',evidenceJustification:'Synthetic payment with no real attachment'};
+ ok(await call(payableAccounting,mutation({action:'payment',payableId:replacement.payableId,expectedVersion:3,input:paymentInput}),'payables-accounting'));
+ preview=ok(await call(remittances,{action:'preview',period:first},'remittances'));assert.equal(preview.fingerprint,preview.previous.fingerprint,'recognition and unrelated payments do not invalidate the income assessment');
+ const originalEvidence=entityRef.collection('universalEvidence').doc('synthetic_canonical_review'),duplicateEvidence=entityRef.collection('universalEvidence').doc('synthetic_duplicate_review');
+ const unknownCount=entityRef.collection('countSessions').doc('synthetic_missing_count_total');await db.runTransaction(async t=>{t.create(unknownCount,{organizationId:org,financeEntityId:entity,serviceDate:day,status:'matched'});});
+ let missingTotal=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.ok(missingTotal.blockers.some((b:any)=>b.code==='counts_incomplete'),'a missing count total is never assumed to be zero');await db.runTransaction(async t=>{t.delete(unknownCount);});
+ await db.runTransaction(async t=>{t.create(originalEvidence,{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),processingState:'accepted',duplicate:false});t.create(duplicateEvidence,{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),processingState:'duplicate',duplicate:true,duplicateOfEvidenceId:originalEvidence.id});});
+ let closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.ok(closePreview.blockers.some((b:any)=>b.code==='documents_not_reviewed'));
+ await db.runTransaction(async t=>{t.update(originalEvidence,{classification:{source:'human'},review:{status:'reviewed'}});});
+ closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.deepEqual(closePreview.blockers,[]);assert.equal(closePreview.summary.outstandingPayablesCents,1500,'a later-month payment cannot rewrite prior-month outstanding liabilities');
+ const reason='Synthetic month reviewed against source evidence and cash';const closeRequest=mutation({action:'close',period:first,fingerprint:closePreview.fingerprint,reason});
+ // Hold an old writer before its fence read, close, then resume. No old write or audit can slip through.
+ let releaseWriter!:()=>void,writerReady!:()=>void;const ready=new Promise<void>(r=>writerReady=r),release=new Promise<void>(r=>releaseWriter=r);const racingRef=entityRef.collection('countSessions').doc('synthetic_racing_count');
+ const writer=db.runTransaction(async t=>{await t.get(racingRef);writerReady();await release;t.create(racingRef,{organizationId:org,financeEntityId:entity,serviceDate:day,status:'counting_a'});});await ready;
+ const closed=ok(await call(close,closeRequest,'formal-period-close'));assert.equal(closed.status,'closed');releaseWriter();await assert.rejects(()=>writer,/LEDGER_PERIOD_CLOSED/);assert.equal((await racingRef.get()).exists,false);
+ assert.deepEqual(ok(await call(close,{...closeRequest,requestId:'synthetic_close_retry'},'formal-period-close')),closed);
+ const frozen=ok(await call(close,{action:'snapshot',period:first},'formal-period-close'));assert.equal(frozen.report.authority.professionalSignOff,false);assert.ok(!JSON.stringify(frozen).includes(ceo),'snapshot delivery hides actor UIDs');
+ const originalSnapshot=JSON.stringify(frozen.report);
+ const chunk=(await ledgerPeriodRef(db,org,entity,first).collection('snapshots').doc(closed.snapshotId).collection('chunks').limit(1).get()).docs[0],intactChunk=chunk.data();
+ await chunk.ref.update({rows:[]});assert.equal((await call(close,{action:'snapshot',period:first},'formal-period-close')).statusCode,409,'corrupted snapshot content is never released');await chunk.ref.set(intactChunk);
+ const sourceRef=orgRef.collection('financeTransactions').doc(firstIncome.id),originalSource=(await sourceRef.get()).data()!;
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{description:'Synthetic forbidden historical rewrite'});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{occurredAt:today+'T12:00:00Z'});}),/LEDGER_PERIOD_CLOSED/,'moving an old source into a new month does not bypass the fence');
+ assert.deepEqual((await sourceRef.get()).data(),originalSource);
+ for(const collection of ['countSessions','countVerificationSessions'])await assert.rejects(()=>db.runTransaction(async t=>{t.create(entityRef.collection(collection).doc('synthetic_old_'+collection),{organizationId:org,financeEntityId:entity,serviceDate:day,status:'pending'});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.create(entityRef.collection('universalEvidence').doc('evd_'+randomBytes(16).toString('hex')),{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),version:1});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.create(bills.doc('synthetic_historical_bill'),{organizationId:org,financeEntityId:entity,dueDate:day,status:'awaiting_review'});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(bills.doc(replacement.payableId),{description:'Synthetic forbidden historical bill rewrite'});}),/LEDGER_PERIOD_CLOSED/);
+ const openCount=entityRef.collection('countSessions').doc('synthetic_open_capture_parent'),openCapture=entityRef.collection('countCaptures').doc('synthetic_open_capture');
+ await db.runTransaction(async t=>{t.create(openCount,{organizationId:org,financeEntityId:entity,serviceDate:today,status:'discarded'});});
+ await db.runTransaction(async t=>{t.create(openCapture,{organizationId:org,financeEntityId:entity,countSessionId:openCount.id,status:'awaiting_upload'});});
+ await db.runTransaction(async t=>{t.create(entityRef.collection('countCaptureHashes').doc('synthetic_open_capture_hash'),{organizationId:org,financeEntityId:entity,captureId:openCapture.id});});
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{financeEntityId:'synthetic_other_church'});}),/LEDGER_PERIOD_FENCE_SCOPE_INVALID/);
+ const oldCount=await call(countCreate,mutation({serviceLabel:'Synthetic historical service',serviceDate:day}),'count-sessions-create');assert.equal(oldCount.statusCode,409,JSON.stringify(oldCount.body));
+ const oldDraft=await call(createDraft,mutation({payload:payload(100)}),'transactions-create-draft');assert.equal(oldDraft.statusCode,409,JSON.stringify(oldDraft.body));
+ const secondPreview=ok(await call(remittances,{action:'preview',period:second},'remittances'));assert.equal(secondPreview.assessment.amountCents,0);ok(await call(remittances,mutation({action:'assess',period:second,fingerprint:secondPreview.fingerprint,language:'EN',reason:''}),'remittances'));
+ closePreview=ok(await call(close,{action:'preview',period:second},'formal-period-close'));assert.equal(closePreview.canClose,true,JSON.stringify(closePreview.blockers));const closedSecond=ok(await call(close,mutation({action:'close',period:second,fingerprint:closePreview.fingerprint,reason}),'formal-period-close'));
+ assert.equal((await call(close,mutation({action:'reopen',period:first,expectedVersion:closed.version,reason:'Synthetic attempt to skip the latest closed month'}),'formal-period-close')).statusCode,409);
+ // New-period payments and explicit reversals remain possible; old snapshots never change.
+ ok(await call(payableAccounting,mutation({action:'payment',payableId:replacement.payableId,expectedVersion:4,input:{...paymentInput,principalCents:1000}}),'payables-accounting'));
+ const reverseRequest=mutation({action:'reverse',transactionId:firstIncome.id,expectedVersion:3,reversalDate:today,reason:'Correct a synthetic historical receipt in the open period'});ok(await call(bookCommand,reverseRequest,'certified-book-command'));
+ assert.equal(JSON.stringify(ok(await call(close,{action:'snapshot',period:first},'formal-period-close')).report),originalSnapshot);
+ const negative=ok(await call(remittances,{action:'preview',period:currentMonth},'remittances'));assert.equal(negative.assessment.baseCents,-10000);assert.ok(negative.assessment.blockers.length);assert.equal((await call(remittances,mutation({action:'assess',period:currentMonth,fingerprint:negative.fingerprint,language:'PT',reason:''}),'remittances')).statusCode,409,'a credit is never silently converted to a negative payable');
+ const reopenSecond=mutation({action:'reopen',period:second,expectedVersion:closedSecond.version,reason:'Synthetic correction requires reopening the latest month'});ok(await call(close,reopenSecond,'formal-period-close'));ok(await call(close,{...reopenSecond,requestId:'synthetic_reopen_retry'},'formal-period-close'));
+ ok(await call(close,mutation({action:'reopen',period:first,expectedVersion:closed.version,reason:'Synthetic authorized historical review and correction'}),'formal-period-close'));
+ const reopenedCount=entityRef.collection('countSessions').doc('synthetic_reopened_count');await db.runTransaction(async t=>{t.create(reopenedCount,{organizationId:org,financeEntityId:entity,serviceDate:day,status:'counting_a'});});
+ closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.ok(closePreview.blockers.some((b:any)=>b.code==='counts_incomplete'));await db.runTransaction(async t=>{t.delete(reopenedCount);});
+ closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.equal(closePreview.canClose,true,JSON.stringify(closePreview.blockers));const reclosed=ok(await call(close,mutation({action:'close',period:first,fingerprint:closePreview.fingerprint,reason:'Synthetic review completed after an authorized reopening'}),'formal-period-close'));assert.equal(reclosed.version,3);assert.notEqual(reclosed.snapshotId,closed.snapshotId);
+ const history=ok(await call(close,{action:'history',period:first},'formal-period-close'));assert.equal(history.items.length,2);
+ assert.equal(JSON.stringify(ok(await call(close,{action:'snapshot',period:first,snapshotId:closed.snapshotId},'formal-period-close')).report),originalSnapshot,'old close remains retrievable after reclose');
+ const currentPreview=ok(await call(close,{action:'preview',period:currentMonth},'formal-period-close'));assert.ok(currentPreview.blockers.some((b:any)=>b.code==='period_not_ended'));
+ actor=viewer;assert.equal((await call(close,mutation({action:'reopen',period:first,expectedVersion:3,reason}),'formal-period-close')).statusCode,403);actor=ceo;
+ console.log('Finance completion Emulator passed: real HTTP create/review/post/retry; remittance policy, base, stale preview, replacement, obligation/partial payment; chronological close/reopen/reclose; immutable chunked snapshots; source/date/Count V1+V3/document/legacy draft fence; close-vs-writer race; later payment/reversal preserves historical books; permission/tenant denial. Synthetic demo data only.');
+}
+main().catch(e=>{console.error('Finance completion Emulator failed',e);process.exitCode=1;}).finally(()=>{auth.verifyIdToken=verify;for(const [key,value] of [['NESTFINANCE_PAYABLES_WRITE_ENABLED',oldWrite],['NESTFINANCE_PAYABLES_REVIEW_ENABLED',oldReview]] as const){if(value===undefined)delete process.env[key];else process.env[key]=value;}});

@@ -25,7 +25,7 @@ const TEXT = {
     incomingCount: 'Contagem já concluída?', incomingCountDesc: 'Confira as propostas com a origem do culto e as evidências, sem redigitar os valores.',
     viewReview: 'Revisar lançamentos preparados',
     openCount: 'Abrir contagens conferidas',
-    repass: 'Repasses', repassDesc: 'Configuração e cálculos certificados serão entregues em etapa própria.',
+    repass: 'Repasses', repassDesc: 'Confira a regra, apure o mês e prepare a conta a pagar.',
   },
   EN: {
     title: 'Manage church finances', subtitle: 'Income, expenses, evidence, balances and month review in one place.',
@@ -39,7 +39,7 @@ const TEXT = {
     month: 'Review the month', monthDesc: 'Inspect the period, outstanding items and accountant information.',
     transfer: 'Transfer between accounts', transferDesc: 'A transfer must not duplicate income.',
     incomingCount: 'Service count completed?', incomingCountDesc: 'Review proposals with service provenance and evidence; no manual re-entry.',
-    viewReview: 'Review prepared entries', openCount: 'Open verified counts', repass: 'Remittances', repassDesc: 'Certified calculation and configuration will be released separately.',
+    viewReview: 'Review prepared entries', openCount: 'Open verified counts', repass: 'Remittances', repassDesc: 'Review the policy, assess the month and prepare the payable.',
   },
   ES: {
     title: 'Cuidar las finanzas', subtitle: 'Ingresos, gastos, comprobantes, saldos y revisión mensual en un lugar.',
@@ -53,7 +53,7 @@ const TEXT = {
     month: 'Revisar el mes', monthDesc: 'Revisa el período, pendientes e información para el contador.',
     transfer: 'Transferir entre cuentas', transferDesc: 'Una transferencia no debe duplicar ingresos.',
     incomingCount: '¿Conteo terminado?', incomingCountDesc: 'Revisa propuestas con origen del culto y evidencias, sin volver a introducir valores.',
-    viewReview: 'Revisar movimientos preparados', openCount: 'Abrir conteos verificados', repass: 'Remesas', repassDesc: 'El cálculo y configuración certificados llegarán por separado.',
+    viewReview: 'Revisar movimientos preparados', openCount: 'Abrir conteos verificados', repass: 'Remesas', repassDesc: 'Revise la regla, calcule el mes y prepare la cuenta por pagar.',
   },
 } as const;
 
@@ -120,10 +120,10 @@ function TreasuryHubContent() {
                 <ChevronRight className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true"/>
               </button>
             ))}
-            <div className="flex min-h-20 items-center gap-4 px-4 py-4">
+            <button type="button" onClick={()=>navigate(`${APP_ROUTES.payables}#remittances`)} className="nf-interactive flex min-h-20 w-full items-center gap-4 px-4 py-4 text-left hover:bg-surface-secondary">
               <Banknote className="h-6 w-6 shrink-0 text-text-muted" aria-hidden="true"/>
               <span className="min-w-0"><span className="block text-base font-semibold text-text-primary">{copy.repass}</span><span className="mt-1 block text-sm leading-relaxed text-text-secondary">{copy.repassDesc}</span></span>
-            </div>
+            </button>
           </div>
         </section>
       </div>

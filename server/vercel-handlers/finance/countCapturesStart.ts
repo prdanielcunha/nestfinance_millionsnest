@@ -83,6 +83,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
     return res.status(200).json({ captureId: result.captureId, version: result.version, status: result.status, originalUpload: { ...originalUpload, contentType: originalContentType }, normalizedUpload: { ...normalizedUpload, contentType: normalizedContentType }, expiresInMs: COUNT_CAPTURE_UPLOAD_TTL_MS, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     console.error('Count Capture Start Error:', error);
     const message = String(error?.message || '');
     if (message === 'COUNT_CAPTURE_FORM_NOT_FOUND' || message === 'COUNT_SESSION_NOT_FOUND') return res.status(404).json({ error: 'COUNT_CAPTURE_FORM_NOT_FOUND' });

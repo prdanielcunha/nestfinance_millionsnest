@@ -192,7 +192,9 @@ verify(accountantWorkspace.includes('APP_ROUTES.transactions') && accountantWork
 verify(accountantWorkspace.includes('disabled={!row.available}'),
   'accountant links respect review permission');
 verify(accountantWorkspace.includes('notOfficial') && accountantWorkspace.includes('notAvailable') && accountantWorkspace.includes('accountingBody'),
-  'unavailable journal, ledger and trial balance are not misrepresented as certified');
+  'accountant overview retains professional sign-off limits and access guidance');
+verify(accountantWorkspace.includes('available: canReadBooks') && accountantWorkspace.includes("getElementById('certified-book')") && accountantReports.includes("canReadBooks={hasEffectiveCapability(accessState,'finance.balance.view') && hasEffectiveCapability(accessState,'finance.accountant.view_exports')}"),
+  'accounting shortcut reaches implemented books only with balance and export access');
 verify(accountantWorkspace.includes('PT: {') && accountantWorkspace.includes('EN: {') && accountantWorkspace.includes('ES: {'),
   'accountant workspace help is translated into PT/EN/ES');
 verify(files.accountantPanel.includes('arquivos originais não estão incluídos') &&

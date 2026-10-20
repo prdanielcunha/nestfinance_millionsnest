@@ -134,6 +134,9 @@ import auditFactProjectionVerify from '../server/vercel-handlers/finance/auditFa
 import periodCloseReadiness from '../server/vercel-handlers/finance/periodCloseReadiness.js';
 import periodCloseReviewConfirm from '../server/vercel-handlers/finance/periodCloseReviewConfirm.js';
 import reportsIntelligence from '../server/vercel-handlers/finance/reportsIntelligence.js';
+import formalPeriodClose from '../server/vercel-handlers/finance/formalPeriodClose.js';
+import remittances from '../server/vercel-handlers/finance/remittances.js';
+import certifiedBookCommand from '../server/vercel-handlers/finance/certifiedBookCommand.js';
 import certifiedBookReport from '../server/vercel-handlers/finance/certifiedBookReport.js';
 import receivedIncomeSummary from '../server/vercel-handlers/finance/receivedIncomeSummary.js';
 import accountantPackageExport from '../server/vercel-handlers/finance/accountantPackageExport.js';
@@ -166,6 +169,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'payables-list': return payablesList(req, res);
     case 'payables-review': return payablesReview(req, res);
     case 'payables-accounting': return payablesAccounting(req, res);
+    case 'formal-period-close': return formalPeriodClose(req, res);
+    case 'remittances': return remittances(req, res);
+    case 'certified-book-command': return certifiedBookCommand(req, res);
     case 'certified-book-report': return certifiedBookReport(req, res);
     case 'ledger-setup': return ledgerSetup(req, res);
     case 'funds-list': return fundsList(req, res);

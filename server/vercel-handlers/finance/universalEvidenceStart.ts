@@ -35,6 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const upload = await getUniversalEvidenceStorageAdapter().createUploadUrl(result.originalPath, declaredMimeType, EVIDENCE_UPLOAD_TTL_MS);
     return res.status(200).json({ evidenceId: result.evidenceId, captureId: result.evidenceId, version: result.version, processingState: result.processingState, upload: { ...upload, contentType: declaredMimeType }, expiresInMs: EVIDENCE_UPLOAD_TTL_MS, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const message = String(error?.message || '');
     if (message.includes('FINANCE_IDEMPOTENCY_CONFLICT')) return res.status(409).json({ error: 'FINANCE_IDEMPOTENCY_CONFLICT' });
     if (message === 'FORBIDDEN_FINANCE_ACCESS' || message === 'Session not granted') return res.status(403).json({ error: 'FORBIDDEN' });
