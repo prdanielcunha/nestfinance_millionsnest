@@ -25,6 +25,7 @@ const ACCOUNT_COPY: Record<Language, { title: string; hub: string; signOut: stri
 const NAV_DESCRIPTIONS: Record<Language, Partial<Record<FinanceNavigationId, string>>> = {
   PT: {
     transactions: 'Consulte entradas, saídas e transferências com filtros e detalhes.',
+    payables: 'Acompanhe cobranças, repasses e pagamentos registrados.',
     balance: 'Confira diferenças e correspondências com o banco.',
     reports: 'Entenda resultados, fechamento e informações para o contador.',
     audit: 'Veja quem alterou o quê, quando e por qual origem.',
@@ -35,6 +36,7 @@ const NAV_DESCRIPTIONS: Record<Language, Partial<Record<FinanceNavigationId, str
   },
   EN: {
     transactions: 'Review income, expenses, and transfers with filters and detail.',
+    payables: 'Review bills, remittances, and recorded payments.',
     balance: 'Check differences and likely matches against the bank.',
     reports: 'Understand results, closing status, and accountant-ready information.',
     audit: 'See who changed what, when, and from which source.',
@@ -45,6 +47,7 @@ const NAV_DESCRIPTIONS: Record<Language, Partial<Record<FinanceNavigationId, str
   },
   ES: {
     transactions: 'Consulta ingresos, egresos y transferencias con filtros y detalle.',
+    payables: 'Consulta cuentas, remesas y pagos registrados.',
     balance: 'Revisa diferencias y coincidencias probables con el banco.',
     reports: 'Entiende resultados, cierre e información lista para el contador.',
     audit: 'Consulta quién cambió qué, cuándo y desde qué origen.',

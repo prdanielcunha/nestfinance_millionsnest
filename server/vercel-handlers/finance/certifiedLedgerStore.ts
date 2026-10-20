@@ -1,3 +1,4 @@
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import { FieldValue, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import type { FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { ledgerFailure, ledgerId } from '../../../shared/finance/ledger/certifiedConfiguration.js';
@@ -69,7 +70,7 @@ export async function stageCertifiedPosting(t:Transaction,c:LedgerCommandContext
     if(!ledgerId(fundId))ledgerFailure('LEDGER_FUND_UNAVAILABLE');
     const f=await t.get(org.collection('financeFunds').doc(fundId));
     if(!f.exists||f.data()?.active!==true)ledgerFailure('LEDGER_FUND_UNAVAILABLE');
-    assertBookScope(f.data(),c.organizationId,c.financeEntityId);
+    assertFinanceCatalogScope(f,c.organizationId,c.financeEntityId,'financeFunds');
   }
   const effects=await readAccountEffects(t,c,entry);
   const fundEffects=await readFundEffects(t,c,entry);
@@ -137,7 +138,7 @@ export async function stageCertifiedOpening(t:Transaction,c:LedgerCommandContext
   const accountRef=org.collection('financeAccounts').doc(accountId),accountSnap=await t.get(accountRef);
   if(!accountSnap.exists)ledgerFailure('LEDGER_FINANCE_ACCOUNT_UNAVAILABLE');
   const account=accountSnap.data()!;
-  assertBookScope(account,c.organizationId,c.financeEntityId);
+  assertFinanceCatalogScope(accountSnap,c.organizationId,c.financeEntityId,'financeAccounts');
   if(account.openingBalanceRevision!==expectedOpeningRevision||account.openingBalanceDeclaration?.status!=='pending_review')ledgerFailure('LEDGER_OPENING_DECLARATION_CHANGED');
   const declaration=parseOpeningBalanceDeclaration({...account.openingBalanceDeclaration,status:'declared'});
   if(declaration.status!=='pending_review')ledgerFailure('LEDGER_OPENING_INVALID');

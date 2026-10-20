@@ -64,3 +64,24 @@ do diário e do recibo. Capturas herdam a data da contagem correspondente.
 
 Este registro descreve o comportamento implementado e os critérios de aceitação.
 Não declara homologação concluída apenas pela existência do código ou pelo CI.
+
+## Correção da homologação autenticada
+
+A inspeção autenticada identificou dois impedimentos adicionais: o bootstrap
+histórico omitia `organizationId` em catálogos, e as duas flags de cadastro e
+revisão de contas a pagar estavam desligadas no runtime. A compatibilidade agora
+exige snapshot obtido pelo servidor no caminho exato de organização/coleção e
+`financeEntityId` correspondente. Somente a ausência do campo redundante é
+aceita; organização explicitamente divergente continua bloqueada. Livros,
+configurações, obrigações, transações, auditoria e snapshots continuam estritos.
+Novos catálogos de bootstrap já gravam o campo. Não há backfill financeiro.
+
+A publicação habilita explicitamente apenas `NESTFINANCE_PAYABLES_WRITE_ENABLED`
+e `NESTFINANCE_PAYABLES_REVIEW_ENABLED`; a comparação exata do runtime permanece
+para todas as demais variáveis, secrets, recursos, IAM e tags. A revisão anterior
+permanece disponível para rollback. Não há pagamento, saldo ou percentual criado.
+O menu e a busca incluem Contas a pagar conforme as capabilities existentes.
+
+O primeiro período, os valores iniciais verificados e a regra de repasse exigem
+decisão humana, não valores inventados para passar homologação. Uso em aparelho
+físico segue distinto da navegação autenticada no navegador da nuvem.

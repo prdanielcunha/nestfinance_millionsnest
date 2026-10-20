@@ -1,6 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { ledgerConfigurationKey,validateLedgerConfiguration,ledgerFailure,ledgerDate } from '../../../shared/finance/ledger/certifiedConfiguration.js';
 import { assertBookScope,bookId } from '../../../shared/finance/ledger/certifiedPosting.js';
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import type { TodayOperationalBalance } from '../../../shared/finance/todayOperationalSummary.js';
 import { ledgerStateRef } from './certifiedLedgerStore.js';
 
@@ -24,7 +25,7 @@ export async function loadCertifiedTodayBalance(db:Firestore,organizationId:stri
     if(!assets.length)return {state:'unavailable',amountCents:null,reason:'no_asset_accounts'};
     let total=0;
     for(const account of assets){
-      assertBookScope(account.data(),organizationId,financeEntityId);
+      assertFinanceCatalogScope(account,organizationId,financeEntityId,'financeAccounts');
       if(!c.financeAccounts.some(m=>m.accountId===account.id&&m.type==='asset'))return {state:'unavailable',amountCents:null,reason:'opening_balance_incomplete'};
       const projection=await t.get(org.collection('financeAggregates').doc('ledger_account_'+bookId(financeEntityId,account.id)));
       if(!projection.exists||projection.data()?.openingVerified!==true)return {state:'unavailable',amountCents:null,reason:'opening_balance_incomplete'};

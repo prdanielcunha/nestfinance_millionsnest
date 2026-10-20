@@ -1,3 +1,4 @@
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import type { Firestore,Transaction } from 'firebase-admin/firestore';
 import { canonicalStringify } from '../../../shared/finance/ledger/postingPlan.js';
 import { ledgerConfigurationKey,ledgerFailure,validateLedgerConfiguration,type CertifiedLedgerConfiguration } from '../../../shared/finance/ledger/certifiedConfiguration.js';
@@ -31,7 +32,7 @@ export async function buildLedgerSetupProposal(db:Firestore,organizationId:strin
   const catalog:Array<{id:string;kind:'account'|'category';name:string;type:string;active:boolean;configurationStatus:string|null}>=[];
   const openingAccounts:Array<{id:string;name:string;revision:number;declaration:unknown}>=[];
   for(const doc of accounts.docs){
-    const a=doc.data();assertBookScope(a,organizationId,financeEntityId);
+    const a=doc.data();assertFinanceCatalogScope(doc,organizationId,financeEntityId,'financeAccounts');
     if(a.active!==true||!['asset','liability'].includes(a.nature))continue;
     if(a.configurationStatus!=='complete')ledgerFailure('LEDGER_FINANCE_ACCOUNT_UNAVAILABLE');
     const name=String(a.name||'').trim();if(!name||name.length>120)ledgerFailure('LEDGER_ACCOUNT_INVALID');
@@ -45,7 +46,7 @@ export async function buildLedgerSetupProposal(db:Firestore,organizationId:strin
   }
   const categoryOptions:Array<{id:string;name:string;kind:'income'|'expense'}>=[];
   for(const doc of categories.docs){
-    const c=doc.data();assertBookScope(c,organizationId,financeEntityId);
+    const c=doc.data();assertFinanceCatalogScope(doc,organizationId,financeEntityId,'financeCategories');
     if(c.active!==true||!['income','expense'].includes(c.kind))continue;
     const name=String(c.name||'').trim();if(!name||name.length>120)ledgerFailure('LEDGER_ACCOUNT_INVALID');
     catalog.push({id:doc.id,kind:'category',name,type:c.kind,active:c.active,configurationStatus:c.configurationStatus??null});

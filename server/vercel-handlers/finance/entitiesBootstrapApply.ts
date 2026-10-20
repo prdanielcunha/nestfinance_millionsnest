@@ -346,6 +346,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                const docId = candidateIds.get(`${item.entityType}:${item.templateKey}`);
                const ref = orgRef.collection(collection).doc(docId);
                const data: any = {
+                   organizationId,
                    financeEntityId,
                    name: item.name,
                    active: true,
