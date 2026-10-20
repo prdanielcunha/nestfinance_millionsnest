@@ -31,7 +31,7 @@ export async function loadFormalClose(t:Transaction,c:LedgerCommandContext,perio
  ]);
  if(snapshots.some((s,i)=>s.size>(i===5?200:MAX_SOURCES)))failure('PERIOD_CLOSE_COVERAGE_INCOMPLETE');
  const [transactions,legacyCounts,counts,documents,bills,accounts]=snapshots;
- const blockers:FormalCloseBlocker[]=[],sourceRows:any[]=[],bankAccounts=new Set(accounts.docs.filter(d=>d.data().active===true&&['bank_checking','bank_savings','payment_account'].includes(d.data().type)).map(d=>d.id));
+ const blockers:FormalCloseBlocker[]=[],sourceRows:any[]=[],bankAccounts=new Set(accounts.docs.filter(d=>['bank_checking','bank_savings','payment_account'].includes(d.data().type)).map(d=>d.id));
  const addBlock=(code:string)=>{const b=blockers.find(b=>b.code===code);if(b)b.count++;else blockers.push({code,count:1});};
  const inPeriod=(value:any)=>{const date=ledgerDate(value,config.timeZone);return date>=p.startDate&&date<p.endDateExclusive;};
  const remember=(kind:string,d:any,date:any)=>sourceRows.push({kind,id:d.id,version:d.data().version??null,date:ledgerDate(date,config.timeZone),hash:bookId(canonicalStringify(d.data()))});
@@ -50,11 +50,18 @@ export async function loadFormalClose(t:Transaction,c:LedgerCommandContext,perio
    if(['cancelled','discarded'].includes(v.status))continue;
    if(v.status!=='matched'&&!(v.status==='requires_treasury_review'&&v.treasuryReview?.status==='accepted')){addBlock('counts_incomplete');continue;}
    const ids=v.countProposal?.transactionIds;
-   const total=Number(v.countA?.totalCents??v.evaluation?.totalCents??v.confirmations?.[0]?.controlTotalCents??0);
+   const total=v.countA?.totalCents??v.evaluation?.totalCents??v.confirmations?.[0]?.controlTotalCents;
+   if(!Number.isSafeInteger(total)||total<0){addBlock('counts_incomplete');continue;}
    if(total>0&&(!Array.isArray(ids)||ids.length===0||ids.some((id:string)=>!['posted','reversed'].includes(txMap.get(id)?.status))))addBlock('counts_not_posted');
  }
+ const documentMap=new Map(documents.docs.map(d=>[d.id,d.data()]));
+ const reviewedDocument=(v:any)=>v?.processingState==='rejected'||v?.processingState==='accepted'&&v.classification?.source==='human'&&v.review?.status==='reviewed';
  for(const d of documents.docs){const v=d.data();assertBookScope(v,c.organizationId,c.financeEntityId);if(!inPeriod(v.createdAt))continue;remember('document',d,v.createdAt);documentCount++;
-   if(v.processingState!=='accepted'&&v.processingState!=='rejected'||v.processingState==='accepted'&&v.duplicate!==true&&(v.classification?.source!=='human'||v.review?.status!=='reviewed'))addBlock('documents_not_reviewed');
+   if(v.processingState==='duplicate'&&v.duplicate===true&&typeof v.duplicateOfEvidenceId==='string'&&v.duplicateOfEvidenceId!==d.id){
+     const canonical=documentMap.get(v.duplicateOfEvidenceId);
+     if(canonical){assertBookScope(canonical,c.organizationId,c.financeEntityId);if(reviewedDocument(canonical))continue;}
+   }
+   if(!reviewedDocument(v))addBlock('documents_not_reviewed');
  }
  for(const d of bills.docs){const v=d.data();assertBookScope(v,c.organizationId,c.financeEntityId);const basis=v.remittanceSource?.period?`${v.remittanceSource.period}-01`:v.recognitionDate||v.dueDate;if(!inPeriod(basis))continue;remember('payable',d,basis);
    if(v.status==='cancelled')continue;if(v.postingPerformed!==true)addBlock('payables_not_recognized');

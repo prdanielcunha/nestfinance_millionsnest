@@ -659,7 +659,7 @@ function ReportsContent() {
             <ReceivedIncomePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} language={language} period={period} />
           )}
           {organizationId && activeFinanceEntityId && /^\d{4}-\d{2}$/.test(period) && hasEffectiveCapability(accessState,'finance.balance.view') && hasEffectiveCapability(accessState,'finance.accountant.view_exports') && (
-            <div className="space-y-5" key={`${organizationId}:${activeFinanceEntityId}:${period}`}><FormalClosePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language}/><CertifiedBookPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language} /></div>
+            <div id="certified-book" className="space-y-5" key={`${organizationId}:${activeFinanceEntityId}:${period}`}><FormalClosePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language}/><CertifiedBookPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language} /></div>
           )}
           {loading && !data ? (
             <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
@@ -863,7 +863,7 @@ function ReportsContent() {
               ) : null}
 
               {showProfessionalWorkspace ? (
-                <AccountantWorkspaceOverview language={language} period={period} readiness={data} canReview={canReview} />
+                <AccountantWorkspaceOverview language={language} period={period} readiness={data} canReview={canReview} canReadBooks={hasEffectiveCapability(accessState,'finance.balance.view') && hasEffectiveCapability(accessState,'finance.accountant.view_exports')} />
               ) : null}
               <div id="accountant-package" className="scroll-mt-24">
                 <AccountantPackagePanel

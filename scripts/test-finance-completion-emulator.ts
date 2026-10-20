@@ -13,6 +13,7 @@ import payableReview from '../server/vercel-handlers/finance/payablesReview.js';
 import payableAccounting from '../server/vercel-handlers/finance/payablesAccounting.js';
 import countCreate from '../server/vercel-handlers/finance/countSessionsCreate.js';
 import { bookId } from '../shared/finance/ledger/certifiedPosting.js';
+import { ledgerPeriodRef } from '../server/vercel-handlers/finance/certifiedLedgerStore.js';
 import { ledgerDate } from '../shared/finance/ledger/certifiedConfiguration.js';
 if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')||!process.env.FIREBASE_PROJECT_ID?.startsWith('demo-'))throw Error('Only an isolated loopback demo Emulator is allowed');
 const {firestore:db,auth}=getFirebaseAdmin(),suffix=randomBytes(6).toString('hex');
@@ -69,7 +70,13 @@ async function main(){
  const paymentInput={accountId:'cash',principalCents:500,feesCents:0,discountCents:0,paidOn:today,reference:'Synthetic partial payment',evidenceJustification:'Synthetic payment with no real attachment'};
  ok(await call(payableAccounting,mutation({action:'payment',payableId:replacement.payableId,expectedVersion:3,input:paymentInput}),'payables-accounting'));
  preview=ok(await call(remittances,{action:'preview',period:first},'remittances'));assert.equal(preview.fingerprint,preview.previous.fingerprint,'recognition and unrelated payments do not invalidate the income assessment');
- let closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.deepEqual(closePreview.blockers,[]);assert.equal(closePreview.summary.outstandingPayablesCents,1500,'a later-month payment cannot rewrite prior-month outstanding liabilities');
+ const originalEvidence=entityRef.collection('universalEvidence').doc('synthetic_canonical_review'),duplicateEvidence=entityRef.collection('universalEvidence').doc('synthetic_duplicate_review');
+ const unknownCount=entityRef.collection('countSessions').doc('synthetic_missing_count_total');await db.runTransaction(async t=>{t.create(unknownCount,{organizationId:org,financeEntityId:entity,serviceDate:day,status:'matched'});});
+ let missingTotal=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.ok(missingTotal.blockers.some((b:any)=>b.code==='counts_incomplete'),'a missing count total is never assumed to be zero');await db.runTransaction(async t=>{t.delete(unknownCount);});
+ await db.runTransaction(async t=>{t.create(originalEvidence,{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),processingState:'accepted',duplicate:false});t.create(duplicateEvidence,{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),processingState:'duplicate',duplicate:true,duplicateOfEvidenceId:originalEvidence.id});});
+ let closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.ok(closePreview.blockers.some((b:any)=>b.code==='documents_not_reviewed'));
+ await db.runTransaction(async t=>{t.update(originalEvidence,{classification:{source:'human'},review:{status:'reviewed'}});});
+ closePreview=ok(await call(close,{action:'preview',period:first},'formal-period-close'));assert.deepEqual(closePreview.blockers,[]);assert.equal(closePreview.summary.outstandingPayablesCents,1500,'a later-month payment cannot rewrite prior-month outstanding liabilities');
  const reason='Synthetic month reviewed against source evidence and cash';const closeRequest=mutation({action:'close',period:first,fingerprint:closePreview.fingerprint,reason});
  // Hold an old writer before its fence read, close, then resume. No old write or audit can slip through.
  let releaseWriter!:()=>void,writerReady!:()=>void;const ready=new Promise<void>(r=>writerReady=r),release=new Promise<void>(r=>releaseWriter=r);const racingRef=entityRef.collection('countSessions').doc('synthetic_racing_count');
@@ -78,6 +85,8 @@ async function main(){
  assert.deepEqual(ok(await call(close,{...closeRequest,requestId:'synthetic_close_retry'},'formal-period-close')),closed);
  const frozen=ok(await call(close,{action:'snapshot',period:first},'formal-period-close'));assert.equal(frozen.report.authority.professionalSignOff,false);assert.ok(!JSON.stringify(frozen).includes(ceo),'snapshot delivery hides actor UIDs');
  const originalSnapshot=JSON.stringify(frozen.report);
+ const chunk=(await ledgerPeriodRef(db,org,entity,first).collection('snapshots').doc(closed.snapshotId).collection('chunks').limit(1).get()).docs[0],intactChunk=chunk.data();
+ await chunk.ref.update({rows:[]});assert.equal((await call(close,{action:'snapshot',period:first},'formal-period-close')).statusCode,409,'corrupted snapshot content is never released');await chunk.ref.set(intactChunk);
  const sourceRef=orgRef.collection('financeTransactions').doc(firstIncome.id),originalSource=(await sourceRef.get()).data()!;
  await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{description:'Synthetic forbidden historical rewrite'});}),/LEDGER_PERIOD_CLOSED/);
  await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{occurredAt:today+'T12:00:00Z'});}),/LEDGER_PERIOD_CLOSED/,'moving an old source into a new month does not bypass the fence');
