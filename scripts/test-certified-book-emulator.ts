@@ -9,6 +9,7 @@ import { bookId } from '../shared/finance/ledger/certifiedPosting.js';
 import { loadCertifiedBookReadModel } from '../server/vercel-handlers/finance/certifiedBookReadModel.js';
 import { ledgerStateRef, stageCertifiedOpening, stageCertifiedPosting, stageCertifiedReversal, type LedgerCommandContext } from '../server/vercel-handlers/finance/certifiedLedgerStore.js';
 import { executeWithIdempotency,hashPayload } from '../server/vercel-handlers/finance/idempotencyHelper.js';
+import approveForPosting from '../server/vercel-handlers/finance/transactionsApproveForPosting.js';
 
 if(!process.env.FIRESTORE_EMULATOR_HOST||!process.env.FIREBASE_PROJECT_ID?.startsWith('demo-'))throw Error('An isolated demo Firestore Emulator is mandatory. Production access is forbidden.');
 const {firestore:db}=getFirebaseAdmin(),suffix=randomBytes(8).toString('hex');
@@ -21,16 +22,17 @@ const configuration:CertifiedLedgerConfiguration={schemaVersion:1,enabled:true,v
 const configRef=orgRef.collection('financeSettings').doc(ledgerConfigurationKey(entity));
 const balanceRef=orgRef.collection('financeAggregates').doc('ledger_account_'+bookId(entity,'bank'));
 async function command<T>(key:string,payload:unknown,fn:(t:Transaction)=>Promise<T>):Promise<T>{return executeWithIdempotency(db,orgRef.collection('financeIdempotency'),bookId(entity,key),hashPayload(payload),fn);}
-async function seed(id:string,amount=10000,fund=false){
+async function seed(id:string,amount=10000,fund=false,alreadyApproved=true){
   const tx:any={id,organizationId:org,financeEntityId:entity,transactionKind:'income',cashFlowDirection:'inflow',status:'ready_for_review',amountCents:amount,currency:'BRL',occurredAt:'2026-09-20T12:00:00Z',recordedAt:'2026-10-01T12:00:00Z',accountId:'bank',evidenceIds:[],evidenceJustification:'Synthetic emulator fixture',paymentMethod:'pix',sourceContext:'manual',reconciliationStatus:'unreconciled',createdBy:'synthetic_creator',updatedBy:'synthetic_creator',version:1,contentVersion:1,schemaVersion:1};
   const allocation:any={id:'alloc_'+id,organizationId:org,financeEntityId:entity,transactionId:id,categoryId:'tithe',amountCents:amount,sequence:1,...(fund?{fundId:'mission'}:{})};
+  tx.allocationIds=[allocation.id];
   const refs=certifiedPlanReferences(configuration,org,entity);
   const plan=buildPostingPlan({transaction:tx,allocations:[allocation],...refs,isPreview:true,approval:{approvedVersion:1,approvalSourceHash:'preview',status:'approved_for_posting',approvalAlgorithmVersion:3}});
   assert.deepEqual(plan.blockers,[]);
   const approval={status:'approved_for_posting',approvedVersion:1,approvedContentVersion:1,approvalAlgorithmVersion:3,approvalSourceHash:computeApprovalSourceHash(tx,[allocation],3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
-  Object.assign(tx,approval,{version:2});
+  if(alreadyApproved)Object.assign(tx,approval,{version:2});
   const ref=orgRef.collection('financeTransactions').doc(id);
-  await ref.set(tx);await ref.collection('approvals').doc('latest').set(approval);
+  await ref.set(tx);if(alreadyApproved)await ref.collection('approvals').doc('latest').set(approval);
   await orgRef.collection('financeAllocations').doc(allocation.id).set(allocation);
   return ref;
 }
@@ -85,10 +87,28 @@ async function main(){
   await ledgerStateRef(db,org,entity).update({closedThrough:'2026-09'});
   await assert.rejects(()=>command('closed-month',{},t=>stageCertifiedPosting(t,c,catalog.id,2)),/LEDGER_PERIOD_CLOSED/);
   await ledgerStateRef(db,org,entity).update({closedThrough:null});
+  // Exercise the existing HTTP approval handler and canonical resolver, rather
+  // than testing only approvals assembled directly by a fixture.
+  const approvalSource=await seed('tx_synthetic_real_approval',300,false,false);
+  const {auth}=getFirebaseAdmin(),originalVerify=auth.verifyIdToken;
+  await db.collection('users').doc(c.uid).set({systemRole:'ceo',ecosystemSessionVersion:1});
+  try {
+    auth.verifyIdToken=async()=>({uid:c.uid,mn_app_id:'nestfinance',mn_handoff_version:1,mn_organization_id:org,mn_session_version:1}) as any;
+    const response:any={statusCode:200,body:null,status(code:number){this.statusCode=code;return this;},json(body:unknown){this.body=body;return this;},setHeader(){return this;}};
+    await approveForPosting({method:'POST',query:{},headers:{authorization:'Bearer synthetic-emulator-token','x-organization-id':org,'content-type':'application/json'},body:{financeEntityId:entity,transactionId:approvalSource.id,expectedVersion:1,approvalIdempotencyKey:'synthetic_actual_approval_key',requestId:'synthetic_actual_approval_request'}} as any,response);
+    assert.equal(response.statusCode,200,JSON.stringify(response.body));
+    const approved=(await approvalSource.get()).data()!;
+    assert.equal(approved.approvalAlgorithmVersion,3);
+    assert.equal(approved.status,'approved_for_posting');
+    assert.equal(approved.version,2);
+    const realPosted=await command('actual-approved-post',{},t=>stageCertifiedPosting(t,c,approvalSource.id,2));
+    assert.equal(realPosted.status,'posted','actual approval seal must survive its workflow version increment');
+    assert.equal((await balanceRef.get()).data()!.balanceCents,51000);
+  } finally {auth.verifyIdToken=originalVerify;}
   const final=await db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-11-01'));
-  assert.equal(final.coverage.entryCount,4);
-  await ledgerStateRef(db,org,entity).update({entryCount:5});
+  assert.equal(final.coverage.entryCount,5);
+  await ledgerStateRef(db,org,entity).update({entryCount:6});
   await assert.rejects(()=>db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-11-01')),/LEDGER_REPORT_COVERAGE_INCOMPLETE/);
-  console.log('Certified book real Firestore Emulator passed: opening, post/reversal, atomic fund movements, exact report coverage, idempotency, concurrent double post, forced rollback, stale approval, inactive catalog, cross-entity and period lock. No production data or browser authentication.');
+  console.log('Certified book real Firestore Emulator passed: actual HTTP approval-v3 seal to post, opening, post/reversal, atomic fund movements, exact report coverage, idempotency, concurrent double post, forced rollback, stale approval, inactive catalog, cross-entity and period lock. No production data or browser authentication.');
 }
 main().catch(error=>{console.error('Certified book Emulator failed',error);process.exitCode=1});
