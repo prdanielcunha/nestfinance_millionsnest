@@ -48,6 +48,7 @@ import { APP_ROUTES } from '@/src/app/router/routes';
 import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
 import { TodayLedgerOverview } from './TodayLedgerOverview';
+import { FinanceGettingStarted } from '@/src/components/finance/FinanceGettingStarted';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string; resumeTitle: string; resumeAction: string }> = {
   PT: {
@@ -1053,6 +1054,7 @@ export function TodayActionCenter() {
 
   return (
     <div className="space-y-6 pb-4">
+      {hasEffectiveCapability(accessState,'finance.manage')&&canViewBalance&&organizationId&&<div key={organizationId+':'+activeFinanceEntityId}><FinanceGettingStarted organizationId={organizationId} financeEntityId={activeFinanceEntityId}/></div>}
       <TodayLedgerOverview
         language={language}
         entityName={activeFinanceEntityName}

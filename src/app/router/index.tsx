@@ -14,6 +14,7 @@ import LoginPage from '@/src/pages/auth/LoginPage';
 const FinancePage = lazy(() => import('@/src/pages/finance/FinancePage'));
 const TreasuryHubPage = lazy(() => import('@/src/pages/finance/TreasuryHubPage'));
 const PayablesPage = lazy(() => import('@/src/pages/finance/PayablesPage'));
+const FinanceStartPage = lazy(() => import('@/src/pages/finance/FinanceStartPage'));
 const AccountantWorkspacePage = lazy(() => import('@/src/pages/finance/AccountantWorkspacePage'));
 const SetupPage = lazy(() => import('@/src/pages/finance/SetupPage'));
 const FinanceSettingsPage = lazy(() => import('@/src/pages/finance/settings/FinanceSettingsPage'));
@@ -97,6 +98,7 @@ const routes: RouteObject[] = [
           { path: APP_ROUTES.finance, element: <Suspense fallback={<PageFallback />}><FinancePage /></Suspense> },
           { path: APP_ROUTES.treasury, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TreasuryHubPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.payables, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><PayablesPage /></Suspense>, VIEW_FINANCE) },
+          { path: APP_ROUTES.financeStart, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><FinanceStartPage /></Suspense>, ['finance.manage']) },
           { path: APP_ROUTES.accountant, element: withFinanceAccess(<Suspense fallback={<PageFallback />}><AccountantWorkspacePage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactions, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionsListPage /></Suspense>, VIEW_FINANCE) },
           { path: APP_ROUTES.transactionCreate, element: withTreasuryAccess(<Suspense fallback={<PageFallback />}><TransactionCreatePage /></Suspense>, CREATE_FINANCE) },

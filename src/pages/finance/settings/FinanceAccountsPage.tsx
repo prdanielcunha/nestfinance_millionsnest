@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Wallet, CreditCard, Landmark, PiggyBank, Plus, ArrowLeft } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
 import { firebaseAuth } from '@/src/lib/firebase';
@@ -41,10 +41,18 @@ type TabType = 'active' | 'archived';
 
 export default function FinanceAccountsPage() {
   const navigate = useNavigate();
+  const [searchParams]=useSearchParams();
+  const fromStart=searchParams.get('from')==='start';
+  const openingAccountId=searchParams.get('account');
+  const openingDateHint=/^20\d{2}-(0[1-9]|1[0-2])-01$/.test(searchParams.get('date')||'')?searchParams.get('date')!:'';
+  const autoOpened=useRef<string|null>(null);
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const openingText = OPENING_STATUS_COPY[language];
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loadedEntityId,setLoadedEntityId]=useState<string|null>(null);
+  const currentEntity=useRef(activeFinanceEntityId);
+  currentEntity.current=activeFinanceEntityId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -52,8 +60,16 @@ export default function FinanceAccountsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  useEffect(()=>{
+    if(!fromStart||!openingAccountId||loading||loadedEntityId!==activeFinanceEntityId)return;
+    const target=accounts.find(a=>a.id===openingAccountId&&a.active);
+    if(target&&autoOpened.current!==activeFinanceEntityId+':'+target.id){
+      autoOpened.current=activeFinanceEntityId+':'+target.id;setEditingAccount(target);
+    }
+  },[fromStart,openingAccountId,accounts,loading,activeFinanceEntityId,loadedEntityId]);
 
   useEffect(() => {
+    setEditingAccount(null);setAccounts([]);setLoadedEntityId(null);autoOpened.current=null;
     if (activeFinanceEntityId) {
       fetchAccounts();
     } else {
@@ -63,6 +79,7 @@ export default function FinanceAccountsPage() {
   }, [activeFinanceEntityId]);
 
   const fetchAccounts = async () => {
+    const requestedEntity=activeFinanceEntityId;
     try {
       setLoading(true);
       setError(null);
@@ -85,11 +102,13 @@ export default function FinanceAccountsPage() {
       }
       
       const data = await res.json();
+      if(currentEntity.current!==requestedEntity)return;
       setAccounts(data.accounts || []);
+      setLoadedEntityId(requestedEntity);
     } catch (err: any) {
-      setError('Não foi possível carregar as contas financeiras. Tente novamente.');
+      if(currentEntity.current===requestedEntity)setError('Não foi possível carregar as contas financeiras. Tente novamente.');
     } finally {
-      setLoading(false);
+      if(currentEntity.current===requestedEntity)setLoading(false);
     }
   };
 
@@ -138,9 +157,9 @@ export default function FinanceAccountsPage() {
       
       <header className="shrink-0 w-full max-w-2xl mx-auto p-4 flex items-center gap-4 border-b border-border-subtle">
          <button 
-            onClick={() => navigate(APP_ROUTES.financeSettings)}
+            onClick={() => navigate(fromStart?APP_ROUTES.financeStart+'?stage=balances':APP_ROUTES.financeSettings)}
             className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-elevated text-text-secondary transition-colors -ml-4"
-            aria-label="Voltar para Ajustes"
+            aria-label={fromStart?(language==='PT'?'Voltar aos primeiros passos':language==='EN'?'Back to first steps':'Volver a primeros pasos'):"Voltar para Ajustes"}
          >
             <ArrowLeft className="w-6 h-6" />
          </button>
@@ -310,18 +329,20 @@ export default function FinanceAccountsPage() {
         />
       )}
 
-      {editingAccount && (
+      {editingAccount && loadedEntityId===activeFinanceEntityId && (<div key={activeFinanceEntityId+':'+editingAccount.id}>
         <AccountEditModal
+          openingSetup={fromStart&&Boolean(openingAccountId)}
+          openingDateHint={openingDateHint}
           isOpen={!!editingAccount}
           account={editingAccount as any}
-          onClose={() => setEditingAccount(null)}
+          onClose={() => {setEditingAccount(null);if(fromStart&&openingAccountId)navigate(APP_ROUTES.financeStart+'?stage=balances');}}
           onSuccess={() => {
             // Reload canonical server data rather than replacing the full row with a partial update DTO.
             void fetchAccounts();
             setSuccessMsg('Conta atualizada.');
             setTimeout(() => setSuccessMsg(null), 3000);
           }}
-        />
+        /></div>
       )}
     </div>
   );

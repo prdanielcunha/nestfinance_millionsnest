@@ -48,9 +48,16 @@ interface AccountEditModalProps {
   onClose: () => void;
   onSuccess: (updatedAccount: FinanceAccount) => void;
   account: FinanceAccount;
+  openingSetup?: boolean;
+  openingDateHint?: string;
 }
 
-export function AccountEditModal({ isOpen, onClose, onSuccess, account }: AccountEditModalProps) {
+const FIRST_OPENING_COPY={
+ PT:{title:'Quanto havia nesta conta?',body:'Informe o dinheiro que já existia na data inicial. No caixa, conte as notas e moedas. No banco, confira o extrato dessa data. Isso é o ponto de partida, não uma nova entrada.',choose:'Escolha como conferiu',reason:'Como você conferiu este valor?',save:'Salvar valor inicial',close:'Fechar',field:'Saldo inicial da conta'},
+ EN:{title:'What was in this account?',body:'Enter the money already there on the start date. Count notes and coins for cash; check the dated bank statement for a bank account. This is a starting point, not new income.',choose:'Choose how you checked',reason:'How did you check this amount?',save:'Save opening amount',close:'Close',field:'Account opening amount'},
+ ES:{title:'¿Cuánto había en esta cuenta?',body:'Informa el dinero que ya había en la fecha inicial. Cuenta billetes y monedas en caja; revisa el extracto de esa fecha para el banco. Es el punto de partida, no un nuevo ingreso.',choose:'Elige cómo lo verificaste',reason:'¿Cómo verificaste este importe?',save:'Guardar importe inicial',close:'Cerrar',field:'Importe inicial de la cuenta'},
+} as const;
+export function AccountEditModal({ isOpen, onClose, onSuccess, account,openingSetup=false,openingDateHint='' }: AccountEditModalProps) {
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
   const { accessState } = useAuth();
@@ -59,6 +66,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
   const canViewOpeningHistory = hasEffectiveCapability(accessState,'finance.review') &&
     hasEffectiveCapability(accessState,'finance.balance.view');
   const w = OPENING_EDIT_COPY[language];
+  const first=FIRST_OPENING_COPY[language];
   const hw = HISTORY_COPY[language];
   const [name, setName] = useState(account.name);
   const [institutionName, setInstitutionName] = useState(account.institutionName || '');
@@ -68,7 +76,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
     account.openingBalanceDeclaration?.status === 'pending_review' ? 'declared' : 'not_informed');
   const [openingAmount, setOpeningAmount] = useState(openingAsReais(account.openingBalanceDeclaration?.amountCents));
   const [openingDate, setOpeningDate] = useState(account.openingBalanceDeclaration?.asOf || '');
-  const [openingSource, setOpeningSource] = useState<'bank_statement' | 'cash_count' | 'prior_records' | 'other'>(
+  const [openingSource, setOpeningSource] = useState<'' | 'bank_statement' | 'cash_count' | 'prior_records' | 'other'>(
     account.openingBalanceDeclaration?.source || 'bank_statement');
   const [openingSourceNote, setOpeningSourceNote] = useState(account.openingBalanceDeclaration?.sourceNote || '');
   const [openingReason, setOpeningReason] = useState('');
@@ -88,11 +96,11 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
       setName(account.name);
       setInstitutionName(account.institutionName || '');
       setAccountLast4(account.accountLast4 || '');
-      setEditingOpening(false);
-      setOpeningMode(account.openingBalanceDeclaration?.status === 'pending_review' ? 'declared' : 'not_informed');
+      setEditingOpening(openingSetup);
+      setOpeningMode(openingSetup||account.openingBalanceDeclaration?.status === 'pending_review' ? 'declared' : 'not_informed');
       setOpeningAmount(openingAsReais(account.openingBalanceDeclaration?.amountCents));
-      setOpeningDate(account.openingBalanceDeclaration?.asOf || '');
-      setOpeningSource(account.openingBalanceDeclaration?.source || 'bank_statement');
+      setOpeningDate(account.openingBalanceDeclaration?.asOf || openingDateHint);
+      setOpeningSource(account.openingBalanceDeclaration?.source || (openingSetup?'':'bank_statement'));
       setOpeningSourceNote(account.openingBalanceDeclaration?.sourceNote || '');
       setOpeningReason('');
       historyEpoch.current++;
@@ -106,7 +114,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
       setError('');
       setIsSubmitting(false);
     }
-  }, [isOpen, account]);
+  }, [isOpen, account,openingSetup,openingDateHint]);
 
   const loadHistory = async (cursor?:number) => {
     if (historyLoading || !activeFinanceEntityId || !organizationId) return;
@@ -174,7 +182,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
           payload.openingBalanceDeclaration = { status: 'not_informed' };
         } else {
           const amount = openingAmount.trim().replace(',', '.');
-          if (!/^-?\d{1,10}(?:\.\d{1,2})?$/.test(amount) || !openingDate) {
+          if (!/^-?\d{1,10}(?:\.\d{1,2})?$/.test(amount) || !openingDate || !openingSource) {
             throw new Error(w.invalid);
           }
           if (openingSource==='other' && openingSourceNote.trim().length<5) {
@@ -228,8 +236,9 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
         <div className="w-full bg-surface-default md:w-[480px] md:rounded-2xl md:shadow-lg pointer-events-auto flex flex-col md:max-h-[90vh] rounded-t-2xl shadow-2xl relative max-h-[90vh]">
           {/* Header */}
           <div className="flex-none flex items-center justify-between px-6 py-4 border-b border-white/[0.05]">
-            <h2 className="text-lg font-semibold text-text-primary">Editar Conta</h2>
+            <h2 className="text-lg font-semibold text-text-primary">{openingSetup?first.title:'Editar Conta'}</h2>
             <button 
+              type="button" aria-label={first.close}
               onClick={onClose}
               disabled={isSubmitting}
               className="p-2 -mr-2 text-text-tertiary hover:text-text-primary rounded-full hover:bg-white/[0.05] transition-colors disabled:opacity-50"
@@ -246,7 +255,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               </div>
             )}
             
-            <p className="text-sm text-text-secondary">
+            {openingSetup?<p className="text-base leading-7 text-text-secondary"><strong className="block text-text-primary">{account.name}</strong>{first.body}</p>:<><p className="text-sm text-text-secondary">
               Você pode alterar o nome e os dados de identificação. O tipo da conta será preservado para manter o histórico correto.
             </p>
 
@@ -327,19 +336,20 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               
             </div>
             
+            </>}
             {canViewBalance ? <fieldset className="space-y-3 rounded-xl border border-border-default p-4">
-              <legend className="px-1 text-base font-semibold text-text-primary">{w.title}</legend>
-              <p className="text-sm leading-relaxed text-text-secondary">{w.description}</p>
+              <legend className="px-1 text-base font-semibold text-text-primary">{openingSetup?first.field:w.title}</legend>
+              {!openingSetup&&<p className="text-sm leading-relaxed text-text-secondary">{w.description}</p>}
               {typeof account.openingBalanceCents==='number' && !account.openingBalanceDeclaration ? (
                 <p role="status" className="text-sm text-text-secondary">{w.legacy}</p>
               ) : account.openingBalanceDeclaration?.status === 'confirmed' ? (
                 <p role="status" className="text-sm text-text-secondary">{w.locked}</p>
               ) : <>
-                <label className="flex min-h-12 items-center gap-3 text-sm font-medium text-text-primary">
+                {!openingSetup&&<label className="flex min-h-12 items-center gap-3 text-sm font-medium text-text-primary">
                   <input type="checkbox" checked={editingOpening}
                     onChange={e=>setEditingOpening(e.target.checked)} disabled={isSubmitting} />
                   {w.toggle}
-                </label>
+                </label>}
                 {editingOpening && <div className="space-y-3">
                   <label className="flex min-h-12 items-center gap-3 text-sm text-text-primary">
                     <input type="radio" checked={openingMode==='not_informed'} name="edit-opening-mode"
@@ -359,9 +369,10 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                       value={openingDate} onChange={e=>setOpeningDate(e.target.value)} disabled={isSubmitting}
                       className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary" />
                     <label htmlFor="correct-opening-source" className="block text-sm font-medium text-text-primary">{w.source}</label>
-                    <select id="correct-opening-source" value={openingSource}
+                    <select id="correct-opening-source" value={openingSource} required
                       onChange={e=>setOpeningSource(e.target.value as typeof openingSource)} disabled={isSubmitting}
                       className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary">
+                      {openingSetup&&<option value="">{first.choose}</option>}
                       <option value="bank_statement">{w.bank}</option>
                       <option value="cash_count">{w.cash}</option>
                       <option value="prior_records">{w.prior}</option>
@@ -374,7 +385,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
                         className="min-h-12 w-full rounded-lg border border-border-default bg-surface-secondary px-3 text-base text-text-primary" />
                     </>}
                   </>}
-                  <label htmlFor="correct-opening-reason" className="block text-sm font-medium text-text-primary">{w.reason}</label>
+                  <label htmlFor="correct-opening-reason" className="block text-sm font-medium text-text-primary">{openingSetup?first.reason:w.reason}</label>
                   <textarea id="correct-opening-reason" required minLength={10} maxLength={240} rows={3}
                     value={openingReason} onChange={e=>setOpeningReason(e.target.value)} disabled={isSubmitting}
                     placeholder={w.example} className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-base text-text-primary" />
@@ -446,7 +457,7 @@ export function AccountEditModal({ isOpen, onClose, onSuccess, account }: Accoun
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                'Salvar alterações'
+                openingSetup?first.save:'Salvar alterações'
               )}
             </button>
           </div>

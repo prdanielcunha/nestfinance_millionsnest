@@ -4,6 +4,7 @@ import { COUNT_V3_UI_ENABLED } from '@/src/services/countV3Service';
 import { useNavigate } from 'react-router-dom';
 import { FinanceEntityContextBar } from '@/src/components/finance/FinanceEntityContextBar';
 import { Surface } from '@/src/components/foundation';
+import { START_COPY } from '@/src/components/finance/FinanceGettingStarted';
 import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 
 const COPY: Record<Language, {
@@ -70,6 +71,7 @@ export default function FinanceSettingsPage() {
   const copy = COPY[language];
 
   const items = [
+    { id: 'start', title: START_COPY[language].title, body: START_COPY[language].body, icon: Landmark, route: APP_ROUTES.financeStart },
     { id: 'accounts', title: copy.accounts, body: copy.accountsBody, icon: Landmark, route: APP_ROUTES.financeSettingsAccounts },
     { id: 'funds', title: copy.funds, body: copy.fundsBody, icon: Wallet, route: APP_ROUTES.financeSettingsFunds },
     { id: 'categories', title: copy.categories, body: copy.categoriesBody, icon: Tags, route: APP_ROUTES.financeSettingsCategories },

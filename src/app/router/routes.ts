@@ -5,6 +5,7 @@ export const APP_ROUTES = {
   finance: '/finance',
   treasury: '/finance/treasury',
   payables: '/finance/payables',
+  financeStart: '/finance/start',
   financeSetup: '/finance/setup',
   financeSettings: '/finance/settings',
   financeSettingsAccounts: '/finance/settings/accounts',
