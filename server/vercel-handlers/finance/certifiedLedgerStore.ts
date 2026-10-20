@@ -1,4 +1,4 @@
-import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import type { FinanceAllocation } from '../../../shared/finance/ledger/allocation.js';
 import { ledgerFailure, ledgerId } from '../../../shared/finance/ledger/certifiedConfiguration.js';
 import { assertBookEntry, assertBookScope, bookId, certifyApprovedPosting, certifyOpening, certifyReversal, type CertifiedBookEntry } from '../../../shared/finance/ledger/certifiedPosting.js';
@@ -11,8 +11,11 @@ import { loadCertifiedLedgerConfiguration } from './certifiedLedgerConfiguration
 import { stageCanonicalAuditCreate } from './auditFactProjection.js';
 import { stageFinanceFact } from './factStream.js';
 import { assertTransactionEvidenceReferences } from './transactionEvidenceValidation.js';
+import { computeApprovalSourceHash } from '../../../shared/finance/ledger/approvalSourceHash.js';
+import { transactionCorrectionSnapshot } from '../../../shared/finance/transactionCorrection.js';
+import { readCertifiedCountClaim, stageCertifiedCountClaim, readCertifiedCountReversalClaim } from './certifiedCountSource.js';
 
-export type LedgerCommandContext = {db:Firestore;organizationId:string;financeEntityId:string;uid:string;requestId:string};
+export type LedgerCommandContext = {db:Firestore;organizationId:string;financeEntityId:string;uid:string;requestId:string;actorLabel?:string};
 export function ledgerStateRef(db:Firestore, org:string, entity:string) {
   return db.collection('organizations').doc(org).collection('financeSettings').doc('ledger_state_'+bookId(entity));
 }
@@ -56,8 +59,9 @@ export async function stageCertifiedPosting(t:Transaction,c:LedgerCommandContext
   await assertTransactionEvidenceReferences({transaction:t,evidenceIds:tx.evidenceIds,organizationId:c.organizationId,financeEntityId:c.financeEntityId,
     entityRef:org.collection('financeEntities').doc(c.financeEntityId)});
   const state=await readLedgerState(t,c);
+  const countClaim=await readCertifiedCountClaim(t,c,tx,configuration.configuration.timeZone);
   const entry=certifyApprovedPosting({transaction:tx,allocations,approval:approval.data(),configuration:configuration.configuration,
-    organizationId:c.organizationId,financeEntityId:c.financeEntityId,actor:c.uid,postedAt:new Date().toISOString()});
+    organizationId:c.organizationId,financeEntityId:c.financeEntityId,actor:c.uid,postedAt:new Date().toISOString(),countSourceProofHash:countClaim?.proofHash});
   assertLedgerPeriodOpen(state.value,entry.effectiveDate);
   const entryRef=org.collection('financeJournalEntries').doc(entry.id);
   if((await t.get(entryRef)).exists) ledgerFailure('LEDGER_ALREADY_POSTED');
@@ -69,12 +73,13 @@ export async function stageCertifiedPosting(t:Transaction,c:LedgerCommandContext
   }
   const effects=await readAccountEffects(t,c,entry);
   const fundEffects=await readFundEffects(t,c,entry);
-  writeEntry(t,c,entry,state,effects,fundEffects,{versionBefore:expectedVersion,versionAfter:expectedVersion+1});
+  writeEntry(t,c,entry,state,effects,fundEffects,{versionBefore:expectedVersion,versionAfter:expectedVersion+1,...(countClaim?{countSourceProofHash:countClaim.proofHash}:{})});
+  if(countClaim)stageCertifiedCountClaim(t,c,countClaim,tx,entry.id,c.uid);
   t.update(txRef,{status:'posted',version:expectedVersion+1,journalEntryId:entry.id,effectiveJournalDate:entry.effectiveDate,
     postedBy:c.uid,postedAt:FieldValue.serverTimestamp(),updatedBy:c.uid,updatedAt:FieldValue.serverTimestamp(),
     listQueryKeys:buildTransactionListQueryKeys(c.financeEntityId,transactionId,tx.transactionKind,'posted',tx.occurredAt)});
   stageFinanceFact(t,c.db,{organizationId:c.organizationId,eventType:'TRANSACTION_POSTED',entityType:'finance_transaction',entityId:transactionId,
-    actorUserId:c.uid,correlationId:c.requestId,payload:{financeEntityId:c.financeEntityId,status:'posted',version:expectedVersion+1,postingExecuted:true},
+    actorUserId:c.uid,correlationId:'ledger_post_'+bookId(entry.id),payload:{financeEntityId:c.financeEntityId,status:'posted',version:expectedVersion+1,postingExecuted:true},
     sourceRefs:[{kind:'record',ref:txRef.path,version:expectedVersion+1},{kind:'record',ref:entryRef.path}]});
   return {transactionId,journalEntryId:entry.id,status:'posted',version:expectedVersion+1,effectiveDate:entry.effectiveDate};
 }
@@ -99,12 +104,30 @@ export async function stageCertifiedReversal(t:Transaction,c:LedgerCommandContex
   const entry=certifyReversal(original,{actor:c.uid,postedAt:new Date().toISOString(),effectiveDate:reversalDate,reason});
   assertLedgerPeriodOpen(state.value,entry.effectiveDate);
   if((await t.get(org.collection('financeJournalEntries').doc(entry.id))).exists)ledgerFailure('LEDGER_ALREADY_REVERSED');
+  const allocationsSnapshot=await t.get(org.collection('financeAllocations').where('transactionId','==',transactionId).limit(101));
+  if(allocationsSnapshot.size>100)ledgerFailure('LEDGER_ALLOCATION_INVALID');
+  const allocations=allocationsSnapshot.docs.map(doc=>({...doc.data(),id:doc.id}) as FinanceAllocation);
+  for(const allocation of allocations)assertBookScope(allocation,c.organizationId,c.financeEntityId);
+  if(computeApprovalSourceHash(tx,allocations,3)!==original.sourceHash)ledgerFailure('LEDGER_REVERSAL_SOURCE_CHANGED');
   const effects=await readAccountEffects(t,c,entry);
   const fundEffects=await readFundEffects(t,c,entry);
-  writeEntry(t,c,entry,state,effects,fundEffects,{reason:reason.trim(),originalJournalEntryId:original.id,versionBefore:expectedVersion,versionAfter:expectedVersion+1});
+  const countClaim=await readCertifiedCountReversalClaim(t,c,tx);
+  const finalRecord={...tx,status:'reversed',version:expectedVersion+1,reversedBy:c.uid,
+    reversalJournalEntryId:entry.id,reversalEffectiveDate:entry.effectiveDate,reversalReason:reason.trim()};
+  writeEntry(t,c,entry,state,effects,fundEffects,{reason:reason.trim(),originalJournalEntryId:original.id,
+    versionBefore:expectedVersion,versionAfter:expectedVersion+1,before:{transaction:tx,allocations},after:{transaction:finalRecord,allocations}});
+  const auditId='audit_'+bookId(entry.id);
+  t.create(txRef.collection('corrections').doc(auditId),{id:auditId,organizationId:c.organizationId,financeEntityId:c.financeEntityId,
+    transactionId,actorUid:c.uid,actorLabel:c.actorLabel||c.uid,changedAt:Timestamp.now(),reason:reason.trim(),
+    versionBefore:expectedVersion,versionAfter:expectedVersion+1,kind:'reversal',originalJournalEntryId:original.id,reversalJournalEntryId:entry.id,
+    before:transactionCorrectionSnapshot(tx,allocations),after:transactionCorrectionSnapshot(finalRecord,allocations)});
+  if(countClaim)t.update(countClaim,{state:'reversed',reversalJournalEntryId:entry.id,reversedBy:c.uid,reversedAt:FieldValue.serverTimestamp()});
   t.update(txRef,{status:'reversed',version:expectedVersion+1,reversedBy:c.uid,reversedAt:FieldValue.serverTimestamp(),
     reversalJournalEntryId:entry.id,reversalEffectiveDate:entry.effectiveDate,reversalReason:reason.trim(),updatedBy:c.uid,updatedAt:FieldValue.serverTimestamp(),
     listQueryKeys:buildTransactionListQueryKeys(c.financeEntityId,transactionId,tx.transactionKind,'reversed',tx.occurredAt)});
+  stageFinanceFact(t,c.db,{organizationId:c.organizationId,eventType:'TRANSACTION_REVERSED',entityType:'finance_transaction',entityId:transactionId,
+    actorUserId:c.uid,correlationId:'ledger_reverse_'+bookId(entry.id),payload:{financeEntityId:c.financeEntityId,status:'reversed',version:expectedVersion+1,effectiveDate:entry.effectiveDate},
+    sourceRefs:[{kind:'record',ref:txRef.path,version:expectedVersion+1},{kind:'record',ref:org.collection('financeJournalEntries').doc(entry.id).path}]});
   return {transactionId,journalEntryId:entry.id,originalJournalEntryId:original.id,status:'reversed',version:expectedVersion+1,effectiveDate:entry.effectiveDate};
 }
 

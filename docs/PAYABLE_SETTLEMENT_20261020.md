@@ -6,6 +6,8 @@ A fundação da escrituração foi integrada à `main` pela PR341, merge `87ee92
 
 O trabalho seguinte está na branch `chatgpt/payable-settlement-20261020`. Implementa o fluxo de contas a pagar; não declara concluídos repasse, fechamento, relatórios completos na interface ou validação visual autenticada.
 
+A alteração concorrente da PR343 (`main` em `1de2de3cc074057bf16efff31ff3ae256b05e69f`) foi preservada na integração: prova da origem de contagem, aprovador identificado, auditoria completa de estorno e fatos por identidade do diário. Não sobrescrever esses contratos ao continuar a PR344 de pagamentos.
+
 ## Código novo
 
 - `shared/finance/payableSettlement.ts`: reconhecimento da cobrança conferida; pagamento parcial ou total; juros/taxas; desconto; estorno exato do pagamento. O reconhecimento não reduz o banco, e o pagamento não contabiliza a despesa original novamente.

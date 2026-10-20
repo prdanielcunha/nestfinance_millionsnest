@@ -17,6 +17,7 @@ export type CertifiedBookEntry = JournalEntry & {
   accountsSnapshot: CertifiedLedgerConfiguration['accounts'];
   integrityHash: string;
   sourceKind: 'transaction' | 'opening' | 'payable_recognition' | 'payable_payment';
+  countSourceProofHash?: string;
 };
 
 export function bookId(...parts: string[]) {
@@ -46,13 +47,17 @@ export function certifyApprovedPosting(args: {
   transaction: LedgerTransaction; allocations: FinanceAllocation[];
   approval: Record<string,any>; configuration: CertifiedLedgerConfiguration;
   organizationId: string; financeEntityId: string; actor: string; postedAt: string;
+  countSourceProofHash?: string | null;
 }): CertifiedBookEntry {
   const {transaction:tx,allocations,approval:a,configuration:c,organizationId:org,financeEntityId:entity} = args;
   assertBookScope(tx,org,entity);
   if (!ledgerId(tx.id) || !ledgerId(args.actor) || !Number.isSafeInteger(tx.version) || !Number.isSafeInteger(tx.contentVersion ?? 1)) ledgerFailure('LEDGER_SOURCE_INVALID');
   validateTransactionCore(tx);
+  if ((tx.countSource || tx.sourceContext === 'count_session') &&
+    (!tx.countSource || !/^sha256:[a-f0-9]{64}$/.test(args.countSourceProofHash || ''))) ledgerFailure('LEDGER_COUNT_SOURCE_PROOF_REQUIRED');
   if (tx.currency !== 'BRL' || tx.status !== 'approved_for_posting' || tx.journalEntryId ||
       !a || a.status !== 'approved_for_posting' || (tx as any).approvalAlgorithmVersion !== 3 || a.approvalAlgorithmVersion !== 3 ||
+      !ledgerId(a.approvedBy) || a.approvedBy !== tx.approvedBy ||
       (tx as any).approvalVerificationRepair || a.approvedVersion !== tx.approvedVersion ||
       a.approvedVersion + 1 !== tx.version || a.approvedContentVersion !== (tx.contentVersion ?? 1) ||
       (tx as any).approvedContentVersion !== a.approvedContentVersion) ledgerFailure('LEDGER_REAPPROVAL_REQUIRED');
@@ -86,6 +91,7 @@ export function certifyApprovedPosting(args: {
     id,organizationId:org,financeEntityId:entity,sourceTransactionId:tx.id,
     description:tx.description || 'Finance transaction',postedAt:args.postedAt,postedBy:args.actor,status:'valid',
     schemaVersion:1,sourceKind:'transaction',effectiveDate,currency:'BRL',configurationVersion:c.version,
+    ...(args.countSourceProofHash ? {countSourceProofHash:args.countSourceProofHash} : {}),
     referenceFingerprintHash:references.referenceFingerprintHash,sourceHash,plan,
     accountsSnapshot:c.accounts.map(a=>({...a})),
     lines:plan.journalEntry.lines.map((line,i)=>({
