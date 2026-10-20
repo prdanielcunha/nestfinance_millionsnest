@@ -5,14 +5,14 @@ import { ledgerDate } from '../../../shared/finance/ledger/certifiedConfiguratio
 
 const wrappers=new WeakMap<object,Firestore>();
 const datedFlat=new Set(['financeTransactions','financeAllocations','financeJournalEntries','financeReconciliations','financeReconciliationSessions','financeReconciliationReversals','financeReconciliationLineLocks','financeCategories','financeFunds']);
-const datedNested=new Set(['countSessions','countVerificationSessions','countSecondInvites','countVerificationInvites','countCaptures','countCaptureHashes','countPaperForms','universalEvidence','universalEvidenceHashes']);
+const datedNested=new Set(['countSessions','countVerificationSessions','countSecondInvites','countVerificationInvites','countCaptures','countCaptureHashes','countPaperForms','universalEvidence','universalEvidenceHashes','financePayables']);
 function fail(code='LEDGER_PERIOD_CLOSED'):never{throw Object.assign(new Error(code),{status:409,error:code,code});}
 type Write={method:string;args:any[]};
 function scopeOf(path:string,data:any):{org:string;entity:string;collection:string;id:string}|null{
   const p=path.split('/');if(p[0]!=='organizations')return null;
   if(datedFlat.has(p[2])&&p.length===4)return {org:p[1],entity:data?.financeEntityId,collection:p[2],id:p[3]};
   if(p[2]==='financeAccounts'&&p.length===4)return {org:p[1],entity:data?.financeEntityId,collection:'opening',id:p[3]};
-  if(p[2]==='financeEntities'&&p.length>=6&&datedNested.has(p[4]))return {org:p[1],entity:p[3],collection:p[4],id:p[5]};
+  if(p[2]==='financeEntities'&&p.length>=6&&datedNested.has(p[4])&&(p[4]!=='financePayables'||p.length===6))return {org:p[1],entity:p[3],collection:p[4],id:p[5]};
   return null;
 }
 /** Every financial source writer uses this same transaction boundary, including
@@ -50,6 +50,7 @@ export function withFinancePeriodFence(db:Firestore):Firestore{
         const after=w.method==='update'||w.method==='set'&&w.args[2]?.merge?{...old,...proposed}:proposed;
         scope=scopeOf(path,old||after)||scope;if(!scope)continue;
         if(typeof scope.entity!=='string'||!scope.entity||scope.entity.length>128)fail('LEDGER_PERIOD_FENCE_SCOPE_INVALID');
+        if(after&&(after.organizationId!==undefined&&after.organizationId!==scope.org||after.financeEntityId!==undefined&&after.financeEntityId!==scope.entity))fail('LEDGER_PERIOD_FENCE_SCOPE_INVALID');
         const fk=scope.org+'|'+scope.entity;
         if(!fences.has(fk)){
           const stateRef=target.collection('organizations').doc(scope.org).collection('financeSettings').doc('ledger_state_'+bookId(scope.entity));
@@ -72,6 +73,7 @@ export function withFinancePeriodFence(db:Firestore):Firestore{
           else if(scope!.collection==='financeJournalEntries')add(data.effectiveDate);
           else if(scope!.collection==='opening')add(data.openingBalanceDeclaration?.asOf);
           else if(scope!.collection==='countSessions'||scope!.collection==='countVerificationSessions')add(data.serviceDate);
+          else if(scope!.collection==='financePayables')add(data.remittanceSource?.period?data.remittanceSource.period+'-01':data.recognitionDate||data.dueDate);
           else if(scope!.collection==='universalEvidence')add(data.createdAt,isNew);
           else if(data.statementDate)add(data.statementDate);
           else if(data.serviceDate)add(data.serviceDate);
@@ -85,7 +87,15 @@ export function withFinancePeriodFence(db:Firestore):Firestore{
           const source=await read(target.collection('organizations').doc(scope.org).collection('financeTransactions').doc(sourceId));
           if(!source.exists||source.data()?.financeEntityId!==scope.entity)fail('LEDGER_PERIOD_FENCE_SOURCE_INVALID');add(source.data()!.occurredAt);add(source.data()!.competenceDate);
         }
-        const countId=old?.countSessionId||old?.sessionId||after?.countSessionId||after?.sessionId;
+        let countId=old?.countSessionId||old?.sessionId||after?.countSessionId||after?.sessionId;
+        if(!dates.length&&scope.collection==='countCaptureHashes'){
+          if(old?.captureId&&after?.captureId&&old.captureId!==after.captureId)fail('LEDGER_PERIOD_FENCE_SOURCE_INVALID');
+          const captureId=old?.captureId||after?.captureId;
+          if(typeof captureId!=='string'||!captureId)fail('LEDGER_PERIOD_FENCE_SOURCE_INVALID');
+          const capture=await read(target.collection('organizations').doc(scope.org).collection('financeEntities').doc(scope.entity).collection('countCaptures').doc(captureId));
+          if(!capture.exists||capture.data()?.organizationId!==scope.org||capture.data()?.financeEntityId!==scope.entity)fail('LEDGER_PERIOD_FENCE_SOURCE_INVALID');
+          countId=capture.data()?.countSessionId;
+        }
         if(!dates.length&&countId&&typeof countId==='string'){
           for(const collection of ['countSessions','countVerificationSessions']){
             const source=await read(target.collection('organizations').doc(scope.org).collection('financeEntities').doc(scope.entity).collection(collection).doc(countId));
@@ -99,7 +109,13 @@ export function withFinancePeriodFence(db:Firestore):Firestore{
         }
         const reversal=scope.collection==='financeTransactions'&&old&&after&&newJournals.find(e=>e?.sourceKind==='transaction'&&e.sourceTransactionId===scope!.id&&e.reversalOfEntryId===old.journalEntryId&&e.effectiveDate?.slice(0,7)>state.closedThrough);
         const lifecycleOnly=reversal&&after.status==='reversed'&&['amountCents','occurredAt','competenceDate','accountId','sourceAccountId','destinationAccountId','paymentMethod','description','counterparty','approvalSourceHash','contentVersion'].every(k=>JSON.stringify(old[k])===JSON.stringify(after[k]));
-        if(!lifecycleOnly&&(!dates.length||dates.some(d=>d.slice(0,7)<=state.closedThrough)))fail();
+        // A later certified payment may update only the lifecycle totals of an
+        // old obligation. Creating/editing/reviewing a closed-month bill is blocked.
+        const paymentFields=new Set(['paidCents','remainingCents','version','status','principalPaidCents','discountCents','feesPaidCents','updatedAt']);
+        const payableLifecycle=scope.collection==='financePayables'&&old&&after&&old.postingPerformed===true&&
+          [...new Set([...Object.keys(old),...Object.keys(after)])].every(k=>paymentFields.has(k)||JSON.stringify(old[k])===JSON.stringify(after[k]))&&
+          writes.some(receipt=>receipt.args[0]?.path?.startsWith(path+'/paymentReceipts/')&&newJournals.some(e=>e?.sourceKind==='payable_payment'&&e.organizationId===scope!.org&&e.financeEntityId===scope!.entity&&e.sourceTransactionId===receipt.args[0].id&&e.effectiveDate?.slice(0,7)>state.closedThrough));
+        if(!lifecycleOnly&&!payableLifecycle&&(!dates.length||dates.some(d=>d.slice(0,7)<=state.closedThrough)))fail();
       }
       // All supplemental fence reads above precede every physical write.
       for(const touchedState of touched.values()){const n=touchedState.value?.sourceRevision??0;if(!Number.isSafeInteger(n)||n<0||n===Number.MAX_SAFE_INTEGER)fail('LEDGER_STATE_INVALID');}

@@ -84,6 +84,13 @@ async function main(){
  assert.deepEqual((await sourceRef.get()).data(),originalSource);
  for(const collection of ['countSessions','countVerificationSessions'])await assert.rejects(()=>db.runTransaction(async t=>{t.create(entityRef.collection(collection).doc('synthetic_old_'+collection),{organizationId:org,financeEntityId:entity,serviceDate:day,status:'pending'});}),/LEDGER_PERIOD_CLOSED/);
  await assert.rejects(()=>db.runTransaction(async t=>{t.create(entityRef.collection('universalEvidence').doc('evd_'+randomBytes(16).toString('hex')),{organizationId:org,financeEntityId:entity,createdAt:Timestamp.fromDate(new Date(day+'T12:00:00Z')),version:1});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.create(bills.doc('synthetic_historical_bill'),{organizationId:org,financeEntityId:entity,dueDate:day,status:'awaiting_review'});}),/LEDGER_PERIOD_CLOSED/);
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(bills.doc(replacement.payableId),{description:'Synthetic forbidden historical bill rewrite'});}),/LEDGER_PERIOD_CLOSED/);
+ const openCount=entityRef.collection('countSessions').doc('synthetic_open_capture_parent'),openCapture=entityRef.collection('countCaptures').doc('synthetic_open_capture');
+ await db.runTransaction(async t=>{t.create(openCount,{organizationId:org,financeEntityId:entity,serviceDate:today,status:'discarded'});});
+ await db.runTransaction(async t=>{t.create(openCapture,{organizationId:org,financeEntityId:entity,countSessionId:openCount.id,status:'awaiting_upload'});});
+ await db.runTransaction(async t=>{t.create(entityRef.collection('countCaptureHashes').doc('synthetic_open_capture_hash'),{organizationId:org,financeEntityId:entity,captureId:openCapture.id});});
+ await assert.rejects(()=>db.runTransaction(async t=>{t.update(sourceRef,{financeEntityId:'synthetic_other_church'});}),/LEDGER_PERIOD_FENCE_SCOPE_INVALID/);
  const oldCount=await call(countCreate,mutation({serviceLabel:'Synthetic historical service',serviceDate:day}),'count-sessions-create');assert.equal(oldCount.statusCode,409,JSON.stringify(oldCount.body));
  const oldDraft=await call(createDraft,mutation({payload:payload(100)}),'transactions-create-draft');assert.equal(oldDraft.statusCode,409,JSON.stringify(oldDraft.body));
  const secondPreview=ok(await call(remittances,{action:'preview',period:second},'remittances'));assert.equal(secondPreview.assessment.amountCents,0);ok(await call(remittances,mutation({action:'assess',period:second,fingerprint:secondPreview.fingerprint,language:'EN',reason:''}),'remittances'));
