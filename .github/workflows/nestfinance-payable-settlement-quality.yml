@@ -5,6 +5,9 @@ on:
     paths:
       - 'api/finance-gateway.ts'
       - 'shared/finance/payableSettlement.ts'
+      - 'shared/finance/ledger/certifiedReportDelivery.ts'
+      - 'src/pages/finance/CertifiedBookPanel.tsx'
+      - 'src/services/certifiedBookReportService.ts'
       - 'shared/finance/ledger/certifiedPosting.ts'
       - 'server/vercel-handlers/finance/payable*.ts'
       - 'server/vercel-handlers/finance/ledgerSetup*.ts'
@@ -15,6 +18,7 @@ on:
       - 'src/pages/finance/PayablesPage.tsx'
       - 'src/services/payablesService.ts'
       - 'scripts/test-payable-settlement*.ts'
+      - 'scripts/test-certified-report-export.ts'
       - '.github/workflows/nestfinance-payable-settlement-quality.yml'
 jobs:
   payable-settlement:
@@ -24,7 +28,7 @@ jobs:
       NODE_ENV: test
       FIREBASE_PROJECT_ID: demo-payable-settlement-emulator
       GCLOUD_PROJECT: demo-payable-settlement-emulator
-      HUB_CANONICAL_RULES_FILE: ${{ runner.temp }}/nestfinance-certified-hub.rules
+      HUB_CANONICAL_RULES_FILE: /tmp/nestfinance-certified-hub.rules
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +42,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: node --import tsx scripts/test-payable-settlement.ts
+      - run: node --import tsx scripts/test-certified-report-export.ts
       - run: npm run check:api-contracts
       - run: npm run build
       - run: npm run build:cloudrun
