@@ -38,7 +38,8 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
         paidCents:data.paidCents,remainingCents:data.remainingCents,
         documentReference:data.documentReference??null,notes:data.notes??null,
         version:data.version,
-        postingPerformed:false as const,
+        postingPerformed:data.postingPerformed===true,
+        ...(data.schemaVersion===2?{principalPaidCents:data.principalPaidCents,discountCents:data.discountCents,feesPaidCents:data.feesPaidCents}:{}),
       };
     });
     const hasMore=snapshot.docs.length>25;

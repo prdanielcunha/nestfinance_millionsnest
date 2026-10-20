@@ -94,7 +94,7 @@ export async function stageCertifiedReversal(t:Transaction,c:LedgerCommandContex
   if(!source.exists)ledgerFailure('LEDGER_ORIGINAL_ENTRY_MISSING');
   const original=source.data() as CertifiedBookEntry;
   assertBookEntry(original,c.organizationId,c.financeEntityId);
-  if(original.sourceTransactionId!==transactionId||original.id!==tx.journalEntryId)ledgerFailure('LEDGER_SOURCE_INVALID');
+  if(original.sourceKind!=='transaction'||original.sourceTransactionId!==transactionId||original.id!==tx.journalEntryId)ledgerFailure('LEDGER_SOURCE_INVALID');
   const state=await readLedgerState(t,c);
   const entry=certifyReversal(original,{actor:c.uid,postedAt:new Date().toISOString(),effectiveDate:reversalDate,reason});
   assertLedgerPeriodOpen(state.value,entry.effectiveDate);
@@ -147,7 +147,7 @@ export async function stageCertifiedOpening(t:Transaction,c:LedgerCommandContext
   return {accountId,openingReceiptId:receiptRef.id,journalEntryId:entry?.id??null,openingCertified:true};
 }
 
-async function readFundEffects(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry) {
+export async function readFundEffects(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry) {
   const deltas=new Map<string,number>();
   for(const e of entry.plan.fundEffects) {
     if(!ledgerId(e.fundId)||!Number.isSafeInteger(e.amountCents)||e.amountCents<0)ledgerFailure('LEDGER_EFFECT_INVALID');
@@ -167,7 +167,7 @@ async function readFundEffects(t:Transaction,c:LedgerCommandContext,entry:Certif
   return result;
 }
 
-async function readAccountEffects(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry) {
+export async function readAccountEffects(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry) {
   const deltas=new Map<string,number>();
   for(const effect of entry.plan.accountEffects) {
     if(!ledgerId(effect.financeAccountId)||!Number.isSafeInteger(effect.amountCents)||effect.amountCents<=0)ledgerFailure('LEDGER_EFFECT_INVALID');
@@ -187,7 +187,7 @@ async function readAccountEffects(t:Transaction,c:LedgerCommandContext,entry:Cer
   }
   return result;
 }
-function writeEntry(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry,state:Awaited<ReturnType<typeof readLedgerState>>,effects:Awaited<ReturnType<typeof readAccountEffects>>,fundEffects:Awaited<ReturnType<typeof readFundEffects>>,details:Record<string,unknown>={}) {
+export function writeEntry(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntry,state:Awaited<ReturnType<typeof readLedgerState>>,effects:Awaited<ReturnType<typeof readAccountEffects>>,fundEffects:Awaited<ReturnType<typeof readFundEffects>>,details:Record<string,unknown>={}) {
   const org=c.db.collection('organizations').doc(c.organizationId);
   t.create(org.collection('financeJournalEntries').doc(entry.id),entry);
   for(const effect of effects)t.update(effect.ref,{balanceCents:effect.balanceCents,revision:effect.revision,lastJournalEntryId:entry.id,updatedAt:FieldValue.serverTimestamp()});
@@ -195,7 +195,7 @@ function writeEntry(t:Transaction,c:LedgerCommandContext,entry:CertifiedBookEntr
   t.set(state.ref,{...state.value,revision:plus(state.value.revision,1),entryCount:plus(state.value.entryCount,1),updatedAt:FieldValue.serverTimestamp()});
   const auditRef=org.collection('financeAuditLogs').doc('audit_'+bookId(entry.id));
   stageCanonicalAuditCreate(t,c.db,auditRef,{eventId:auditRef.id,organizationId:c.organizationId,financeEntityId:c.financeEntityId,
-    actor:c.uid,resource:entry.sourceKind==='opening'?'finance_opening':'finance_transaction',resourceId:entry.sourceKind==='opening'?details.openingReceiptId:entry.sourceTransactionId,
-    action:entry.sourceKind==='opening'?'ledger.opening.certified':entry.reversalOfEntryId?'transaction.reversed':'transaction.posted',requestId:c.requestId,
+    actor:c.uid,resource:entry.sourceKind==='opening'?'finance_opening':entry.sourceKind.startsWith('payable_')?'finance_payable':'finance_transaction',resourceId:entry.sourceKind==='opening'?details.openingReceiptId:details.payableId??entry.sourceTransactionId,
+    action:entry.sourceKind==='opening'?'ledger.opening.certified':entry.sourceKind.startsWith('payable_')?entry.reversalOfEntryId?'payable.payment.reversed':entry.sourceKind==='payable_payment'?'payable.payment.posted':'payable.recognized':entry.reversalOfEntryId?'transaction.reversed':'transaction.posted',requestId:c.requestId,
     details:{...details,journalEntryId:entry.id,effectiveDate:entry.effectiveDate,integrityHash:entry.integrityHash},createdAt:FieldValue.serverTimestamp()});
 }

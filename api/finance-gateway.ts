@@ -12,6 +12,8 @@ import accountsOpeningHistory from '../server/vercel-handlers/finance/accountsOp
 import payablesCreate from '../server/vercel-handlers/finance/payablesCreate.js';
 import payablesList from '../server/vercel-handlers/finance/payablesList.js';
 import payablesReview from '../server/vercel-handlers/finance/payablesReview.js';
+import payablesAccounting from '../server/vercel-handlers/finance/payablesAccounting.js';
+import ledgerSetup from '../server/vercel-handlers/finance/ledgerSetup.js';
 import fundsList from '../server/vercel-handlers/finance/fundsList.js';
 import fundsCreate from '../server/vercel-handlers/finance/fundsCreate.js';
 import fundsArchive from '../server/vercel-handlers/finance/fundsArchive.js';
@@ -162,6 +164,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'payables-create': return payablesCreate(req, res);
     case 'payables-list': return payablesList(req, res);
     case 'payables-review': return payablesReview(req, res);
+    case 'payables-accounting': return payablesAccounting(req, res);
+    case 'ledger-setup': return ledgerSetup(req, res);
     case 'funds-list': return fundsList(req, res);
     case 'funds-create': return fundsCreate(req, res);
     case 'funds-archive': return fundsArchive(req, res);

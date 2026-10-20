@@ -1,5 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, CalendarDays, ChevronRight, ClipboardCheck, RefreshCw } from 'lucide-react';
 import type { Language } from '@/src/contexts/LanguageContext';
+import { payableCorrectionCopy } from '@/src/components/finance/payablePaymentCopy';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 
 type Props = {
@@ -175,6 +176,7 @@ export function TodayLedgerOverview({
             </div>
           </div>
           <p className="mt-4 text-xs text-text-muted">{labels.movementHint}</p>
+          {(operational?.payableCorrectionInCents??0)>0?<p className="mt-2 text-sm leading-6 text-text-secondary">{payableCorrectionCopy[language]}: <strong className="nf-financial-number">{money(operational!.payableCorrectionInCents!)}</strong></p>:null}
         </div>
 
         <div className="nf-next-action-panel" aria-busy={priorityState === 'loading'}>
