@@ -28,7 +28,7 @@ import { ConnectSupportButton } from '@/src/components/finance/ConnectSupportBut
 
 export type NavigationItem = {
   id: string;
-  labelKey: 'nav_hoje' | 'nav_movimentacoes' | 'nav_cultos' | 'nav_capturas' | 'nav_revisar' | 'nav_conferir' | 'nav_reports' | 'nav_audit' | 'nav_config' | 'nav_mais';
+  labelKey: 'nav_hoje' | 'nav_movimentacoes' | 'nav_cultos' | 'nav_capturas' | 'nav_revisar' | 'nav_conferir' | 'nav_payables' | 'nav_reports' | 'nav_audit' | 'nav_config' | 'nav_mais';
   icon: ElementType;
   route: string;
   order: number;
@@ -41,6 +41,7 @@ export const CANONICAL_NAVIGATION: NavigationItem[] = [
   { id: 'count', labelKey: 'nav_cultos', icon: Receipt, route: APP_ROUTES.count, order: 3, requiredAnyCapabilities: ['finance.view'] },
   { id: 'inbox', labelKey: 'nav_capturas', icon: Inbox, route: APP_ROUTES.inbox, order: 4, requiredAnyCapabilities: ['finance.view', 'finance.create_drafts', 'finance.review'] },
   { id: 'review', labelKey: 'nav_revisar', icon: ListChecks, route: APP_ROUTES.financeReview, order: 5, requiredAnyCapabilities: ['finance.review', 'finance.approve_for_posting'] },
+  { id: 'payables', labelKey: 'nav_payables', icon: Receipt, route: APP_ROUTES.payables, order: 5.5, requiredAnyCapabilities: ['finance.view'] },
   { id: 'balance', labelKey: 'nav_conferir', icon: Wallet, route: APP_ROUTES.balance, order: 6, requiredAnyCapabilities: ['finance.view'] },
   { id: 'reports', labelKey: 'nav_reports', icon: FileText, route: APP_ROUTES.reports, order: 7, requiredAnyCapabilities: ['finance.view'] },
   { id: 'audit', labelKey: 'nav_audit', icon: ShieldCheck, route: APP_ROUTES.audit, order: 8, requiredAnyCapabilities: ['finance.view'] },

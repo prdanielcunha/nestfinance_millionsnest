@@ -20,6 +20,7 @@ export const TRANSLATIONS: Translations = {
   nav_conferir: { PT: 'Conferir com o banco', EN: 'Check with the bank', ES: 'Comparar con el banco' },
   nav_mais: { PT: 'Mais', EN: 'More', ES: 'Más' },
   nav_config: { PT: 'Configurações', EN: 'Settings', ES: 'Ajustes' },
+  nav_payables: { PT: 'Contas a pagar', EN: 'Bills to pay', ES: 'Cuentas por pagar' },
   nav_reports: { PT: 'Relatórios', EN: 'Reports', ES: 'Informes' },
   nav_audit: { PT: 'Histórico', EN: 'History', ES: 'Historial' },
 

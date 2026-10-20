@@ -1,3 +1,4 @@
+import { assertFinanceCatalogScope } from './financeCatalogScope.js';
 import { FieldValue, type Transaction } from 'firebase-admin/firestore';
 import { assertBookScope, bookId, type CertifiedBookEntry } from '../../../shared/finance/ledger/certifiedPosting.js';
 import { ledgerFailure, ledgerId } from '../../../shared/finance/ledger/certifiedConfiguration.js';
@@ -29,7 +30,7 @@ async function load(t:Transaction,c:LedgerCommandContext,payableId:string,expect
     if(!ledgerId(payable.fundId))ledgerFailure('LEDGER_FUND_UNAVAILABLE');
     const fund=await t.get(org.collection('financeFunds').doc(payable.fundId));
     if(!fund.exists||fund.data()?.active!==true)ledgerFailure('LEDGER_FUND_UNAVAILABLE');
-    assertBookScope(fund.data(),c.organizationId,c.financeEntityId);
+    assertFinanceCatalogScope(fund,c.organizationId,c.financeEntityId,'financeFunds');
   }
   return {org,entity,ref,payable,configuration:config.configuration,policy,state,scope:{configuration:config.configuration,policy,organizationId:c.organizationId,financeEntityId:c.financeEntityId,actor:c.uid,postedAt:new Date().toISOString()}};
 }
@@ -55,7 +56,7 @@ export async function stagePayableRecognition(t:Transaction,c:LedgerCommandConte
     if(!ledgerId(classification.fundId))ledgerFailure('LEDGER_FUND_UNAVAILABLE');
     const fund=await t.get(loaded.org.collection('financeFunds').doc(classification.fundId));
     if(!fund.exists||fund.data()?.active!==true)ledgerFailure('LEDGER_FUND_UNAVAILABLE');
-    assertBookScope(fund.data(),c.organizationId,c.financeEntityId);
+    assertFinanceCatalogScope(fund,c.organizationId,c.financeEntityId,'financeFunds');
   }
   const result=recognizePayable(loaded.scope,payableId,loaded.payable as PayableRecord,classification);
   const effects=await prepare(t,c,result.journal,loaded.state);

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'node:crypto';
 import { getFirebaseAdmin } from '../api/_lib/firebaseAdmin.js';
 import ledgerSetup from '../server/vercel-handlers/finance/ledgerSetup.js';
@@ -54,6 +55,17 @@ async function main(){
   actor=viewer;assert.equal((await setup({action:'status'})).statusCode,403,'fine viewer owner cannot see opening declarations');
   actor=counter;assert.equal((await act({action:'options'})).statusCode,403,'Count-only owner cannot enter treasury payment flow');
   actor=ceo;
+  // Reproduce real historical bootstrap output, not the newer CRUD schema.
+  for(const [collection,ids] of [['financeAccounts',['bank']],['financeCategories',['power','fees','discount']],['financeFunds',['mission']]] as const) {
+    for(const id of ids)await orgRef.collection(collection).doc(id).update({organizationId:FieldValue.delete()});
+  }
+  const legacyStatus=await setup({action:'status'});
+  assert.equal(legacyStatus.statusCode,200,JSON.stringify(legacyStatus.body));
+  assert.equal(legacyStatus.body.accounts.length,1);
+  assert.equal(legacyStatus.body.categories.length,3);
+  await orgRef.collection('financeAccounts').doc('bank').update({organizationId:'synthetic_wrong_parent'});
+  assert.equal((await setup({action:'status'})).statusCode,409,'explicit conflicting organization is never inferred away');
+  await orgRef.collection('financeAccounts').doc('bank').update({organizationId:FieldValue.delete()});
   const input={firstPeriod:month,dateBasis:'occurred_at',feesCategoryId:'fees',discountCategoryId:'discount',language:'PT'};
   const proposal=await setup({action:'propose',input});assert.equal(proposal.statusCode,200,JSON.stringify(proposal.body));
   assert.equal((await setup(mutation('configure',{input,proposalHash:'wrong'},'wrong_proposal_key'))).statusCode,409);

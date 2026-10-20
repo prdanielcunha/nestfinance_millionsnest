@@ -13,12 +13,12 @@ const full = {
 async function run() {
   assert.deepStrictEqual(buildFinanceNavigation('ecosystem', full), {
     primary: ['finance', 'count', 'inbox', 'review'],
-    more: ['transactions', 'balance', 'reports', 'audit', 'settings'],
+    more: ['transactions', 'payables', 'balance', 'reports', 'audit', 'settings'],
   });
 
   assert.deepStrictEqual(buildFinanceNavigation('organization_admin', full), {
     primary: ['finance', 'count', 'inbox', 'review'],
-    more: ['transactions', 'balance', 'reports', 'audit', 'settings'],
+    more: ['transactions', 'payables', 'balance', 'reports', 'audit', 'settings'],
   });
 
   assert.deepStrictEqual(
@@ -30,7 +30,7 @@ async function run() {
     }),
     {
       primary: ['finance', 'review', 'inbox', 'transactions'],
-      more: ['balance', 'reports', 'audit'],
+      more: ['payables', 'balance', 'reports', 'audit'],
     },
   );
 
@@ -56,7 +56,7 @@ async function run() {
     }),
     {
       primary: ['finance', 'transactions', 'balance', 'reports'],
-      more: ['audit'],
+      more: ['payables', 'audit'],
     },
   );
 
