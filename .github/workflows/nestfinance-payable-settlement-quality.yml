@@ -24,6 +24,7 @@ jobs:
       NODE_ENV: test
       FIREBASE_PROJECT_ID: demo-payable-settlement-emulator
       GCLOUD_PROJECT: demo-payable-settlement-emulator
+      HUB_CANONICAL_RULES_FILE: ${{ runner.temp }}/nestfinance-certified-hub.rules
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,5 +42,7 @@ jobs:
       - run: npm run build
       - run: npm run build:cloudrun
       - run: npm install firebase-tools@15.27.0 --no-save --no-package-lock
+      - name: Download exact certified gateway-only Hub Rules (no deployment)
+        run: curl --fail --silent --show-error --location https://raw.githubusercontent.com/prdanielcunha/millionsnest/5fb11db71f57550e9c32617a5da13ecf2bcfd45a/firestore.rules --output "$HUB_CANONICAL_RULES_FILE"
       - name: New payable HTTP, atomic persistence and permission journey
         run: npx firebase-tools emulators:exec --only firestore --project demo-payable-settlement-emulator "node --import tsx scripts/test-payable-settlement-emulator.ts && node --import tsx scripts/test-payable-settlement-rules.ts"

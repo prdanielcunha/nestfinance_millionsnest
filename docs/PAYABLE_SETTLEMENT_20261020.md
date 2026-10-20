@@ -47,3 +47,11 @@ Nenhuma autenticação real do navegador, dado financeiro real, permissão real 
 8. Depois dos gates dos módulos completos, integrar por PR e promover `main`/`production` com o release canônico. Finance não publica as Rules compartilhadas; preservar o guard exato certificado pelo Hub.
 
 O usuário pediu expressamente para parar de repetir auditorias aprovadas e atuar nessas pendências. Consultar resultados existentes por SHA e avançar no item seguinte, sem ciclos de polling ou login.
+
+## Continuação 20/10 — falhas concretas do gate isolado corrigidas
+
+O workflow do head `3d01c6e7a3d38ef331e22850d2a2eb38b3c2dfee` falhou no perfil sintético: `finance.view` não concede `finance.treasury.view` no contrato individual. O teste agora prova a negativa antes de atribuir a permissão canônica à fixture; o saldo permanece restrito, sem `finance.balance.view`. Nenhum guard de aplicação foi enfraquecido.
+
+O teste HTTP completo passou localmente no Emulator. O teste de Rules encontrou a cópia histórica local (que permitia leitura de CEO), enquanto o release real já exige as Rules gateway-only do Hub. O gate agora baixa a fonte imutável do commit Hub já certificado e exige o mesmo SHA256 do release; não altera nem publica Rules. As **91 verificações de Rules passaram** com a fonte correta. TypeScript passou. Não foram repetidos os 37 casos de domínio nem os gates aprovados sem alteração.
+
+O navegador de produção foi aberto: sem sessão, em `/auth/login`. Validação visual autenticada e aparelhos físicos continuam sem evidência; não foi iniciado novo loop de login. Próximo trabalho funcional: relatórios contábeis derivados do livro certificado, com interface e exportações.

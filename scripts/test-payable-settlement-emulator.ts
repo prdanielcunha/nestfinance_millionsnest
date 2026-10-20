@@ -99,6 +99,11 @@ async function main(){
   assert.equal(totals.statusCode,200,JSON.stringify(totals.body));
   assert.equal(totals.body.operational.balance.amountCents,94500);assert.equal(totals.body.operational.payablePaymentOutCents,9650);assert.equal(totals.body.operational.payableCorrectionInCents,4150);
   actor=viewer;
+  const deniedSummary=await call(summary,{financeEntityId:entity,localDate:today},'transactions-summary');
+  assert.equal(deniedSummary.statusCode,403,'individual owner without treasury grant cannot read the summary');
+  await orgRef.collection('members').doc(viewer).update({
+    'appAccess.nestFinance.permissions':['finance.access.individual_v1','finance.view','finance.treasury.view'],
+  });
   const restricted=await call(summary,{financeEntityId:entity,localDate:today},'transactions-summary');
   assert.equal(restricted.statusCode,200,JSON.stringify(restricted.body));assert.equal(restricted.body.operational.balance.state,'restricted');assert.equal(restricted.body.operational.balance.amountCents,null);
   const history=await act({action:'history',payableId:bill});assert.equal(history.statusCode,200);assert.equal(history.body.items.length,3);
