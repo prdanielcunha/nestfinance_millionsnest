@@ -7,7 +7,7 @@ import { readLedgerState, type LedgerCommandContext } from './certifiedLedgerSto
 export const CERTIFIED_BOOK_ENTRY_LIMIT=5000;
 /** Transaction snapshot + exact entry count prove coverage. No truncated
  * balanced subset, guessed opening or client-supplied journal is accepted. */
-export async function loadCertifiedBookReadModel(t:Transaction,c:LedgerCommandContext,startDate:string,endDateExclusive:string) {
+export async function loadCertifiedBookReadModel(t:Transaction,c:LedgerCommandContext,startDate:string,endDateExclusive:string,includeInternal=false) {
   const org=c.db.collection('organizations').doc(c.organizationId);
   const state=await readLedgerState(t,c);
   const configSnap=await t.get(org.collection('financeSettings').doc(ledgerConfigurationKey(c.financeEntityId)));
@@ -40,5 +40,5 @@ export async function loadCertifiedBookReadModel(t:Transaction,c:LedgerCommandCo
     }
     if(balanceCents!==b.balanceCents)ledgerFailure('LEDGER_BALANCE_PROJECTION_MISMATCH');
   }
-  return {...report,coverage:{complete:true as const,entryCount:entries.length,revision:state.value.revision,firstPeriod:configuration.firstPeriod},closedThrough:state.value.closedThrough};
+  return {...report,coverage:{complete:true as const,entryCount:entries.length,revision:state.value.revision,firstPeriod:configuration.firstPeriod},closedThrough:state.value.closedThrough,...(includeInternal?{internalEntries:entries,internalConfiguration:configuration}:{})};
 }

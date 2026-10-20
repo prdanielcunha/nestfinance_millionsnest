@@ -32,6 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     admin = getFirebaseAdmin();
   } catch (err: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (err?.code === 'LEDGER_PERIOD_CLOSED' || String(err?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: err.code });
+
     return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
   }
 
@@ -254,6 +257,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw txError;
     }
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     console.error('[accountsRepairCanonical] Error:', error);
     return res.status(500).json({ 
       error: 'FINANCE_ACCOUNT_REPAIR_FAILED', 

@@ -78,6 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const message = String(error?.message || '');
     if (message.startsWith('COUNT_')) return res.status(message === 'COUNT_SESSION_NOT_FOUND' ? 404 :
       message === 'COUNT_VERSION_CONFLICT' || message === 'COUNT_CORRECTION_LINKED_ADJUSTMENT_REQUIRED' ? 409 : 400).json({ error: message });

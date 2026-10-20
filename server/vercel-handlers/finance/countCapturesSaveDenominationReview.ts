@@ -96,6 +96,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     return res.status(200).json({ ...result, requestId });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     console.error('Count Capture Denomination Review Save Error:', String(error?.message || '').startsWith('COUNT_') ? error.message : 'UNEXPECTED_ERROR');
     const message = String(error?.message || '');
     if (['COUNT_CAPTURE_NOT_FOUND', 'COUNT_CAPTURE_FORM_NOT_FOUND', 'COUNT_SESSION_NOT_FOUND'].includes(message)) return res.status(404).json({ error: 'COUNT_CAPTURE_NOT_FOUND' });

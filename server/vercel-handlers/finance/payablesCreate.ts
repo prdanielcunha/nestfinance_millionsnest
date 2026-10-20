@@ -34,6 +34,9 @@ export default async function handler(req:VercelRequest,res:VercelResponse) {
   }
   let draft;
   try{draft=parsePayableDraft(payload);}catch(error:any){
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     return res.status(400).json({error:String(error.message||'PAYABLE_INVALID_BODY')});
   }
   try {
@@ -62,6 +65,9 @@ export default async function handler(req:VercelRequest,res:VercelResponse) {
     });
     return res.status(201).json(result);
   }catch(error:any){
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const msg=String(error?.message||'');
     if(msg.includes('FINANCE_IDEMPOTENCY_CONFLICT'))return res.status(409).json({error:'FINANCE_IDEMPOTENCY_CONFLICT'});
     if(msg==='FINANCE_ENTITY_NOT_ACTIVE')return res.status(404).json({error:msg});

@@ -134,6 +134,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       financialMutation: false,
     });
   } catch (error: any) {
+    // Preserve the shared atomic period-fence error at this HTTP boundary.
+    if (error?.code === 'LEDGER_PERIOD_CLOSED' || String(error?.code || '').startsWith('LEDGER_PERIOD_FENCE_')) return res.status(409).json({ error: error.code });
+
     const message = String(error?.message || '');
     if (error?.status) return res.status(error.status).json({ error: error.error || 'UNAUTHORIZED' });
     if (message === 'FORBIDDEN_FINANCE_ACCESS' || message === 'Session not granted') {

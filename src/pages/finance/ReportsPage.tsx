@@ -34,6 +34,7 @@ import { periodCloseService } from '@/src/services/periodCloseService';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
 import { AccountantWorkspaceOverview } from './AccountantWorkspaceOverview';
 import { MonthReviewOverview } from './MonthReviewOverview';
+import { FormalClosePanel } from '@/src/components/finance/FormalClosePanel';
 import { CertifiedBookPanel } from './CertifiedBookPanel';
 import { ReceivedIncomePanel } from './ReceivedIncomePanel';
 import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
@@ -158,7 +159,7 @@ const COPY: Record<Language, ReportsCopy> = {
     statusAttentionBody: (count) => count === 1 ? 'Há 1 pendência objetiva antes da revisão final.' : 'Há ' + count + ' pendências objetivas antes da revisão final.',
     statusReadyBody: 'Nenhuma pendência operacional foi encontrada no escopo que o NestFinance consegue provar hoje.',
     officialLocked: 'Fechamento oficial protegido',
-    officialLockedBody: 'O NestFinance ainda não declara o período como fechado nem emite relatório contábil oficial. Isso só será liberado quando postagem e conciliação integral puderem ser comprovadas sem atalhos.',
+    officialLockedBody: 'Esta revisão operacional não fecha o mês. Use o painel Fechamento do mês para conferir as pendências e preservar o retrato fechado. Demonstrações oficiais e assinaturas continuam com o profissional responsável.',
     nextActions: 'O que falta resolver',
     noBlockers: 'Nenhum bloqueio operacional',
     noBlockersBody: 'O mês pode seguir para conferência humana. A declaração de fechamento continua bloqueada por segurança.',
@@ -251,10 +252,10 @@ const COPY: Record<Language, ReportsCopy> = {
     statusAttentionBody: (count) => count === 1 ? 'There is 1 objective item to resolve before final review.' : 'There are ' + count + ' objective items to resolve before final review.',
     statusReadyBody: 'No operational blocker was found inside the scope NestFinance can currently prove.',
     officialLocked: 'Official close is protected',
-    officialLockedBody: 'NestFinance does not yet declare the period closed or issue an official accounting report. That will only be enabled when posting and full reconciliation can be proven without shortcuts.',
+    officialLockedBody: 'This operational review does not close the month. Use Month close to check requirements and preserve the closed snapshot. Official statements and signatures remain with the accounting professional.',
     nextActions: 'What still needs action',
     noBlockers: 'No operational blockers',
-    noBlockersBody: 'The month can proceed to human review. The formal close declaration remains safely disabled.',
+    noBlockersBody: 'The month can proceed to human review. Use Month close for the separate close confirmation.',
     reviewAction: 'Record period review',
     reviewReadonly: 'You can follow readiness, but only someone with finance review permission can record this check.',
     reviewConfirmTitle: 'Record that you reviewed this period?',
@@ -344,10 +345,10 @@ const COPY: Record<Language, ReportsCopy> = {
     statusAttentionBody: (count) => count === 1 ? 'Hay 1 pendiente objetiva antes de la revisión final.' : 'Hay ' + count + ' pendientes objetivas antes de la revisión final.',
     statusReadyBody: 'No se encontró ningún bloqueo operativo dentro del alcance que NestFinance puede comprobar hoy.',
     officialLocked: 'Cierre oficial protegido',
-    officialLockedBody: 'NestFinance todavía no declara el período como cerrado ni emite un informe contable oficial. Solo se habilitará cuando la contabilización y la conciliación integral puedan comprobarse sin atajos.',
+    officialLockedBody: 'Esta revisión operativa no cierra el mes. Use Cierre del mes para revisar pendientes y preservar la instantánea cerrada. Los estados oficiales y firmas siguen a cargo del profesional responsable.',
     nextActions: 'Lo que falta resolver',
     noBlockers: 'Sin bloqueos operativos',
-    noBlockersBody: 'El mes puede avanzar a revisión humana. La declaración formal de cierre continúa bloqueada por seguridad.',
+    noBlockersBody: 'El mes puede avanzar a revisión humana. Use Cierre del mes para la confirmación de cierre por separado.',
     reviewAction: 'Registrar revisión del período',
     reviewReadonly: 'Puede acompañar la preparación, pero solo quien tenga permiso para revisar finanzas puede registrar esta comprobación.',
     reviewConfirmTitle: '¿Registrar que revisó este período?',
@@ -658,7 +659,7 @@ function ReportsContent() {
             <ReceivedIncomePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} language={language} period={period} />
           )}
           {organizationId && activeFinanceEntityId && /^\d{4}-\d{2}$/.test(period) && hasEffectiveCapability(accessState,'finance.balance.view') && hasEffectiveCapability(accessState,'finance.accountant.view_exports') && (
-            <div key={`${organizationId}:${activeFinanceEntityId}:${period}`}><CertifiedBookPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language} /></div>
+            <div className="space-y-5" key={`${organizationId}:${activeFinanceEntityId}:${period}`}><FormalClosePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language}/><CertifiedBookPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language} /></div>
           )}
           {loading && !data ? (
             <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">

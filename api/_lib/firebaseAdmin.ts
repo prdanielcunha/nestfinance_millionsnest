@@ -1,5 +1,6 @@
 
 import admin from 'firebase-admin';
+import { withFinancePeriodFence } from '../../server/vercel-handlers/finance/financePeriodFence.js';
 
 let defaultApp: admin.app.App | undefined;
 let firestoreInstance: admin.firestore.Firestore | undefined;
@@ -66,7 +67,7 @@ export function getFirebaseAdmin() {
 
   return {
     auth: firebaseAdmin.auth(),
-    firestore: firestoreInstance as admin.firestore.Firestore
+    firestore: withFinancePeriodFence(firestoreInstance as admin.firestore.Firestore)
   };
 }
 
