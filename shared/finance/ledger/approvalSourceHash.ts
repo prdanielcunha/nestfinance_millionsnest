@@ -44,6 +44,7 @@ export function buildApprovalMaterial(tx: LedgerTransaction, allocations: Financ
       materialSource.payableSource = (tx as any).payableSource || null;
       materialSource.settlementType = (tx as any).settlementType || null;
       materialSource.cashFlowDirection = tx.cashFlowDirection || null;
+      if (tx.countSource) materialSource.countSource = tx.countSource;
     }
   }
   return materialSource;

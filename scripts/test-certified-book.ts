@@ -16,7 +16,7 @@ function fixture(){
   const refs=certifiedPlanReferences(config,org,entity);
   const plan=buildPostingPlan({transaction:tx,allocations:allocs,...refs,isPreview:true,approval:{approvedVersion:tx.version,approvalSourceHash:'preview',status:'approved_for_posting',approvalAlgorithmVersion:3}});
   assert.deepEqual(plan.blockers,[]);
-  const approval={status:'approved_for_posting',approvedVersion:tx.version,approvedContentVersion:tx.contentVersion,approvalAlgorithmVersion:3,approvalSourceHash:computeApprovalSourceHash(tx,allocs,3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
+  const approval={status:'approved_for_posting',approvedBy:'synthetic_reviewer',approvedVersion:tx.version,approvedContentVersion:tx.contentVersion,approvalAlgorithmVersion:3,approvalSourceHash:computeApprovalSourceHash(tx,allocs,3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
   Object.assign(tx,approval,{version:tx.version+1});
   return {transaction:tx,allocations:allocs,approval,configuration:config,organizationId:org,financeEntityId:entity,actor:'synthetic_approver',postedAt:'2026-10-02T12:00:00.000Z'};
 }
@@ -38,6 +38,9 @@ rejects(f=>f.transaction.status='ready_for_review','LEDGER_REAPPROVAL_REQUIRED')
 rejects(f=>f.approval.status='invalidated','LEDGER_REAPPROVAL_REQUIRED');
 rejects(f=>f.transaction.version++,'LEDGER_REAPPROVAL_REQUIRED');
 rejects(f=>f.transaction.contentVersion++,'LEDGER_REAPPROVAL_REQUIRED');
+rejects(f=>f.approval.approvedBy='different_reviewer','LEDGER_REAPPROVAL_REQUIRED');
+rejects(f=>delete (f.approval as any).approvedBy,'LEDGER_REAPPROVAL_REQUIRED');
+rejects(f=>f.transaction.countSource={countSessionId:'cnt_'+ '1'.repeat(24)},'LEDGER_COUNT_SOURCE_PROOF_REQUIRED');
 rejects(f=>f.configuration.dateBasis='competence_date','LEDGER_APPROVAL_REFERENCES_CHANGED');
 rejects(f=>f.configuration.timeZone='UTC','LEDGER_APPROVAL_REFERENCES_CHANGED');
 rejects(f=>f.configuration.version++,'LEDGER_APPROVAL_REFERENCES_CHANGED');

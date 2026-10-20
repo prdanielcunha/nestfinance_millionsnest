@@ -10,8 +10,9 @@ import { loadCertifiedBookReadModel } from '../server/vercel-handlers/finance/ce
 import { ledgerStateRef, stageCertifiedOpening, stageCertifiedPosting, stageCertifiedReversal, type LedgerCommandContext } from '../server/vercel-handlers/finance/certifiedLedgerStore.js';
 import { executeWithIdempotency,hashPayload } from '../server/vercel-handlers/finance/idempotencyHelper.js';
 import approveForPosting from '../server/vercel-handlers/finance/transactionsApproveForPosting.js';
+import { normalizeCountEntries, compareCountEntries } from '../shared/finance/count.js';
 
-if(!process.env.FIRESTORE_EMULATOR_HOST||!process.env.FIREBASE_PROJECT_ID?.startsWith('demo-'))throw Error('An isolated demo Firestore Emulator is mandatory. Production access is forbidden.');
+if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')||!process.env.FIREBASE_PROJECT_ID?.startsWith('demo-'))throw Error('An isolated loopback demo Firestore Emulator is mandatory.');
 const {firestore:db}=getFirebaseAdmin(),suffix=randomBytes(8).toString('hex');
 const org='synthetic_book_'+suffix,entity='synthetic_church_'+suffix;
 const orgRef=db.collection('organizations').doc(org);
@@ -29,7 +30,7 @@ async function seed(id:string,amount=10000,fund=false,alreadyApproved=true){
   const refs=certifiedPlanReferences(configuration,org,entity);
   const plan=buildPostingPlan({transaction:tx,allocations:[allocation],...refs,isPreview:true,approval:{approvedVersion:1,approvalSourceHash:'preview',status:'approved_for_posting',approvalAlgorithmVersion:3}});
   assert.deepEqual(plan.blockers,[]);
-  const approval={status:'approved_for_posting',approvedVersion:1,approvedContentVersion:1,approvalAlgorithmVersion:3,approvalSourceHash:computeApprovalSourceHash(tx,[allocation],3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
+  const approval={status:'approved_for_posting',approvedBy:c.uid,approvedVersion:1,approvedContentVersion:1,approvalAlgorithmVersion:3,approvalSourceHash:computeApprovalSourceHash(tx,[allocation],3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
   if(alreadyApproved)Object.assign(tx,approval,{version:2});
   const ref=orgRef.collection('financeTransactions').doc(id);
   await ref.set(tx);if(alreadyApproved)await ref.collection('approvals').doc('latest').set(approval);
@@ -61,6 +62,11 @@ async function main(){
   assert.equal(reversed.status,'reversed');assert.equal((await balanceRef.get()).data()!.balanceCents,50000);
   assert.equal((await fundRef.get()).data()!.postedNetMovementCents,0);
   assert.deepEqual((await orgRef.collection('financeJournalEntries').doc(posted.journalEntryId).get()).data(),entryBefore,'original journal remains immutable');
+  const change=(await ref.collection('corrections').get()).docs[0].data();
+  assert.equal(change.reason,'Synthetic duplicate receipt correction');assert.equal(change.actorUid,c.uid);
+  assert.equal(change.before.status,'posted');assert.equal(change.after.status,'reversed');
+  assert.equal(change.before.postedEffectCents,10000);assert.equal(change.after.postedEffectCents,0);
+  assert.ok(change.changedAt.toMillis()>Date.now()-120000);
   await assert.rejects(()=>command('reverse-a-again',{},t=>stageCertifiedReversal(t,c,ref.id,4,'2026-10-03','Cannot reverse the same source twice')),/LEDGER_REVERSAL_STATE_INVALID/);
   const september=await db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-10-01'));
   assert.equal(september.coverage.complete,true);assert.equal(september.coverage.entryCount,3);
@@ -107,8 +113,47 @@ async function main(){
   } finally {auth.verifyIdToken=originalVerify;}
   const final=await db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-11-01'));
   assert.equal(final.coverage.entryCount,5);
-  await ledgerStateRef(db,org,entity).update({entryCount:6});
+  // An assigned Count source must be sealed, amount-consistent and consumed once.
+  const countId='cnt_'+randomBytes(12).toString('hex'),countRef=orgRef.collection('financeEntities').doc(entity).collection('countSessions').doc(countId);
+  const countTx=await seed('tx_synthetic_count',1200,false,false);
+  const countSource={countSessionId:countId,countVersion:3,countEntryType:'pix',receivedDate:'2026-09-20',serviceDate:'2026-09-20',sourceCaptureIds:[]};
+  await countTx.update({sourceContext:'count_session',countSource});
+  const countEntries=normalizeCountEntries([{type:'pix',method:'total',totalCents:1200}]);
+  const countA={entries:countEntries,totalCents:1200,countedByUid:'synthetic_counter_a'},countB={...countA,countedByUid:'synthetic_counter_b'};
+  await countRef.set({organizationId:org,financeEntityId:entity,id:countId,serviceDate:'2026-09-20',serviceLabel:'Synthetic service',
+    version:4,status:'matched',policySnapshot:{requireIndependentCounter:true},countA,countB,comparison:compareCountEntries(countEntries,countEntries),
+    countProposal:{status:'created',sourceVersion:3,transactionIds:[countTx.id]}});
+  const sealCount=async(source:FirebaseFirestore.DocumentReference)=>{
+    const data=(await source.get()).data()!;
+    const allocs=(await orgRef.collection('financeAllocations').where('transactionId','==',source.id).get()).docs.map(d=>({...d.data(),id:d.id}) as any);
+    const refs=certifiedPlanReferences(configuration,org,entity);
+    const plan=buildPostingPlan({transaction:data as any,allocations:allocs,...refs,isPreview:true,approval:{approvedVersion:1,approvalSourceHash:'preview',status:'approved_for_posting',approvalAlgorithmVersion:3}});
+    const approval={status:'approved_for_posting',approvedBy:c.uid,approvedVersion:1,approvedContentVersion:1,approvalAlgorithmVersion:3,
+      approvalSourceHash:computeApprovalSourceHash(data as any,allocs,3),approvedPlanHash:plan.planHash,approvedReferenceFingerprintHash:refs.referenceFingerprintHash};
+    await source.update({...approval,version:2});await source.collection('approvals').doc('latest').set(approval);
+  };
+  await sealCount(countTx);
+  await countRef.update({countA:{...countA,countedByUid:'synthetic_counter_b'}});
+  await assert.rejects(()=>command('count-self-confirmed',{},t=>stageCertifiedPosting(t,c,countTx.id,2)),/LEDGER_COUNT_INDEPENDENCE_REQUIRED/);
+  await countRef.update({countA});
+  const countPosted=await command('post-count',{},t=>stageCertifiedPosting(t,c,countTx.id,2));
+  const claimRef=orgRef.collection('financeUniqueKeys').doc('count_posted_'+bookId(entity,countId,'pix','pix'));
+  assert.equal((await claimRef.get()).data()!.journalEntryId,countPosted.journalEntryId);
+  const claimedEntry=(await orgRef.collection('financeJournalEntries').doc(countPosted.journalEntryId).get()).data()!;
+  assert.match(claimedEntry.countSourceProofHash,/^sha256:[a-f0-9]{64}$/);
+  const duplicateCount=await seed('tx_synthetic_count_duplicate',1200,false,false);
+  await duplicateCount.update({sourceContext:'count_session',countSource});await sealCount(duplicateCount);
+  await countRef.update({'countProposal.transactionIds':[countTx.id,duplicateCount.id]});
+  await assert.rejects(()=>command('duplicate-count',{},t=>stageCertifiedPosting(t,c,duplicateCount.id,2)),/LEDGER_COUNT_SOURCE_ALREADY_POSTED/);
+  await countRef.update({'countProposal.transactionIds':[countTx.id]});
+  await command('reverse-count',{},t=>stageCertifiedReversal(t,c,countTx.id,3,'2026-09-20','Correction of the synthetic counted receipt'));
+  assert.equal((await claimRef.get()).data()!.state,'reversed');
+  assert.equal((await balanceRef.get()).data()!.balanceCents,51000);
+  assert.deepEqual((await orgRef.collection('financeJournalEntries').doc(countPosted.journalEntryId).get()).data(),claimedEntry);
+  const withCount=await db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-11-01'));
+  assert.equal(withCount.coverage.entryCount,7);
+  await ledgerStateRef(db,org,entity).update({entryCount:8});
   await assert.rejects(()=>db.runTransaction(t=>loadCertifiedBookReadModel(t,c,'2026-09-01','2026-11-01')),/LEDGER_REPORT_COVERAGE_INCOMPLETE/);
-  console.log('Certified book real Firestore Emulator passed: actual HTTP approval-v3 seal to post, opening, post/reversal, atomic fund movements, exact report coverage, idempotency, concurrent double post, forced rollback, stale approval, inactive catalog, cross-entity and period lock. No production data or browser authentication.');
+  console.log('Certified book real Firestore Emulator passed: actual HTTP approval-v3, openings, immutable reversal with before/after/actor/time/reason, independent Count proof and duplicate-source lock, funds, report coverage, idempotency, concurrency, rollback, stale approval, catalog, scope and period lock.');
 }
 main().catch(error=>{console.error('Certified book Emulator failed',error);process.exitCode=1});
