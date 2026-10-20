@@ -14,27 +14,33 @@ export const CORRECTION_COPY = {
     optional: 'Opcional enquanto o rascunho ainda não passou por conferência.', missing: 'Não informado',
     recent: 'Mostrando as 20 alterações mais recentes. Os registros anteriores permanecem preservados.',
     fields: { amountCents: 'Valor', transactionKind: 'Tipo', occurredAt: 'Data do recebimento ou pagamento', competenceDate: 'Competência',
+      status: 'Situação', postedEffectCents: 'Valor efetivado deste lançamento', postingEffectiveDate: 'Data do efeito na escrituração',
       account: 'Conta', destinationAccount: 'Conta de destino', liabilityAccount: 'Conta da obrigação', paymentMethod: 'Forma de pagamento',
       description: 'Descrição', counterparty: 'Pessoa ou empresa', evidenceJustification: 'Justificativa do comprovante', evidenceCount: 'Comprovantes', allocations: 'Categorias e fundos' },
-    kinds: { income: 'Entrada', expense: 'Despesa', transfer: 'Transferência', liability_settlement: 'Pagamento de obrigação' } },
+    kinds: { income: 'Entrada', expense: 'Despesa', transfer: 'Transferência', liability_settlement: 'Pagamento de obrigação' },
+    states: {draft:'Rascunho',ready_for_review:'Em conferência',approved_for_posting:'Aprovado',posted:'Efetivado',reversed:'Estornado'} },
   EN: { title: 'Change history', before: 'Original', after: 'Final', reason: 'Reason for change',
     hint: 'Explain what changed and why (10–500 characters). The original will be retained.',
     required: 'This transaction has already been reviewed. Give a reason to save the correction.',
     optional: 'Optional while the draft has not been reviewed.', missing: 'Not provided',
     recent: 'Showing the 20 most recent changes. Earlier records remain preserved.',
     fields: { amountCents: 'Amount', transactionKind: 'Type', occurredAt: 'Receipt or payment date', competenceDate: 'Accounting period',
+      status: 'Status', postedEffectCents: 'Posted amount of this transaction', postingEffectiveDate: 'Accounting effect date',
       account: 'Account', destinationAccount: 'Destination account', liabilityAccount: 'Liability account', paymentMethod: 'Payment method',
       description: 'Description', counterparty: 'Person or business', evidenceJustification: 'Evidence explanation', evidenceCount: 'Evidence files', allocations: 'Categories and funds' },
-    kinds: { income: 'Income', expense: 'Expense', transfer: 'Transfer', liability_settlement: 'Liability payment' } },
+    kinds: { income: 'Income', expense: 'Expense', transfer: 'Transfer', liability_settlement: 'Liability payment' },
+    states: {draft:'Draft',ready_for_review:'In review',approved_for_posting:'Approved',posted:'Posted',reversed:'Reversed'} },
   ES: { title: 'Historial de cambios', before: 'Original', after: 'Final', reason: 'Motivo del cambio',
     hint: 'Explica qué cambió y por qué (10–500 caracteres). Se conservará el original.',
     required: 'Este movimiento ya fue revisado. Informa el motivo para guardar la corrección.',
     optional: 'Opcional mientras el borrador no haya sido revisado.', missing: 'No informado',
     recent: 'Se muestran los 20 cambios más recientes. Los registros anteriores siguen conservados.',
     fields: { amountCents: 'Importe', transactionKind: 'Tipo', occurredAt: 'Fecha de recepción o pago', competenceDate: 'Competencia',
+      status: 'Estado', postedEffectCents: 'Importe contabilizado de este movimiento', postingEffectiveDate: 'Fecha del efecto contable',
       account: 'Cuenta', destinationAccount: 'Cuenta de destino', liabilityAccount: 'Cuenta de la obligación', paymentMethod: 'Forma de pago',
       description: 'Descripción', counterparty: 'Persona o empresa', evidenceJustification: 'Justificación del comprobante', evidenceCount: 'Comprobantes', allocations: 'Categorías y fondos' },
-    kinds: { income: 'Ingreso', expense: 'Gasto', transfer: 'Transferencia', liability_settlement: 'Pago de obligación' } },
+    kinds: { income: 'Ingreso', expense: 'Gasto', transfer: 'Transferencia', liability_settlement: 'Pago de obligación' },
+    states: {draft:'Borrador',ready_for_review:'En revisión',approved_for_posting:'Aprobado',posted:'Contabilizado',reversed:'Revertido'} },
 } as const;
 
 export function TransactionCorrectionReasonField({ value, onChange, required, disabled }: {
@@ -57,12 +63,13 @@ export function TransactionCorrectionHistory({ items, truncated = false }: { ite
   if (!items?.length) return null;
   const renderValue = (snapshot: Snapshot, key: keyof typeof copy.fields): string => {
     const value = snapshot[key];
-    if (key === 'amountCents') return formatReviewMoney(snapshot.amountCents, language, snapshot.currency || 'BRL');
+    if (key === 'amountCents' || key === 'postedEffectCents') return formatReviewMoney(Number(value), language, snapshot.currency || 'BRL');
+    if (key === 'status') return copy.states[String(value) as keyof typeof copy.states] || copy.missing;
     if (key === 'allocations') return snapshot.allocations.map(item =>
       `${[item.category || copy.missing, item.fund, item.costCenter].filter(Boolean).join(' · ')}: ${formatReviewMoney(item.amountCents, language, snapshot.currency || 'BRL')}`).join('\n') || copy.missing;
     if (key === 'transactionKind') return copy.kinds[String(value) as keyof typeof copy.kinds] || copy.missing;
     if (key === 'paymentMethod') return PAYMENT_METHOD_LABELS[language][String(value) as keyof typeof PAYMENT_METHOD_LABELS.PT] || copy.missing;
-    if (key === 'occurredAt' || key === 'competenceDate') {
+    if (key === 'occurredAt' || key === 'competenceDate' || key === 'postingEffectiveDate') {
       const date = typeof value === 'string' ? new Date(value) : null;
       return date && Number.isFinite(date.getTime()) ? date.toLocaleDateString(locale, { timeZone: 'UTC' }) : copy.missing;
     }

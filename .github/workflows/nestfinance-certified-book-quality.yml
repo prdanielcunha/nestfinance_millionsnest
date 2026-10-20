@@ -8,6 +8,9 @@ on:
       - 'server/vercel-handlers/finance/loadPostingConfiguration.ts'
       - 'server/vercel-handlers/finance/transactionsApproveForPosting.ts'
       - 'scripts/test-certified-book*.ts'
+      - 'scripts/test-certified-count*.ts'
+      - 'shared/finance/transactionCorrection.ts'
+      - 'src/pages/finance/transactions/TransactionCorrectionHistory.tsx'
       - '.github/workflows/nestfinance-certified-book-quality.yml'
 jobs:
   certified-book:
@@ -30,6 +33,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: node --import tsx scripts/test-certified-book.ts
+      - run: node --import tsx scripts/test-certified-count-source.ts
+      - run: node --import tsx scripts/test-transaction-corrections.ts
       - run: node --import tsx scripts/test-posting-plan.ts
       - run: node --import tsx scripts/test-journal-integrity-e02.ts
       - run: npm run build

@@ -27,6 +27,9 @@ export function transactionCorrectionSnapshot(record: any, allocations: readonly
   const text = (value: unknown, max = 2000): string | null => typeof value === 'string' ? value.slice(0, max) : null;
   return {
     amountCents: record.amountCents,
+    status: text(record.status, 40),
+    postedEffectCents: record.status === 'posted' ? record.amountCents : 0,
+    postingEffectiveDate: text(record.reversalEffectiveDate || record.effectiveJournalDate, 40),
     currency: text(record.currency, 8),
     transactionKind: text(record.transactionKind || record.direction, 40),
     occurredAt: text(record.occurredAt, 40),
