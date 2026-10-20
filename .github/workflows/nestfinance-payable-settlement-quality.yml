@@ -28,7 +28,7 @@ jobs:
       NODE_ENV: test
       FIREBASE_PROJECT_ID: demo-payable-settlement-emulator
       GCLOUD_PROJECT: demo-payable-settlement-emulator
-      HUB_CANONICAL_RULES_FILE: ${{ runner.temp }}/nestfinance-certified-hub.rules
+      HUB_CANONICAL_RULES_FILE: /tmp/nestfinance-certified-hub.rules
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
