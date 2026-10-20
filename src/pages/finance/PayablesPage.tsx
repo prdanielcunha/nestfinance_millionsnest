@@ -9,6 +9,7 @@ import { useLanguage,type Language } from '@/src/contexts/LanguageContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { payablesService,type PayableListRow } from '@/src/services/payablesService';
+import { PayablePaymentPanel } from '@/src/components/finance/PayablePaymentPanel';
 import { parsePayableDraft,type PayableDraft } from '../../../shared/finance/payableObligation.js';
 import { getPayableDueState,localCivilDay,type PayableDueState } from '../../../shared/finance/payableUrgency.js';
 
@@ -24,7 +25,7 @@ const TEXT:Record<Language,{
   reviewCancel:string;reviewProcessing:string;reviewSuccess:string;reviewFailed:string;
   reviewedUnpaid:string;reviewConflict:string;
   overdue:string;dueToday:string;dueIn:string;daySingular:string;dayPlural:string;badDueData:string;partialUnpaid:string;
-  settledUnverified:string;cancelled:string;
+  settledUnverified:string;settledRecorded:string;cancelled:string;
 }> = {
   PT:{
     area:'Tesouraria',back:'Voltar ao financeiro',title:'Contas a pagar',
@@ -36,7 +37,7 @@ const TEXT:Record<Language,{
     documentPlaceholder:'Ex.: Fatura 123',notes:'Observações (opcional)',
     create:'Guardar como conta a pagar',creating:'Salvando...',success:'Conta salva para conferência. Nenhum pagamento foi realizado.',
     empty:'Ainda não há contas a pagar cadastradas nesta igreja.',viewTitle:'Contas registradas',status:'Aguardando revisão',
-    review:'O pagamento será uma etapa separada, após conferência. Esta tela não marca contas como pagas.',
+    review:'Confira cada cobrança e registre os pagamentos já realizados. Pagamentos parciais, juros, descontos e correções ficam no histórico.',
     noMoney:'Não houve saída de dinheiro nem alteração de saldo.',
     loadMore:'Ver mais contas',loading:'Carregando contas...',retry:'Tentar novamente',
     validation:'Preencha uma descrição, fornecedor, valor maior que zero e vencimento válido.',
@@ -52,6 +53,7 @@ const TEXT:Record<Language,{
     reviewedUnpaid:'Conferida · Ainda não paga',reviewConflict:'A conta mudou. A lista foi atualizada; confira novamente.',
     overdue:'Vencida há',dueToday:'Vence hoje',dueIn:'Vence em',daySingular:'dia',dayPlural:'dias',badDueData:'Verificar dados de valor e vencimento',
     partialUnpaid:'Parcialmente paga · Valor restante pendente',settledUnverified:'Marcada como quitada · Verificar comprovante',
+    settledRecorded:'Quitada · Pagamentos registrados',
     cancelled:'Cancelada',
   },
   EN:{
@@ -64,7 +66,7 @@ const TEXT:Record<Language,{
     documentPlaceholder:'e.g. Invoice 123',notes:'Notes (optional)',create:'Save unpaid bill',creating:'Saving...',
     success:'Saved for review. No payment was made.',
     empty:'No unpaid bills have been recorded for this church.',viewTitle:'Recorded bills',status:'Awaiting review',
-    review:'Payment is a separate step after review. This page cannot mark a bill as paid.',
+    review:'Review each bill and record payments already made. Partial payments, charges, discounts and corrections remain in the history.',
     noMoney:'No money left the church account and no balance changed.',
     loadMore:'Show more',loading:'Loading bills...',retry:'Try again',
     validation:'Enter a description, supplier, amount greater than zero and valid due date.',
@@ -80,6 +82,7 @@ const TEXT:Record<Language,{
     reviewedUnpaid:'Reviewed · Still unpaid',reviewConflict:'This bill changed. List refreshed; please review it again.',
     overdue:'Overdue by',dueToday:'Due today',dueIn:'Due in',daySingular:'day',dayPlural:'days',badDueData:'Check amount and due-date details',
     partialUnpaid:'Partially paid · Remaining amount due',settledUnverified:'Marked as settled · Verify proof',
+    settledRecorded:'Settled · Payments recorded',
     cancelled:'Cancelled',
   },
   ES:{
@@ -92,7 +95,7 @@ const TEXT:Record<Language,{
     documentPlaceholder:'Ej.: Factura 123',notes:'Notas (opcional)',create:'Guardar cuenta por pagar',creating:'Guardando...',
     success:'Guardado para revisión. No se hizo ningún pago.',
     empty:'Todavía no hay cuentas por pagar registradas en esta iglesia.',viewTitle:'Cuentas registradas',status:'Pendiente de revisión',
-    review:'El pago será un paso independiente después de revisar. Aquí no se marcan facturas como pagadas.',
+    review:'Revisa cada factura y registra pagos ya realizados. Los pagos parciales, cargos, descuentos y correcciones quedan en el historial.',
     noMoney:'No salió dinero ni cambió ningún saldo.',
     loadMore:'Ver más cuentas',loading:'Cargando cuentas...',retry:'Reintentar',
     validation:'Indique concepto, proveedor, importe mayor que cero y vencimiento válido.',
@@ -108,6 +111,7 @@ const TEXT:Record<Language,{
     reviewedUnpaid:'Revisada · Sin pagar',reviewConflict:'La factura cambió. La lista fue actualizada; revise de nuevo.',
     overdue:'Vencida hace',dueToday:'Vence hoy',dueIn:'Vence en',daySingular:'día',dayPlural:'días',badDueData:'Verifique importes y vencimiento',
     partialUnpaid:'Parcialmente pagada · Importe pendiente',settledUnverified:'Marcada como liquidada · Verificar comprobante',
+    settledRecorded:'Liquidada · Pagos registrados',
     cancelled:'Cancelada',
   },
 };
@@ -253,7 +257,7 @@ function PayablesContent(){
       case 'awaiting_review':return copy.nonPosting;
       case 'open':return copy.reviewedUnpaid;
       case 'partially_paid':return copy.partialUnpaid;
-      case 'settled':return copy.settledUnverified;
+      case 'settled':return item.postingPerformed?copy.settledRecorded:copy.settledUnverified;
       case 'cancelled':return copy.cancelled;
     }
   };
@@ -357,7 +361,7 @@ function PayablesContent(){
             {items.map(item=>{
               const urgency=getPayableDueState({...item,today:localCivilDay(new Date())});
               const dueText=urgencyText(urgency);
-              return <article key={item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
+              return <article key={organizationId+'|'+activeFinanceEntityId+'|'+item.id} className="rounded-2xl border border-border-subtle bg-surface-default p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-lg font-semibold text-text-primary">{item.description}</h3>
@@ -405,6 +409,7 @@ function PayablesContent(){
                   )}
                 </div>
               )}
+              {item.status!=='awaiting_review'&&item.status!=='cancelled'?<PayablePaymentPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId!} payable={item} onChanged={refresh}/>:null}
             </article>;
             })}
           </div>

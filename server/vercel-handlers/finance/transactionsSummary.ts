@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { AggregateField } from 'firebase-admin/firestore';
 import { hasEffectiveCapability, resolveFinanceRequestContext } from './accessHelpers.js';
+import { loadCertifiedTodayBalance } from './certifiedTodayBalance.js';
+import { assertBookScope,bookId } from '../../../shared/finance/ledger/certifiedPosting.js';
 import { getTransactionListQueryBounds } from '../../../shared/finance/ledger/listQueryKeys.js';
 import { getAccountNature } from '../../../shared/finance/smartLogic.js';
 import {
@@ -102,6 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { db, organizationId, context, sessionList } = await resolveFinanceRequestContext(req, 'finance.view');
     const canViewBalance = hasEffectiveCapability(sessionList, 'finance.balance.view');
+    const certifiedBalance = canViewBalance ? await loadCertifiedTodayBalance(db,organizationId,financeEntityId) : null;
+    const useLegacyBalance = canViewBalance && certifiedBalance === null;
 
     const draftQuery = statusQuery(context.repository, financeEntityId, 'draft');
     const readyQuery = statusQuery(context.repository, financeEntityId, 'ready_for_review');
@@ -152,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       accountSnapshot,
       dueSnapshot,
       registeredDueSnapshot,
+      payableCashDay,
     ] = await Promise.all([
       draftQuery.select('returnedToDraftAt', 'returnedToDraftReason', 'returnedToDraftComment').get(),
       countQuery(readyQuery),
@@ -160,13 +165,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sumAmount(todayIncomeReversed),
       sumAmount(todayExpenseAll),
       sumAmount(todayExpenseReversed),
-      canViewBalance ? sumAmount(postedIncome) : 0,
-      canViewBalance ? sumAmount(postedExpense) : 0,
-      canViewBalance ? sumAmount(postedLiabilitySettlement) : 0,
-      canViewBalance ? countQuery(postedAdjustments) : 0,
-      canViewBalance ? context.repository.getAccountsQuery().limit(1001).get() : null,
+      useLegacyBalance ? sumAmount(postedIncome) : 0,
+      useLegacyBalance ? sumAmount(postedExpense) : 0,
+      useLegacyBalance ? sumAmount(postedLiabilitySettlement) : 0,
+      useLegacyBalance ? countQuery(postedAdjustments) : 0,
+      useLegacyBalance ? context.repository.getAccountsQuery().limit(1001).get() : null,
       dueQuery.get(),
       registeredDueQuery.get(),
+      db.collection('organizations').doc(organizationId).collection('financeAggregates').doc('payable_cash_day_'+bookId(financeEntityId,localDate)).get(),
     ]);
 
     if (accountSnapshot && accountSnapshot.size > 1000) {
@@ -224,15 +230,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return total+1;
       },0);
 
+    const payableDay=payableCashDay.data();if(payableDay)assertBookScope(payableDay,organizationId,financeEntityId);
+    const payablePaymentOutCents=payableDay?.paymentOutCents??0,payableCorrectionInCents=payableDay?.correctionInCents??0;
+    if(!Number.isSafeInteger(payablePaymentOutCents)||payablePaymentOutCents<0||!Number.isSafeInteger(payableCorrectionInCents)||payableCorrectionInCents<0)throw Error('PAYABLE_CASH_DAY_INTEGRITY');
     const operational: TodayOperationalSnapshot = {
       localDate,
       incomeCents: Math.max(0, todayIncomeTotal - todayIncomeReversedTotal),
-      expenseCents: Math.max(0, todayExpenseTotal - todayExpenseReversedTotal),
+      expenseCents: Math.max(0, todayExpenseTotal - todayExpenseReversedTotal + payablePaymentOutCents - payableCorrectionInCents),
+      payablePaymentOutCents,payableCorrectionInCents,
       dueSoonCount,
       dueSoonTruncated,
       registeredPayablesDueSoonCount,
       registeredPayablesDueSoonTruncated,
-      balance: canViewBalance ? buildTodayOperationalBalance({
+      balance: canViewBalance ? certifiedBalance ?? buildTodayOperationalBalance({
         activeAssetAccounts,
         postedIncomeCents,
         postedExpenseCents,

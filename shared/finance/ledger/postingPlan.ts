@@ -161,6 +161,7 @@ export type PostingPlanInput = {
     approvedVersion: number;
     approvalSourceHash: string;
     status: string; // the actual status of the approval document if any
+    approvalAlgorithmVersion?: number;
   };
   allocations: FinanceAllocation[];
   mappings: PostingMappingSnapshot;
@@ -591,7 +592,6 @@ export function buildPostingPlan(input: PostingPlanInput): PostingPlan {
   if (blockers.length === 0) {
     try {
       const canonicalString = canonicalStringify(materialSource);
-      if (isPreview) console.log('DEBUG canonical:', canonicalString);
       planHash = computePlanHash(canonicalString);
     } catch (e) {
       blockers.push({ code: 'ALLOCATION_TOTAL_MISMATCH', details: 'Canonical serialization failed' });

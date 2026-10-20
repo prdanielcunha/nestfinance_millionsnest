@@ -17,6 +17,9 @@ export const GATEWAY_CONTRACTS = [
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-create', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-list', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-review', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'payables-accounting', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'ledger-setup', exposure: 'gateway' },
+  { method: 'POST', gateway: '/api/finance-gateway', operation: 'certified-book-report', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-repair-canonical', exposure: 'gateway' },
   { method: 'POST', gateway: '/api/finance-gateway', operation: 'accounts-configure-custom', exposure: 'gateway' },
 

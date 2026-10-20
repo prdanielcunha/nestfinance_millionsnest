@@ -34,6 +34,7 @@ import { periodCloseService } from '@/src/services/periodCloseService';
 import { AccountantPackagePanel } from './AccountantPackagePanel';
 import { AccountantWorkspaceOverview } from './AccountantWorkspaceOverview';
 import { MonthReviewOverview } from './MonthReviewOverview';
+import { CertifiedBookPanel } from './CertifiedBookPanel';
 import { ReceivedIncomePanel } from './ReceivedIncomePanel';
 import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
 import type {
@@ -655,6 +656,9 @@ function ReportsContent() {
 
           {organizationId && activeFinanceEntityId && /^\d{4}-\d{2}$/.test(period) && (
             <ReceivedIncomePanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} language={language} period={period} />
+          )}
+          {organizationId && activeFinanceEntityId && /^\d{4}-\d{2}$/.test(period) && hasEffectiveCapability(accessState,'finance.balance.view') && hasEffectiveCapability(accessState,'finance.accountant.view_exports') && (
+            <div key={`${organizationId}:${activeFinanceEntityId}:${period}`}><CertifiedBookPanel organizationId={organizationId} financeEntityId={activeFinanceEntityId} period={period} language={language} /></div>
           )}
           {loading && !data ? (
             <Surface variant="glass" radius="xl" className="p-6" aria-live="polite">
