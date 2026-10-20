@@ -452,8 +452,9 @@ function ShellLayoutInner() {
       } else if (result.status === 'ready') {
         if (result.organization.id !== accessState.organizationId) {
           setActiveFinanceEntityId(null);
-          await refreshAccessibleFinanceEntities();
-          navigate(APP_ROUTES.finance, { replace: true });
+          // A custom-token exchange can keep the same Firebase UID. Recreate all
+          // session consumers together so labels, capabilities and entities agree.
+          window.location.replace(APP_ROUTES.finance);
         }
       } else {
         setOrganizationSwitcherError(true);
@@ -474,9 +475,9 @@ function ShellLayoutInner() {
       const result = await chooseCurrentSessionOrganization(organizationId);
       if (result.status !== 'ready') throw new Error('ORGANIZATION_SWITCH_NOT_READY');
       setActiveFinanceEntityId(null);
-      await refreshAccessibleFinanceEntities();
-      setOrganizationSwitcherOpen(false);
-      navigate(APP_ROUTES.finance, { replace: true });
+      // Do not refresh entities under an old mounted organization context.
+      // The exchanged token is persisted before this function resolves.
+      window.location.replace(APP_ROUTES.finance);
     } catch {
       setOrganizationSwitcherError(true);
     } finally {

@@ -21,6 +21,7 @@ on:
       - "scripts/test-direct-entry-session-version.ts"
       - "scripts/test-handoff-redeem-security.ts"
       - "scripts/test-ecosystem-session-lifecycle.ts"
+      - "scripts/test-organization-switch.ts"
       - "scripts/test-finance-request-context.ts"
       - "package.json"
       - "package-lock.json"
@@ -45,6 +46,7 @@ on:
       - "scripts/test-direct-entry-session-version.ts"
       - "scripts/test-handoff-redeem-security.ts"
       - "scripts/test-ecosystem-session-lifecycle.ts"
+      - "scripts/test-organization-switch.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/nestfinance-auth-quality.yml"
@@ -88,6 +90,9 @@ jobs:
 
       - name: Verify final cross-app certification bundle
         run: npm run test:cross-app-final-certification
+
+      - name: Verify same-account organization switch
+        run: node --import tsx scripts/test-organization-switch.ts
 
       - name: Verify public auth contracts
         run: npm run check:api-contracts
