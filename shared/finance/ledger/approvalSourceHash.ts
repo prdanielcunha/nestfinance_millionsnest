@@ -36,7 +36,15 @@ export function buildApprovalMaterial(tx: LedgerTransaction, allocations: Financ
     materialSource.version = tx.version;
   } else {
     materialSource.contentVersion = tx.contentVersion || 1;
-    materialSource.algorithmVersion = 2;
+    materialSource.algorithmVersion = algorithmVersion;
+    if (algorithmVersion >= 3) {
+      // These fields can change a cash posting into a liability settlement.
+      // Older seals remain readable, but cannot authorize the new ledger.
+      materialSource.reimbursement = (tx as any).reimbursement || null;
+      materialSource.payableSource = (tx as any).payableSource || null;
+      materialSource.settlementType = (tx as any).settlementType || null;
+      materialSource.cashFlowDirection = tx.cashFlowDirection || null;
+    }
   }
   return materialSource;
 }

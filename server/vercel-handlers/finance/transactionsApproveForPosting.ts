@@ -88,13 +88,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw { code: 'FINANCE_SEGREGATION_OF_DUTIES_VIOLATION', message: 'Creator cannot approve their own transaction based on entity policy' };
       }
 
-      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData);
+      const { mappings, policy, referenceFingerprintHash } = await loadPostingConfiguration(db, organizationId, financeEntityId, txData, t);
       const plan = buildPostingPlan({
         transaction: txData,
         allocations,
         mappings,
         policy,
-        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved_for_posting' },
+        approval: { approvedVersion: txData.version, approvalSourceHash: 'tmp', status: 'approved_for_posting', approvalAlgorithmVersion: 3 },
         isPreview: true
       });
 
@@ -107,8 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const approvedPlanHash = plan.planHash;
       const approvedReferenceFingerprintHash = referenceFingerprintHash;
-      const sourceHash = computeApprovalSourceHash(txData, allocations, 2);
-      const materialSnapshot = buildApprovalMaterial(txData, allocations, 2);
+      const sourceHash = computeApprovalSourceHash(txData, allocations, 3);
+      const materialSnapshot = buildApprovalMaterial(txData, allocations, 3);
       const approvedContentVersion = txData.contentVersion || 1;
 
       const transactionKind = txData.transactionKind || txData.direction;
@@ -127,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         materialSnapshot,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
-        approvalAlgorithmVersion: 2,
+        approvalAlgorithmVersion: 3,
         postingPlanVersion: 1,
         comment: comment || null
       });
@@ -148,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         approvalSourceHash: sourceHash,
         approvedPlanHash,
         approvedReferenceFingerprintHash,
-        approvalAlgorithmVersion: 2,
+        approvalAlgorithmVersion: 3,
         approvalComment: comment || null
       }));
 
