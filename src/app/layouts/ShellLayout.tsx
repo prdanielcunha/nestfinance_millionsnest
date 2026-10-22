@@ -693,7 +693,7 @@ function ShellLayoutInner() {
                 onClick={returnToMillionsNest}
                 className="nf-interactive flex min-h-11 items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
               >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:0,flexShrink:0}} />
                 <span>{copy.backToHub}</span>
               </button>
               <button
@@ -917,7 +917,7 @@ function ShellLayoutInner() {
                 onClick={returnToMillionsNest}
                 className="nf-interactive flex min-h-12 items-center gap-3 rounded-2xl bg-background-base/60 px-4 text-left text-sm font-semibold text-text-secondary"
               >
-                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                <img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:0,flexShrink:0}} />
                 {copy.backToHub}
               </button>
               <ConnectSupportButton accessState={accessState} language={language} />

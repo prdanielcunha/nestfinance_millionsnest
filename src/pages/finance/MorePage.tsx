@@ -155,7 +155,7 @@ export default function MorePage() {
             onClick={returnToMillionsNest}
             className="nf-interactive flex min-h-16 w-full items-center gap-4 px-4 py-4 text-left hover:bg-surface-elevated"
           >
-            <ExternalLink className="h-5 w-5 shrink-0 text-text-secondary" aria-hidden="true" />
+            <img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:0,flexShrink:0}} />
             <span className="flex-1 text-base font-semibold text-text-primary">{accountCopy.hub}</span>
             <ChevronRight className="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
           </button>
