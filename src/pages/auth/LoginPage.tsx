@@ -234,7 +234,7 @@ export default function LoginPage() {
                   {googleMark()} {c.another}
                 </button>
                 <button type="button" onClick={openHub} className="nf-interactive min-h-12 w-full rounded-xl border border-border-subtle bg-white/[0.025] px-4 text-sm font-semibold text-text-primary hover:bg-white/[0.05]">
-                  {c.hub}
+                  <img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:8,flexShrink:0}} />{c.hub}
                 </button>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function LoginPage() {
               {import.meta.env.DEV && errorDetail ? <p className="mt-3 font-mono text-[10px] text-text-muted">{errorDetail}</p> : null}
               <div className="mt-6 space-y-2">
                 <button type="button" onClick={beginGoogle} className="nf-interactive min-h-12 w-full rounded-xl bg-text-primary px-4 text-sm font-semibold text-background-base hover:opacity-90">{c.retry}</button>
-                <button type="button" onClick={openHub} className="nf-interactive min-h-12 w-full rounded-xl border border-border-subtle bg-white/[0.025] px-4 text-sm font-semibold text-text-primary hover:bg-white/[0.05]">{c.hub}</button>
+                <button type="button" onClick={openHub} className="nf-interactive min-h-12 w-full rounded-xl border border-border-subtle bg-white/[0.025] px-4 text-sm font-semibold text-text-primary hover:bg-white/[0.05]"><img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:8,flexShrink:0}} />{c.hub}</button>
               </div>
             </div>
           ) : (
@@ -268,7 +268,7 @@ export default function LoginPage() {
                   onClick={openHub}
                   className="nf-interactive flex min-h-13 w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-white/[0.025] px-4 text-sm font-semibold text-text-primary hover:bg-white/[0.05]"
                 >
-                  <LogIn className="h-4 w-4" /> {c.hub}
+                  <img src="/brand/millionsnest/v1/mark-192.png" alt="" aria-hidden="true" width={20} height={20} style={{display:"inline-block",width:20,height:20,objectFit:"contain",verticalAlign:"middle",marginRight:8,flexShrink:0}} />{c.hub}
                 </button>
               </div>
 
