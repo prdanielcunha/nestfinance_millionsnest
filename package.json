@@ -7,6 +7,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "test:google-entry-recovery": "node --import tsx scripts/test-google-entry-recovery.ts",
     "check:api-contracts": "node scripts/check-api-contracts.mjs",
     "test:count-session-discard": "tsx scripts/test-count-session-discard.ts",
     "test:transaction-permanent-removal": "tsx scripts/test-transaction-permanent-removal.ts",
