@@ -34,7 +34,7 @@ const copy: Record<Language, Record<string, string>> = {
     noAccessText: 'Você pode usar outra conta Google ou abrir o MillionsNest para conferir seu acesso.',
     another: 'Usar outra conta Google',
     unavailableTitle: 'Não foi possível concluir o acesso',
-    unavailableText: 'Sua sessão foi preservada. Tente novamente ou entre pelo MillionsNest.',
+    unavailableText: 'Tente novamente. Se a janela do Google não abrir, permita a janela de login no navegador.',
     retry: 'Tentar novamente',
   },
   EN: {
@@ -53,7 +53,7 @@ const copy: Record<Language, Record<string, string>> = {
     noAccessText: 'You can use another Google account or open MillionsNest to review your access.',
     another: 'Use another Google account',
     unavailableTitle: 'We could not complete sign-in',
-    unavailableText: 'Your session is safe. Try again or sign in through MillionsNest.',
+    unavailableText: 'Try again. If the Google window does not open, allow the sign-in window in your browser.',
     retry: 'Try again',
   },
   ES: {
@@ -72,7 +72,7 @@ const copy: Record<Language, Record<string, string>> = {
     noAccessText: 'Puedes usar otra cuenta de Google o abrir MillionsNest para revisar tu acceso.',
     another: 'Usar otra cuenta de Google',
     unavailableTitle: 'No pudimos completar el acceso',
-    unavailableText: 'Tu sesión está protegida. Inténtalo de nuevo o entra por MillionsNest.',
+    unavailableText: 'Inténtalo de nuevo. Si la ventana de Google no se abre, permite la ventana de acceso en el navegador.',
     retry: 'Intentar de nuevo',
   },
 };
@@ -104,7 +104,7 @@ export default function LoginPage() {
   const { language } = useLanguage();
   const c = copy[language];
   const returnTo = useMemo(() => safeReturnPath(searchParams.get('returnTo')), [searchParams]);
-  const [view, setView] = useState<ViewState>('idle');
+  const [view, setView] = useState<ViewState>('loading');
   const [organizations, setOrganizations] = useState<DirectEntryOrganization[]>([]);
   const [errorDetail, setErrorDetail] = useState('');
   const [showHelp, setShowHelp] = useState(false);
@@ -126,7 +126,8 @@ export default function LoginPage() {
     let active = true;
     void finishGoogleRedirectEntry()
       .then((result) => {
-        if (!active || !result) return;
+        if (!active) return;
+        if (!result) { setView('idle'); return; }
         setView('loading');
         complete(result);
       })
@@ -143,7 +144,6 @@ export default function LoginPage() {
     setView('loading');
     try {
       const result = await startGoogleDirectEntry();
-      if (result.status === 'redirecting') return;
       complete(result);
     } catch (error) {
       setErrorDetail(error instanceof Error ? error.message : '');
@@ -162,8 +162,17 @@ export default function LoginPage() {
   };
 
   const useAnotherAccount = async () => {
-    await clearDirectEntryIdentity();
-    await beginGoogle();
+    setView('loading');
+    try {
+      await clearDirectEntryIdentity();
+      setOrganizations([]);
+      setErrorDetail('');
+      // The next explicit click opens Google with fresh user activation, after
+      // both Firebase sessions and the previous tenant context are cleared.
+      setView('idle');
+    } catch {
+      setView('error');
+    }
   };
 
   const openHub = () => {
