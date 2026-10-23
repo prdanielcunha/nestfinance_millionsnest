@@ -24,8 +24,7 @@ export function NestFinanceLogo({
   let alt = 'NestFinance';
   
   if (layout === 'symbol') {
-    src = nestFinanceBrand.symbols.gradient;
-    alt = 'Símbolo NestFinance';
+    src = surface === 'dark' ? nestFinanceBrand.symbols.darkApp : nestFinanceBrand.symbols.gradient;
   } else if (layout === 'vertical') {
     src = surface === 'dark' 
       ? nestFinanceBrand.logos.dark.vertical 
@@ -42,14 +41,6 @@ export function NestFinanceLogo({
         : nestFinanceBrand.logos.light.horizontalCompact;
     }
   }
-
-  // The canonical compact artwork contains print-safe margins. Crop only its
-  // viewport for navigation so the existing mark has a readable on-screen size.
-  if (compact && layout === 'horizontal') return (
-    <svg role="img" aria-label={alt} viewBox="90 65 1080 280" width={width} className={`block ${className}`}>
-      <image href={src} width="1600" height="430" />
-    </svg>
-  );
 
   return (
     <img

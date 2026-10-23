@@ -3,7 +3,7 @@ import path from 'path';
 
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const SRC_DIR = path.join(process.cwd(), 'src');
-const BRAND_DIR = path.join(PUBLIC_DIR, 'brand/nestfinance/nest-flow-signature/v1');
+const BRAND_DIR = path.join(PUBLIC_DIR, 'brand/nestfinance/nf-continuous/v2');
 
 let hasError = false;
 
@@ -29,6 +29,10 @@ function checkSvg(filePath) {
     const content = fs.readFileSync(filePath, 'utf-8');
     if (!content.includes('<svg') || !content.includes('viewBox')) {
       console.error(`❌ Invalid SVG format (missing <svg> or viewBox): ${filePath}`);
+      hasError = true;
+    }
+    if (/<(?:rect|image)\b/i.test(content)) {
+      console.error(`❌ UI logo must contain transparent vector outlines only: ${filePath}`);
       hasError = true;
     }
   }
@@ -93,10 +97,10 @@ if (fs.existsSync(indexHtmlPath)) {
   const indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
   
   const requiredRefs = [
-    '/brand/nestfinance/nest-flow-signature/v1/icons/favicon.svg',
-    '/brand/nestfinance/nest-flow-signature/v1/icons/favicon.ico',
-    '/brand/nestfinance/nest-flow-signature/v1/icons/apple-touch-icon.png',
-    '/brand/nestfinance/nest-flow-signature/v1/social/nestfinance-og-1200x630.jpg'
+    '/brand/nestfinance/nf-continuous/v2/icons/favicon.svg',
+    '/brand/nestfinance/nf-continuous/v2/icons/favicon.ico',
+    '/brand/nestfinance/nf-continuous/v2/icons/apple-touch-icon.png',
+    '/brand/nestfinance/nf-continuous/v2/social/nestfinance-og-1200x630.jpg'
   ];
 
   requiredRefs.forEach(ref => {
