@@ -14,13 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
 
   try {
-    const { financeEntityId, items, idempotencyKey, requestId } = req.body || {};
+    const { financeEntityId, items, idempotencyKey, requestId, reason } = req.body || {};
+    const removalReason = typeof reason === 'string' ? reason.trim() : null;
     if (
       typeof financeEntityId !== 'string' || !financeEntityId.trim() ||
       !Array.isArray(items) || items.length < 1 || items.length > MAX_ITEMS ||
       items.some((item: any) => !item || !isValidTransactionId(item.transactionId) || !Number.isSafeInteger(item.expectedVersion) || item.expectedVersion < 1) ||
       new Set(items.map((item: any) => item.transactionId)).size !== items.length ||
-      !isValidIdempotencyKey(idempotencyKey) || !isValidRequestId(requestId)
+      !isValidIdempotencyKey(idempotencyKey) || !isValidRequestId(requestId) ||
+      (reason !== undefined && (!removalReason || removalReason.length < 5 || removalReason.length > 500))
     ) return res.status(400).json({ error: 'INVALID_PARAMETERS' });
 
     const { db, uid, actorLabel, organizationId, sessionList, context } = await resolveFinanceRequestContext(req, 'finance.manage');
@@ -29,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
-    const payloadHash = hashPayload({ items });
+    const payloadHash = hashPayload({ items, ...(removalReason ? { reason: removalReason } : {}) });
     const result = await executeWithIdempotency(
       db,
       context.repository.getIdempotencyRef(),
@@ -78,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             requestId,
             idempotencyKey,
             beforeHash: hashPayload({ transactionId, version: data.version, status: data.status, amountCents: data.amountCents }),
-            metadata: { status: data.status, versionBefore: data.version, allocationCount: allocationDocs.size },
+            metadata: { status: data.status, versionBefore: data.version, allocationCount: allocationDocs.size, ...(removalReason ? { removalReason } : {}) },
             createdAt: FieldValue.serverTimestamp(),
           });
           const eventId = `evt_remove_${auditId}`;
@@ -86,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             eventId, organizationId, financeEntityId, transactionId,
             eventType: 'permanently_removed', actorUid: uid, actorDisplayNameSnapshot: actorLabel,
             versionBefore: data.version, versionAfter: null, requestId,
+            ...(removalReason ? { removalReason } : {}),
             createdAt: FieldValue.serverTimestamp(),
           });
         }
