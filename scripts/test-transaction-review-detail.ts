@@ -33,8 +33,8 @@ verify('detail loads through existing detail contract', page.includes('getTransa
 verify('detail reads preserved queue return context', page.includes('useSearchParams') && page.includes("searchParams.get('returnTo')"));
 verify('detail sanitizes queue return context', page.includes('normalizeReviewQueueReturnPath'));
 verify(
-  'approve and return both use continuous queue navigation',
-  (page.match(/continueReview\(\);/g) || []).length === 2,
+  'approve, return and removal use continuous queue navigation',
+  (page.match(/continueReview\(\);/g) || []).length === 3,
 );
 verify(
   'continuous queue falls back to preserved queue context when no next item exists',
