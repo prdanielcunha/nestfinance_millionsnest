@@ -59,6 +59,15 @@ export type TransactionReviewDetailCopy = {
   approveConfirmBody: string;
   confirmApprove: string;
   returnButton: string;
+  removeButton: string;
+  removeConfirmTitle: string;
+  removeConfirmBody: string;
+  removeReasonLabel: string;
+  removeReasonPlaceholder: string;
+  removing: string;
+  confirmRemove: string;
+  removalBlocked: Record<string, string>;
+  removalBlockedFallback: string;
   returning: string;
   returnTitle: string;
   returnBody: string;
@@ -143,6 +152,22 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     approveConfirmBody: 'Você confirma que os dados apresentados estão corretos para seguir ao próximo passo?',
     confirmApprove: 'Confirmar aprovação',
     returnButton: 'Devolver para correção',
+    removeButton: 'Excluir registro',
+    removeConfirmTitle: 'Excluir este registro?',
+    removeConfirmBody: 'Esta exclusão é permanente e não pode ser desfeita. O histórico de auditoria será preservado. Informe o motivo para confirmar.',
+    removeReasonLabel: 'Por que deseja excluir?',
+    removeReasonPlaceholder: 'Ex.: registro duplicado ou lançado por engano.',
+    removing: 'Excluindo...',
+    confirmRemove: 'Sim, excluir registro',
+    removalBlocked: {
+      POSTED_OR_UNSUPPORTED: 'Este registro não pode ser excluído porque já foi contabilizado ou está em outro estado. Use o processo de correção adequado.',
+      LINKED_SOURCE: 'Este registro veio de uma contagem ou outra origem vinculada. Corrija-o pela origem para não perder a rastreabilidade.',
+      HAS_EVIDENCE: 'Este registro possui comprovantes vinculados. Devolva-o para correção; a exclusão permanente está bloqueada para proteger as evidências.',
+      RECONCILED_OR_UNKNOWN: 'Este registro já foi conciliado ou seu estado de conciliação precisa ser verificado. A exclusão está bloqueada.',
+      HAS_LEDGER_EFFECT: 'Este registro possui efeito contábil e não pode ser apagado diretamente. Utilize o procedimento de cancelamento ou estorno.',
+      UNKNOWN_VERSION: 'Não foi possível confirmar a versão deste registro. Atualize a tela antes de tentar novamente.',
+    },
+    removalBlockedFallback: 'Não é possível excluir este registro com segurança. Devolva para correção ou consulte a administração.',
     returning: 'Devolvendo...',
     returnTitle: 'Devolver para correção',
     returnBody: 'Informe o principal motivo para quem cadastrou saber o que precisa ajustar.',
@@ -247,6 +272,22 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     approveConfirmBody: 'Do you confirm the information shown is correct to move to the next step?',
     confirmApprove: 'Confirm approval',
     returnButton: 'Return for correction',
+    removeButton: 'Delete record',
+    removeConfirmTitle: 'Delete this record?',
+    removeConfirmBody: 'Deletion is permanent and cannot be undone. The audit trail will be retained. Provide a reason to confirm.',
+    removeReasonLabel: 'Why are you deleting it?',
+    removeReasonPlaceholder: 'E.g. duplicate record or entry created by mistake.',
+    removing: 'Deleting...',
+    confirmRemove: 'Yes, delete record',
+    removalBlocked: {
+      POSTED_OR_UNSUPPORTED: 'This record cannot be deleted because it has been posted or is in another state. Use the appropriate correction process.',
+      LINKED_SOURCE: 'This record comes from a count or other linked source. Correct it at the source to preserve traceability.',
+      HAS_EVIDENCE: 'This record has linked evidence. Return it for correction; permanent deletion is blocked to protect the evidence.',
+      RECONCILED_OR_UNKNOWN: 'This record is reconciled or its reconciliation status needs verification. Deletion is blocked.',
+      HAS_LEDGER_EFFECT: 'This record has an accounting effect and cannot be deleted directly. Use cancellation or reversal instead.',
+      UNKNOWN_VERSION: 'The record version could not be verified. Refresh before trying again.',
+    },
+    removalBlockedFallback: 'This record cannot be deleted safely. Return it for correction or contact an administrator.',
     returning: 'Returning...',
     returnTitle: 'Return for correction',
     returnBody: 'Choose the main reason so the person who entered it knows what to fix.',
@@ -351,6 +392,22 @@ export const TRANSACTION_REVIEW_DETAIL_COPY: Record<Language, TransactionReviewD
     approveConfirmBody: '¿Confirmas que los datos mostrados son correctos para continuar al siguiente paso?',
     confirmApprove: 'Confirmar aprobación',
     returnButton: 'Devolver para corrección',
+    removeButton: 'Eliminar registro',
+    removeConfirmTitle: '¿Eliminar este registro?',
+    removeConfirmBody: 'La eliminación es permanente y no se puede deshacer. Se conservará el historial de auditoría. Indica el motivo para confirmar.',
+    removeReasonLabel: '¿Por qué deseas eliminarlo?',
+    removeReasonPlaceholder: 'Ej.: registro duplicado o creado por error.',
+    removing: 'Eliminando...',
+    confirmRemove: 'Sí, eliminar registro',
+    removalBlocked: {
+      POSTED_OR_UNSUPPORTED: 'Este registro no puede eliminarse porque ya fue contabilizado o está en otro estado. Utiliza el proceso de corrección correspondiente.',
+      LINKED_SOURCE: 'Este registro proviene de un conteo u otra fuente vinculada. Corrígelo en el origen para preservar la trazabilidad.',
+      HAS_EVIDENCE: 'Este registro tiene comprobantes vinculados. Devuélvelo para corregir; la eliminación permanente está bloqueada para proteger las evidencias.',
+      RECONCILED_OR_UNKNOWN: 'Este registro ya fue conciliado o se debe verificar su estado de conciliación. La eliminación está bloqueada.',
+      HAS_LEDGER_EFFECT: 'Este registro tiene efecto contable y no se puede borrar directamente. Usa cancelación o reversión.',
+      UNKNOWN_VERSION: 'No se pudo verificar la versión de este registro. Actualiza la pantalla antes de intentar de nuevo.',
+    },
+    removalBlockedFallback: 'No es posible eliminar este registro de forma segura. Devuélvelo para corregir o consulta al administrador.',
     returning: 'Devolviendo...',
     returnTitle: 'Devolver para corrección',
     returnBody: 'Indica el motivo principal para que quien lo registró sepa qué debe corregir.',
