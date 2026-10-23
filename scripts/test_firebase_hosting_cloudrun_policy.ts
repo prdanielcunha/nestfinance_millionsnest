@@ -124,7 +124,7 @@ assert.doesNotMatch(
   'Finance production must not publish shared Hub Firestore Rules or indexes',
 );
 assert.match(productionRelease, /NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT/, 'Fail closed on a changed shared Rules fingerprint');
-assert.match(productionRelease, /5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd/, 'Require the audited canonical Hub authority fingerprint');
+assert.match(productionRelease, /f4751402d5cf9daf37c8685b2dcd4b5367ed62f91276242c5c784938634d480c/, 'Require the audited canonical Hub authority fingerprint');
 
 // Preserve runtime and IAM except the two explicitly reviewed payable switches.
 assert.doesNotMatch(productionRelease, /--set-env-vars|gcloud run deploy|add-iam-policy-binding|--allow-unauthenticated|--no-allow-unauthenticated/);
