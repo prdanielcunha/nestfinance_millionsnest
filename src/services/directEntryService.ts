@@ -1,18 +1,16 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
-  browserLocalPersistence,
   getAuth,
   getRedirectResult,
   GoogleAuthProvider,
-  setPersistence,
   signInWithCustomToken,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   type User,
 } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../lib/firebase';
-import { markNestFinanceSessionOrigin } from './ecosystemSessionLifecycle';
+import { clearNestFinanceSessionLifecycle, markNestFinanceSessionOrigin } from './ecosystemSessionLifecycle';
+import { clearSessionResolutionCache } from './sessionResolutionService';
 
 const DIRECT_APP_NAME = 'nestfinance-direct-entry';
 const REDIRECT_PENDING_KEY = 'nf_direct_google_redirect_pending';
@@ -100,46 +98,55 @@ async function exchange(
   throw new Error('DIRECT_ENTRY_INVALID_RESPONSE');
 }
 
-export async function startGoogleDirectEntry(): Promise<DirectEntryResult | { status: 'redirecting' }> {
-  await setPersistence(directAuth, browserLocalPersistence);
+export async function startGoogleDirectEntry(): Promise<DirectEntryResult> {
+  // Invoke the popup in the click's user-activation window. getAuth already
+  // configures durable browser persistence; awaiting setPersistence here can
+  // lose that activation on Safari. Cross-domain redirects cannot recover
+  // reliably under Safari's third-party storage restrictions (Firebase option 2).
+  const credential = await signInWithPopup(directAuth, googleProvider);
+  return exchange(credential.user);
+}
 
+let entryRecovery: Promise<DirectEntryResult | null> | null = null;
+
+async function recoverGoogleEntry(): Promise<DirectEntryResult | null> {
+  let pending = false;
+  try { pending = sessionStorage.getItem(REDIRECT_PENDING_KEY) === '1'; } catch {}
+  // Complete any redirect started by an older release, then also recover a
+  // persisted identity (e.g. a reload while choosing an organization).
+  const result = pending ? await getRedirectResult(directAuth) : null;
+  await directAuth.authStateReady();
+  await firebaseAuth.authStateReady();
+  const directUser = result?.user || directAuth.currentUser;
   try {
-    const credential = await signInWithPopup(directAuth, googleProvider);
-    return await exchange(credential.user);
-  } catch (error: any) {
-    if (
-      error?.code === 'auth/popup-blocked' ||
-      error?.code === 'auth/operation-not-supported-in-this-environment' ||
-      error?.code === 'auth/web-storage-unsupported'
-    ) {
-      try { sessionStorage.setItem(REDIRECT_PENDING_KEY, '1'); } catch {}
-      await signInWithRedirect(directAuth, googleProvider);
-      return { status: 'redirecting' };
-    }
-    throw error;
+    if (directUser) return await exchange(directUser);
+    if (firebaseAuth.currentUser) return await resolveCurrentSessionOrganizations();
+    if (pending) throw new Error('DIRECT_REDIRECT_INCOMPLETE');
+    return null;
+  } finally {
+    try { sessionStorage.removeItem(REDIRECT_PENDING_KEY); } catch {}
   }
 }
 
-export async function finishGoogleRedirectEntry(): Promise<DirectEntryResult | null> {
-  let pending = false;
-  try { pending = sessionStorage.getItem(REDIRECT_PENDING_KEY) === '1'; } catch {}
-  if (!pending) return null;
-
-  const result = await getRedirectResult(directAuth);
-  try { sessionStorage.removeItem(REDIRECT_PENDING_KEY); } catch {}
-
-  if (!result?.user) return null;
-  return exchange(result.user);
+export function finishGoogleRedirectEntry(): Promise<DirectEntryResult | null> {
+  // React StrictMode mounts effects twice; both subscribers must receive the
+  // same completion rather than consume the credential twice.
+  if (!entryRecovery) {
+    entryRecovery = recoverGoogleEntry().finally(() => { entryRecovery = null; });
+  }
+  return entryRecovery;
 }
 
 export async function chooseDirectEntryOrganization(organizationId: string): Promise<DirectEntryResult> {
   const user = directAuth.currentUser;
-  if (!user) throw new Error('DIRECT_IDENTITY_EXPIRED');
+  if (!user) return chooseCurrentSessionOrganization(organizationId);
   return exchange(user, organizationId);
 }
 
 export async function clearDirectEntryIdentity() {
-  await signOut(directAuth).catch(() => undefined);
+  await Promise.all([signOut(directAuth), signOut(firebaseAuth)]);
+  clearSessionResolutionCache();
+  clearNestFinanceSessionLifecycle();
 }
 
 
