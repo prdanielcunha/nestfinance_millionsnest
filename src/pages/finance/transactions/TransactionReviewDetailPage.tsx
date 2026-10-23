@@ -9,6 +9,7 @@ import {
   RotateCcw,
   ShieldCheck,
   ShieldX,
+  Trash2,
   Wallet,
 } from 'lucide-react';
 import { APP_ROUTES } from '@/src/app/router/routes';
@@ -22,6 +23,8 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { recordFinanceJourneyMetric } from '@/src/services/financeJourneyMetricsService';
+import { transactionsService } from '@/src/services/transactionsService';
+import { transactionRemovalBlocker } from '@/shared/finance/transactionPermanentRemoval';
 import {
   formatReviewDate,
   formatReviewMoney,
@@ -37,7 +40,7 @@ import { TransactionReviewHistoryPanel } from './TransactionReviewHistoryPanel';
 import { CountTransactionProvenance } from './CountTransactionProvenance';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'state_changed';
-type ActionState = 'approve' | 'return' | null;
+type ActionState = 'approve' | 'return' | 'remove' | null;
 
 function makeRequestToken(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -104,11 +107,14 @@ function TransactionReviewDetailContent() {
   const [actionError, setActionError] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showReturnForm, setShowReturnForm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [removalReason, setRemovalReason] = useState('');
   const [returnReason, setReturnReason] = useState<ReviewReturnReason>('need_correction');
   const [returnComment, setReturnComment] = useState('');
 
   const approveIdempotencyKeyRef = useRef<string | null>(null);
   const returnIdempotencyKeyRef = useRef<string | null>(null);
+  const removeIdempotencyKeyRef = useRef<string | null>(null);
   const epochRef = useRef(0);
 
   const returnTo = normalizeReviewQueueReturnPath(
@@ -184,12 +190,15 @@ function TransactionReviewDetailContent() {
     setData(null);
     setShowApproveConfirm(false);
     setShowReturnForm(false);
+    setShowRemoveConfirm(false);
+    setRemovalReason('');
     setActionState(null);
     setActionError(false);
     setReturnReason('need_correction');
     setReturnComment('');
     approveIdempotencyKeyRef.current = null;
     returnIdempotencyKeyRef.current = null;
+    removeIdempotencyKeyRef.current = null;
 
     if (activeFinanceEntityId && transactionId) {
       void loadData(abortController.signal, currentEpoch);
@@ -282,6 +291,42 @@ function TransactionReviewDetailContent() {
         flow: 'transaction_review_return',
         dedupeKey: `transaction_review_return_complete:${data.transaction.id}:${data.transaction.version}`,
       });
+      continueReview();
+    } catch {
+      if (actionEpoch !== epochRef.current) return;
+      setActionError(true);
+    } finally {
+      if (actionEpoch === epochRef.current) setActionState(null);
+    }
+  };
+
+  const handleRemove = async () => {
+    const transaction = data?.transaction;
+    const role = String(accessState.organizationRole || '').toLowerCase();
+    const canManage = hasEffectiveCapability(accessState, 'finance.manage') &&
+      (accessState.isGlobalAccess || role === 'owner' || role === 'admin');
+    if (!transaction || actionState || !online || !activeFinanceEntityId || !canManage ||
+        transaction.status !== 'ready_for_review' || transactionRemovalBlocker(transaction) ||
+        removalReason.trim().length < 5 || removalReason.trim().length > 500) return;
+
+    setActionState('remove');
+    setActionError(false);
+    const actionEpoch = epochRef.current;
+    if (!removeIdempotencyKeyRef.current) {
+      removeIdempotencyKeyRef.current = makeRequestToken('idrm');
+    }
+
+    try {
+      await transactionsService.removeBatch(
+        organizationId,
+        activeFinanceEntityId,
+        [{ transactionId: transaction.id, expectedVersion: transaction.version }],
+        removeIdempotencyKeyRef.current,
+        makeRequestToken('req'),
+        removalReason.trim(),
+      );
+      if (actionEpoch !== epochRef.current) return;
+      removeIdempotencyKeyRef.current = null;
       continueReview();
     } catch {
       if (actionEpoch !== epochRef.current) return;
@@ -402,6 +447,10 @@ function TransactionReviewDetailContent() {
   );
   const reviewBlocked = blockingIssues.length > 0;
   const approvalDisabled = reviewBlocked || actionState !== null || !online;
+  const organizationRole = String(accessState.organizationRole || '').toLowerCase();
+  const canRemove = hasEffectiveCapability(accessState, 'finance.manage') &&
+    (accessState.isGlobalAccess || organizationRole === 'owner' || organizationRole === 'admin');
+  const removalBlocker = transactionRemovalBlocker(transaction);
   const primaryAccount = transaction.accountSnapshot?.name || transaction.accountName;
   const destinationAccount = transaction.destinationAccountSnapshot?.name;
   const liabilityAccount = transaction.liabilityAccountSnapshot?.name;
@@ -655,7 +704,7 @@ function TransactionReviewDetailContent() {
                   </div>
                 ) : null}
 
-                {!showApproveConfirm && !showReturnForm ? (
+                {!showApproveConfirm && !showReturnForm && !showRemoveConfirm ? (
                   <div className="mt-6 grid gap-3">
                     <Button
                       fullWidth
@@ -678,6 +727,20 @@ function TransactionReviewDetailContent() {
                     >
                       {copy.returnButton}
                     </Button>
+                    {canRemove ? (
+                      <Button
+                        variant="ghost"
+                        fullWidth
+                        disabled={actionState !== null}
+                        onClick={() => {
+                          setActionError(false);
+                          setShowRemoveConfirm(true);
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                        {copy.removeButton}
+                      </Button>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -698,6 +761,52 @@ function TransactionReviewDetailContent() {
                         {copy.cancel}
                       </Button>
                     </div>
+                  </div>
+                ) : null}
+
+                {showRemoveConfirm && canRemove ? (
+                  <div className="mt-6 rounded-2xl border border-semantic-danger/20 bg-surface-secondary p-4">
+                    <h3 className="text-sm font-semibold text-text-primary">{copy.removeConfirmTitle}</h3>
+                    {removalBlocker ? (
+                      <p className="mt-2 text-sm leading-relaxed text-text-secondary" role="status">
+                        {copy.removalBlocked[removalBlocker] || copy.removalBlockedFallback}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.removeConfirmBody}</p>
+                        <label className="mt-4 block text-xs font-semibold text-text-secondary" htmlFor="review-removal-reason">
+                          {copy.removeReasonLabel}
+                        </label>
+                        <textarea
+                          id="review-removal-reason"
+                          rows={3}
+                          maxLength={500}
+                          value={removalReason}
+                          disabled={actionState !== null}
+                          onChange={(event) => setRemovalReason(event.target.value)}
+                          placeholder={copy.removeReasonPlaceholder}
+                          className="mt-2 w-full resize-none rounded-xl border border-border-subtle bg-surface-base px-3 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent-primary"
+                        />
+                        <Button
+                          variant="danger"
+                          fullWidth
+                          className="mt-4"
+                          disabled={!online || actionState !== null || removalReason.trim().length < 5}
+                          onClick={() => void handleRemove()}
+                        >
+                          {actionState === 'remove' ? copy.removing : copy.confirmRemove}
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      fullWidth
+                      className="mt-2"
+                      disabled={actionState !== null}
+                      onClick={() => setShowRemoveConfirm(false)}
+                    >
+                      {copy.cancel}
+                    </Button>
                   </div>
                 ) : null}
 
