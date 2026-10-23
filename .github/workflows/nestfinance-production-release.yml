@@ -226,9 +226,10 @@ jobs:
             process.exit(1);
           }
           const liveSha = crypto.createHash('sha256').update(files[0].content).digest('hex');
-          // Hub production 5fb11db (PR428) / verified canonical publication run 39324830021.
-          // Gateway-only people creation narrows access; Finance/root/membership/audit protections are unchanged.
-          const approvedHubSha = '5372febb59a285e40a567d6caaf5b35ac9ed97f23646e0ffe93959a6bf55f8cd';
+          // Hub production 8983f002 (PR467), verified publication run 39852181752.
+          // Audited delta only excludes trial_usage and musicscaleLiveAiUsage from
+          // generic browser writes. Finance/root/membership/audit protections are unchanged.
+          const approvedHubSha = 'f4751402d5cf9daf37c8685b2dcd4b5367ed62f91276242c5c784938634d480c';
           if (liveSha !== approvedHubSha) {
             console.error('NESTFINANCE_SHARED_FIRESTORE_HUB_POLICY_DRIFT');
             process.exit(1);
