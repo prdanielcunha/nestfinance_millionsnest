@@ -23,4 +23,13 @@ assert.match(handler, /stageCanonicalAuditRecord/);
 assert.match(handler, /transaction\.get\(ref\.collection\('approvals'\)/);
 assert.doesNotMatch(handler, /financeJournalEntries|financeJournalLines|ledger-post/);
 
-console.log('✅ Permanent removal restricts financial state, preserves an audit trail, and enforces server-side scope.');
+const reviewPage = readFileSync('src/pages/finance/transactions/TransactionReviewDetailPage.tsx', 'utf8');
+const reviewCopy = readFileSync('src/pages/finance/transactions/transactionReviewDetailCopy.ts', 'utf8');
+assert.match(reviewPage, /hasEffectiveCapability\(accessState, 'finance.manage'\)/);
+assert.match(reviewPage, /transactionRemovalBlocker\(transaction\)/);
+assert.match(reviewPage, /transactionsService\.removeBatch\(/);
+assert.match(reviewPage, /removalReason\.trim\(\)\.length < 5/);
+assert.equal((reviewCopy.match(/removeButton: '/g) || []).length, 3);
+assert.match(handler, /removalReason/);
+assert.match(handler, /metadata: \{[^\n]*removalReason/);
+console.log('✅ Review deletion offers authorized administrators a reasoned, auditable removal path for eligible records.');
