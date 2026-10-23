@@ -19,6 +19,7 @@ on:
       - "scripts/test-handoff-token-binding.ts"
       - "scripts/test-handoff-session-enforcement.ts"
       - "scripts/test-direct-entry-session-version.ts"
+      - "scripts/test-google-entry-recovery.ts"
       - "scripts/test-handoff-redeem-security.ts"
       - "scripts/test-ecosystem-session-lifecycle.ts"
       - "scripts/test-organization-switch.ts"
@@ -44,6 +45,7 @@ on:
       - "scripts/test-handoff-token-binding.ts"
       - "scripts/test-handoff-session-enforcement.ts"
       - "scripts/test-direct-entry-session-version.ts"
+      - "scripts/test-google-entry-recovery.ts"
       - "scripts/test-handoff-redeem-security.ts"
       - "scripts/test-ecosystem-session-lifecycle.ts"
       - "scripts/test-organization-switch.ts"
@@ -81,6 +83,9 @@ jobs:
 
       - name: Verify direct entry session-version binding
         run: npx tsx scripts/test-direct-entry-session-version.ts
+
+      - name: Verify native Google entry and browser recovery
+        run: npm run test:google-entry-recovery
 
       - name: Verify hardened handoff redeem
         run: npx tsx scripts/test-handoff-redeem-security.ts

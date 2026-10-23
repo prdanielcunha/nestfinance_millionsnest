@@ -63,6 +63,7 @@ jobs:
       - name: Certify exact production commit
         run: |
           set -euo pipefail
+          npm run test:google-entry-recovery
           node --import tsx scripts/test-connect-pending-documents.ts
           node --import tsx scripts/test-connect-read-entry.ts
           node --import tsx scripts/test-finance-request-context.ts
