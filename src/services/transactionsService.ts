@@ -339,13 +339,14 @@ export const transactionsService = {
     items: { transactionId: string; expectedVersion: number }[],
     idempotencyKey: string,
     requestId: string,
+    reason?: string,
   ): Promise<{ deleted: number; transactionIds: string[] }> {
     const auth = getAuth();
     const headers = new Headers({ 'Content-Type': 'application/json', 'x-organization-id': organizationId });
     if (auth.currentUser) headers.set('Authorization', 'Bearer ' + await auth.currentUser.getIdToken());
     const res = await fetch(`${FINANCE_GATEWAY_PATH}?operation=transactions-remove-batch`, {
       method: 'POST', headers,
-      body: JSON.stringify({ financeEntityId, items, idempotencyKey, requestId }),
+      body: JSON.stringify({ financeEntityId, items, idempotencyKey, requestId, ...(reason ? { reason } : {}) }),
     });
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
