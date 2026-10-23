@@ -731,7 +731,7 @@ function ShellLayoutInner() {
           </div>
         </header>
         <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface-default/95 px-3 py-2 backdrop-blur-xl lg:hidden">
-          <NestFinanceLogo layout="symbol" className="h-8 w-8 shrink-0" priority />
+          <NestFinanceLogo layout="symbol" surface={theme} className="h-8 w-8 shrink-0" priority />
           <button
             type="button"
             onClick={() => setMobileContextOpen(true)}

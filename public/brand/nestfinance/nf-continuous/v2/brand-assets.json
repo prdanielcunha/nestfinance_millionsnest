@@ -1,0 +1,67 @@
+{
+  "version": "2.0",
+  "concept": "Approved lowercase nf continuous — option 02",
+  "sourceSha256": "ffb35df4a08db93e6f7cafdfa4a1a23ef91133a417a9fed88b5cf0e5bcacbfd3",
+  "assets": [
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-horizontal-dark.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-vertical-dark.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-horizontal-light.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-vertical-light.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/symbols/nestfinance-gradient.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/symbols/nestfinance-dark.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/symbols/nestfinance-flat.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/symbols/nestfinance-white.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/symbols/nestfinance-black.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-monochrome-black.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/logos/nestfinance-monochrome-white.svg",
+      "format": "svg",
+      "transparent": true
+    },
+    {
+      "path": "/brand/nestfinance/nf-continuous/v2/icons/favicon.svg",
+      "format": "svg",
+      "transparent": true
+    }
+  ]
+}
