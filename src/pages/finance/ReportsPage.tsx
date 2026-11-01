@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -533,6 +533,7 @@ export default function ReportsPage() {
 
 function ReportsContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { accessState } = useAuth();
   const { activeFinanceEntityId } = useFinanceEntity();
   const { language } = useLanguage();
@@ -542,7 +543,10 @@ function ReportsContent() {
   const financeRole = getFinanceInterfaceRole(accessState);
   const showProfessionalWorkspace = financeRole === 'accountant' || financeRole === 'treasurer' || financeRole === 'administrator';
 
-  const [period, setPeriod] = useState(currentPeriod);
+  const [period, setPeriod] = useState(() => {
+    const requested = searchParams.get('period');
+    return requested && /^\d{4}-(0[1-9]|1[0-2])$/.test(requested) ? requested : currentPeriod();
+  });
   const [data, setData] = useState<PeriodCloseReadinessResponse | null>(null);
   const [intelligence, setIntelligence] = useState<ReportsIntelligenceResponse | null>(null);
   const [loading, setLoading] = useState(true);
