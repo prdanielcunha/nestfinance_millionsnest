@@ -32,6 +32,7 @@ import { useLanguage, type Language } from '@/src/contexts/LanguageContext';
 import { useTransactions } from '@/src/hooks/finance/useTransactions';
 import { firebaseAuth } from '@/src/lib/firebase';
 import { hasEffectiveCapability } from '@/src/lib/permissions';
+import { getFinanceInterfaceRole } from '@/src/lib/financeExperience';
 import type { TransactionWorkspaceFilters } from '../../../../shared/finance/transactionWorkspaceView';
 import { parseTransactionNaturalQuery } from '../../../../shared/finance/transactionSearch';
 import { transactionsService } from '@/src/services/transactionsService';
@@ -505,6 +506,8 @@ function TransactionsListContent() {
   const { language } = useLanguage();
   const copy = COPY[language];
   const removalCopy = REMOVAL_COPY[language];
+  const interfaceRole = getFinanceInterfaceRole(accessState);
+  const professionalTools = interfaceRole === 'accountant' || interfaceRole === 'treasurer' || interfaceRole === 'administrator';
   const canRemove = hasEffectiveCapability(accessState, 'finance.manage') &&
     (accessState.isGlobalAccess || ['owner', 'admin'].includes(String(accessState.organizationRole || '').toLowerCase()));
   const [selectionMode, setSelectionMode] = useState(false);
@@ -1290,12 +1293,14 @@ function TransactionsListContent() {
             ) : null}
           </Surface>
 
-          <TransactionSavedViews
-            filters={workspaceFilters}
-            onApply={applySavedView}
-          />
+          {professionalTools ? (
+            <TransactionSavedViews
+              filters={workspaceFilters}
+              onApply={applySavedView}
+            />
+          ) : null}
 
-          <div className="lg:hidden">
+          <div className={professionalTools ? 'lg:hidden' : ''}>
             <Button
               variant="secondary"
               size="lg"
@@ -1312,7 +1317,7 @@ function TransactionsListContent() {
             </Button>
           </div>
 
-          <div className="hidden lg:block">
+          <div className={professionalTools ? 'hidden lg:block' : 'hidden'}>
             <TransactionHistoryFilters
               language={language}
               values={filterValues}
@@ -1328,7 +1333,7 @@ function TransactionsListContent() {
           </div>
 
           {filtersOpen ? (
-            <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={copy.filters}>
+            <div className={`fixed inset-0 z-50 ${professionalTools ? 'lg:hidden' : ''}`} role="dialog" aria-modal="true" aria-label={copy.filters}>
               <button
                 type="button"
                 aria-label={copy.back}

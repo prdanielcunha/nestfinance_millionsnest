@@ -29,6 +29,7 @@ type RecognitionConstructor = new () => {
 const COPY = {
   PT: {
     title: 'Escrever ou falar',
+    entryLabel: 'Descreva o que aconteceu',
     body: 'Diga como você falaria com uma pessoa. Ex.: “Paguei R$ 150 no Pix hoje”.',
     placeholder: 'Ex.: Recebi R$ 500 de oferta no Pix hoje',
     interpret: 'Entender',
@@ -70,6 +71,7 @@ const COPY = {
   },
   EN: {
     title: 'Type or speak',
+    entryLabel: 'Describe what happened',
     body: 'Say it as you would to a person. Example: “I paid R$ 150 by Pix today”.',
     placeholder: 'Example: I received R$ 500 in offerings by Pix today',
     interpret: 'Understand',
@@ -111,6 +113,7 @@ const COPY = {
   },
   ES: {
     title: 'Escribir o hablar',
+    entryLabel: 'Describe lo que pasó',
     body: 'Dilo como se lo dirías a una persona. Ej.: “Pagué R$ 150 por Pix hoy”.',
     placeholder: 'Ej.: Recibí R$ 500 de ofrenda por Pix hoy',
     interpret: 'Entender',
@@ -341,7 +344,9 @@ export function UniversalQuickTextEntry({ initialText = '' }: { initialText?: st
       <h2 className="text-lg font-semibold text-text-primary">{copy.title}</h2>
       <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.body}</p>
 
+      <label htmlFor="universal-quick-text" className="mt-4 block text-sm font-semibold text-text-primary">{copy.entryLabel}</label>
       <textarea
+        id="universal-quick-text"
         value={text}
         onChange={(event) => {
           setText(event.target.value);

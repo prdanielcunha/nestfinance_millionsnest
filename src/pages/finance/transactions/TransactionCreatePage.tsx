@@ -122,7 +122,8 @@ function TransactionCreateContent() {
   const [liabilityAccountId, setLiabilityAccountId] = useState('');
   const [amountRaw, setAmountRaw] = useState('0');
   const [occurredAt, setOccurredAt] = useState(
-    new Date().toISOString().split('T')[0],
+    // The form records the user's local receipt/payment date, not the UTC date.
+    (() => { const today = new Date(); return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; })(),
   );
   const [competenceDate, setCompetenceDate] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -133,7 +134,7 @@ function TransactionCreateContent() {
   const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
   const [evidenceJustification, setEvidenceJustification] = useState('');
   const [showDetails, setShowDetails] = useState(false);
-  const [showClassification, setShowClassification] = useState(false);
+  const [showClassification, setShowClassification] = useState(initialDirection === 'income' || initialDirection === 'expense');
   const [isSplit, setIsSplit] = useState(false);
   const [allocations, setAllocations] = useState<AllocationState[]>([
     INITIAL_ALLOCATION,
@@ -283,7 +284,7 @@ function TransactionCreateContent() {
     setDirection(nextDirection);
     setPaymentMethodWarning(null);
     setSaveError(null);
-    setShowClassification(false);
+    setShowClassification(nextDirection === 'income' || nextDirection === 'expense');
     setShowDetails(false);
     setSettlementType('');
     setLiabilityAccountId('');
@@ -1282,6 +1283,7 @@ function TransactionCreateContent() {
                         </label>
                         <FinanceSelect
                           value={paymentMethod}
+                          label={direction === 'income' ? copy.paymentMethodIncome : copy.paymentMethodExpense}
                           onChange={setPaymentMethod}
                           options={paymentOptions}
                           placeholder={copy.select}
@@ -1307,6 +1309,7 @@ function TransactionCreateContent() {
                           </label>
                           <FinanceSelect
                             value={settlementType}
+                            label={copy.settlementType}
                             onChange={(value) =>
                               setSettlementType(
                                 value as
@@ -1338,6 +1341,7 @@ function TransactionCreateContent() {
                           </label>
                           <FinanceSelect
                             value={liabilityAccountId}
+                            label={copy.liabilityAccount}
                             onChange={setLiabilityAccountId}
                             options={accounts
                               .filter((account) => account.nature === 'liability')
@@ -1377,6 +1381,7 @@ function TransactionCreateContent() {
                       {availableAccounts.length > 0 ? (
                         <FinanceSelect
                           value={accountId}
+                          label={direction === 'transfer' ? copy.sourceAccount : direction === 'liability_settlement' ? copy.payingAccount : copy.account}
                           onChange={setAccountId}
                           options={availableAccounts.map((account) => ({
                             value: account.id,
@@ -1416,6 +1421,7 @@ function TransactionCreateContent() {
                         {accounts.length > 0 ? (
                           <FinanceSelect
                             value={destinationAccountId}
+                            label={copy.destinationAccount}
                             onChange={setDestinationAccountId}
                             options={accounts
                               .filter((account) => account.id !== accountId)
@@ -1540,6 +1546,7 @@ function TransactionCreateContent() {
                                       <span className="mr-2 text-sm text-text-muted">R$</span>
                                       <input
                                         inputMode="numeric"
+                                        aria-label={`${copy.allocationAmount} ${index + 1}`}
                                         value={formatTransactionInputAmount(
                                           allocation.amountRaw,
                                           language,
@@ -1575,6 +1582,7 @@ function TransactionCreateContent() {
                                   {compatibleCategories.length > 0 ? (
                                     <FinanceSelect
                                       value={allocation.categoryId}
+                                      label={`${copy.category} ${index + 1}`}
                                       onChange={(value) =>
                                         updateAllocation(index, 'categoryId', value)
                                       }
@@ -1604,6 +1612,7 @@ function TransactionCreateContent() {
                                   {funds.length > 0 ? (
                                     <FinanceSelect
                                       value={allocation.fundId}
+                                      label={`${copy.fund} ${index + 1}`}
                                       onChange={(value) =>
                                         updateAllocation(index, 'fundId', value)
                                       }
@@ -1634,6 +1643,7 @@ function TransactionCreateContent() {
                                   </label>
                                   <input
                                     type="text"
+                                    aria-label={`${copy.costCenter} ${index + 1}`}
                                     value={allocation.costCenterId}
                                     onChange={(event) =>
                                       updateAllocation(
