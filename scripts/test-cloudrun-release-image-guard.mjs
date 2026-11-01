@@ -35,7 +35,7 @@ good(verify(baseRevision(parent), direct), 'single-platform image digest must eq
 bad(verify(baseRevision(other)), 'unrelated OCI digest never accepted');
 bad(verify(baseRevision(child), direct), 'single-platform image cannot borrow child digest');
 bad(verify({ ...baseRevision(), metadata: { name: 'wrong' } }), 'wrong revision denied');
-bad(verify({ ...baseRevision(), spec: { containers: [{ image: 'another:image' }] } }), 'wrong image reference denied');
+good(verify({ ...baseRevision(), spec: { containers: [{ image: 'cloud-run-normalized' }] } }), 'runtime digest remains authoritative if Cloud Run normalizes spec image');
 bad(verify({ ...baseRevision(), status: { ...baseRevision().status, conditions: [{ type: 'Ready', status: 'False' }] } }), 'unready revision denied');
 bad(verify(baseRevision(), { ...index, manifests: [...index.manifests, index.manifests[0]] }), 'ambiguous linux/amd64 manifest denied');
 bad(verify(baseRevision(), { ...index, manifests: [index.manifests[1]] }), 'missing amd64 manifest denied');
