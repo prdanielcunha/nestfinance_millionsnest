@@ -274,7 +274,7 @@ const COPY: Record<Language, TodayCopy> = {
     setupText: 'Before closing, register the church accounts and verify opening balances. Your team can do this with guidance.',
     setupAction: 'Prepare finances',
     setupUnknownTitle: 'Financial setup has not been verified',
-    setupUnknownText: 'We could not verify balances and accounting setup. Check the first steps before treating the month as ready.'
+    setupUnknownText: 'We could not verify balances and accounting setup. Check the first steps before treating the month as ready.',
     fixNow: 'Fix now',
     reviewNow: 'Check now',
     openApprovals: 'View checked',
@@ -355,7 +355,7 @@ const COPY: Record<Language, TodayCopy> = {
     setupText: 'Antes del cierre, registra las cuentas de la iglesia y verifica los saldos iniciales. Tu equipo puede hacerlo con ayuda.',
     setupAction: 'Preparar finanzas',
     setupUnknownTitle: 'La preparación financiera aún no está verificada',
-    setupUnknownText: 'No pudimos verificar los saldos y los libros. Revisa los primeros pasos antes de considerar listo el mes.'
+    setupUnknownText: 'No pudimos verificar los saldos y los libros. Revisa los primeros pasos antes de considerar listo el mes.',
     fixNow: 'Corregir ahora',
     reviewNow: 'Revisar ahora',
     openApprovals: 'Ver revisados',
