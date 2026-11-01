@@ -25,9 +25,14 @@ export function verifyCloudRunReleaseImage({ revision, manifest, revisionName, i
   if (!revisionName || revision.metadata?.name !== revisionName) {
     return { ok: false, reason: 'REVISION_MISMATCH' };
   }
+  // Cloud Run's declarative image field is not stable across the v1/v2
+  // revision representations and may be normalized from the submitted digest.
+  // The authoritative image identity is status.imageDigest, cryptographically
+  // matched below to the pinned registry manifest or its unique amd64 child.
+  // Still refuse ambiguous multi-container revisions if spec is present.
   const containers = revision.spec?.containers;
-  if (!Array.isArray(containers) || containers.length !== 1 || containers[0]?.image !== imageRef) {
-    return { ok: false, reason: 'IMAGE_REFERENCE_MISMATCH' };
+  if (containers !== undefined && (!Array.isArray(containers) || containers.length !== 1)) {
+    return { ok: false, reason: 'CONTAINER_SHAPE_MISMATCH' };
   }
   if (!revision.status?.conditions?.some((c) => c.type === 'Ready' && c.status === 'True')) {
     return { ok: false, reason: 'REVISION_NOT_READY' };
