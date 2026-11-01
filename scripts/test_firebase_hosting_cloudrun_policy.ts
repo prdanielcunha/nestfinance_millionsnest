@@ -160,12 +160,14 @@ for (const marker of [
   'scripts/verify-cloudrun-release-image.mjs',
   '/tmp/finance-image-manifest.json',
   '/tmp/finance-revision.json',
-  'FINANCE_REVISION_GUARD_FAILED',
+  'node scripts/verify-cloudrun-release-image.mjs',
   'exit 1',
   'FINANCE_EXACT_REVISION_READY_AND_DIGEST_VERIFIED',
 ]) {
   assert.ok(exactRevisionStep.includes(marker), `Exact revision readiness gate missing: ${marker}`);
 }
+const imageGuard = fs.readFileSync('scripts/verify-cloudrun-release-image.mjs', 'utf8');
+assert.ok(imageGuard.includes('FINANCE_REVISION_GUARD_FAILED'), 'Image guard must fail closed and disclose only a bounded reason');
 assert.ok(productionRelease.includes('docker buildx imagetools inspect --raw "$IMAGE_REFERENCE"'));
 assert.ok(productionRelease.includes('--image "$IMAGE_REFERENCE"'));
 assert.ok(productionRelease.includes('EXPECTED_FINANCE_IMAGE_REF=$IMAGE_REFERENCE'));
