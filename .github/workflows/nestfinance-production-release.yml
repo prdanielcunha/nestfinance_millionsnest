@@ -277,7 +277,7 @@ jobs:
           # digest already recorded from the approved GitHub SHA-tagged image.
           # OCI indices can resolve to the linux/amd64 child digest in Cloud Run.
           # A different tag/index, architecture or attestation is never accepted.
-          docker buildx imagetools inspect "\${IMAGE%:*}@\${EXPECTED_FINANCE_IMAGE_DIGEST}" --raw > /tmp/finance-oci-manifest.json
+          docker buildx imagetools inspect "${IMAGE%:*}@${EXPECTED_FINANCE_IMAGE_DIGEST}" --raw > /tmp/finance-oci-manifest.json
           VERIFIED_REVISION=false
           for ATTEMPT in {1..12}; do
             gcloud run revisions describe "$EXPECTED_FINANCE_REVISION" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-revision.json
