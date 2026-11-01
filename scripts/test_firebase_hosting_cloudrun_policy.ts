@@ -147,6 +147,30 @@ assert.ok(productionRelease.indexOf('FINANCE_REVIEWED_PAYABLE_FLAGS_ONLY_AND_IAM
   productionRelease.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
   'Verify configuration and IAM before traffic cutover');
 
+// Cloud Run revision readiness can be eventually consistent. Retry only the
+// same strict checks: exact revision, exact image digest and Ready=True.
+const exactRevisionStep = productionRelease.slice(
+  productionRelease.indexOf('      - name: Verify exact image digest and route traffic'),
+  productionRelease.indexOf('      - name: Verify exact live SHA after traffic convergence'),
+);
+for (const marker of [
+  'for ATTEMPT in {1..12}',
+  'VERIFIED_REVISION=false',
+  'r.metadata.name!==process.env.EXPECTED_FINANCE_REVISION',
+  'r.status.imageDigest?.endsWith(process.env.EXPECTED_FINANCE_IMAGE_DIGEST)',
+  "x.type==='Ready'&&x.status==='True'",
+  'FINANCE_REVISION_GUARD_FAILED',
+  'exit 1',
+  'FINANCE_EXACT_REVISION_READY_AND_DIGEST_VERIFIED',
+]) {
+  assert.ok(exactRevisionStep.includes(marker), `Exact revision readiness gate missing: ${marker}`);
+}
+assert.ok(
+  exactRevisionStep.indexOf('if [ "$VERIFIED_REVISION" != true ]') <
+  exactRevisionStep.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
+  'Traffic cannot route before every exact-revision guard is satisfied',
+);
+
 assert.doesNotMatch(
   productionRelease,
   /gcloud projects add-iam-policy-binding|roles\/firebaserules\.admin|roles\/datastore\.indexAdmin/,
