@@ -49,6 +49,7 @@ import { chooseTodayPriority } from './todayPriorityModel';
 import { SinceLastVisitCard } from './SinceLastVisitCard';
 import { TodayLedgerOverview } from './TodayLedgerOverview';
 import { FinanceGettingStarted } from '@/src/components/finance/FinanceGettingStarted';
+import { payablesService } from '@/src/services/payablesService';
 import type { TodayOperationalSnapshot } from '../../../shared/finance/todayOperationalSummary.js';
 const COUNT_PRIMARY_COPY: Record<Language, { title: string; body: string; action: string; resumeTitle: string; resumeAction: string }> = {
   PT: {
@@ -105,6 +106,11 @@ type TodayCopy = {
   draftText: string;
   clearTitle: string;
   clearText: string;
+  setupTitle: string;
+  setupText: string;
+  setupAction: string;
+  setupUnknownTitle: string;
+  setupUnknownText: string;
   fixNow: string;
   reviewNow: string;
   openApprovals: string;
@@ -183,6 +189,11 @@ const COPY: Record<Language, TodayCopy> = {
     draftText: 'Complete apenas o que falta e envie para conferência quando estiver pronto.',
     clearTitle: 'Não há pendências abertas agora',
     clearText: 'Você pode registrar uma nova entrada ou saída, ou consultar as movimentações recentes.',
+    setupTitle: 'Preparar contas e saldos iniciais',
+    setupText: 'Antes do fechamento, informe as contas da igreja e confira os saldos iniciais. A própria equipe faz isso, com orientação.',
+    setupAction: 'Preparar financeiro',
+    setupUnknownTitle: 'Preparação financeira ainda não verificada',
+    setupUnknownText: 'Não foi possível confirmar os saldos e a escrituração. Confira os primeiros passos antes de considerar o mês pronto.',
     fixNow: 'Corrigir agora',
     reviewNow: 'Conferir agora',
     openApprovals: 'Ver conferidas',
@@ -259,6 +270,11 @@ const COPY: Record<Language, TodayCopy> = {
     draftText: 'Complete only what is missing and send it for checking when ready.',
     clearTitle: 'There is no open work right now',
     clearText: 'You can record a new income or expense, or review recent transactions.',
+    setupTitle: 'Prepare accounts and opening balances',
+    setupText: 'Before closing, register the church accounts and verify opening balances. Your team can do this with guidance.',
+    setupAction: 'Prepare finances',
+    setupUnknownTitle: 'Financial setup has not been verified',
+    setupUnknownText: 'We could not verify balances and accounting setup. Check the first steps before treating the month as ready.'
     fixNow: 'Fix now',
     reviewNow: 'Check now',
     openApprovals: 'View checked',
@@ -335,6 +351,11 @@ const COPY: Record<Language, TodayCopy> = {
     draftText: 'Completa solo lo que falta y envíalo para revisión cuando esté listo.',
     clearTitle: 'No hay pendientes abiertos ahora',
     clearText: 'Puedes registrar un nuevo ingreso o egreso, o consultar los movimientos recientes.',
+    setupTitle: 'Preparar cuentas y saldos iniciales',
+    setupText: 'Antes del cierre, registra las cuentas de la iglesia y verifica los saldos iniciales. Tu equipo puede hacerlo con ayuda.',
+    setupAction: 'Preparar finanzas',
+    setupUnknownTitle: 'La preparación financiera aún no está verificada',
+    setupUnknownText: 'No pudimos verificar los saldos y los libros. Revisa los primeros pasos antes de considerar listo el mes.'
     fixNow: 'Corregir ahora',
     reviewNow: 'Revisar ahora',
     openApprovals: 'Ver revisados',
@@ -500,6 +521,7 @@ export function TodayActionCenter() {
     hasEffectiveCapability(accessState, 'finance.manage') ||
     hasEffectiveCapability(accessState, 'organization.manage_entities');
   const canCount = getFinanceEntryProfile(accessState).canCount;
+  const canInspectSetup = hasEffectiveCapability(accessState, 'finance.manage') && canViewBalance;
 
   const [summary, setSummary] = useState<TransactionsActionSummary | null>(null);
   const [operational, setOperational] = useState<TodayOperationalSnapshot | null>(null);
@@ -520,6 +542,26 @@ export function TodayActionCenter() {
   const [inboxFailed, setInboxFailed] = useState(false);
   const [recentFailed, setRecentFailed] = useState(false);
   const [loadedFinanceEntityId, setLoadedFinanceEntityId] = useState<string | null>(null);
+  const [setupState, setSetupState] = useState<'checking' | 'required' | 'ready' | 'unavailable'>('checking');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!canInspectSetup || !organizationId || !activeFinanceEntityId) {
+      setSetupState('ready');
+      return () => controller.abort();
+    }
+    setSetupState('checking');
+    void payablesService.ledgerStatus(organizationId, activeFinanceEntityId, controller.signal)
+      .then((status) => {
+        if (!controller.signal.aborted) {
+          setSetupState(!status.configured || !status.accounts.length || status.accounts.some((account) => !account.certified) ? 'required' : 'ready');
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSetupState('unavailable');
+      });
+    return () => controller.abort();
+  }, [canInspectSetup, organizationId, activeFinanceEntityId]);
 
   const loadSummary = useCallback(async () => {
     if (!canViewFinance || !organizationId || !activeFinanceEntityId) return;
@@ -932,6 +974,16 @@ export function TodayActionCenter() {
           iconClass: 'bg-surface-elevated text-text-secondary',
         };
       default:
+        if (canInspectSetup && setupState !== 'ready') {
+          return {
+            title: setupState === 'required' ? copy.setupTitle : copy.setupUnknownTitle,
+            text: setupState === 'required' ? copy.setupText : copy.setupUnknownText,
+            action: copy.setupAction,
+            route: APP_ROUTES.financeStart,
+            icon: AlertTriangle,
+            iconClass: 'bg-semantic-warning/10 text-semantic-warning',
+          };
+        }
         return {
           title: copy.clearTitle,
           text: CLEAR_PRIORITY_TEXT[language][experienceMode],
@@ -941,7 +993,7 @@ export function TodayActionCenter() {
           iconClass: 'bg-semantic-success/10 text-semantic-success',
         };
     }
-  }, [copy, experienceMode, language, priority]);
+  }, [canInspectSetup, copy, experienceMode, language, priority, setupState]);
 
   const workspaceSnapshot = useMemo(
     () => ({
@@ -1021,6 +1073,7 @@ export function TodayActionCenter() {
 
   const prioritiesFailed = summaryFailed || countFailed || inboxFailed;
   const prioritiesLoading =
+    (canInspectSetup && setupState === 'checking') ||
     (summaryLoading && !summary) ||
     (countLoading && countItems.length === 0) ||
     (inboxLoading && !inboxSummary);
