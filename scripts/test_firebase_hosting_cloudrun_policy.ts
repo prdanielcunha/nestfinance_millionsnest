@@ -147,8 +147,9 @@ assert.ok(productionRelease.indexOf('FINANCE_REVIEWED_PAYABLE_FLAGS_ONLY_AND_IAM
   productionRelease.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
   'Verify configuration and IAM before traffic cutover');
 
-// Cloud Run revision readiness can be eventually consistent. Retry only the
-// same strict checks: exact revision, exact image digest and Ready=True.
+// Cloud Run can resolve the amd64 child of a digest-pinned OCI index.
+// Verify that the manifest is inspected by immutable parent digest, then
+// the exact revision image and resolved platform digest are both attested.
 const exactRevisionStep = productionRelease.slice(
   productionRelease.indexOf('      - name: Verify exact image digest and route traffic'),
   productionRelease.indexOf('      - name: Verify exact live SHA after traffic convergence'),
@@ -156,15 +157,21 @@ const exactRevisionStep = productionRelease.slice(
 for (const marker of [
   'for ATTEMPT in {1..12}',
   'VERIFIED_REVISION=false',
-  'r.metadata.name!==process.env.EXPECTED_FINANCE_REVISION',
-  'r.status.imageDigest?.endsWith(process.env.EXPECTED_FINANCE_IMAGE_DIGEST)',
-  "x.type==='Ready'&&x.status==='True'",
+  'scripts/verify-cloudrun-release-image.mjs',
+  '/tmp/finance-image-manifest.json',
+  '/tmp/finance-revision.json',
   'FINANCE_REVISION_GUARD_FAILED',
   'exit 1',
   'FINANCE_EXACT_REVISION_READY_AND_DIGEST_VERIFIED',
 ]) {
   assert.ok(exactRevisionStep.includes(marker), `Exact revision readiness gate missing: ${marker}`);
 }
+assert.ok(productionRelease.includes('docker buildx imagetools inspect --raw "$IMAGE_REFERENCE"'));
+assert.ok(productionRelease.includes('--image "$IMAGE_REFERENCE"'));
+assert.ok(productionRelease.includes('EXPECTED_FINANCE_IMAGE_REF=$IMAGE_REFERENCE'));
+assert.ok(productionRelease.includes('EXPECTED_FINANCE_IMAGE_DIGEST=$DIGEST'));
+assert.ok(productionRelease.includes('Verify exact live SHA after traffic convergence'));
+assert.doesNotMatch(exactRevisionStep, /r\.status\.imageDigest\?\.endsWith\(process\.env\.EXPECTED_FINANCE_IMAGE_DIGEST\)/);
 assert.ok(
   exactRevisionStep.indexOf('if [ "$VERIFIED_REVISION" != true ]') <
   exactRevisionStep.indexOf('--to-revisions="$EXPECTED_FINANCE_REVISION=100"'),
