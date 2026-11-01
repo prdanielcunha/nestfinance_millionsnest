@@ -122,7 +122,8 @@ function TransactionCreateContent() {
   const [liabilityAccountId, setLiabilityAccountId] = useState('');
   const [amountRaw, setAmountRaw] = useState('0');
   const [occurredAt, setOccurredAt] = useState(
-    new Date().toISOString().split('T')[0],
+    // The form records the user's local receipt/payment date, not the UTC date.
+    (() => { const today = new Date(); return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; })(),
   );
   const [competenceDate, setCompetenceDate] = useState('');
   const [accountId, setAccountId] = useState('');
