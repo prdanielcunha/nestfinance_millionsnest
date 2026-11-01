@@ -10,7 +10,7 @@ const COPY = {
     eyebrow: 'Treino',
     step: 'Passo 1 de 1',
     title: 'Pratique uma contagem sem risco',
-    body: 'Treine a contagem de notas e moedas do culto com valores fictícios. Pix e cartão são registrados depois na tesouraria. Nenhum dado real é alterado.'
+    body: 'Treine a contagem de notas e moedas do culto com valores fictícios. Pix e cartão são registrados depois na tesouraria. Nenhum dado real é alterado.',
     notice: 'Modo de treinamento',
     noticeBody: 'Os valores abaixo são fictícios. Este treino não chama nenhuma API financeira.',
     tithe: 'Dízimos',
@@ -36,7 +36,7 @@ const COPY = {
     eyebrow: 'Training',
     step: 'Step 1 of 1',
     title: 'Practice a count safely',
-    body: 'Practice counting service cash with fictional amounts. Pix and card payments are recorded later in finance. No real data changes.'
+    body: 'Practice counting service cash with fictional amounts. Pix and card payments are recorded later in finance. No real data changes.',
     notice: 'Training mode',
     noticeBody: 'The values below are fake. This practice does not call any finance API.',
     tithe: 'Tithes',
@@ -62,7 +62,7 @@ const COPY = {
     eyebrow: 'Entrenamiento',
     step: 'Paso 1 de 1',
     title: 'Practica un conteo sin riesgo',
-    body: 'Practica el conteo de efectivo del culto con importes ficticios. Pix y tarjetas se registran después en tesorería. No cambian datos reales.'
+    body: 'Practica el conteo de efectivo del culto con importes ficticios. Pix y tarjetas se registran después en tesorería. No cambian datos reales.',
     notice: 'Modo de entrenamiento',
     noticeBody: 'Los valores de abajo son ficticios. Este entrenamiento no llama ninguna API financiera.',
     tithe: 'Diezmos',
