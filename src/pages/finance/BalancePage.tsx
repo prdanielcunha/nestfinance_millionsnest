@@ -331,9 +331,14 @@ function BalanceContent() {
 
   const organizationId = accessState.organizationId || '';
   const canCapture = hasEffectiveCapability(accessState, 'finance.create_drafts');
-  const eligibleAccounts = useMemo(
-    () => readiness?.accounts.filter((account) => account.eligible) || [],
+  // Cash boxes are valid finance accounts, but never bank-statement reconciliation sources.
+  const bankAccounts = useMemo(
+    () => readiness?.accounts.filter((account) => account.type !== 'cash') || [],
     [readiness],
+  );
+  const eligibleAccounts = useMemo(
+    () => bankAccounts.filter((account) => account.eligible),
+    [bankAccounts],
   );
 
   const load = async () => {
@@ -512,11 +517,11 @@ function BalanceContent() {
                   <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.accountsText}</p>
                 </div>
 
-                {readiness.accounts.length === 0 ? (
+                {bankAccounts.length === 0 ? (
                   <Surface variant="elevated" radius="lg" className="p-5 text-sm text-text-muted">{copy.noAccounts}</Surface>
                 ) : (
                   <div className="grid gap-3 lg:grid-cols-2">
-                    {readiness.accounts.map((account: ReconciliationBankAccount) => (
+                    {bankAccounts.map((account: ReconciliationBankAccount) => (
                       <Surface key={account.accountId} variant="elevated" radius="lg" className="p-5">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex min-w-0 gap-3">

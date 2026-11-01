@@ -54,6 +54,7 @@ const COPY = {
     continueBody: 'Retome exatamente de onde parou.',
     secondCounter: 'Entrar como segundo conferente',
     secondCounterBody: 'Recebeu o código do primeiro conferente? Faça a segunda contagem sem visualizar a primeira.',
+    otherActions: 'Segundo conferente, treino e ajuda',
     training: 'Treinar sem mexer em dados reais',
     trainingBody: 'Pratique com valores fictícios. Nada será salvo.',
     detailsTitle: 'Confira o culto',
@@ -84,7 +85,7 @@ const COPY = {
     helpClose: 'Fechar ajuda',
     startErrorTitle: 'Não foi possível iniciar agora',
     startErrorBody: 'Seus dados não foram perdidos. Confira a internet e tente novamente.',
-    step: (value: number) => `Passo ${value} de 3`,
+    step: (value: number) => `Preparação · passo ${value} de 3`,
   },
   EN: {
     contextTitle: 'What do you want to do now?',
@@ -97,6 +98,7 @@ const COPY = {
     continueBody: 'Resume exactly where you stopped.',
     secondCounter: 'Join as second counter',
     secondCounterBody: 'Received a code? Join without seeing the first person\'s values.',
+    otherActions: 'Second counter, training and help',
     training: 'Practice without real data',
     trainingBody: 'Practice with fake values. Nothing is saved.',
     detailsTitle: 'Check the service',
@@ -127,7 +129,7 @@ const COPY = {
     helpClose: 'Close help',
     startErrorTitle: 'Could not start right now',
     startErrorBody: 'Your data was not lost. Check your connection and try again.',
-    step: (value: number) => `Step ${value} of 3`,
+    step: (value: number) => `Setup · step ${value} of 3`,
   },
   ES: {
     contextTitle: '¿Qué quieres hacer ahora?',
@@ -140,6 +142,7 @@ const COPY = {
     continueBody: 'Retoma exactamente donde te detuviste.',
     secondCounter: 'Entrar como segundo contador',
     secondCounterBody: '¿Recibiste un código? Entra sin ver los valores de la primera persona.',
+    otherActions: 'Segundo contador, entrenamiento y ayuda',
     training: 'Practicar sin datos reales',
     trainingBody: 'Practica con valores ficticios. Nada se guarda.',
     detailsTitle: 'Revisa el culto',
@@ -170,7 +173,7 @@ const COPY = {
     helpClose: 'Cerrar ayuda',
     startErrorTitle: 'No fue posible comenzar ahora',
     startErrorBody: 'Tus datos no se perdieron. Revisa la conexión e inténtalo de nuevo.',
-    step: (value: number) => `Paso ${value} de 3`,
+    step: (value: number) => `Preparación · paso ${value} de 3`,
   },
 } as const;
 
@@ -303,16 +306,23 @@ export function CountStartJourney({
           ) : null}
           <Option title={copy.today} body={copy.todayBody} onClick={() => chooseContext('today')} />
           <Option title={copy.other} body={copy.otherBody} onClick={() => chooseContext('other')} />
-          <Option
-            title={copy.secondCounter}
-            body={copy.secondCounterBody}
-            onClick={() => navigate(APP_ROUTES.countJoin)}
-          />
-          <Option
-            title={copy.training}
-            body={copy.trainingBody}
-            onClick={() => navigate(APP_ROUTES.countTraining)}
-          />
+          <details className="rounded-xl border border-border-subtle bg-surface-secondary/40 px-4 py-2">
+            <summary className="nf-interactive min-h-12 cursor-pointer rounded-lg px-2 py-3 text-base font-semibold text-text-primary focus-visible:outline-accent-primary">
+              {copy.otherActions}
+            </summary>
+            <div className="grid gap-3 pb-3 pt-2">
+              <Option
+                title={copy.secondCounter}
+                body={copy.secondCounterBody}
+                onClick={() => navigate(APP_ROUTES.countJoin)}
+              />
+              <Option
+                title={copy.training}
+                body={copy.trainingBody}
+                onClick={() => navigate(APP_ROUTES.countTraining)}
+              />
+            </div>
+          </details>
         </div>
       ) : null}
 

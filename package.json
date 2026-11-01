@@ -62,7 +62,7 @@
     "test:transaction-review-related-history": "tsx scripts/test-transaction-review-related-history.ts",
     "test:cross-app-final-certification": "npm run test:auth-session && tsx scripts/test-handoff-token-binding.ts && tsx scripts/test-handoff-session-enforcement.ts && tsx scripts/test-direct-entry-session-version.ts && tsx scripts/test-handoff-redeem-security.ts && tsx scripts/test-ecosystem-session-lifecycle.ts && tsx scripts/test-finance-request-context.ts",
     "test:roadmap-cycle-01": "tsx scripts/test-roadmap-cycle-01-context.ts",
-    "test:roadmap-cycle-02": "tsx scripts/test-roadmap-cycle-02-accessibility.ts && tsx scripts/test-premium-theme-foundation.ts",
+    "test:roadmap-cycle-02": "tsx scripts/test-roadmap-cycle-02-accessibility.ts && tsx scripts/test-premium-theme-foundation.ts && tsx scripts/test-nestfinance-accessible-operations-20261101.ts",
     "test:roadmap-cycle-03": "tsx scripts/test-roadmap-cycle-03-count-journey.ts && tsx scripts/test-count-draft-privacy.ts && tsx scripts/test-spec-20261015-experience.ts && tsx scripts/test-spec-20261015-training.ts && tsx scripts/test-spec-20261015-finance-entry.ts",
     "test:spec-20261015-finance-entry": "tsx scripts/test-spec-20261015-finance-entry.ts",
     "test:spec-20261015-training": "tsx scripts/test-spec-20261015-training.ts",
@@ -78,7 +78,7 @@
     "test:roadmap-cycle-08": "tsx scripts/test-roadmap-cycle-08-intelligence-engine.ts",
     "benchmark:document-intelligence": "tsx scripts/benchmark-document-intelligence.ts",
     "test:roadmap-cycle-09": "tsx scripts/test-roadmap-cycle-09-operational-close.ts",
-    "test:roadmap-cycle-10": "tsx scripts/test-roadmap-cycle-10-accountant-certification.ts",
+    "test:roadmap-cycle-10": "tsx scripts/test-roadmap-cycle-10-accountant-certification.ts && tsx scripts/test-nestfinance-2026-11-01-ux.ts",
     "test:premium-roadmap-20260925": "tsx scripts/test-premium-roadmap-20260925.ts",
     "test:transaction-create-no-posting": "tsx scripts/test-transaction-create-no-posting.ts",
     "test:connect-pending-events": "tsx scripts/test-connect-pending-events.ts && tsx scripts/test-connect-pending-outbox.ts && tsx scripts/test-connect-independent-recovery.ts && tsx scripts/test-connect-recovery-workflow.ts"

@@ -20,6 +20,8 @@ interface FinanceSelectProps {
   onChange: (value: string) => void;
   options: FinanceSelectOption[];
   placeholder?: string;
+  /** Accessible name for the field (not the option placeholder). */
+  label?: string;
   disabled?: boolean;
   className?: string;
   emptyMessage?: string;
@@ -42,6 +44,7 @@ export function FinanceSelect({
   onChange,
   options,
   placeholder = 'Selecione...',
+  label,
   disabled = false,
   className = '',
   emptyMessage = 'Nenhuma opção',
@@ -218,7 +221,7 @@ export function FinanceSelect({
         id={listboxId}
         role="listbox"
         className="min-h-0 flex-1 overflow-y-auto p-2"
-        aria-label={placeholder}
+        aria-label={label || placeholder}
       >
         {allItems.length === 0 ? (
           <div className="p-4 text-center text-sm text-text-muted" role="status">
@@ -273,7 +276,7 @@ export function FinanceSelect({
 
     if (isMobile) {
       return createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={placeholder}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={label || placeholder}>
           <div
             className="absolute inset-0 bg-background-base/80 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
@@ -330,6 +333,7 @@ export function FinanceSelect({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={isOpen ? listboxId : undefined}
+        aria-label={label || placeholder}
         aria-activedescendant={isOpen && focusedIndex >= 0 ? `${listboxId}-option-${focusedIndex}` : undefined}
       >
         <span className={`block truncate text-base ${!selectedOption && !value ? 'text-text-muted' : 'text-text-primary'}`}>
