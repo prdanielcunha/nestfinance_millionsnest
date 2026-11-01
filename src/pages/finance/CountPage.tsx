@@ -80,6 +80,7 @@ function CountHomeContent() {
   const userId = user?.uid || '';
 
   const [items, setItems] = useState<CountSessionListItem[]>([]);
+  const awaitingSecondCount = items.some((item) => item.status === 'counting_b');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -268,7 +269,7 @@ function CountHomeContent() {
             <div className="flex gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-accent-primary" aria-hidden="true" />
               <div>
-                <p className="text-sm font-semibold text-text-primary">{copy.secondCountPending}</p>
+                <p className="text-sm font-semibold text-text-primary">{awaitingSecondCount ? copy.secondCountPending : copy.homeSubtitle}</p>
                 <p className="mt-1 text-sm leading-relaxed text-text-muted">{copy.secondCountSafety}</p>
                 <p className="mt-2 text-xs leading-relaxed text-text-muted">{copy.noPosting}</p>
               </div>

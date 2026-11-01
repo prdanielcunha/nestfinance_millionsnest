@@ -10,13 +10,12 @@ const COPY = {
     eyebrow: 'Treino',
     step: 'Passo 1 de 1',
     title: 'Pratique uma contagem sem risco',
-    body: 'Use estes dados fictícios para conhecer a tela. Nada sai deste aparelho e nenhuma informação real é alterada.',
+    body: 'Treine a contagem de notas e moedas do culto com valores fictícios. Pix e cartão são registrados depois na tesouraria. Nenhum dado real é alterado.',
     notice: 'Modo de treinamento',
     noticeBody: 'Os valores abaixo são fictícios. Este treino não chama nenhuma API financeira.',
     tithe: 'Dízimos',
     offering: 'Ofertas',
     other: 'Outras entradas',
-    pix: 'Pix',
     amount: 'Valor',
     total: 'Total do treino',
     reset: 'Limpar treino',
@@ -37,13 +36,12 @@ const COPY = {
     eyebrow: 'Training',
     step: 'Step 1 of 1',
     title: 'Practice a count safely',
-    body: 'Use this fake data to learn the screen. Nothing leaves this device and no real information changes.',
+    body: 'Practice counting service cash with fictional amounts. Pix and card payments are recorded later in finance. No real data changes.',
     notice: 'Training mode',
     noticeBody: 'The values below are fake. This practice does not call any finance API.',
     tithe: 'Tithes',
     offering: 'Offerings',
     other: 'Other income',
-    pix: 'Pix',
     amount: 'Amount',
     total: 'Training total',
     reset: 'Reset training',
@@ -64,13 +62,12 @@ const COPY = {
     eyebrow: 'Entrenamiento',
     step: 'Paso 1 de 1',
     title: 'Practica un conteo sin riesgo',
-    body: 'Usa estos datos ficticios para conocer la pantalla. Nada sale de este dispositivo y ningún dato real cambia.',
+    body: 'Practica el conteo de efectivo del culto con importes ficticios. Pix y tarjetas se registran después en tesorería. No cambian datos reales.',
     notice: 'Modo de entrenamiento',
     noticeBody: 'Los valores de abajo son ficticios. Este entrenamiento no llama ninguna API financiera.',
     tithe: 'Diezmos',
     offering: 'Ofrendas',
     other: 'Otras entradas',
-    pix: 'Pix',
     amount: 'Valor',
     total: 'Total del entrenamiento',
     reset: 'Limpiar entrenamiento',
@@ -89,7 +86,7 @@ const COPY = {
   },
 } as const;
 
-type Field = 'tithe' | 'offering' | 'other' | 'pix';
+type Field = 'tithe' | 'offering' | 'other';
 
 function centsFromInput(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -104,7 +101,6 @@ export default function CountTrainingPage() {
     tithe: 0,
     offering: 0,
     other: 0,
-    pix: 0,
   });
 
   const total = useMemo(
@@ -187,7 +183,7 @@ export default function CountTrainingPage() {
             variant="secondary"
             size="lg"
             fullWidth
-            onClick={() => setValues({ tithe: 0, offering: 0, other: 0, pix: 0 })}
+            onClick={() => setValues({ tithe: 0, offering: 0, other: 0 })}
           >
             {copy.reset}
           </Button>

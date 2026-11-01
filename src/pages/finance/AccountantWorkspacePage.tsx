@@ -21,7 +21,7 @@ const COPY = {
     bank: 'Conciliação bancária', bankSub: 'Contas e extratos preparados para conferência',
     audit: 'Auditoria e rastreabilidade', auditSub: 'Quem registrou, alterou ou conferiu, e quando',
     packageTitle: 'Pacote mensal', packageHint: 'Exporte os arquivos disponíveis para o contador. Documentos originais ainda não são incluídos automaticamente.',
-    note: 'A exportação atual reúne arquivos CSV e índices. PDF contábil certificado, Excel nativo e fechamento definitivo ainda não foram habilitados.',
+    note: 'O pacote mensal contém CSVs e índices, sem os comprovantes originais anexados. O fechamento do mês está disponível em Relatórios, sujeito à preparação financeira, às verificações e à confirmação autorizada. Não é uma certificação fiscal.',
     noEntity: 'Escolha uma igreja para consultar e exportar somente os dados autorizados.',
   },
   EN: {
@@ -33,7 +33,7 @@ const COPY = {
     bank: 'Bank reconciliation', bankSub: 'Accounts and statements prepared for verification',
     audit: 'Audit and traceability', auditSub: 'Who recorded, changed or reviewed an item, and when',
     packageTitle: 'Monthly package', packageHint: 'Export available files for the accountant. Original documents are not yet automatically bundled.',
-    note: 'Current exports include CSV files and indexes. Certified financial PDF, native Excel and final month closing are not enabled.',
+    note: 'The monthly package includes CSVs and indexes, without original evidence attached. Month close is available in Reports, subject to financial setup, checks and authorized confirmation. It is not a tax certification.',
     noEntity: 'Select a church to view and export authorized data only.',
   },
   ES: {
@@ -45,7 +45,7 @@ const COPY = {
     bank: 'Conciliación bancaria', bankSub: 'Cuentas y extractos preparados para revisión',
     audit: 'Auditoría y trazabilidad', auditSub: 'Quién registró, modificó o revisó, y cuándo',
     packageTitle: 'Paquete mensual', packageHint: 'Exporta los archivos disponibles para el contador. Los documentos originales aún no se adjuntan automáticamente.',
-    note: 'Las exportaciones actuales contienen CSV e índices. PDF contable certificado, Excel nativo y cierre definitivo todavía no están habilitados.',
+    note: 'El paquete mensual incluye CSV e índices, sin adjuntar los comprobantes originales. El cierre del mes está disponible en Informes, sujeto a preparación financiera, verificaciones y confirmación autorizada. No es una certificación fiscal.',
     noEntity: 'Selecciona una iglesia para consultar y exportar solamente datos autorizados.',
   },
 } as const;
@@ -91,7 +91,7 @@ function AccountantWorkspaceContent() {
             <h2 id="accountant-reports-heading" className="text-lg font-semibold text-text-primary">{copy.reports}</h2>
           </div>
           <div className="divide-y divide-border-subtle">
-            {reports.map((report) => <button type="button" key={report.route} onClick={() => navigate(report.route)}
+            {reports.map((report) => <button type="button" key={report.route} onClick={() => navigate(report.route === APP_ROUTES.reports ? `${report.route}?period=${encodeURIComponent(period)}` : report.route)}
               className="nf-interactive flex min-h-20 w-full items-center gap-4 px-5 py-4 text-left hover:bg-surface-secondary">
               <report.icon className="h-6 w-6 shrink-0 text-accent-primary" aria-hidden="true" />
               <span className="min-w-0 flex-1">
