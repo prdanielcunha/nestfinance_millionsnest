@@ -249,14 +249,20 @@ jobs:
           set -euo pipefail
           DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" --format='value(image_summary.digest)')"
           [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          IMAGE_REPOSITORY="${IMAGE%:*}"
+          IMAGE_REFERENCE="${IMAGE_REPOSITORY}@${DIGEST}"
+          # Retrieve the immutable registry object, not a mutable tag. The digest
+          # may be an OCI index; Cloud Run can report its linux/amd64 child.
+          docker buildx imagetools inspect --raw "$IMAGE_REFERENCE" > /tmp/finance-image-manifest.json
+          node --input-type=module -e "import fs from 'node:fs';const m=JSON.parse(fs.readFileSync('/tmp/finance-image-manifest.json'));if(!m||typeof m.mediaType!=='string')process.exit(1)"
           echo "EXPECTED_FINANCE_IMAGE_DIGEST=$DIGEST" >> "$GITHUB_ENV"
-          set -euo pipefail
+          echo "EXPECTED_FINANCE_IMAGE_REF=$IMAGE_REFERENCE" >> "$GITHUB_ENV"
           echo "EXPECTED_FINANCE_REVISION=${SERVICE}-cg${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
           if [ -n "$PREVIOUS_FINANCE_TAG_TARGETS" ]; then
             gcloud run services update-traffic "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --update-tags="$PREVIOUS_FINANCE_TAG_TARGETS" --quiet
           fi
           gcloud run services update "$SERVICE" --project "$PROJECT_ID" --region "$REGION" \
-            --image "$IMAGE" --update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA,NESTFINANCE_PAYABLES_WRITE_ENABLED=true,NESTFINANCE_PAYABLES_REVIEW_ENABLED=true" --revision-suffix "cg${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" --no-traffic --quiet
+            --image "$IMAGE_REFERENCE" --update-env-vars "NESTFINANCE_RELEASE_SHA=$GITHUB_SHA,NESTFINANCE_PAYABLES_WRITE_ENABLED=true,NESTFINANCE_PAYABLES_REVIEW_ENABLED=true" --revision-suffix "cg${GITHUB_RUN_ID}a${GITHUB_RUN_ATTEMPT}" --no-traffic --quiet
           gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-after.json
           jq -S '{runtime:(.spec.template.spec | .containers[0] |= (del(.image) | .env = ((.env // []) | map(select(.name != "NESTFINANCE_RELEASE_SHA")) | sort_by(.name)))),serviceLabels:.metadata.labels,templateLabels:.spec.template.metadata.labels,serviceAnnotations:(.metadata.annotations | del(.["run.googleapis.com/operation-id"],.["run.googleapis.com/urls"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["serving.knative.dev/creator"],.["serving.knative.dev/lastModifier"])),templateAnnotations:(.spec.template.metadata.annotations | del(.["client.knative.dev/user-image"],.["run.googleapis.com/client-name"],.["run.googleapis.com/client-version"],.["run.googleapis.com/operation-id"]))}' /tmp/finance-after.json > /tmp/finance-config-after.json
           if ! cmp --silent /tmp/finance-config-before.json /tmp/finance-config-after.json; then
@@ -273,19 +279,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Cloud Run may report the newly created no-traffic revision before
-          # Ready/imageDigest has propagated. Do not bypass the exact-image guard.
+          # Never compare the parent OCI index digest directly against only
+          # the Cloud Run-resolved platform digest. Both must be tied to the
+          # immutable digest-pinned registry manifest before traffic moves.
           VERIFIED_REVISION=false
           for ATTEMPT in {1..12}; do
             gcloud run revisions describe "$EXPECTED_FINANCE_REVISION" --project "$PROJECT_ID" --region "$REGION" --format=json > /tmp/finance-revision.json
-            if node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('/tmp/finance-revision.json'));if(r.metadata.name!==process.env.EXPECTED_FINANCE_REVISION||!r.status.imageDigest?.endsWith(process.env.EXPECTED_FINANCE_IMAGE_DIGEST)||!r.status.conditions?.some(x=>x.type==='Ready'&&x.status==='True'))process.exit(1)"; then
+            if node scripts/verify-cloudrun-release-image.mjs /tmp/finance-image-manifest.json /tmp/finance-revision.json >/dev/null 2>&1; then
               VERIFIED_REVISION=true
               break
             fi
             sleep 3
           done
           if [ "$VERIFIED_REVISION" != true ]; then
-            node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('/tmp/finance-revision.json'));console.error('FINANCE_REVISION_GUARD_FAILED '+JSON.stringify({nameMatches:r.metadata?.name===process.env.EXPECTED_FINANCE_REVISION,digestPresent:!!r.status?.imageDigest,digestMatches:!!r.status?.imageDigest?.endsWith(process.env.EXPECTED_FINANCE_IMAGE_DIGEST),ready:!!r.status?.conditions?.some(x=>x.type==='Ready'&&x.status==='True')}))"
+            node scripts/verify-cloudrun-release-image.mjs /tmp/finance-image-manifest.json /tmp/finance-revision.json || true
             exit 1
           fi
           echo FINANCE_EXACT_REVISION_READY_AND_DIGEST_VERIFIED
